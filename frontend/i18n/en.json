@@ -202,5 +202,18 @@
   "editor.energy_add": "Add",
   "editor.energy_place": "Place",
   "editor.energy_other": "Another power sensor",
-  "editor.energy_click": "Click where {name} is on this level. Esc: cancel."
+  "editor.energy_click": "Click where {name} is on this level. Esc: cancel.",
+  "editor.house_settings": "House settings",
+  "editor.house_id": "Id: {id} (cards use it as house: {id})",
+  "editor.yaml": "YAML",
+  "editor.yaml_hint": "The whole house as text: keep a copy, edit it by hand, or have an assistant write or change it, then paste it back.",
+  "editor.yaml_copy": "Copy YAML",
+  "editor.copied": "Copied",
+  "editor.yaml_download": "Download",
+  "editor.yaml_paste": "Replace the house with this YAML",
+  "editor.yaml_apply": "Check and apply",
+  "editor.paste_invalid": "That is not a house model.",
+  "editor.danger": "Delete",
+  "editor.delete_house": "Delete house",
+  "editor.delete_house_confirm": "Delete the house “{name}” for good? Its floor plan images go too. This can't be undone."
 }

@@ -3,6 +3,7 @@
 // Homeslice's storage, where every card picks them up at once.
 
 import { LitElement, css, html, nothing, svg, type PropertyValues } from "lit";
+import { parse as parseYaml, stringify as toYaml } from "yaml";
 import { areaEntities, type Hass } from "../ha/hass";
 import { localize, type StringKey } from "../i18n/localize";
 import { expandHouse } from "../model/expand";
@@ -170,6 +171,7 @@ export class HomeslicePanel extends LitElement {
     _create: { state: true },
     _pendingArea: { state: true },
     _stair: { state: true },
+    _settings: { state: true },
     _energyPlace: { state: true },
     _energySel: { state: true },
     _energyPrefs: { state: true },
@@ -216,6 +218,8 @@ export class HomeslicePanel extends LitElement {
   private _underlayMove = false;
   private underlayRequest = "";
   private underlaySaveTimer = 0;
+  /** House settings in the inspector: name, YAML in and out, delete. */
+  private _settings: { paste?: string; problems?: string[]; copied?: boolean } | null = null;
   /** Energy item waiting for a click on the plan to be placed. */
   private _energyPlace: EnergyInput | null = null;
   private _energySel: number | null = null;
@@ -529,6 +533,7 @@ export class HomeslicePanel extends LitElement {
 
   private onPlanDown(e: PointerEvent) {
     if (!this._model) return;
+    this._settings = null;
     const target = e.target as Element;
     (e.currentTarget as Element).setPointerCapture(e.pointerId);
     const world = this.eventWorld(e);
@@ -1200,6 +1205,8 @@ export class HomeslicePanel extends LitElement {
           ${this._houses.map((h) => html`<option value=${h.id} ?selected=${h.id === this._house}>${h.name}</option>`)}
           <option value="__new__">${this.t("editor.new_house")}…</option>
         </select>
+        <button class="icon ${this._settings ? "active" : ""}" title=${this.t("editor.house_settings")} aria-label=${this.t("editor.house_settings")}
+          @click=${() => (this._settings = this._settings ? null : {})}>⚙</button>
         <div class="segmented modes" role="tablist">
           ${(["rooms", "openings", "objects"] as Mode[]).map(
             (mode, i) => html`<button role="tab" aria-selected=${this._mode === mode} class=${this._mode === mode ? "active" : ""} @click=${() => {
@@ -1578,6 +1585,7 @@ export class HomeslicePanel extends LitElement {
     const m = this._model!;
     const l = this.levelInput;
     if (!l) return nothing;
+    if (this._settings) return this.renderHouseSettings();
     if (this._mode === "objects") return this.renderObjectsInspector();
     if (this._mode === "openings") {
       if (this._opening) return this.renderOpeningInspector(this._opening);
@@ -1927,6 +1935,70 @@ export class HomeslicePanel extends LitElement {
         : html`<p class="muted">${this.t("editor.no_lights")}</p>`}
       ${this.entitySelect(this.t("editor.light_add"), "light", r.area_id, undefined, (entity) => entity && this.commit(placeLight(m, this._level, r.id, entity)), (id) => !shown.has(id))}
       <p class="muted">${this.t("editor.lights_hint")}</p>`;
+  }
+
+  private renderHouseSettings() {
+    const m = this._model!;
+    const st = this._settings!;
+    const yaml = () => toYaml(m, { lineWidth: 0, flowCollectionPadding: false });
+    const download = () => {
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(new Blob([yaml()], { type: "text/yaml" }));
+      a.download = `${this._house}.yaml`;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    };
+    const applyPaste = () => {
+      let next: unknown;
+      try {
+        next = parseYaml(st.paste ?? "");
+      } catch (e) {
+        this._settings = { ...st, problems: [String((e as Error).message)] };
+        return;
+      }
+      const { house, issues } = expandHouse(next as HouseInput);
+      const errors = issues.filter((i) => i.severity === "error").map((i) => `${i.path}: ${i.message}`);
+      if (!house || errors.length) {
+        this._settings = { ...st, problems: errors.length ? errors : [this.t("editor.paste_invalid")] };
+        return;
+      }
+      // the house keeps its id: the file name decides that
+      this.commit({ ...(next as HouseInput), id: m.id });
+      if (!(next as HouseInput).levels.some((x) => x.id === this._level)) this._level = (next as HouseInput).levels[0].id;
+      this._settings = null;
+    };
+    return html`<h2>${this.t("editor.house_settings")}</h2>
+      <label>${this.t("editor.house_name")}
+        <input .value=${m.name ?? ""} @change=${(e: Event) => {
+          const name = (e.target as HTMLInputElement).value.trim();
+          this.commit({ ...m, name: name || undefined } as HouseInput);
+        }} />
+      </label>
+      <p class="muted">${this.t("editor.house_id", { id: this._house })}</p>
+      <h3>${this.t("editor.yaml")}</h3>
+      <p class="muted">${this.t("editor.yaml_hint")}</p>
+      <div class="row">
+        <button @click=${async () => {
+          await navigator.clipboard?.writeText(yaml()).catch(() => undefined);
+          this._settings = { ...st, copied: true };
+        }}>${st.copied ? this.t("editor.copied") : this.t("editor.yaml_copy")}</button>
+        <button @click=${download}>${this.t("editor.yaml_download")}</button>
+      </div>
+      <label>${this.t("editor.yaml_paste")}
+        <textarea class="yaml" rows="8" spellcheck="false" .value=${st.paste ?? ""} @input=${(e: Event) => (this._settings = { ...st, paste: (e.target as HTMLTextAreaElement).value, problems: undefined })}></textarea>
+      </label>
+      ${st.problems?.length ? html`<ul class="problems">${st.problems.map((x) => html`<li>${x}</li>`)}</ul>` : nothing}
+      <button class="primary" ?disabled=${!st.paste?.trim()} @click=${applyPaste}>${this.t("editor.yaml_apply")}</button>
+      <h3>${this.t("editor.danger")}</h3>
+      <button class="danger" @click=${async () => {
+        if (!confirm(this.t("editor.delete_house_confirm", { name: m.name ?? this._house }))) return;
+        await this._hass!.callWS({ type: "homeslice/model/delete", house: this._house });
+        this._settings = null;
+        this._saved = "";
+        this._model = null;
+        this._houses = await this._hass!.callWS<{ id: string; name: string }[]>({ type: "homeslice/houses" });
+        if (this._houses.length) await this.openHouse(this._houses[0].id);
+      }}>${this.t("editor.delete_house")}</button>`;
   }
 
   private renderStairInspector(id: string) {
@@ -2419,6 +2491,22 @@ export class HomeslicePanel extends LitElement {
     }
     ul.energy li.selected {
       background: rgba(255, 255, 255, 0.05);
+    }
+    textarea.yaml {
+      font-family: ui-monospace, monospace;
+      font-size: 12px;
+      background: var(--card-background-color, #1c1c1c);
+      color: var(--primary-text-color, #eee);
+      border: 1px solid var(--divider-color, #444);
+      border-radius: 8px;
+      padding: 8px;
+      resize: vertical;
+    }
+    ul.problems {
+      color: var(--error-color, #ff6b6b);
+      font-size: 12px;
+      margin: 0;
+      padding-left: 18px;
     }
     ul.lights {
       list-style: none;

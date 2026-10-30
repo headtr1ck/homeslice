@@ -995,6 +995,29 @@ console.log("editor, starting from scratch");
     assert(!(await page.locator("homeslice-panel svg.plan image.underlay").count()), "image still shown");
   });
 
+  await test("house settings: YAML in and out, invalid YAML is explained", async () => {
+    await page.keyboard.press("Escape");
+    await page.locator("homeslice-panel header button[aria-label='House settings']").click();
+    assert((await page.locator("homeslice-panel .inspector h2").textContent()) === "House settings", "settings not shown");
+    const yaml = await page.evaluate(() => {
+      const m = structuredClone(window.panel._model);
+      m.levels[1].rooms[0].name = "Renamed";
+      return JSON.stringify(m); // JSON is YAML too
+    });
+    await page.locator("homeslice-panel textarea.yaml").fill("levels: [oops");
+    await page.locator("homeslice-panel .inspector button", { hasText: "Check and apply" }).click();
+    assert(await page.locator("homeslice-panel ul.problems li").count(), "no problem shown for broken YAML");
+    await page.locator("homeslice-panel textarea.yaml").fill("schema: 1\nid: x\nlevels:\n  - id: g\n    rooms:\n      - { id: a }");
+    await page.locator("homeslice-panel .inspector button", { hasText: "Check and apply" }).click();
+    const problems = await page.locator("homeslice-panel ul.problems").textContent();
+    assert(problems.includes("rect"), `expected a fix-it message: ${problems}`);
+    await page.locator("homeslice-panel textarea.yaml").fill(yaml);
+    await page.locator("homeslice-panel .inspector button", { hasText: "Check and apply" }).click();
+    assert((await model()).levels[1].rooms[0].name === "Renamed", "pasted YAML not applied");
+    assert((await model()).id === "test_house", "id must stay");
+    await page.keyboard.press("Control+z");
+  });
+
   await test("levels: height, add above, delete", async () => {
     await page.keyboard.press("Escape");
     const height = page.locator("homeslice-panel .inspector input[type=number]");
@@ -1007,6 +1030,13 @@ console.log("editor, starting from scratch");
     assert((await page.locator("homeslice-panel .inspector h2").textContent()) === "New level", "new level not selected");
     await page.locator("homeslice-panel .inspector button.danger").click();
     assert((await model()).levels.length === 3, "level not deleted");
+    assert(errors.length === 0, errors.join(" | "));
+  });
+
+  await test("deleting the house goes back to the start", async () => {
+    await page.locator("homeslice-panel header button[aria-label='House settings']").click();
+    await page.locator("homeslice-panel .inspector button", { hasText: "Delete house" }).click();
+    await page.waitForSelector("homeslice-panel .empty button.primary");
     assert(errors.length === 0, errors.join(" | "));
   });
   await page.close();

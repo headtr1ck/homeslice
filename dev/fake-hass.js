@@ -72,6 +72,10 @@ export function makeHass(fixture, onChange) {
         return structuredClone(m);
       }
       if (msg.type === "homeslice/houses") return Object.values(houses).map((m) => ({ id: m.id, name: m.name ?? m.id, source: "api" }));
+      if (msg.type === "homeslice/model/delete") {
+        delete houses[msg.house];
+        return null;
+      }
       if (msg.type === "homeslice/model/save") {
         hass.saved.push(structuredClone(msg.model));
         houses[msg.house] = msg.model;
