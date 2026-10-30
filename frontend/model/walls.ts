@@ -247,7 +247,12 @@ function fillCorners(walls: Wall[], outline: Vec2[]) {
     w.line.forEach((end, i) => {
       let extend = 0;
       if (w.type === "exterior" || w.type === "party") {
-        if (reflex.some((p) => same(p, end))) extend = w.thickness;
+        // reach the inside face of the outer wall met at the inner corner
+        if (reflex.some((p) => same(p, end)))
+          for (const o of walls) {
+            if (o === w || (o.type !== "exterior" && o.type !== "party") || collinear(dir(w), dir(o))) continue;
+            if (same(o.line[0], end) || same(o.line[1], end)) extend = Math.max(extend, o.thickness);
+          }
       } else {
         for (const o of walls) {
           if (o === w || o.type !== "interior" || collinear(dir(w), dir(o))) continue;
@@ -258,6 +263,36 @@ function fillCorners(walls: Wall[], outline: Vec2[]) {
       else w.extendEnd = extend;
     });
   }
+}
+
+/**
+ * A room's floor as it really is: each edge pulled inwards to the inside face of the wall
+ * on it (a full outer wall, half an inside wall, nothing where the room is open).
+ */
+export function innerPolygon(polygon: Vec2[], walls: Wall[]): Vec2[] {
+  const n = polygon.length;
+  const lines = edges(polygon).map(([a, b]) => {
+    const mid: Vec2 = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+    const wall = walls.find((w) => {
+      if (w.type === "open") return false;
+      const pr = project(mid, w.line[0], w.line[1]);
+      return pr.distance < SNAP && pr.t > -SNAP && pr.t < pr.length + SNAP;
+    });
+    const inset = !wall ? 0 : wall.type === "interior" ? wall.thickness / 2 : wall.thickness;
+    const out = outwardNormal(a, b);
+    const shift: Vec2 = [-out[0] * inset, -out[1] * inset];
+    return [add(a, shift), add(b, shift)] as [Vec2, Vec2];
+  });
+  // each corner: where the two shifted neighbouring edges meet
+  return lines.map((cur, i) => {
+    const prev = lines[(i - 1 + n) % n];
+    const d1 = sub(prev[1], prev[0]);
+    const d2 = sub(cur[1], cur[0]);
+    const den = d1[0] * d2[1] - d1[1] * d2[0];
+    if (Math.abs(den) < 1e-9) return cur[0];
+    const t = ((cur[0][0] - prev[0][0]) * d2[1] - (cur[0][1] - prev[0][1]) * d2[0]) / den;
+    return add(prev[0], scale(d1, t));
+  });
 }
 
 function placeOpening(o: Opening, level: Level, walls: Wall[], issues: Issue[], path: string) {

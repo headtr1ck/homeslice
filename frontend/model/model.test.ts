@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { expandHouse } from "./expand";
 import { signedArea } from "./geometry";
 import type { HouseInput } from "./types";
-import { deriveWalls } from "./walls";
+import { deriveWalls, type Wall } from "./walls";
 
 // A 10 × 8 m house with two rooms side by side and a shared wall on the west.
 const twoRooms = (): HouseInput => ({
@@ -222,7 +222,7 @@ describe("deriveWalls", () => {
     const h = expand(input);
     const w = deriveWalls(h.levels[0], h.walls);
     const at = (p: [number, number]) => w.filter((x) => x.line.some((q) => q[0] === p[0] && q[1] === p[1]));
-    // outer walls meeting at the inner corner (5, 4) reach a wall thickness past it
+    // outer walls meeting at the inner corner (5, 4) reach the other wall's thickness past it
     for (const x of at([5, 4]).filter((x) => x.type === "exterior")) {
       const end = x.line[0][0] === 5 && x.line[0][1] === 4 ? x.extendStart : x.extendEnd;
       expect(end).toBeCloseTo(0.36);
@@ -233,6 +233,28 @@ describe("deriveWalls", () => {
     for (const x of inner) expect(Math.max(x.extendStart, x.extendEnd)).toBeCloseTo(0.06);
     // outer corners need nothing
     expect(at([10, 8]).every((x) => x.extendStart === 0 && x.extendEnd === 0)).toBe(true);
+
+    // a thin party wall meeting a thick outer wall: each reaches exactly the other's inside face
+    input.levels[0].party_walls = ["east"];
+    const h2 = expand(input);
+    const w2 = deriveWalls(h2.levels[0], h2.walls);
+    const ext = (x: Wall) => (x.line[0][0] === 5 && x.line[0][1] === 4 ? x.extendStart : x.extendEnd);
+    const atCorner = w2.filter((x) => x.line.some((q) => q[0] === 5 && q[1] === 4) && x.type !== "interior");
+    const party = atCorner.find((x) => x.type === "party")!; // the wall along x = 5 faces east
+    const outer = atCorner.find((x) => x.type === "exterior")!;
+    expect(ext(party)).toBeCloseTo(0.36);
+    expect(ext(outer)).toBeCloseTo(0.24);
+  });
+
+  it("measures rooms to the inside of their walls", async () => {
+    const { innerPolygon } = await import("./walls");
+    const { signedArea } = await import("./geometry");
+    const h = expand(twoRooms());
+    const w = deriveWalls(h.levels[0], h.walls);
+    const left = innerPolygon(h.levels[0].rooms[0].polygon, w);
+    // west: party wall 0.24; north/south: exterior 0.36; east: half the 0.12 inside wall
+    expect(left.map((p) => p.map((v) => Math.round(v * 100) / 100))).toEqual([[0.24, 0.36], [4.94, 0.36], [4.94, 7.64], [0.24, 7.64]]);
+    expect(Math.abs(signedArea(left))).toBeCloseTo(4.7 * 7.28);
   });
 
   it("warns about openings without a wall", () => {

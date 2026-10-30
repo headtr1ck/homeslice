@@ -5,7 +5,7 @@
 
 import * as THREE from "three";
 import type { House, Level, Vec2, Vertical } from "../model/types";
-import type { Wall, WallOpening } from "../model/walls";
+import { innerPolygon, type Wall, type WallOpening } from "../model/walls";
 import { bbox, pointInPolygon } from "../model/geometry";
 
 /** `isometric`: parallel lines stay parallel; `perspective`: walls lean, like a photo. */
@@ -250,7 +250,9 @@ export class HouseRenderer {
     for (const room of level.rooms) {
       if (room.kind === "void" || (room.kind === "outdoor" && !this.view.showOutdoor)) continue;
       const inside = holes.filter((h) => pointInPolygon(centroid(h), room.polygon));
-      const geo = new THREE.ShapeGeometry(shapeOf(room.polygon, inside));
+      // floors end at the inside of their walls, so a room's light doesn't glow under them
+      const floorPoly = room.kind === "room" ? innerPolygon(room.polygon, walls) : room.polygon;
+      const geo = new THREE.ShapeGeometry(shapeOf(floorPoly, inside));
       geo.rotateX(-Math.PI / 2);
       geo.translate(0, room.kind === "outdoor" ? -level.slab + 0.01 : 0.004, 0);
       const color = FLOOR_COLORS[room.floor] ?? FLOOR_COLORS.wood;

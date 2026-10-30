@@ -8,7 +8,7 @@ import { localize, type StringKey } from "../i18n/localize";
 import { expandHouse } from "../model/expand";
 import { labelPoint } from "../model/geometry";
 import type { HouseInput, Issue, OpeningInput, OpeningSource, OpeningType, RoomInput, Side, Vec2 } from "../model/types";
-import { deriveWalls, sideOfRoom, type Wall } from "../model/walls";
+import { deriveWalls, innerPolygon, sideOfRoom, type Wall } from "../model/walls";
 import { HouseRenderer } from "../render/scene";
 import {
   History,
@@ -466,10 +466,13 @@ export class HomeslicePanel extends LitElement {
       const poly = roomPolygon(m, r);
       const i = poly.findIndex((p) => Math.hypot(p[0] - at[0], p[1] - at[1]) < 0.01);
       if (i < 0 || (this._room && r.id !== this._room)) continue;
-      const prev = poly[(i - 1 + poly.length) % poly.length];
-      const next = poly[(i + 1) % poly.length];
-      lines.push(`${fmtM(Math.hypot(at[0] - prev[0], at[1] - prev[1]))} · ${fmtM(Math.hypot(at[0] - next[0], at[1] - next[1]))} · ${Math.round(cornerAngle(poly, i))}°`);
-      lines.push(`${this.roomName(r)}: ${area(poly).toFixed(2)} m²`);
+      // inside dimensions
+      const inner = this.inner(r);
+      const q = inner[i];
+      const prev = inner[(i - 1 + inner.length) % inner.length];
+      const next = inner[(i + 1) % inner.length];
+      lines.push(`${fmtM(Math.hypot(q[0] - prev[0], q[1] - prev[1]))} · ${fmtM(Math.hypot(q[0] - next[0], q[1] - next[1]))} · ${Math.round(cornerAngle(inner, i))}°`);
+      lines.push(`${this.roomName(r)}: ${area(inner).toFixed(2)} m²`);
       break;
     }
     return lines;
@@ -477,7 +480,20 @@ export class HomeslicePanel extends LitElement {
 
   private roomReadout(): string[] {
     const r = this.levelInput?.rooms.find((x) => x.id === this._room);
-    return r ? [`${this.roomName(r)}: ${area(roomPolygon(this._model!, r)).toFixed(2)} m²`] : [];
+    return r ? [`${this.roomName(r)}: ${area(this.inner(r)).toFixed(2)} m²`] : [];
+  }
+
+  /** Walls of the level being edited (derived from the current model). */
+  private levelWalls(): Wall[] {
+    const { house } = expandHouse(this._model!);
+    const level = house?.levels.find((x) => x.id === this._level);
+    return level && house ? deriveWalls(level, house.walls, []) : [];
+  }
+
+  /** A room as it really is: to the inside of its walls (outdoor areas as drawn). */
+  private inner(r: RoomInput, walls = this.levelWalls()): Vec2[] {
+    const poly = roomPolygon(this._model!, r);
+    return (r.kind ?? "room") === "room" ? innerPolygon(poly, walls) : poly;
   }
 
   private alongWall(w: Wall, t: number): Vec2 {
@@ -691,7 +707,7 @@ export class HomeslicePanel extends LitElement {
       <rect width="100%" height="100%" fill="url(#grid)"></rect>
       ${below ? below.rooms.map((r) => svg`<polygon class="ghost" points=${pts(roomPolygon(m, r))}></polygon>`) : nothing}
       ${l?.rooms.map((r) => {
-        const poly = roomPolygon(m, r);
+        const poly = this.inner(r, walls);
         const at = this.toScreen(labelPoint(poly));
         return svg`<g data-room=${r.id}>
           <polygon class="room ${r.kind ?? "room"} ${r.id === this._room ? "selected" : ""}" points=${pts(poly)} fill=${PLAN_COLORS[r.floor ?? (r.kind === "outdoor" ? "lawn" : "wood")] ?? PLAN_COLORS.wood}></polygon>
@@ -706,7 +722,7 @@ export class HomeslicePanel extends LitElement {
       ${(house?.vertical ?? [])
         .filter((v) => idx >= v.from && idx <= v.to)
         .map((v) => svg`<polygon class="stairwell" points=${pts(v.polygon)}></polygon>`)}
-      ${selPoly.length && this._mode === "rooms" ? this.renderHandles(selPoly) : nothing}
+      ${selPoly.length && this._mode === "rooms" ? this.renderHandles(selPoly, selected ? this.inner(selected, walls) : selPoly) : nothing}
       ${this._rectPreview ? svg`<polygon class="rect-preview" points=${pts(this._rectPreview)}></polygon>` : nothing}
       ${this.renderGuides()}
     </svg>`;
@@ -764,14 +780,17 @@ export class HomeslicePanel extends LitElement {
       })}`;
   }
 
-  private renderHandles(poly: Vec2[]) {
+  /** Handles sit on the wall centre lines; the lengths shown are inside dimensions. */
+  private renderHandles(poly: Vec2[], inner: Vec2[]) {
     return svg`${poly.map((p, i) => {
       const q = poly[(i + 1) % poly.length];
+      const ip = inner[i] ?? p;
+      const iq = inner[(i + 1) % poly.length] ?? q;
       const [ax, ay] = this.toScreen(p);
       const [bx, by] = this.toScreen(q);
       const mx = (ax + bx) / 2;
       const my = (ay + by) / 2;
-      const len = Math.hypot(q[0] - p[0], q[1] - p[1]);
+      const len = Math.hypot(iq[0] - ip[0], iq[1] - ip[1]);
       // label outside the edge (positive orientation: outside is to the right of a→b in screen terms)
       const nx = (by - ay) / (Math.hypot(bx - ax, by - ay) || 1);
       const ny = -(bx - ax) / (Math.hypot(bx - ax, by - ay) || 1);
@@ -819,7 +838,7 @@ export class HomeslicePanel extends LitElement {
         <p class="muted">${this.t("editor.rooms_count", { count: l.rooms.length })}</p>
         <p class="muted">${this.t("editor.select_hint")}</p>`;
     }
-    const poly = roomPolygon(m, r);
+    const poly = this.inner(r);
     const areas = Object.values(this._hass?.areas ?? {}).sort((a, b) => {
       // the level's own floor first
       const fa = a.floor_id === l.floor_id ? 0 : 1;

@@ -406,7 +406,8 @@ console.log("editor");
     const names = await page.locator("homeslice-panel svg.plan text.room-name").allTextContents();
     assert(names.includes("Living Room") && names.includes("Kitchen") && !names.includes("Bedroom"), `plan labels: ${names.join(", ")}`);
     const areas = await page.locator("homeslice-panel svg.plan text.room-area").allTextContents();
-    assert(areas.includes("20.0 m²"), `kitchen area missing: ${areas.join(", ")}`);
+    // inside dimensions: the 5 × 4 m kitchen minus its walls
+    assert(areas.includes("16.8 m²"), `kitchen area missing: ${areas.join(", ")}`);
     await page.waitForFunction(() => window.panel.renderer?.renderer.info.render.triangles > 100, null, { timeout: 10000 });
     await shot(page, "editor-open");
   });
