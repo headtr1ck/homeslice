@@ -94,7 +94,6 @@ async function preloadCard(helpers: CardHelpers, type: string) {
 
 export class HomesliceCard extends LitElement {
   static override properties = {
-    hass: { attribute: false },
     _issues: { state: true },
     _error: { state: true },
     _loading: { state: true },
@@ -105,7 +104,7 @@ export class HomesliceCard extends LitElement {
     _readout: { state: true },
   };
 
-  hass?: Hass;
+  private _hass?: Hass;
   private config!: HomesliceCardConfig;
   private _issues: Issue[] = [];
   private _error = "";
@@ -156,17 +155,28 @@ export class HomesliceCard extends LitElement {
     return localize(this.hass?.locale?.language, key, vars);
   }
 
-  protected override updated(changed: PropertyValues) {
-    if (changed.has("_popup")) void this.fillPopup();
-    if (!changed.has("hass") || !this.hass) return;
-    for (const c of this.popupCards) c.hass = this.hass;
-    // `hass` changes several times a second: load once, then only react to our own entities
+  get hass(): Hass | undefined {
+    return this._hass;
+  }
+
+  /**
+   * HA sets `hass` several times a second. It is deliberately not a reactive property:
+   * the card loads once, then only redraws when one of its own entities changes.
+   */
+  set hass(hass: Hass | undefined) {
+    this._hass = hass;
+    if (!hass || !this.config) return;
+    for (const c of this.popupCards) c.hass = hass;
     if (this.loadedFor !== this.config.house) {
       this.loadedFor = this.config.house;
       void this.load();
     } else {
       this.syncStates();
     }
+  }
+
+  protected override updated(changed: PropertyValues) {
+    if (changed.has("_popup")) void this.fillPopup();
   }
 
   override connectedCallback() {

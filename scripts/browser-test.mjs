@@ -136,6 +136,21 @@ console.log("demo house");
     assert(names.includes("Bedroom"), "bedroom label not back after 'All floors'");
   });
 
+  await test("unrelated state changes don't redraw anything", async () => {
+    const draws = await page.evaluate(async () => {
+      let n = 0;
+      const count = () => n++;
+      window.card.addEventListener("homeslice-rendered", count);
+      for (let i = 0; i < 5; i++) {
+        await window.card.hass.callService("media_player", i % 2 ? "turn_off" : "turn_on", {}, { entity_id: "media_player.living_room_tv" });
+        await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+      }
+      window.card.removeEventListener("homeslice-rendered", count);
+      return n;
+    });
+    assert(draws === 0, `${draws} redraws for a media player the card doesn't show`);
+  });
+
   await test("labels show the area temperature", async () => {
     const temp = await page.locator("homeslice-card .label button.name", { hasText: "Living Room" }).locator(".temp").textContent();
     assert(temp === "21.4 °C", `living room temperature label: ${temp}`);
