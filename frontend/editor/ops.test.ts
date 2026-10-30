@@ -2,7 +2,11 @@ import { describe, expect, it } from "vitest";
 import type { HouseInput } from "../model/types";
 import {
   History,
+  addOpening,
   addRoom,
+  deleteOpening,
+  readOpening,
+  updateOpening,
   area,
   cornerAngle,
   deleteRoom,
@@ -98,6 +102,29 @@ describe("editing operations", () => {
     expect(m.levels[0].walls).toEqual([{ between: ["kitchen", "living"], side: "north" }]);
     m = setBoundaryOpen(m, "g", "kitchen", "living", "north", false, [...sides]);
     expect(m.levels[0].walls).toBeUndefined();
+  });
+
+  it("adds, edits and deletes openings; façade openings keep covers per level", () => {
+    let m = house();
+    const added = addOpening(m, "g", { room: "left", side: "north", at: 1, width: 1 });
+    expect(added.source).toEqual({ kind: "level", index: 1 });
+    m = updateOpening(added.model, "g", added.source, { width: 1.5, cover: "cover.x" });
+    expect(readOpening(m, "g", added.source)).toMatchObject({ width: 1.5, cover: "cover.x" });
+    m = updateOpening(m, "g", added.source, { cover: "" });
+    expect(readOpening(m, "g", added.source)?.cover).toBeUndefined();
+    m = deleteOpening(m, "g", added.source);
+    expect(m.levels[0].openings).toHaveLength(1);
+
+    m.levels.push({ id: "f", rooms: [{ id: "up", rect: [0, 0, 10, 8] }] });
+    m.facade_openings = [{ side: "south", at: 1, width: 1, levels: ["g", "f"], covers: { g: "cover.g" } }];
+    const src = { kind: "facade" as const, index: 0 };
+    m = updateOpening(m, "f", src, { at: 2, cover: "cover.f" });
+    expect(m.facade_openings![0]).toMatchObject({ at: 2, covers: { g: "cover.g", f: "cover.f" } });
+    expect(readOpening(m, "g", src)).toMatchObject({ at: 2, cover: "cover.g" });
+    m = deleteOpening(m, "g", src);
+    expect(m.facade_openings![0].levels).toEqual(["f"]);
+    m = deleteOpening(m, "f", src);
+    expect(m.facade_openings).toBeUndefined();
   });
 
   it("reorders levels", () => {

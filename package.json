@@ -11,7 +11,8 @@
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "deploy": "scripts/deploy.sh",
-    "test:browser": "vite build && node scripts/browser-test.mjs"
+    "test:browser": "vite build && node scripts/browser-test.mjs",
+    "pull": "node scripts/pull-house.mjs"
   },
   "dependencies": {
     "lit": "^3.3.3",

@@ -2,7 +2,7 @@
 // each returns a new model, which keeps undo/redo trivial and makes them easy to test.
 
 import { bbox, dist, normalizeOrientation, project, signedArea } from "../model/geometry";
-import type { Coord, HouseInput, LevelInput, RoomInput, ShapeInput, Side, Vec2 } from "../model/types";
+import type { Coord, HouseInput, LevelInput, OpeningInput, OpeningSource, RoomInput, ShapeInput, Side, Vec2 } from "../model/types";
 
 /** Points closer than this count as the same corner (shared by neighbouring rooms). */
 export const SAME_POINT = 0.01;
@@ -244,6 +244,63 @@ export function setBoundaryOpen(model: HouseInput, levelId: string, a: string, b
   const mine = sides.size === allSides.length ? [{ between: [a, b] as [string, string] }] : [...sides].map((s) => ({ between: [a, b] as [string, string], side: s }));
   l.walls = [...others, ...mine];
   if (!l.walls.length) delete l.walls;
+  return m;
+}
+
+// ----- openings -----
+
+export function addOpening(model: HouseInput, levelId: string, opening: OpeningInput): { model: HouseInput; source: OpeningSource } {
+  const m = clone(model);
+  const l = level(m, levelId);
+  l.openings = [...(l.openings ?? []), opening];
+  return { model: m, source: { kind: "level", index: l.openings.length - 1 } };
+}
+
+/** The editable fields of an opening, as the level sees it (covers are per level for façades). */
+export function readOpening(model: HouseInput, levelId: string, src: OpeningSource): OpeningInput | null {
+  if (src.kind === "level") return level(model, levelId).openings?.[src.index] ?? null;
+  const f = model.facade_openings?.[src.index];
+  if (!f) return null;
+  return { room: "", side: f.side, at: f.at, width: f.width, type: f.type, sill: f.sill, height: f.height, cover: f.covers?.[levelId], contact: f.contacts?.[levelId] };
+}
+
+/**
+ * Changes an opening. For a façade opening, geometry changes apply to every level
+ * sharing it, while cover and contact are set for this level only.
+ */
+export function updateOpening(model: HouseInput, levelId: string, src: OpeningSource, patch: Partial<OpeningInput>): HouseInput {
+  const m = clone(model);
+  const clean = <T extends object>(o: T) => {
+    for (const [k, v] of Object.entries(o)) if (v === undefined || v === "") delete (o as Record<string, unknown>)[k];
+    return o;
+  };
+  if (src.kind === "level") {
+    const list = level(m, levelId).openings ?? [];
+    list[src.index] = clean({ ...list[src.index], ...patch });
+    return m;
+  }
+  const f = m.facade_openings![src.index];
+  const { cover, contact, room: _room, side: _side, ...geometry } = patch;
+  Object.assign(f, geometry);
+  if ("cover" in patch) f.covers = clean({ ...f.covers, [levelId]: cover }) as Record<string, string>;
+  if ("contact" in patch) f.contacts = clean({ ...f.contacts, [levelId]: contact }) as Record<string, string>;
+  clean(f);
+  return m;
+}
+
+/** Removes an opening from this level (a façade opening stays on the other levels). */
+export function deleteOpening(model: HouseInput, levelId: string, src: OpeningSource): HouseInput {
+  const m = clone(model);
+  if (src.kind === "level") {
+    const l = level(m, levelId);
+    l.openings = (l.openings ?? []).filter((_, i) => i !== src.index);
+    if (!l.openings.length) delete l.openings;
+    return m;
+  }
+  const f = m.facade_openings![src.index];
+  f.levels = f.levels.filter((x) => x !== levelId);
+  if (!f.levels.length) m.facade_openings!.splice(src.index, 1);
+  if (!m.facade_openings!.length) delete m.facade_openings;
   return m;
 }
 

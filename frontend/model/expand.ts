@@ -132,6 +132,7 @@ export function expandHouse(input: unknown): ExpandResult {
       const d = { ...DEFAULTS.opening[type], ...h.opening_defaults?.[type] };
       openings.push({
         id: oi.id ?? `${oi.room}_${oi.side}_${i}`,
+        source: { kind: "level", index: i },
         room: oi.room,
         side: oi.side,
         at: oi.at ?? 0,
@@ -225,6 +226,7 @@ export function expandHouse(input: unknown): ExpandResult {
       }
       level.openings.push({
         id: `${fi.id ?? `facade${i}`}_${levelId}`,
+        source: { kind: "facade", index: i },
         room: room.id,
         side: fi.side,
         at: from - bbox(room.polygon).min[along],

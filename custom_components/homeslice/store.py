@@ -101,8 +101,12 @@ class HomesliceStore:
         for listener in list(self._listeners):
             listener(house_id, None)
 
-    async def async_import_files(self) -> list[str]:
-        """Import every <config>/homeslice/*.yaml; the file name is the house id."""
+    async def async_import_files(self, force: bool = False) -> list[str]:
+        """Import every <config>/homeslice/*.yaml; the file name is the house id.
+
+        Houses last saved in the editor are skipped unless `force`, so a file never
+        silently overwrites editor changes.
+        """
         directory = Path(self.hass.config.path(MODEL_DIR))
         files = await self.hass.async_add_executor_job(
             lambda: sorted(directory.glob("*.yaml")) if directory.is_dir() else []
@@ -110,6 +114,10 @@ class HomesliceStore:
         imported = []
         for path in files:
             house_id = path.stem
+            current = self.houses.get(house_id)
+            if current and current["source"] == "api" and not force:
+                _LOGGER.warning("Not importing %s: the house was edited in the editor (use force)", path.name)
+                continue
             try:
                 model = await self.hass.async_add_executor_job(load_yaml, str(path))
                 await self.async_save(house_id, model, f"file:{path.name}")

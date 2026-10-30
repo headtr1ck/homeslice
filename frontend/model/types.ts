@@ -145,8 +145,12 @@ export interface Room {
   polygon: Vec2[];
 }
 
+/** Where an opening is defined: a level's own list, or a façade entry shared by levels. */
+export type OpeningSource = { kind: "level"; index: number } | { kind: "facade"; index: number };
+
 export interface Opening {
   id: string;
+  source: OpeningSource;
   room: string;
   side: Side;
   at: number;

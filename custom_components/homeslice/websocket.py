@@ -91,9 +91,9 @@ async def ws_delete(hass: HomeAssistant, connection: websocket_api.ActiveConnect
     connection.send_result(msg["id"])
 
 
-@websocket_api.websocket_command({vol.Required("type"): "homeslice/import_files"})
+@websocket_api.websocket_command({vol.Required("type"): "homeslice/import_files", vol.Optional("force", default=False): bool})
 @websocket_api.require_admin
 @websocket_api.async_response
 async def ws_import_files(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
     """Import <config>/homeslice/*.yaml into storage (admins only)."""
-    connection.send_result(msg["id"], {"imported": await _store(hass).async_import_files()})
+    connection.send_result(msg["id"], {"imported": await _store(hass).async_import_files(force=msg["force"])})

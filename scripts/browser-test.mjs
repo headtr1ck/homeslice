@@ -514,10 +514,66 @@ console.log("editor");
   });
 
   await test("levels can be reordered by drag and drop", async () => {
-    await page.locator("homeslice-panel button.level", { hasText: "First Floor" }).dragTo(page.locator("homeslice-panel button.level", { hasText: "Ground Floor" }));
+    const first = await page.locator("homeslice-panel button.level", { hasText: "First Floor" }).boundingBox();
+    const ground = await page.locator("homeslice-panel button.level", { hasText: "Ground Floor" }).boundingBox();
+    await page.mouse.move(first.x + 20, first.y + first.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(first.x + 20, ground.y + ground.height / 2, { steps: 8 });
+    // mid-drag: the ground floor has slid up to make room
+    const slid = await page.locator("homeslice-panel button.level", { hasText: "Ground Floor" }).evaluate((b) => b.style.transform);
+    assert(slid.includes("-"), `ground floor didn't slide aside: ${slid}`);
+    await page.mouse.up();
     assert(JSON.stringify((await model()).levels.map((l) => l.id)) === '["first","ground"]', `order: ${JSON.stringify((await model()).levels.map((l) => l.id))}`);
     await page.keyboard.press("Control+z");
     assert(JSON.stringify((await model()).levels.map((l) => l.id)) === '["ground","first"]', "undo didn't restore the order");
+  });
+
+  await test("assigning a level's HA floor is an edit that can be saved", async () => {
+    await page.keyboard.press("Escape");
+    const select = page.locator("homeslice-panel .inspector select").first();
+    await select.selectOption("first_floor");
+    assert((await model()).levels[0].floor_id === "first_floor", "floor not assigned");
+    await page.locator("homeslice-panel button.save").click();
+    const saved = await page.evaluate(() => window.panel.hass.saved.at(-1).levels[0].floor_id);
+    assert(saved === "first_floor", `saved floor: ${saved}`);
+    await select.selectOption("ground_floor");
+  });
+
+  await test("doors & windows: click a wall to add a window, drag it, link a blind, delete it", async () => {
+    await page.keyboard.press("Escape");
+    await page.locator("homeslice-panel .segmented.modes button", { hasText: "Doors & windows" }).click();
+    const before = (await model()).levels[0].openings.length;
+    // a free stretch of the kitchen's north wall (x = 6.8; an earlier step moved the kitchen to x = 3.5 … 8)
+    const at = await page.evaluate(() => {
+      const v = window.panel._view;
+      const r = window.panel.shadowRoot.querySelector("svg.plan").getBoundingClientRect();
+      return { x: r.left + 6.8 * v.scale + v.ox, y: r.top + 0.12 * v.scale + v.oy };
+    });
+    await page.mouse.click(at.x, at.y);
+    let openings = (await model()).levels[0].openings;
+    assert(openings.length === before + 1, `no window added (${openings.length})`);
+    const added = openings.at(-1);
+    assert(added.room === "kitchen" && added.side === "north" && added.at === 2.8 && added.width === 1, `added: ${JSON.stringify(added)}`);
+    assert((await page.locator("homeslice-panel .inspector h2").textContent()) === "Window", "opening inspector not shown");
+
+    const hit = await page.locator("homeslice-panel svg.plan line.opening.selected").boundingBox();
+    const scale = await page.evaluate(() => window.panel._view.scale);
+    await page.mouse.move(hit.x + hit.width / 2, hit.y + hit.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(hit.x + hit.width / 2 + scale * 0.5, hit.y + hit.height / 2, { steps: 6 });
+    await page.mouse.up();
+    assert((await model()).levels[0].openings.at(-1).at === 3.3, `after dragging: ${JSON.stringify((await model()).levels[0].openings.at(-1))}`);
+
+    const coverSelect = page.locator("homeslice-panel .inspector label", { hasText: "Blind" }).locator("select");
+    const options = await coverSelect.locator("option").allTextContents();
+    assert(options[1].startsWith("★"), `the kitchen's own blind should come first: ${options.join(" | ")}`);
+    await coverSelect.selectOption("cover.kitchen");
+    assert((await model()).levels[0].openings.at(-1).cover === "cover.kitchen", "blind not linked");
+    await shot(page, "editor-opening");
+
+    await page.keyboard.press("Delete");
+    assert((await model()).levels[0].openings.length === before, "window not deleted");
+    await page.locator("homeslice-panel .segmented.modes button", { hasText: "Rooms & walls" }).click();
   });
 
   await test("Delete removes the selected room", async () => {

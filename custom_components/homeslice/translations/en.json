@@ -27,7 +27,13 @@
   "services": {
     "import_files": {
       "name": "Import house files",
-      "description": "Imports every YAML file in the homeslice folder of your configuration into Homeslice's storage. The file name is the house id."
+      "description": "Imports every YAML file in the homeslice folder of your configuration into Homeslice's storage. The file name is the house id. Houses last saved in the editor are skipped unless forced.",
+      "fields": {
+        "force": {
+          "name": "Force",
+          "description": "Also overwrite houses that were edited in the editor."
+        }
+      }
     }
   }
 }

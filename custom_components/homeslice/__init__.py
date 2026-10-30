@@ -5,6 +5,8 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
+import voluptuous as vol
+
 from homeassistant.components import panel_custom
 from homeassistant.components.frontend import add_extra_js_url
 from homeassistant.components.http import StaticPathConfig
@@ -57,9 +59,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         async_register_websocket(hass)
 
         async def import_files(call: ServiceCall) -> None:
-            await hass.data[DOMAIN]["store"].async_import_files()
+            await hass.data[DOMAIN]["store"].async_import_files(force=call.data.get("force", False))
 
-        hass.services.async_register(DOMAIN, "import_files", import_files)
+        hass.services.async_register(
+            DOMAIN, "import_files", import_files, schema=vol.Schema({vol.Optional("force", default=False): bool})
+        )
         data["registered"] = True
 
     # Repairs: check every house now, after each change, and when registries change.

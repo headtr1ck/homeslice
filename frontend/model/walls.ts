@@ -16,7 +16,7 @@ import {
   sideOf,
   sub,
 } from "./geometry";
-import type { Issue, Level, Opening, OpeningType, Side, Vec2, WallThickness, WallType } from "./types";
+import type { Issue, Level, Opening, OpeningSource, OpeningType, Side, Vec2, WallThickness, WallType } from "./types";
 
 export const SNAP = 0.05;
 
@@ -32,6 +32,7 @@ export function sideOfRoom(polygon: Vec2[], p: Vec2, q: Vec2): Side | null {
 
 export interface WallOpening {
   id: string;
+  source: OpeningSource;
   room: string;
   type: OpeningType;
   /** Metres from the wall's start (`line[0]`). */
@@ -262,6 +263,6 @@ function placeOpening(o: Opening, level: Level, walls: Wall[], issues: Issue[], 
   }
   const overlap = wall.openings.find((x) => start < x.end && end > x.start);
   if (overlap) warn(`Overlaps opening "${overlap.id}".`);
-  wall.openings.push({ id: o.id, room: o.room, type: o.type, start, end, sill: o.sill, height, cover: o.cover, contact: o.contact });
+  wall.openings.push({ id: o.id, source: o.source, room: o.room, type: o.type, start, end, sill: o.sill, height, cover: o.cover, contact: o.contact });
   wall.openings.sort((x, y) => x.start - y.start);
 }

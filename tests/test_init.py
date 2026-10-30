@@ -140,3 +140,19 @@ async def test_editor_panel_is_admin_only(hass: HomeAssistant, setup) -> None:
     panel = hass.data["frontend_panels"]["homeslice"]
     assert panel.require_admin
     assert panel.config["_panel_custom"]["name"] == "homeslice-panel"
+
+
+async def test_import_skips_houses_edited_in_the_editor(hass: HomeAssistant, setup, hass_ws_client, tmp_path: Path) -> None:
+    client = await hass_ws_client(hass)
+    edited = model()
+    edited["name"] = "Edited"
+    await client.send_json_auto_id({"type": "homeslice/model/save", "house": "home", "model": edited})
+    assert (await client.receive_json())["success"]
+
+    await hass.services.async_call(DOMAIN, "import_files", blocking=True)
+    await client.send_json_auto_id({"type": "homeslice/model", "house": "home"})
+    assert (await client.receive_json())["result"]["name"] == "Edited"
+
+    await hass.services.async_call(DOMAIN, "import_files", {"force": True}, blocking=True)
+    await client.send_json_auto_id({"type": "homeslice/model", "house": "home"})
+    assert "name" not in (await client.receive_json())["result"]

@@ -1,1 +1,5 @@
 import_files:
+  fields:
+    force:
+      selector:
+        boolean:
