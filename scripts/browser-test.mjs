@@ -638,6 +638,42 @@ console.log("editor");
     await page.locator("homeslice-panel .segmented.modes button", { hasText: "Rooms & walls" }).click();
   });
 
+  await test("stairs: select, move, change shape, draw new ones and delete them", async () => {
+    await page.keyboard.press("Escape");
+    const stair = () => page.evaluate(() => window.panel._model.vertical.find((v) => v.id === "stairs"));
+    const before = await stair();
+    const plan = await page.locator("homeslice-panel svg.plan").boundingBox();
+    const { scale, ox, oy } = await page.evaluate(() => window.panel._view);
+    const at = (x, y) => [plan.x + ox + x * scale, plan.y + oy + y * scale];
+    const [cx, cy] = [before.rect[0] + before.rect[2] / 2, before.rect[1] + before.rect[3] / 2];
+    await page.mouse.move(...at(cx, cy));
+    await page.mouse.down();
+    await page.mouse.move(...at(cx - 0.5, cy), { steps: 6 });
+    await page.mouse.up();
+    assert((await page.locator("homeslice-panel .inspector h2").textContent()) === "Stairs", "stairs not selected");
+    const moved = await stair();
+    assert(Math.abs(moved.rect[0] - (before.rect[0] - 0.5)) < 0.06 && moved.rect[1] === before.rect[1], `moved: ${JSON.stringify(moved.rect)}`);
+    await page.locator("homeslice-panel .inspector select").nth(3).selectOption("u_turn");
+    assert((await stair()).shape === "u_turn" && (await stair()).start, `shape: ${JSON.stringify(await stair())}`);
+    await shot(page, "editor-stairs");
+    await page.keyboard.press("Control+z");
+    await page.keyboard.press("Control+z");
+    assert(JSON.stringify(await stair()) === JSON.stringify(before), "undo didn't restore the stairs");
+
+    await page.keyboard.press("Escape");
+    await page.keyboard.press("s");
+    await page.mouse.move(...at(0.5, 5));
+    await page.mouse.down();
+    await page.mouse.move(...at(1.5, 8), { steps: 5 });
+    await page.mouse.up();
+    const added = await page.evaluate(() => window.panel._model.vertical.at(-1));
+    assert(added.id === "stairs_2" && added.from === "ground" && added.to === "first" && added.up === "south", `added: ${JSON.stringify(added)}`);
+    assert((await page.locator("homeslice-panel .inspector h2").textContent()) === "Stairs", "new stairs not selected");
+    await page.keyboard.press("Delete");
+    assert((await page.evaluate(() => window.panel._model.vertical.length)) === 1, "stairs not deleted");
+    assert(errors.length === 0, errors.join(" | "));
+  });
+
   await test("Delete removes the selected room", async () => {
     await page.locator('homeslice-panel svg.plan g[data-room="room"] polygon').click({ force: true });
     await page.keyboard.press("Delete");

@@ -2,7 +2,7 @@
 // each returns a new model, which keeps undo/redo trivial and makes them easy to test.
 
 import { bbox, dist, normalizeOrientation, project, signedArea } from "../model/geometry";
-import type { Coord, HouseInput, LevelInput, OpeningInput, OpeningSource, RoomInput, ShapeInput, Side, Vec2 } from "../model/types";
+import type { Coord, HouseInput, LevelInput, OpeningInput, OpeningSource, RoomInput, ShapeInput, Side, Vec2, VerticalInput } from "../model/types";
 
 /** Points closer than this count as the same corner (shared by neighbouring rooms). */
 export const SAME_POINT = 0.01;
@@ -631,5 +631,65 @@ export function updateLevel(model: HouseInput, levelId: string, patch: Partial<O
       if (v.to === levelId) v.to = id;
     }
   }
+  return m;
+}
+
+// ----- stairs and shafts -----
+
+/**
+ * A new stair from `from` to `to` in `rect`: it climbs along the longer side; a nearly
+ * square stairwell gets a u_turn stair.
+ */
+export function addStairs(model: HouseInput, rect: [number, number, number, number], from: string, to: string): { model: HouseInput; id: string } {
+  const m = clone(model);
+  const [x, y, w, d] = rect.map(round) as [number, number, number, number];
+  const id = uniqueId((m.vertical ?? []).map((v) => v.id), "stairs");
+  const long = Math.max(w, d) / Math.max(0.01, Math.min(w, d));
+  const v: VerticalInput = { id, kind: "stairs", rect: [x, y, w, d], from, to, up: w >= d ? "east" : "south" };
+  if (long < 1.8) {
+    v.shape = "u_turn";
+    v.start = w >= d ? "south" : "west";
+  }
+  m.vertical = [...(m.vertical ?? []), v];
+  return { model: m, id };
+}
+
+export function updateStairs(model: HouseInput, id: string, patch: Partial<VerticalInput>): HouseInput {
+  const m = clone(model);
+  m.vertical = (m.vertical ?? []).map((v) => {
+    if (v.id !== id) return v;
+    const next = { ...v, ...patch };
+    for (const [k, val] of Object.entries(patch)) if (val === undefined || val === "" || (k === "entry" && val === 0)) delete (next as Record<string, unknown>)[k];
+    // a turn needs a start side across the climb
+    const across: Side[] = next.up === "north" || next.up === "south" ? ["east", "west"] : ["north", "south"];
+    if (next.shape === "u_turn" && (!next.start || !across.includes(next.start))) next.start = across[1];
+    if (next.shape !== "u_turn" && next.start && !across.includes(next.start)) delete next.start;
+    return next;
+  });
+  return m;
+}
+
+export function deleteStairs(model: HouseInput, id: string): HouseInput {
+  const m = clone(model);
+  m.vertical = (m.vertical ?? []).filter((v) => v.id !== id);
+  if (!m.vertical.length) delete m.vertical;
+  return m;
+}
+
+/** The stairwell's rectangle (x, y, width, depth); polygons are reduced to their bounds. */
+export function stairsRect(model: HouseInput, v: VerticalInput): [number, number, number, number] {
+  const poly = shapePolygon(model, v);
+  const { min, max } = bbox(poly);
+  return [round(min[0]), round(min[1]), round(max[0] - min[0]), round(max[1] - min[1])];
+}
+
+export function setStairsRect(model: HouseInput, id: string, rect: [number, number, number, number]): HouseInput {
+  const m = clone(model);
+  m.vertical = (m.vertical ?? []).map((v) => {
+    if (v.id !== id) return v;
+    const next = { ...v, rect: rect.map(round) as [number, number, number, number] };
+    delete next.polygon;
+    return next;
+  });
   return m;
 }

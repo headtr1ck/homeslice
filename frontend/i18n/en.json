@@ -116,5 +116,20 @@
   "editor.delete_level": "Delete level",
   "editor.delete_level_confirm": "Delete the level “{name}” with all its rooms, doors and windows? (Undo is possible until you save.)",
   "editor.awning": "Awning",
-  "editor.awning_hint": "An awning on the house wall next to this area; it extends with the cover's position."
+  "editor.awning_hint": "An awning on the house wall next to this area; it extends with the cover's position.",
+  "editor.tool_stairs": "Draw stairs (S)",
+  "editor.help_stairs": "Drag the stairwell's outline. The stairs lead up to the next level. Esc: cancel.",
+  "editor.stairs": "Stairs",
+  "editor.shaft": "Shaft",
+  "editor.stairs_hint": "drag to move, corners to resize",
+  "editor.stairs_from": "From level",
+  "editor.stairs_to": "Up to level",
+  "editor.stairs_shape": "Shape",
+  "editor.stairs_straight": "Straight",
+  "editor.stairs_u_turn": "U-turn with winders",
+  "editor.stairs_up": "Climbs towards",
+  "editor.stairs_start": "First flight along",
+  "editor.stairs_entry": "Floor before the first step (m)",
+  "editor.stairs_entry_hint": "For stairs that start further in than the stairwell, e.g. above another stair. That strip stays floor on the level above.",
+  "editor.stairs_delete": "Delete stairs"
 }

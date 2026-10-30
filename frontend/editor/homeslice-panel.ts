@@ -7,14 +7,19 @@ import { areaEntities, type Hass } from "../ha/hass";
 import { localize, type StringKey } from "../i18n/localize";
 import { expandHouse } from "../model/expand";
 import { labelPoint } from "../model/geometry";
-import type { HouseInput, Issue, OpeningInput, OpeningSource, OpeningType, RoomInput, Side, Vec2 } from "../model/types";
+import type { HouseInput, Issue, OpeningInput, OpeningSource, OpeningType, RoomInput, Side, Vec2, Vertical } from "../model/types";
 import { deriveWalls, innerPolygon, sideOfRoom, type Wall } from "../model/walls";
 import { HouseRenderer } from "../render/scene";
-import { stairHole } from "../model/stairs";
+import { stairFrame, stairHole } from "../model/stairs";
 import {
   History,
   addOpening,
   addRoom,
+  addStairs,
+  deleteStairs,
+  setStairsRect,
+  stairsRect,
+  updateStairs,
   addLevel,
   deleteLevel,
   newHouse,
@@ -46,7 +51,7 @@ import {
   type Snapped,
 } from "./ops";
 
-type Tool = "select" | "rect";
+type Tool = "select" | "rect" | "stairs";
 /** The editor's phases: shape the house, then doors and windows, then objects and entities. */
 type Mode = "rooms" | "openings" | "objects";
 
@@ -55,6 +60,8 @@ type Drag =
   | { kind: "vertex"; origin: HouseInput; from: Vec2; ctx: SnapContext }
   | { kind: "edge"; origin: HouseInput; a: Vec2; b: Vec2; startWorld: Vec2; normal: Vec2; ctx: SnapContext }
   | { kind: "rect"; start: Vec2; ctx: SnapContext }
+  | { kind: "stair-move"; origin: HouseInput; id: string; rect: [number, number, number, number]; startWorld: Vec2; ctx: SnapContext; moved: boolean }
+  | { kind: "stair-resize"; origin: HouseInput; id: string; fixed: Vec2; ctx: SnapContext }
   | { kind: "wall"; origin: HouseInput; a: Vec2; b: Vec2; startWorld: Vec2; normal: Vec2; thickness: number; faces: number[] }
   | { kind: "opening"; origin: HouseInput; src: OpeningSource; axis: 0 | 1; startWorld: Vec2; at: number; snaps: OpeningSnaps };
 
@@ -106,6 +113,7 @@ export class HomeslicePanel extends LitElement {
     _guides: { state: true },
     _create: { state: true },
     _pendingArea: { state: true },
+    _stair: { state: true },
   };
 
   narrow = false;
@@ -136,6 +144,8 @@ export class HomeslicePanel extends LitElement {
   private _guides: { x?: number; y?: number; ring?: Vec2 } | null = null;
   /** The "new house" form while it is open. */
   private _create: { name: string; width: number; depth: number; floors: string[]; rooms: boolean } | null = null;
+  /** Selected stair or shaft (id in `vertical`). */
+  private _stair: string | null = null;
   /** Area to link to the next room drawn with the rectangle tool. */
   private _pendingArea: string | null = null;
   private history = new History<HouseInput>();
@@ -334,6 +344,9 @@ export class HomeslicePanel extends LitElement {
     } else if ((e.key === "Delete" || e.key === "Backspace") && this._opening && this._model) {
       this.commit(deleteOpening(this._model, this._level, this._opening.src));
       this._opening = null;
+    } else if ((e.key === "Delete" || e.key === "Backspace") && this._stair && this._model && this._mode === "rooms") {
+      this.commit(deleteStairs(this._model, this._stair));
+      this._stair = null;
     } else if ((e.key === "Delete" || e.key === "Backspace") && this._room && this._model && this._mode === "rooms") {
       this.commit(deleteRoom(this._model, this._level, this._room));
       this._room = null;
@@ -342,10 +355,12 @@ export class HomeslicePanel extends LitElement {
       this._wall = null;
       this._opening = null;
       this._tool = "select";
+      this._stair = null;
       this._pendingArea = null;
       this._drag = null;
       this._rectPreview = null;
     } else if (e.key === "r" && !mod) this._tool = "rect";
+    else if (e.key === "s" && !mod && this._mode === "rooms") this._tool = "stairs";
     else if (e.key === "v" && !mod) this._tool = "select";
   }
 
@@ -473,11 +488,30 @@ export class HomeslicePanel extends LitElement {
       this._drag = { kind: "edge", origin: clone(this._model), a, b, startWorld: world, normal, ctx: this.snapContext() };
       return;
     }
-    if (this._tool === "rect") {
+    const stairHandle = target.closest("[data-stairhandle]") as SVGElement | null;
+    if (stairHandle && this._stair) {
+      const fixed: Vec2 = JSON.parse(stairHandle.dataset.stairhandle!);
+      this._drag = { kind: "stair-resize", origin: clone(this._model), id: this._stair, fixed, ctx: this.snapContext() };
+      return;
+    }
+    if (this._tool === "rect" || this._tool === "stairs") {
       const ctx = this.snapContext();
       this._drag = { kind: "rect", start: snap(world, ctx).p, ctx };
       return;
     }
+    const stairHit = target.closest("[data-stair]") as SVGElement | null;
+    if (stairHit) {
+      const id = stairHit.dataset.stair!;
+      const v = this._model.vertical?.find((x) => x.id === id);
+      if (v) {
+        this._stair = id;
+        this._room = null;
+        this._wall = null;
+        this._drag = { kind: "stair-move", origin: clone(this._model), id, rect: stairsRect(this._model, v), startWorld: world, ctx: this.snapContext(), moved: false };
+        return;
+      }
+    }
+    this._stair = null;
     const wallHit = target.closest("[data-wall]") as SVGElement | null;
     this._wall = wallHit ? JSON.parse(wallHit.dataset.wall!) : null;
     if (wallHit) {
@@ -523,6 +557,37 @@ export class HomeslicePanel extends LitElement {
       const delta: Vec2 = [drag.normal[0] * snappedAlong, drag.normal[1] * snappedAlong];
       this._model = moveEdge(drag.origin, this._level, drag.a, drag.b, delta);
       this._hint = { x: screen[0], y: screen[1], lines: [this.moveReadout(delta), ...this.roomReadout()] };
+      return;
+    }
+    if (drag.kind === "stair-move") {
+      const [x, y, w, d] = drag.rect;
+      const corner: Vec2 = [x + world[0] - drag.startWorld[0], y + world[1] - drag.startWorld[1]];
+      if (!drag.moved && Math.hypot(corner[0] - x, corner[1] - y) * this._view.scale < 4) return;
+      drag.moved = true;
+      // snap the corner nearest the cursor's direction: try all four, keep the closest snap
+      const offsets: Vec2[] = [[0, 0], [w, 0], [0, d], [w, d]];
+      const snaps = offsets.map((o) => {
+        const s = snapped([corner[0] + o[0], corner[1] + o[1]], drag.ctx);
+        return { s, o, dist: Math.hypot(s.p[0] - corner[0] - o[0], s.p[1] - corner[1] - o[1]) + (s.kind === "grid" || s.kind === "free" ? 1 : 0) };
+      });
+      const best = snaps.sort((a, b) => a.dist - b.dist)[0];
+      const nx = best.s.p[0] - best.o[0];
+      const ny = best.s.p[1] - best.o[1];
+      this._guides = { x: best.s.alignX, y: best.s.alignY, ring: best.s.target };
+      this._model = setStairsRect(drag.origin, drag.id, [nx, ny, w, d]);
+      this._hint = { x: screen[0], y: screen[1], lines: [`${nx.toFixed(2)}, ${ny.toFixed(2)} m`] };
+      return;
+    }
+    if (drag.kind === "stair-resize") {
+      const s = snapped(world, drag.ctx);
+      const [fx, fy] = drag.fixed;
+      const w = Math.max(0.6, Math.abs(s.p[0] - fx));
+      const d = Math.max(0.6, Math.abs(s.p[1] - fy));
+      const x = s.p[0] < fx ? fx - w : fx;
+      const y = s.p[1] < fy ? fy - d : fy;
+      this._guides = { x: s.alignX, y: s.alignY, ring: s.target };
+      this._model = setStairsRect(drag.origin, drag.id, [x, y, w, d]);
+      this._hint = { x: screen[0], y: screen[1], lines: [`${w.toFixed(2)} × ${d.toFixed(2)} m`] };
       return;
     }
     if (drag.kind === "wall") {
@@ -582,8 +647,20 @@ export class HomeslicePanel extends LitElement {
     this._hint = null;
     this._guides = null;
     if (!drag || !this._model) return;
-    if (drag.kind === "vertex" || drag.kind === "edge" || drag.kind === "opening" || drag.kind === "wall") {
+    if (drag.kind === "vertex" || drag.kind === "edge" || drag.kind === "opening" || drag.kind === "wall" || drag.kind === "stair-move" || drag.kind === "stair-resize") {
       if (JSON.stringify(drag.origin) !== JSON.stringify(this._model)) this.commit(this._model, drag.origin);
+    } else if (drag.kind === "rect" && this._rectPreview && this._tool === "stairs") {
+      const [[x0, y0], , [x1, y1]] = this._rectPreview;
+      this._rectPreview = null;
+      const idx = this._model.levels.findIndex((l) => l.id === this._level);
+      const above = this._model.levels[idx + 1];
+      if (above && Math.abs(x1 - x0) >= 0.6 && Math.abs(y1 - y0) >= 0.6) {
+        const { model, id } = addStairs(this._model, [Math.min(x0, x1), Math.min(y0, y1), Math.abs(x1 - x0), Math.abs(y1 - y0)], this._level, above.id);
+        this.commit(model);
+        this._stair = id;
+        this._room = null;
+        this._tool = "select";
+      }
     } else if (drag.kind === "rect" && this._rectPreview) {
       const [[x0, y0], , [x1, y1]] = this._rectPreview;
       this._rectPreview = null;
@@ -808,6 +885,11 @@ export class HomeslicePanel extends LitElement {
           ${this._mode === "rooms"
             ? html`<button class=${this._tool === "rect" ? "active" : ""} title=${this.t("editor.tool_rect")} aria-label=${this.t("editor.tool_rect")} @click=${() => (this._tool = "rect")}>
                 <ha-icon icon="mdi:vector-square-plus"></ha-icon>
+              </button>
+              <button class=${this._tool === "stairs" ? "active" : ""} title=${this.t("editor.tool_stairs")} aria-label=${this.t("editor.tool_stairs")}
+                ?disabled=${this._model!.levels.findIndex((l) => l.id === this._level) >= this._model!.levels.length - 1}
+                @click=${() => (this._tool = "stairs")}>
+                <ha-icon icon="mdi:stairs"></ha-icon>
               </button>`
             : nothing}
           <button title=${this.t("editor.fit")} aria-label=${this.t("editor.fit")} @click=${() => this.fitView()}>
@@ -845,7 +927,7 @@ export class HomeslicePanel extends LitElement {
           ${this._hint
             ? html`<div class="hint" style="left:${this._hint.x + 16}px;top:${this._hint.y + 16}px">${this._hint.lines.map((l) => html`<div>${l}</div>`)}</div>`
             : nothing}
-          <div class="help">${this.t(this._mode === "openings" ? "editor.openings_hint" : this._mode === "objects" ? "editor.objects_soon" : this._tool === "rect" ? "editor.help_rect" : "editor.help_select")}${this._pendingArea && this._tool === "rect" ? html` <b>${this.t("editor.drawing_for", { area: this._hass?.areas?.[this._pendingArea]?.name ?? this._pendingArea })}</b>` : nothing}</div>
+          <div class="help">${this.t(this._mode === "openings" ? "editor.openings_hint" : this._mode === "objects" ? "editor.objects_soon" : this._tool === "rect" ? "editor.help_rect" : this._tool === "stairs" ? "editor.help_stairs" : "editor.help_select")}${this._pendingArea && this._tool === "rect" ? html` <b>${this.t("editor.drawing_for", { area: this._hass?.areas?.[this._pendingArea]?.name ?? this._pendingArea })}</b>` : nothing}</div>
         </section>
         <section class="side">
           <canvas
@@ -889,6 +971,9 @@ export class HomeslicePanel extends LitElement {
       @wheel=${this.onPlanWheel}
     >
       <defs>
+        <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M 0 0 L 10 5 L 0 10 z" class="arrowhead"></path>
+        </marker>
         <pattern id="grid" width=${grid * this._view.scale} height=${grid * this._view.scale} patternUnits="userSpaceOnUse" x=${this._view.ox} y=${this._view.oy}>
           <path d="M ${grid * this._view.scale} 0 L 0 0 0 ${grid * this._view.scale}" fill="none" class="gridline"></path>
         </pattern>
@@ -909,13 +994,42 @@ export class HomeslicePanel extends LitElement {
         .sort((a, b) => Number(a.type === "exterior" || a.type === "party") - Number(b.type === "exterior" || b.type === "party"))
         .map((w) => this.renderWall(w))}
       ${(house?.vertical ?? [])
-        // the hole where a stair arrives; on its first level, the stair's footprint
+        // the hole where a stair arrives; where a flight starts, its footprint and the way up
         .filter((v) => idx >= v.from && idx <= v.to)
-        .map((v) => svg`<polygon class="stairwell ${idx === v.from ? "start" : ""}" points=${pts(idx === v.from ? v.polygon : stairHole(v))}></polygon>`)}
+        .map((v) => {
+          const sel = v.id === this._stair;
+          const flight = v.kind === "stairs" && idx < v.to;
+          return svg`<g data-stair=${v.id} class="stair ${sel ? "selected" : ""}">
+            ${idx > v.from ? svg`<polygon class="stairwell" points=${pts(stairHole(v))}></polygon>` : nothing}
+            <polygon class="stair-hit" points=${pts(v.polygon)}></polygon>
+            ${flight ? svg`<polyline class="stair-path" marker-end="url(#arrow)" points=${pts(this.stairPath(v))}></polyline>` : nothing}
+          </g>`;
+        })}
+      ${this._stair && this._mode === "rooms" ? this.renderStairHandles() : nothing}
       ${selPoly.length && this._mode === "rooms" ? this.renderHandles(selPoly, selected ? this.inner(selected, walls) : selPoly) : nothing}
       ${this._rectPreview ? svg`<polygon class="rect-preview" points=${pts(this._rectPreview)}></polygon>` : nothing}
       ${this.renderGuides()}
     </svg>`;
+  }
+
+  /** The walking line of a stair, from its first step up (for the arrow on the plan). */
+  private stairPath(v: Vertical): Vec2[] {
+    const { L, W, plan } = stairFrame(v);
+    const E = Math.min(v.entry, L - 0.3);
+    if (v.shape !== "u_turn") return [[E + 0.1, W / 2], [L - 0.1, W / 2]].map((p) => plan(p as Vec2));
+    const q = W / 4;
+    return ([[E + 0.1, q], [L - q, q], [L - q, W - q], [0.15, W - q]] as Vec2[]).map(plan);
+  }
+
+  private renderStairHandles() {
+    const v = this._model?.vertical?.find((x) => x.id === this._stair);
+    if (!v) return nothing;
+    const [x, y, w, d] = stairsRect(this._model!, v);
+    const corners: Vec2[] = [[x, y], [x + w, y], [x + w, y + d], [x, y + d]];
+    return svg`${corners.map((c, i) => {
+      const [sx, sy] = this.toScreen(c);
+      return svg`<circle class="vertex" data-stairhandle=${JSON.stringify(corners[(i + 2) % 4])} cx=${sx} cy=${sy} r="6"></circle>`;
+    })}`;
   }
 
   private renderGuides() {
@@ -1004,6 +1118,7 @@ export class HomeslicePanel extends LitElement {
       if (this._opening) return this.renderOpeningInspector(this._opening);
       return html`<h2>${this.t("editor.mode_openings")}</h2><p class="muted">${this.t("editor.openings_hint")}</p>`;
     }
+    if (this._stair) return this.renderStairInspector(this._stair);
     if (this._room === OUTLINE) return this.renderOutlineInspector();
     if (this._wall) return this.renderWallInspector(this._wall);
     const r = l.rooms.find((x) => x.id === this._room);
@@ -1306,6 +1421,70 @@ export class HomeslicePanel extends LitElement {
         ${ids.map((id) => html`<option value=${id} ?selected=${value === id}>${own.has(id) ? `★ ${name(id)}` : name(id)}</option>`)}
       </select>
     </label>`;
+  }
+
+  private renderStairInspector(id: string) {
+    const m = this._model!;
+    const v = m.vertical?.find((x) => x.id === id);
+    if (!v) return nothing;
+    const set = (patch: Parameters<typeof updateStairs>[2]) => this.commit(updateStairs(m, id, patch));
+    const [, , w, d] = stairsRect(m, v);
+    const up = v.up ?? (w >= d ? "east" : "south");
+    const across: Side[] = up === "north" || up === "south" ? ["east", "west"] : ["north", "south"];
+    const length = up === "east" || up === "west" ? w : d;
+    const levelOptions = (value: string, ok: (i: number) => boolean) =>
+      m.levels.map((l, i) => html`<option value=${l.id} ?selected=${l.id === value} ?disabled=${!ok(i)}>${this.levelName(l)}</option>`);
+    const fromIndex = m.levels.findIndex((l) => l.id === v.from);
+    const toIndex = m.levels.findIndex((l) => l.id === v.to);
+    return html`<h2>${this.t(v.kind === "shaft" ? "editor.shaft" : "editor.stairs")}</h2>
+      <p class="muted">${w.toFixed(2)} × ${d.toFixed(2)} m · ${this.t("editor.stairs_hint")}</p>
+      <div class="row">
+        <label>${this.t("editor.stairs_from")}
+          <select @change=${(e: Event) => set({ from: (e.target as HTMLSelectElement).value })}>${levelOptions(v.from, (i) => i < toIndex)}</select>
+        </label>
+        <label>${this.t("editor.stairs_to")}
+          <select @change=${(e: Event) => set({ to: (e.target as HTMLSelectElement).value })}>${levelOptions(v.to, (i) => i > fromIndex)}</select>
+        </label>
+      </div>
+      <label>${this.t("editor.kind")}
+        <select @change=${(e: Event) => set({ kind: (e.target as HTMLSelectElement).value as "stairs" | "shaft" })}>
+          <option value="stairs" ?selected=${v.kind !== "shaft"}>${this.t("editor.stairs")}</option>
+          <option value="shaft" ?selected=${v.kind === "shaft"}>${this.t("editor.shaft")}</option>
+        </select>
+      </label>
+      ${v.kind === "shaft"
+        ? nothing
+        : html`<div class="row">
+              <label>${this.t("editor.stairs_shape")}
+                <select @change=${(e: Event) => set({ shape: (e.target as HTMLSelectElement).value as "straight" | "u_turn" })}>
+                  <option value="straight" ?selected=${(v.shape ?? "straight") === "straight"}>${this.t("editor.stairs_straight")}</option>
+                  <option value="u_turn" ?selected=${v.shape === "u_turn"}>${this.t("editor.stairs_u_turn")}</option>
+                </select>
+              </label>
+              <label>${this.t("editor.stairs_up")}
+                <select @change=${(e: Event) => set({ up: (e.target as HTMLSelectElement).value as Side })}>
+                  ${(["north", "east", "south", "west"] as Side[]).map((sd) => html`<option value=${sd} ?selected=${up === sd}>${this.t(`editor.side_${sd}` as StringKey)}</option>`)}
+                </select>
+              </label>
+            </div>
+            ${v.shape === "u_turn"
+              ? html`<label>${this.t("editor.stairs_start")}
+                  <select @change=${(e: Event) => set({ start: (e.target as HTMLSelectElement).value as Side })}>
+                    ${across.map((sd) => html`<option value=${sd} ?selected=${(v.start ?? across[1]) === sd}>${this.t(`editor.side_${sd}` as StringKey)}</option>`)}
+                  </select>
+                </label>`
+              : nothing}
+            <label>${this.t("editor.stairs_entry")}
+              <input type="number" min="0" max=${Math.max(0, length - 0.5).toFixed(2)} step="0.05" .value=${String(v.entry ?? 0)} @change=${(e: Event) => {
+                const val = Number((e.target as HTMLInputElement).value);
+                if (val >= 0 && val <= length - 0.5) set({ entry: Math.round(val * 100) / 100 });
+              }} />
+            </label>
+            <p class="muted">${this.t("editor.stairs_entry_hint")}</p>`}
+      <button class="danger" @click=${() => {
+        this.commit(deleteStairs(m, id));
+        this._stair = null;
+      }}>${this.t("editor.stairs_delete")}</button>`;
   }
 
   private renderOutlineInspector() {
@@ -1615,8 +1794,28 @@ export class HomeslicePanel extends LitElement {
       stroke-dasharray: 3 3;
       pointer-events: none;
     }
-    .stairwell.start {
+    .stair-hit {
+      fill: transparent;
+      stroke: #8a8f94;
+      stroke-width: 1;
+      cursor: move;
+    }
+    .mode-openings .stair-hit,
+    .mode-objects .stair-hit {
+      pointer-events: none;
+    }
+    .stair.selected .stair-hit {
+      stroke: var(--accent);
+      stroke-width: 2;
+    }
+    .stair-path {
       fill: none;
+      stroke: #b8bdc2;
+      stroke-width: 1.5;
+      pointer-events: none;
+    }
+    .arrowhead {
+      fill: #b8bdc2;
     }
     .edge-hit {
       stroke: transparent;

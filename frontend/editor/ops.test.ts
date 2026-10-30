@@ -25,6 +25,11 @@ import {
   addLevel,
   deleteLevel,
   newHouse,
+  addStairs,
+  updateStairs,
+  deleteStairs,
+  stairsRect,
+  setStairsRect,
   layoutRooms,
   slug,
   uniqueId,
@@ -261,5 +266,27 @@ describe("houses and levels", () => {
   it("makes ids from names", () => {
     expect(slug("Wohnzimmer Süd")).toBe("wohnzimmer_sud");
     expect(uniqueId(["a", "a_2"], "a")).toBe("a_3");
+  });
+});
+
+describe("stairs", () => {
+  it("adds stairs climbing along the longer side, u_turn when nearly square", () => {
+    let { model, id } = addStairs(house(), [1, 1, 4, 1], "g", "f");
+    expect(model.vertical![0]).toEqual({ id, kind: "stairs", rect: [1, 1, 4, 1], from: "g", to: "f", up: "east" });
+    ({ model } = addStairs(model, [6, 1, 2.5, 2], "g", "f"));
+    expect(model.vertical![1]).toMatchObject({ id: "stairs_2", shape: "u_turn", up: "east", start: "south" });
+  });
+
+  it("keeps the start side valid when the direction changes", () => {
+    let { model, id } = addStairs(house(), [6, 1, 2.5, 2], "g", "f");
+    model = updateStairs(model, id, { up: "north" });
+    expect(model.vertical![0].start).toBe("west");
+    model = updateStairs(model, id, { entry: 0.8 });
+    expect(model.vertical![0].entry).toBe(0.8);
+    model = updateStairs(model, id, { entry: 0 });
+    expect(model.vertical![0].entry).toBeUndefined();
+    model = setStairsRect(model, id, [5, 1, 3, 2]);
+    expect(stairsRect(model, model.vertical![0])).toEqual([5, 1, 3, 2]);
+    expect(deleteStairs(model, id).vertical).toBeUndefined();
   });
 });
