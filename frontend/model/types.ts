@@ -61,7 +61,10 @@ export interface LevelInput {
 export interface FacadeOpeningInput {
   id?: string;
   side: Side;
-  /** Metres from the outline's west end (north/south façades) or north end (east/west). */
+  /**
+   * Metres from the house outline's west end (north/south façades) or north end
+   * (east/west), the same on every level even where a level's own outline differs.
+   */
   at: number;
   width: number;
   levels: string[];

@@ -66,6 +66,21 @@ describe("expandHouse", () => {
     expect(south.openings[0].start).toBeCloseTo(2.5);
   });
 
+  it("keeps façade openings aligned when a level sticks out", () => {
+    const input = twoRooms();
+    // the first floor overhangs 0.5 m to the north
+    input.levels.push({ id: "first", outline: { rect: [0, -0.5, 10, 8.5] }, rooms: [{ id: "a", rect: [0, -0.5, 10, 8.5] }] });
+    input.facade_openings = [{ id: "w", side: "west", at: 2, width: 1, levels: ["ground", "first"] }];
+    const h = expand(input);
+    const y = (level: number) => {
+      const o = h.levels[level].openings.at(-1)!;
+      const room = h.levels[level].rooms.find((r) => r.id === o.room)!;
+      return Math.min(...room.polygon.map((p) => p[1])) + o.at;
+    };
+    expect(y(0)).toBeCloseTo(2);
+    expect(y(1)).toBeCloseTo(2);
+  });
+
   it("resolves grid names and stores polygons positively oriented", () => {
     const input = twoRooms();
     input.grid = { x: { A: 0, B: 5 }, y: { "1": 0, "2": 8 } };

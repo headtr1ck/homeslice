@@ -182,7 +182,9 @@ export function expandHouse(input: unknown): ExpandResult {
       const across = 1 - along;
       const ob = bbox(level.outline);
       const line = fi.side === "north" || fi.side === "west" ? ob.min[across] : ob.max[across];
-      const from = ob.min[along] + fi.at;
+      // positions along the façade use the house's shared coordinates, so stacked windows
+      // stay aligned even where a level's outline sticks out (e.g. a cantilevered floor)
+      const from = bbox(houseOutline ?? level.outline).min[along] + fi.at;
       const mid = from + fi.width / 2;
       const room = level.rooms.find(
         (r) =>
