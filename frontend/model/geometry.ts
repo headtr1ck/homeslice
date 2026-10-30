@@ -83,3 +83,28 @@ export const rectPolygon = (x: number, y: number, w: number, d: number): Vec2[] 
   [x + w, y + d],
   [x, y + d],
 ];
+
+/** Distance from p to the nearest polygon edge. */
+export function edgeDistance(p: Vec2, poly: Vec2[]): number {
+  return Math.min(...edges(poly).map(([a, b]) => {
+    const pr = project(p, a, b);
+    return pr.t < 0 ? dist(p, a) : pr.t > pr.length ? dist(p, b) : pr.distance;
+  }));
+}
+
+/** A point well inside the polygon (roughly the farthest from its edges), for labels. */
+export function labelPoint(poly: Vec2[]): Vec2 {
+  const { min, max } = bbox(poly);
+  const steps = 24;
+  let best: Vec2 = [(min[0] + max[0]) / 2, (min[1] + max[1]) / 2];
+  let bestDistance = pointInPolygon(best, poly) ? edgeDistance(best, poly) : -1;
+  for (let i = 1; i < steps; i++) {
+    for (let j = 1; j < steps; j++) {
+      const p: Vec2 = [min[0] + ((max[0] - min[0]) * i) / steps, min[1] + ((max[1] - min[1]) * j) / steps];
+      if (!pointInPolygon(p, poly)) continue;
+      const d = edgeDistance(p, poly);
+      if (d > bestDistance + 1e-3) [best, bestDistance] = [p, d];
+    }
+  }
+  return best;
+}

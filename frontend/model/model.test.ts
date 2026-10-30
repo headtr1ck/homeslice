@@ -117,3 +117,13 @@ describe("deriveWalls", () => {
     expect(issues[0].message).toBe('Room "left" has no east side at 9 m.');
   });
 });
+
+describe("labelPoint", () => {
+  it("stays inside L-shaped rooms", async () => {
+    const { labelPoint, pointInPolygon, edgeDistance } = await import("./geometry");
+    const l: [number, number][] = [[0, 0], [6, 0], [6, 1], [1, 1], [1, 6], [0, 6]];
+    const p = labelPoint(l);
+    expect(pointInPolygon(p, l)).toBe(true);
+    expect(edgeDistance(p, l)).toBeGreaterThan(0.4);
+  });
+});

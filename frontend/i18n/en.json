@@ -6,5 +6,8 @@
   "card.no_webgl": "This browser can't show 3D graphics (WebGL is unavailable).",
   "card.issues": "{count} problems in the house file",
   "card.issue_error": "Error",
-  "card.issue_warning": "Warning"
+  "card.issue_warning": "Warning",
+  "card.all_floors": "All floors",
+  "card.lights_on": "Turn on the lights in {room}",
+  "card.lights_off": "Turn off the lights in {room}"
 }

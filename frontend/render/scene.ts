@@ -49,6 +49,10 @@ export class HouseRenderer {
   private materials = new Map<string, THREE.Material>();
   private sun = new THREE.DirectionalLight(0xffffff, 2.2);
   private view: ViewOptions = DEFAULT_VIEW;
+  private levelGroups = new Map<string, THREE.Group>();
+  /** Room floors keyed by `level/room`, each with its own material so it can glow. */
+  private floors = new Map<string, THREE.MeshLambertMaterial>();
+  private size = { width: 1, height: 1 };
   /** Width / height of the house as seen from the camera. */
   aspect = 1.6;
 
@@ -82,8 +86,33 @@ export class HouseRenderer {
       const g = this.buildLevel(level, walls.get(level.id) ?? [], house.vertical);
       g.position.y = level.elevation + level.index * this.view.explode;
       this.root.add(g);
+      this.levelGroups.set(level.id, g);
     }
     this.placeCameraAndSun();
+  }
+
+  /** Lights a room's floor in the light's colour; `null` switches it off. */
+  setRoomLight(levelId: string, roomId: string, light: { rgb: [number, number, number]; brightness: number } | null) {
+    const m = this.floors.get(`${levelId}/${roomId}`);
+    if (!m) return;
+    if (!light) m.emissive.setRGB(0, 0, 0);
+    else {
+      const k = 0.18 + 0.32 * light.brightness;
+      m.emissive.setRGB((light.rgb[0] / 255) * k, (light.rgb[1] / 255) * k, (light.rgb[2] / 255) * k, THREE.SRGBColorSpace);
+    }
+  }
+
+  /** Shows only the levels up to (and including) the given index; null shows all. */
+  showLevelsUpTo(index: number | null) {
+    [...this.levelGroups.values()].forEach((g, i) => (g.visible = index === null || i <= index));
+  }
+
+  /** Screen position (CSS px from the canvas' top left) of a plan point on a level. */
+  project(levelId: string, [x, y]: Vec2, h = 0): { x: number; y: number } | null {
+    const g = this.levelGroups.get(levelId);
+    if (!g) return null;
+    const v = new THREE.Vector3(x, g.position.y + h, y).project(this.camera);
+    return { x: ((v.x + 1) / 2) * this.size.width, y: ((1 - v.y) / 2) * this.size.height };
   }
 
   private clear() {
@@ -91,6 +120,9 @@ export class HouseRenderer {
       if (o instanceof THREE.Mesh) o.geometry.dispose();
     });
     this.root.clear();
+    this.levelGroups.clear();
+    for (const m of this.floors.values()) m.dispose();
+    this.floors.clear();
   }
 
   private mesh(geometry: THREE.BufferGeometry, material: THREE.Material, shadows = true) {
@@ -120,7 +152,9 @@ export class HouseRenderer {
       const floor = new THREE.ShapeGeometry(shapeOf(room.polygon, inside));
       floor.rotateX(-Math.PI / 2);
       floor.translate(0, room.kind === "outdoor" ? -level.slab + 0.01 : 0.004, 0);
-      g.add(this.mesh(floor, this.lambert(FLOOR_COLORS[room.floor] ?? FLOOR_COLORS.wood), false));
+      const mat = new THREE.MeshLambertMaterial({ color: FLOOR_COLORS[room.floor] ?? FLOOR_COLORS.wood });
+      this.floors.set(`${level.id}/${room.id}`, mat);
+      g.add(this.mesh(floor, mat, false));
     }
 
     // walls, split around openings
@@ -245,6 +279,7 @@ export class HouseRenderer {
   render(width: number, height: number) {
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     this.renderer.setSize(width, height, false);
+    this.size = { width, height };
     const margin = 1.04;
     const b = this.bounds;
     let w = (b.right - b.left) * margin;
