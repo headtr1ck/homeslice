@@ -134,6 +134,7 @@ export class HomesliceCard extends LitElement {
   private frame = 0;
   private transitioning = false;
   private popupCards: (HTMLElement & { hass?: Hass })[] = [];
+  private unsubscribe?: () => Promise<void> | void;
   private onKey = (e: KeyboardEvent) => {
     if (e.key === "Escape" && this._popup) this.closePopup();
   };
@@ -198,25 +199,46 @@ export class HomesliceCard extends LitElement {
     this.renderer = undefined;
     this.loadedFor = undefined;
     this.stateSignature = "";
+    void this.unsubscribe?.();
+    this.unsubscribe = undefined;
   }
 
   // ----- loading -----
 
+  /** Subscribes to the house, so saved changes show up at once (falls back to one fetch). */
   private async load() {
     this._loading = true;
     this._error = "";
+    void this.unsubscribe?.();
+    this.unsubscribe = undefined;
+    const house = this.config.house;
     try {
-      const raw = await this.hass!.callWS<unknown>({ type: "homeslice/model", house: this.config.house });
-      const { house, issues } = expandHouse(raw);
-      const walls = new Map<string, Wall[]>();
-      if (house) for (const level of house.levels) walls.set(level.id, deriveWalls(level, house.walls, issues));
-      this._issues = issues;
-      if (house) await this.show(house, walls);
+      if (this.hass!.connection?.subscribeMessage) {
+        this.unsubscribe = await this.hass!.connection.subscribeMessage<{ model: unknown }>(
+          (msg) => void this.applyModel(msg.model),
+          { type: "homeslice/subscribe", house },
+        );
+      } else {
+        await this.applyModel(await this.hass!.callWS<unknown>({ type: "homeslice/model", house }));
+      }
     } catch (e) {
       this._error = this.t("card.load_failed", { message: (e as { message?: string }).message ?? String(e) });
-    } finally {
       this._loading = false;
     }
+  }
+
+  private async applyModel(raw: unknown) {
+    this._loading = false;
+    if (raw === null || raw === undefined) {
+      this._error = this.t("card.no_house", { house: this.config.house ?? "" });
+      return;
+    }
+    this._error = "";
+    const { house, issues } = expandHouse(raw);
+    const walls = new Map<string, Wall[]>();
+    if (house) for (const level of house.levels) walls.set(level.id, deriveWalls(level, house.walls, issues));
+    this._issues = issues;
+    if (house) await this.show(house, walls);
   }
 
   private async show(house: House, walls: Map<string, Wall[]>) {
@@ -241,7 +263,11 @@ export class HomesliceCard extends LitElement {
       ws.flatMap((w) => w.openings.filter((o) => o.cover || o.contact).map((o) => ({ levelId, id: o.id, cover: o.cover, contact: o.contact }))),
     );
     this.renderer.setModel(house, walls, viewOptions(this.config.view));
-    this._level = null;
+    // keep the focused floor across model updates, if it still exists
+    const focused = this._level ? house.levels.find((l) => l.id === this._level) : undefined;
+    this._level = focused?.id ?? null;
+    this._hover = null;
+    if (focused) await this.renderer.setFocus(focused.index, false);
     this.stateSignature = "";
     this.syncStates();
     this.scheduleDraw();

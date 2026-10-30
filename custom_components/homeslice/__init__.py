@@ -8,9 +8,13 @@ from pathlib import Path
 from homeassistant.components.frontend import add_extra_js_url
 from homeassistant.components.http import StaticPathConfig
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
+from homeassistant.core import Event, HomeAssistant, ServiceCall, callback
+from homeassistant.helpers import area_registry as ar, entity_registry as er, floor_registry as fr
+from homeassistant.helpers.debounce import Debouncer
 
 from .const import DOMAIN, FRONTEND_FILE, FRONTEND_URL
+from .repairs import async_check_house
+from .store import HomesliceStore
 from .websocket import async_register_websocket
 
 _LOGGER = logging.getLogger(__name__)
@@ -19,9 +23,20 @@ FRONTEND_DIR = Path(__file__).parent / "frontend"
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    """Serve the frontend and register the websocket API."""
-    # Static paths and extra JS can't be unregistered, so only do this once per run.
-    if not hass.data.get(DOMAIN):
+    """Load the houses, serve the frontend and register the API."""
+    data = hass.data.setdefault(DOMAIN, {})
+
+    store = HomesliceStore(hass)
+    await store.async_load()
+    data["store"] = store
+    # Phase 1 kept houses as YAML files; import them on first start.
+    if not store.houses:
+        imported = await store.async_import_files()
+        if imported:
+            _LOGGER.info("Imported house files: %s", ", ".join(imported))
+
+    # Static paths, extra JS and websocket commands can't be unregistered: once per run.
+    if not data.get("registered"):
         bundle = FRONTEND_DIR / FRONTEND_FILE
         version = await hass.async_add_executor_job(_bundle_version, bundle)
         await hass.http.async_register_static_paths(
@@ -29,13 +44,39 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         )
         add_extra_js_url(hass, f"{FRONTEND_URL}/{FRONTEND_FILE}?v={version}")
         async_register_websocket(hass)
-        hass.data[DOMAIN] = True
-        _LOGGER.debug("Homeslice frontend %s registered", version)
+
+        async def import_files(call: ServiceCall) -> None:
+            await hass.data[DOMAIN]["store"].async_import_files()
+
+        hass.services.async_register(DOMAIN, "import_files", import_files)
+        data["registered"] = True
+
+    # Repairs: check every house now, after each change, and when registries change.
+    @callback
+    def check_all() -> None:
+        for house_id in list(store.houses):
+            async_check_house(hass, house_id, store.get(house_id))
+
+    debouncer = Debouncer(hass, _LOGGER, cooldown=2, immediate=False, function=check_all)
+
+    @callback
+    def registry_changed(event: Event) -> None:
+        hass.async_create_task(debouncer.async_call())
+
+    check_all()
+    entry.async_on_unload(store.async_listen(lambda house_id, model: async_check_house(hass, house_id, model)))
+    for event_type in (
+        ar.EVENT_AREA_REGISTRY_UPDATED,
+        fr.EVENT_FLOOR_REGISTRY_UPDATED,
+        er.EVENT_ENTITY_REGISTRY_UPDATED,
+    ):
+        entry.async_on_unload(hass.bus.async_listen(event_type, registry_changed))
+    entry.async_on_unload(debouncer.async_shutdown)
     return True
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    """Nothing to tear down; the frontend stays registered until restart."""
+    """The frontend and API stay registered until restart."""
     return True
 
 

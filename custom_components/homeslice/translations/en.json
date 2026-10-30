@@ -9,5 +9,25 @@
     "abort": {
       "single_instance_allowed": "Homeslice is already set up."
     }
+  },
+  "issues": {
+    "missing_area": {
+      "title": "Homeslice: area {ref} no longer exists",
+      "description": "House **{house}** links {where} to the area `{ref}`, which Home Assistant doesn't have anymore. Link the room to another area or restore the area."
+    },
+    "missing_floor": {
+      "title": "Homeslice: floor {ref} no longer exists",
+      "description": "House **{house}** links {where} to the floor `{ref}`, which Home Assistant doesn't have anymore. Link the level to another floor or restore the floor."
+    },
+    "missing_entity": {
+      "title": "Homeslice: entity {ref} no longer exists",
+      "description": "House **{house}** uses `{ref}` for the {where}, but Home Assistant doesn't know this entity anymore. Pick another entity or remove the link."
+    }
+  },
+  "services": {
+    "import_files": {
+      "name": "Import house files",
+      "description": "Imports every YAML file in the homeslice folder of your configuration into Homeslice's storage. The file name is the house id."
+    }
   }
 }

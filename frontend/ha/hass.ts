@@ -15,6 +15,9 @@ export interface Hass {
   devices?: Record<string, { id: string; area_id?: string | null }>;
   entities?: Record<string, { entity_id: string; area_id?: string | null; device_id?: string | null; hidden?: boolean; entity_category?: string | null }>;
   callWS<T>(msg: Record<string, unknown>): Promise<T>;
+  connection?: {
+    subscribeMessage<T>(callback: (msg: T) => void, msg: Record<string, unknown>): Promise<() => Promise<void> | void>;
+  };
   callService(domain: string, service: string, data?: Record<string, unknown>, target?: Record<string, unknown>): Promise<unknown>;
 }
 

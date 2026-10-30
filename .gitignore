@@ -9,3 +9,4 @@ coverage/
 .deploy.env
 test-results/
 dev/fixtures/private/
+.venv-install.log

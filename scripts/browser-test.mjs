@@ -66,7 +66,9 @@ async function open(fixtureFile, config = {}, viewport = { width: 1632, height: 
   page.on("pageerror", (e) => errors.push(e.message));
   await page.goto(`${base}/dev/harness.html`);
   await page.waitForFunction(() => window.ready);
-  await page.evaluate(([f, c]) => window.setup(f, c), [loadFixture(fixtureFile), config]);
+  const fixture = loadFixture(fixtureFile);
+  await page.evaluate((m) => (window.__demoModel = m), fixture.model);
+  await page.evaluate(([f, c]) => window.setup(f, c), [fixture, config]);
   // the first size measurement triggers one more redraw; let it pass before acting
   await page.waitForTimeout(250);
   return { page, errors };
@@ -134,6 +136,23 @@ console.log("demo house");
     await act(page, () => page.locator("homeslice-card nav.levels button", { hasText: "All floors" }).click());
     names = await labelNames(page);
     assert(names.includes("Bedroom"), "bedroom label not back after 'All floors'");
+  });
+
+  await test("a saved model change shows up at once and keeps the focused floor", async () => {
+    await act(page, () => page.locator("homeslice-card nav.levels button", { hasText: "Ground Floor" }).click());
+    await act(page, () =>
+      page.evaluate(() => {
+        const h = window.card.hass;
+        const model = JSON.parse(JSON.stringify(window.__demoModel));
+        model.levels[0].rooms.find((r) => r.id === "kitchen").area_id = "garden";
+        h.pushModel(model);
+      }),
+    );
+    const names = await labelNames(page);
+    assert(names.filter((n) => n === "Garden").length === 2, `kitchen should now be labelled Garden: ${names.join(", ")}`);
+    assert((await page.evaluate(() => window.card.renderer.focusedIndex)) === 0, "focused floor lost after the update");
+    await act(page, () => page.evaluate(() => window.card.hass.pushModel(window.__demoModel)));
+    await act(page, () => page.locator("homeslice-card nav.levels button", { hasText: "All floors" }).click());
   });
 
   await test("unrelated state changes don't redraw anything", async () => {

@@ -19,5 +19,6 @@
   "popup.more": "More",
   "popup.close": "Close",
   "popup.empty": "Nothing in this room is linked to Home Assistant yet.",
-  "card.camera": "{azimuth}° · {elevation}°"
+  "card.camera": "{azimuth}° · {elevation}°",
+  "card.no_house": "There is no house \"{house}\" in Homeslice yet."
 }

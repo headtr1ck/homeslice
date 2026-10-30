@@ -4,6 +4,7 @@
 
 export function makeHass(fixture, onChange) {
   const calls = [];
+  const subscribers = new Set();
   let states = structuredClone(fixture.states);
 
   const entityArea = (id) => {
@@ -34,6 +35,19 @@ export function makeHass(fixture, onChange) {
       return states;
     },
     calls,
+    connection: {
+      async subscribeMessage(callback, msg) {
+        if (msg.type !== "homeslice/subscribe") throw new Error(`fake hass: unknown subscription ${msg.type}`);
+        subscribers.add(callback);
+        callback({ model: structuredClone(fixture.model) });
+        return () => subscribers.delete(callback);
+      },
+    },
+    /** Test helper: what saving a new model in HA does. */
+    pushModel(model) {
+      fixture.model = model;
+      for (const callback of subscribers) callback({ model: structuredClone(model) });
+    },
     async callWS(msg) {
       if (msg.type === "homeslice/model") return structuredClone(fixture.model);
       throw new Error(`fake hass: unknown websocket command ${msg.type}`);

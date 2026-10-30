@@ -16,7 +16,10 @@ covers, window contacts and temperatures, floor focus and room popups. No editor
 1. Copy `custom_components/homeslice` into your Home Assistant configuration (or use
    `scripts/deploy.sh`, see below) and restart Home Assistant.
 2. Add the **Homeslice** integration under *Settings → Devices & services*.
-3. Write your house to `<config>/homeslice/home.yaml` (format below).
+3. Write your house to `<config>/homeslice/home.yaml` (format below). It is imported into
+   Homeslice's storage on first start; after editing the file, call the service
+   `homeslice.import_files`. Open cards update immediately. Broken links (deleted areas,
+   floors, entities) show up under *Settings → Repairs*.
 4. Add a card:
 
    ```yaml
@@ -108,6 +111,14 @@ HOMESLICE_HA_HTTP=http://host:8123 HOMESLICE_DASHBOARD=/dashboard-x/house node s
 ```
 
 Screenshots land in `test-results/`.
+
+Integration tests (Python, Home Assistant's own test framework):
+
+```sh
+uv venv .venv --python 3.14
+uv pip install --python .venv/bin/python pytest-homeassistant-custom-component home-assistant-frontend
+.venv/bin/python -m pytest
+```
 
 ## License
 
