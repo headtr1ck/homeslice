@@ -118,7 +118,9 @@ export function expandHouse(input: unknown): ExpandResult {
         return;
       }
       const kind = ri.kind ?? "room";
-      rooms.push({ id: ri.id, areaId: ri.area_id, name: ri.name, kind, floor: ri.floor ?? DEFAULTS.floor[kind], polygon });
+      const room: Room = { id: ri.id, areaId: ri.area_id, name: ri.name, kind, floor: ri.floor ?? DEFAULTS.floor[kind], polygon };
+      if (ri.awning) room.awning = ri.awning;
+      rooms.push(room);
     });
 
     const openings: Opening[] = [];

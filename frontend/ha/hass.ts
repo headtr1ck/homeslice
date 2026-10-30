@@ -98,9 +98,17 @@ export interface PopupSection {
   cards: Record<string, unknown>[];
 }
 
-/** Standard HA cards for everything in an area, grouped like HA's own area views. */
-export function areaPopup(hass: Hass, areaId: string): PopupSection[] {
-  const ids = (domain: string) => areaEntities(hass, areaId, domain);
+/**
+ * Standard HA cards for everything in an area, grouped like HA's own area views.
+ * `extra` adds entities placed in the room that may not belong to its area, such as the
+ * blinds and contacts of its windows or an awning.
+ */
+export function areaPopup(hass: Hass, areaId: string | undefined, extra: string[] = []): PopupSection[] {
+  const ids = (domain: string) => {
+    const own = areaId ? areaEntities(hass, areaId, domain) : [];
+    const more = extra.filter((e) => e.startsWith(`${domain}.`) && !own.includes(e) && hass.states[e]);
+    return [...own, ...new Set(more)];
+  };
   const deviceClass = (id: string) => hass.states[id]?.attributes.device_class as string | undefined;
   const tile = (entity: string, features?: Record<string, unknown>[]) => ({ type: "tile", entity, ...(features ? { features } : {}) });
   const sections: PopupSection[] = [

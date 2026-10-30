@@ -114,5 +114,7 @@
   "editor.draw_room": "Draw",
   "editor.drawing_for": "Drawing the room for {area}.",
   "editor.delete_level": "Delete level",
-  "editor.delete_level_confirm": "Delete the level “{name}” with all its rooms, doors and windows? (Undo is possible until you save.)"
+  "editor.delete_level_confirm": "Delete the level “{name}” with all its rooms, doors and windows? (Undo is possible until you save.)",
+  "editor.awning": "Awning",
+  "editor.awning_hint": "An awning on the house wall next to this area; it extends with the cover's position."
 }

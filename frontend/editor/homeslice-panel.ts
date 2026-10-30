@@ -1044,6 +1044,10 @@ export class HomeslicePanel extends LitElement {
           ${Object.keys(PLAN_COLORS).map((k) => html`<option value=${k} ?selected=${r.floor === k}>${k}</option>`)}
         </select>
       </label>
+      ${(r.kind ?? "room") === "outdoor"
+        ? html`${this.entitySelect(this.t("editor.awning"), "cover", r.area_id, r.awning, (awning) => set({ awning }))}
+            <p class="muted">${this.t("editor.awning_hint")}</p>`
+        : nothing}
       <button class="danger" @click=${() => {
         this.commit(deleteRoom(m, this._level, r.id));
         this._room = null;
@@ -1145,18 +1149,8 @@ export class HomeslicePanel extends LitElement {
     };
     const roomInput = this.levelInput?.rooms.find((r) => r.id === sel.room);
     const areaId = roomInput?.area_id;
-    const hass = this._hass;
-    const states = hass?.states ?? {};
-    const name = (id: string) => (states[id]?.attributes.friendly_name as string | undefined) ?? id;
-    const options = (domain: string, filter: (id: string) => boolean = () => true) => {
-      const all = Object.keys(states).filter((id) => id.startsWith(`${domain}.`) && filter(id));
-      const own = new Set(areaId && hass ? areaEntities(hass, areaId, domain) : []);
-      return [...all.filter((id) => own.has(id)), ...all.filter((id) => !own.has(id)).sort((a, b) => name(a).localeCompare(name(b)))];
-    };
-    const contacts = options("binary_sensor", (id) => ["door", "window", "opening", "garage_door"].includes(String(states[id]?.attributes.device_class)));
-    const covers = options("cover");
+    const states = this._hass?.states ?? {};
     const shared = sel.src.kind === "facade" ? m.facade_openings?.[sel.src.index]?.levels ?? [] : [];
-    const label = (id: string) => (areaId && hass && areaEntities(hass, areaId, id.split(".")[0]).includes(id) ? `★ ${name(id)}` : name(id));
     const types: OpeningType[] = ["window", "door", "garage_door", "opening"];
     return html`<h2>${this.t(`editor.type_${o.type ?? "window"}` as StringKey)}</h2>
       <p class="muted">${roomInput ? this.roomName(roomInput) : ""} · ${this.t(`editor.side_${o.side}` as StringKey)}</p>
@@ -1174,18 +1168,10 @@ export class HomeslicePanel extends LitElement {
         <label>${this.t("editor.opening_sill")}<input type="number" step="0.05" placeholder=${this.t("editor.default")} .value=${o.sill === undefined ? "" : String(o.sill)} @change=${num("sill")} /></label>
         <label>${this.t("editor.opening_height")}<input type="number" step="0.05" placeholder=${this.t("editor.default")} .value=${o.height === undefined ? "" : String(o.height)} @change=${num("height")} /></label>
       </div>
-      <label>${this.t("editor.opening_cover")}
-        <select @change=${(e: Event) => set({ cover: (e.target as HTMLSelectElement).value || undefined })}>
-          <option value="">—</option>
-          ${covers.map((id) => html`<option value=${id} ?selected=${o.cover === id}>${label(id)}</option>`)}
-        </select>
-      </label>
-      <label>${this.t("editor.opening_contact")}
-        <select @change=${(e: Event) => set({ contact: (e.target as HTMLSelectElement).value || undefined })}>
-          <option value="">—</option>
-          ${contacts.map((id) => html`<option value=${id} ?selected=${o.contact === id}>${label(id)}</option>`)}
-        </select>
-      </label>
+      ${this.entitySelect(this.t("editor.opening_cover"), "cover", areaId, o.cover, (cover) => set({ cover }))}
+      ${this.entitySelect(this.t("editor.opening_contact"), "binary_sensor", areaId, o.contact, (contact) => set({ contact }), (id) =>
+        ["door", "window", "opening", "garage_door"].includes(String(states[id]?.attributes.device_class)),
+      )}
       <button class="danger" @click=${() => {
         this.commit(deleteOpening(m, this._level, sel.src));
         this._opening = null;
@@ -1301,6 +1287,25 @@ export class HomeslicePanel extends LitElement {
         this.commit(next);
         this._level = next.levels[Math.max(0, index - 1)].id;
       }}>${this.t("editor.delete_level")}</button>`;
+  }
+
+  /**
+   * A dropdown of entities of one domain; the area's own entities come first, marked ★,
+   * then all others by name.
+   */
+  private entitySelect(label: string, domain: string, areaId: string | undefined, value: string | undefined, onChange: (id: string | undefined) => void, filter: (id: string) => boolean = () => true) {
+    const hass = this._hass;
+    const states = hass?.states ?? {};
+    const name = (id: string) => (states[id]?.attributes.friendly_name as string | undefined) ?? id;
+    const all = Object.keys(states).filter((id) => id.startsWith(`${domain}.`) && filter(id));
+    const own = new Set(areaId && hass ? areaEntities(hass, areaId, domain) : []);
+    const ids = [...all.filter((id) => own.has(id)), ...all.filter((id) => !own.has(id)).sort((a, b) => name(a).localeCompare(name(b)))];
+    return html`<label>${label}
+      <select @change=${(e: Event) => onChange((e.target as HTMLSelectElement).value || undefined)}>
+        <option value="">—</option>
+        ${ids.map((id) => html`<option value=${id} ?selected=${value === id}>${own.has(id) ? `★ ${name(id)}` : name(id)}</option>`)}
+      </select>
+    </label>`;
   }
 
   private renderOutlineInspector() {

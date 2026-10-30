@@ -36,6 +36,7 @@ interface PlacedRoom {
 interface PlacedOpening {
   levelId: string;
   id: string;
+  room: string;
   cover?: string;
   contact?: string;
 }
@@ -260,7 +261,7 @@ export class HomesliceCard extends LitElement {
         .map((room) => ({ key: `${level.id}/${room.id}`, levelId: level.id, levelIndex: level.index, room, point: labelPoint(room.polygon) })),
     );
     this.openings = [...walls.entries()].flatMap(([levelId, ws]) =>
-      ws.flatMap((w) => w.openings.filter((o) => o.cover || o.contact).map((o) => ({ levelId, id: o.id, cover: o.cover, contact: o.contact }))),
+      ws.flatMap((w) => w.openings.filter((o) => o.cover || o.contact).map((o) => ({ levelId, id: o.id, room: o.room, cover: o.cover, contact: o.contact }))),
     );
     this.renderer.setModel(house, walls, viewOptions(this.config.view));
     // keep the focused floor across model updates, if it still exists
@@ -283,10 +284,14 @@ export class HomesliceCard extends LitElement {
     const covers = this.openings.map((o) => (o.cover ? coverOpen(hass, o.cover) : null));
     const contacts = this.openings.map((o) => (o.contact ? contactOpen(hass, o.contact) : false));
     const temperatures = this.rooms.map((r) => (r.room.areaId ? areaTemperature(hass, r.room.areaId) : null));
-    const signature = JSON.stringify([lights, covers, contacts, temperatures]);
+    const awnings = this.rooms.map((r) => (r.room.awning ? coverOpen(hass, r.room.awning) : null));
+    const signature = JSON.stringify([lights, covers, contacts, temperatures, awnings]);
     if (signature === this.stateSignature) return;
     this.stateSignature = signature;
-    this.rooms.forEach((r, i) => this.renderer!.setRoomLight(r.levelId, r.room.id, lights[i]));
+    this.rooms.forEach((r, i) => {
+      this.renderer!.setRoomLight(r.levelId, r.room.id, lights[i]);
+      if (r.room.awning) this.renderer!.setAwning(r.levelId, r.room.id, awnings[i]);
+    });
     this.openings.forEach((o, i) => {
       this.renderer!.setCover(o.id, covers[i]);
       this.renderer!.setContact(o.id, contacts[i]);
@@ -333,10 +338,15 @@ export class HomesliceCard extends LitElement {
     if (!r || !this.hass) return;
     const areaId = r.room.areaId;
     const override = this.config.popups?.[r.room.id] ?? (areaId ? this.config.popups?.[areaId] : undefined);
+    // the room's own blinds, contacts and awning, even when HA has them in no area
+    const placed = [
+      ...this.openings.filter((o) => o.levelId === r.levelId && o.room === r.room.id).flatMap((o) => [o.cover, o.contact]),
+      r.room.awning,
+    ].filter((e): e is string => !!e);
     const generated: { title: string; cards: Record<string, unknown>[] }[] =
-      override?.mode === "replace" || !areaId
+      override?.mode === "replace"
         ? []
-        : areaPopup(this.hass, areaId).map((s: PopupSection) => ({ title: this.t(`popup.${s.title}` as StringKey), cards: s.cards }));
+        : areaPopup(this.hass, areaId, placed).map((s: PopupSection) => ({ title: this.t(`popup.${s.title}` as StringKey), cards: s.cards }));
     const sections = override?.cards.length ? [...generated, { title: generated.length ? this.t("popup.more") : "", cards: override.cards }] : generated;
     this._popup = { key, name: this.roomName(r), areaId, sections };
   }

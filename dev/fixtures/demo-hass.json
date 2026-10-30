@@ -1,54 +1,270 @@
 {
   "model": "examples/demo.yaml",
   "floors": {
-    "ground_floor": { "floor_id": "ground_floor", "name": "Ground Floor", "level": 0 },
-    "first_floor": { "floor_id": "first_floor", "name": "First Floor", "level": 1 }
+    "ground_floor": {
+      "floor_id": "ground_floor",
+      "name": "Ground Floor",
+      "level": 0
+    },
+    "first_floor": {
+      "floor_id": "first_floor",
+      "name": "First Floor",
+      "level": 1
+    }
   },
   "areas": {
-    "hall": { "area_id": "hall", "name": "Hall", "floor_id": "ground_floor" },
-    "kitchen": { "area_id": "kitchen", "name": "Kitchen", "floor_id": "ground_floor" },
-    "living_room": { "area_id": "living_room", "name": "Living Room", "floor_id": "ground_floor", "temperature_entity_id": "sensor.living_room_temperature" },
-    "garden": { "area_id": "garden", "name": "Garden", "floor_id": "ground_floor" },
-    "bedroom": { "area_id": "bedroom", "name": "Bedroom", "floor_id": "first_floor" },
-    "bathroom": { "area_id": "bathroom", "name": "Bathroom", "floor_id": "first_floor" },
-    "kids_room": { "area_id": "kids_room", "name": "Kids Room", "floor_id": "first_floor" }
+    "hall": {
+      "area_id": "hall",
+      "name": "Hall",
+      "floor_id": "ground_floor"
+    },
+    "kitchen": {
+      "area_id": "kitchen",
+      "name": "Kitchen",
+      "floor_id": "ground_floor"
+    },
+    "living_room": {
+      "area_id": "living_room",
+      "name": "Living Room",
+      "floor_id": "ground_floor",
+      "temperature_entity_id": "sensor.living_room_temperature"
+    },
+    "garden": {
+      "area_id": "garden",
+      "name": "Garden",
+      "floor_id": "ground_floor"
+    },
+    "bedroom": {
+      "area_id": "bedroom",
+      "name": "Bedroom",
+      "floor_id": "first_floor"
+    },
+    "bathroom": {
+      "area_id": "bathroom",
+      "name": "Bathroom",
+      "floor_id": "first_floor"
+    },
+    "kids_room": {
+      "area_id": "kids_room",
+      "name": "Kids Room",
+      "floor_id": "first_floor"
+    }
   },
   "devices": {
-    "dev_kitchen_light": { "id": "dev_kitchen_light", "area_id": "kitchen" },
-    "dev_bedroom_sensor": { "id": "dev_bedroom_sensor", "area_id": "bedroom" }
+    "dev_kitchen_light": {
+      "id": "dev_kitchen_light",
+      "area_id": "kitchen"
+    },
+    "dev_bedroom_sensor": {
+      "id": "dev_bedroom_sensor",
+      "area_id": "bedroom"
+    }
   },
   "entities": {
-    "light.hall": { "entity_id": "light.hall", "area_id": "hall" },
-    "light.kitchen": { "entity_id": "light.kitchen", "device_id": "dev_kitchen_light" },
-    "light.living_room": { "entity_id": "light.living_room", "area_id": "living_room" },
-    "light.tablet_screen": { "entity_id": "light.tablet_screen", "area_id": "living_room", "hidden": true },
-    "light.bedroom": { "entity_id": "light.bedroom", "area_id": "bedroom" },
-    "light.kids": { "entity_id": "light.kids", "area_id": "kids_room" },
-    "cover.kitchen": { "entity_id": "cover.kitchen", "area_id": "kitchen" },
-    "cover.living_room": { "entity_id": "cover.living_room", "area_id": "living_room" },
-    "cover.bedroom": { "entity_id": "cover.bedroom", "area_id": "bedroom" },
-    "cover.kids": { "entity_id": "cover.kids", "area_id": "kids_room" },
-    "sensor.living_room_temperature": { "entity_id": "sensor.living_room_temperature", "area_id": "living_room" },
-    "sensor.bedroom_temperature": { "entity_id": "sensor.bedroom_temperature", "device_id": "dev_bedroom_sensor" },
-    "sensor.bedroom_battery": { "entity_id": "sensor.bedroom_battery", "device_id": "dev_bedroom_sensor", "entity_category": "diagnostic" },
-    "climate.living_room": { "entity_id": "climate.living_room", "area_id": "living_room" },
-    "media_player.living_room_tv": { "entity_id": "media_player.living_room_tv", "area_id": "living_room" }
+    "light.hall": {
+      "entity_id": "light.hall",
+      "area_id": "hall"
+    },
+    "light.kitchen": {
+      "entity_id": "light.kitchen",
+      "device_id": "dev_kitchen_light"
+    },
+    "light.living_room": {
+      "entity_id": "light.living_room",
+      "area_id": "living_room"
+    },
+    "light.tablet_screen": {
+      "entity_id": "light.tablet_screen",
+      "area_id": "living_room",
+      "hidden": true
+    },
+    "light.bedroom": {
+      "entity_id": "light.bedroom",
+      "area_id": "bedroom"
+    },
+    "light.kids": {
+      "entity_id": "light.kids",
+      "area_id": "kids_room"
+    },
+    "cover.kitchen": {
+      "entity_id": "cover.kitchen",
+      "area_id": "kitchen"
+    },
+    "cover.living_room": {
+      "entity_id": "cover.living_room",
+      "area_id": "living_room"
+    },
+    "cover.bedroom": {
+      "entity_id": "cover.bedroom",
+      "area_id": "bedroom"
+    },
+    "cover.kids": {
+      "entity_id": "cover.kids",
+      "area_id": "kids_room"
+    },
+    "sensor.living_room_temperature": {
+      "entity_id": "sensor.living_room_temperature",
+      "area_id": "living_room"
+    },
+    "sensor.bedroom_temperature": {
+      "entity_id": "sensor.bedroom_temperature",
+      "device_id": "dev_bedroom_sensor"
+    },
+    "sensor.bedroom_battery": {
+      "entity_id": "sensor.bedroom_battery",
+      "device_id": "dev_bedroom_sensor",
+      "entity_category": "diagnostic"
+    },
+    "climate.living_room": {
+      "entity_id": "climate.living_room",
+      "area_id": "living_room"
+    },
+    "media_player.living_room_tv": {
+      "entity_id": "media_player.living_room_tv",
+      "area_id": "living_room"
+    },
+    "cover.awning": {
+      "entity_id": "cover.awning",
+      "area_id": null
+    }
   },
   "states": {
-    "light.hall": { "entity_id": "light.hall", "state": "off", "attributes": { "friendly_name": "Hall light" } },
-    "light.kitchen": { "entity_id": "light.kitchen", "state": "off", "attributes": { "friendly_name": "Kitchen light" } },
-    "light.living_room": { "entity_id": "light.living_room", "state": "on", "attributes": { "friendly_name": "Sofa lamp", "brightness": 200, "rgb_color": [255, 180, 110] } },
-    "light.tablet_screen": { "entity_id": "light.tablet_screen", "state": "on", "attributes": { "friendly_name": "Tablet screen", "brightness": 120 } },
-    "light.bedroom": { "entity_id": "light.bedroom", "state": "off", "attributes": { "friendly_name": "Bedroom light" } },
-    "light.kids": { "entity_id": "light.kids", "state": "on", "attributes": { "friendly_name": "Kids light", "brightness": 90, "rgb_color": [120, 160, 255] } },
-    "cover.kitchen": { "entity_id": "cover.kitchen", "state": "open", "attributes": { "friendly_name": "Kitchen blind", "current_position": 50 } },
-    "cover.living_room": { "entity_id": "cover.living_room", "state": "open", "attributes": { "friendly_name": "Living room blind", "current_position": 100 } },
-    "cover.bedroom": { "entity_id": "cover.bedroom", "state": "closed", "attributes": { "friendly_name": "Bedroom blind", "current_position": 0 } },
-    "cover.kids": { "entity_id": "cover.kids", "state": "open", "attributes": { "friendly_name": "Kids blind", "current_position": 30 } },
-    "sensor.living_room_temperature": { "entity_id": "sensor.living_room_temperature", "state": "21.4", "attributes": { "friendly_name": "Living room temperature", "device_class": "temperature", "unit_of_measurement": "°C" } },
-    "sensor.bedroom_temperature": { "entity_id": "sensor.bedroom_temperature", "state": "19.2", "attributes": { "friendly_name": "Bedroom temperature", "device_class": "temperature", "unit_of_measurement": "°C" } },
-    "sensor.bedroom_battery": { "entity_id": "sensor.bedroom_battery", "state": "87", "attributes": { "device_class": "battery", "unit_of_measurement": "%" } },
-    "climate.living_room": { "entity_id": "climate.living_room", "state": "heat", "attributes": { "friendly_name": "Living room thermostat", "current_temperature": 21.4, "temperature": 21.5 } },
-    "media_player.living_room_tv": { "entity_id": "media_player.living_room_tv", "state": "off", "attributes": { "friendly_name": "TV" } }
+    "light.hall": {
+      "entity_id": "light.hall",
+      "state": "off",
+      "attributes": {
+        "friendly_name": "Hall light"
+      }
+    },
+    "light.kitchen": {
+      "entity_id": "light.kitchen",
+      "state": "off",
+      "attributes": {
+        "friendly_name": "Kitchen light"
+      }
+    },
+    "light.living_room": {
+      "entity_id": "light.living_room",
+      "state": "on",
+      "attributes": {
+        "friendly_name": "Sofa lamp",
+        "brightness": 200,
+        "rgb_color": [
+          255,
+          180,
+          110
+        ]
+      }
+    },
+    "light.tablet_screen": {
+      "entity_id": "light.tablet_screen",
+      "state": "on",
+      "attributes": {
+        "friendly_name": "Tablet screen",
+        "brightness": 120
+      }
+    },
+    "light.bedroom": {
+      "entity_id": "light.bedroom",
+      "state": "off",
+      "attributes": {
+        "friendly_name": "Bedroom light"
+      }
+    },
+    "light.kids": {
+      "entity_id": "light.kids",
+      "state": "on",
+      "attributes": {
+        "friendly_name": "Kids light",
+        "brightness": 90,
+        "rgb_color": [
+          120,
+          160,
+          255
+        ]
+      }
+    },
+    "cover.kitchen": {
+      "entity_id": "cover.kitchen",
+      "state": "open",
+      "attributes": {
+        "friendly_name": "Kitchen blind",
+        "current_position": 50
+      }
+    },
+    "cover.living_room": {
+      "entity_id": "cover.living_room",
+      "state": "open",
+      "attributes": {
+        "friendly_name": "Living room blind",
+        "current_position": 100
+      }
+    },
+    "cover.bedroom": {
+      "entity_id": "cover.bedroom",
+      "state": "closed",
+      "attributes": {
+        "friendly_name": "Bedroom blind",
+        "current_position": 0
+      }
+    },
+    "cover.kids": {
+      "entity_id": "cover.kids",
+      "state": "open",
+      "attributes": {
+        "friendly_name": "Kids blind",
+        "current_position": 30
+      }
+    },
+    "sensor.living_room_temperature": {
+      "entity_id": "sensor.living_room_temperature",
+      "state": "21.4",
+      "attributes": {
+        "friendly_name": "Living room temperature",
+        "device_class": "temperature",
+        "unit_of_measurement": "\u00b0C"
+      }
+    },
+    "sensor.bedroom_temperature": {
+      "entity_id": "sensor.bedroom_temperature",
+      "state": "19.2",
+      "attributes": {
+        "friendly_name": "Bedroom temperature",
+        "device_class": "temperature",
+        "unit_of_measurement": "\u00b0C"
+      }
+    },
+    "sensor.bedroom_battery": {
+      "entity_id": "sensor.bedroom_battery",
+      "state": "87",
+      "attributes": {
+        "device_class": "battery",
+        "unit_of_measurement": "%"
+      }
+    },
+    "climate.living_room": {
+      "entity_id": "climate.living_room",
+      "state": "heat",
+      "attributes": {
+        "friendly_name": "Living room thermostat",
+        "current_temperature": 21.4,
+        "temperature": 21.5
+      }
+    },
+    "media_player.living_room_tv": {
+      "entity_id": "media_player.living_room_tv",
+      "state": "off",
+      "attributes": {
+        "friendly_name": "TV"
+      }
+    },
+    "cover.awning": {
+      "entity_id": "cover.awning",
+      "state": "open",
+      "attributes": {
+        "friendly_name": "Awning",
+        "current_position": 60
+      }
+    }
   }
 }

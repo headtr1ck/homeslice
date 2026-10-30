@@ -188,6 +188,16 @@ console.log("demo house");
     await shot(page, "demo-shutter-open");
   });
 
+  await test("the awning follows its cover position", async () => {
+    const state = () => page.evaluate(() => window.card.renderer.awningState("ground", "garden"));
+    assert(Math.abs((await state()) - 0.6) < 0.01, `awning at 60 %: ${await state()}`);
+    await act(page, () => page.evaluate(() => window.card.hass.callService("cover", "close_cover", {}, { entity_id: "cover.awning" })));
+    assert((await state()) === 0, `closed awning still drawn: ${await state()}`);
+    await act(page, () => page.evaluate(() => window.card.hass.callService("cover", "open_cover", {}, { entity_id: "cover.awning" })));
+    assert((await state()) === 1, `open awning: ${await state()}`);
+    await shot(page, "awning");
+  });
+
   await test("cut walls show the cover state as a strip", async () => {
     const strip = await page.evaluate(() => window.card.renderer.coverState("living_south_2"));
     assert(strip?.stripVisible && !strip.shutterVisible, `living room south window should be a strip on the cut wall: ${JSON.stringify(strip)}`);
@@ -235,8 +245,17 @@ console.log("demo house");
     assert((await page.locator("homeslice-card .popup").count()) === 0, "popup still open after Escape");
   });
 
-  await test("a room without area devices shows a hint", async () => {
+  await test("a room's popup includes its awning even without an area", async () => {
     await page.locator("homeslice-card .label button.name", { hasText: "Garden" }).click();
+    await page.waitForSelector("homeslice-card .popup .fake-card", { timeout: 5000 });
+    const cards = await page.locator("homeslice-card .popup .fake-card").allTextContents();
+    assert(cards.some((c) => c.startsWith("tile cover.awning")), `cards: ${cards.join(" | ")}`);
+    await page.keyboard.press("Escape");
+  });
+
+  await test("a room without devices shows a hint", async () => {
+    await act(page, () => page.locator("homeslice-card nav.levels button", { hasText: "First Floor" }).click());
+    await page.locator("homeslice-card .label button.name", { hasText: "Bathroom" }).click();
     const text = await page.locator("homeslice-card .popup .empty").textContent();
     assert(text.includes("Nothing in this room"), `empty popup text: ${text}`);
     await page.locator("homeslice-card .backdrop").click({ position: { x: 5, y: 5 } });

@@ -90,6 +90,7 @@ const COLORS = {
   shutterBox: "#4a5159",
   stripClosed: "#6b747c",
   stripOpen: "#7fb0ff",
+  awning: "#d9c9a3",
 };
 const FOCUS_MS = 450;
 const HOVER_MS = 160;
@@ -148,6 +149,8 @@ export class HouseRenderer {
   private floors = new Map<string, THREE.Mesh<THREE.BufferGeometry, THREE.MeshLambertMaterial>>();
   private covers = new Map<string, CoverView>();
   private glasses = new Map<string, THREE.MeshLambertMaterial>();
+  /** Awnings by "level/room": the fabric scales along its depth with the cover position. */
+  private awnings = new Map<string, THREE.Mesh>();
   /** Upper parts of outer walls, hidden while they face a low camera. */
   private cuttables: { mesh: THREE.Mesh; normal: Vec2 }[] = [];
   private building: Set<THREE.Material> | null = null;
@@ -224,6 +227,7 @@ export class HouseRenderer {
     this.floors.clear();
     this.covers.clear();
     this.glasses.clear();
+    this.awnings.clear();
     this.cuttables = [];
   }
 
@@ -265,6 +269,8 @@ export class HouseRenderer {
       this.floors.set(`${level.id}/${room.id}`, floor);
       g.add(floor);
     }
+
+    for (const room of level.rooms) if (room.awning && (room.kind !== "outdoor" || this.view.showOutdoor)) this.awning(g, level, room);
 
     // walls, split around openings
     const wallMat = this.lambert(COLORS.wall);
@@ -434,6 +440,66 @@ export class HouseRenderer {
       const k = 0.18 + 0.32 * light.brightness;
       m.emissive.setRGB((light.rgb[0] / 255) * k, (light.rgb[1] / 255) * k, (light.rgb[2] / 255) * k, THREE.SRGBColorSpace);
     }
+  }
+
+  /**
+   * An awning on the house wall along the room's side that lies on the level outline,
+   * reaching across the room. Built fully extended; setAwning scales it.
+   */
+  private awning(g: THREE.Group, level: Level, room: Level["rooms"][number]) {
+    const outline = level.outline;
+    const onOutline = (p: Vec2) =>
+      outline.some((a, i) => {
+        const b = outline[(i + 1) % outline.length];
+        const len = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1;
+        const t = ((p[0] - a[0]) * (b[0] - a[0]) + (p[1] - a[1]) * (b[1] - a[1])) / len;
+        const dist = Math.abs((p[0] - a[0]) * (b[1] - a[1]) - (p[1] - a[1]) * (b[0] - a[0])) / len;
+        return dist < 0.02 && t > -0.02 && t < len + 0.02;
+      });
+    const poly = room.polygon;
+    let best: [Vec2, Vec2] | null = null;
+    poly.forEach((a, i) => {
+      const b = poly[(i + 1) % poly.length];
+      if (onOutline(a) && onOutline(b) && (!best || Math.hypot(b[0] - a[0], b[1] - a[1]) > Math.hypot(best[1][0] - best[0][0], best[1][1] - best[0][1]))) best = [a, b];
+    });
+    if (!best) return;
+    const [a, b] = best as [Vec2, Vec2];
+    const len = Math.hypot(b[0] - a[0], b[1] - a[1]);
+    // into the room: the polygon is positively oriented, so its inside is to the left
+    const dir: Vec2 = [(b[0] - a[0]) / len, (b[1] - a[1]) / len];
+    const c = centroid(poly);
+    let n: Vec2 = [-dir[1], dir[0]];
+    if ((c[0] - a[0]) * n[0] + (c[1] - a[1]) * n[1] < 0) n = [-n[0], -n[1]];
+    const reach = Math.min(3.5, Math.max(...poly.map((p) => (p[0] - a[0]) * n[0] + (p[1] - a[1]) * n[1])));
+    const drop = 0.35;
+    const depth = Math.hypot(reach, drop);
+    const geo = new THREE.BoxGeometry(len, 0.03, depth);
+    geo.translate(0, 0, depth / 2); // pivot on the wall
+    const mesh = this.mesh(geo, this.lambert(COLORS.awning, { side: THREE.DoubleSide, transparent: true, opacity: 0.85 }));
+    const mid: Vec2 = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+    mesh.position.set(mid[0], level.height - 0.25, mid[1]);
+    // local z → n in the plan (world x/z), tilted down by the drop
+    mesh.rotation.order = "YXZ";
+    mesh.rotation.y = Math.atan2(n[0], n[1]);
+    mesh.rotation.x = Math.atan2(drop, reach);
+    mesh.userData.outdoor = true;
+    this.awnings.set(`${level.id}/${room.id}`, mesh);
+    g.add(mesh);
+  }
+
+  /** Awning position: 1 fully extended, 0 retracted, null unknown (drawn retracted). */
+  setAwning(levelId: string, roomId: string, open: number | null) {
+    const m = this.awnings.get(`${levelId}/${roomId}`);
+    if (!m) return;
+    const k = Math.min(1, Math.max(0, open ?? 0));
+    m.visible = k > 0.01;
+    m.scale.z = Math.max(0.001, k);
+  }
+
+  /** For tests: how far an awning is drawn extended (0..1), or null without one. */
+  awningState(levelId: string, roomId: string) {
+    const m = this.awnings.get(`${levelId}/${roomId}`);
+    return m ? (m.visible ? m.scale.z : 0) : null;
   }
 
   /** Cover position for an opening: 1 fully open, 0 closed, null unknown. */

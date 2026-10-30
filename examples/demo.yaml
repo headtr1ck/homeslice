@@ -15,7 +15,7 @@ levels:
       - id: living
         area_id: living_room
         polygon: [[0, 4], [5, 4], [5, 6], [8, 6], [8, 10], [0, 10]]
-      - { id: garden, area_id: garden, kind: outdoor, rect: [0, 10, 8, 5] }
+      - { id: garden, area_id: garden, kind: outdoor, rect: [0, 10, 8, 5], awning: cover.awning }
     openings:
       - { room: hall, side: north, at: 1, width: 1, type: door }
       - { room: kitchen, side: north, at: 1.5, width: 1.2, cover: cover.kitchen }

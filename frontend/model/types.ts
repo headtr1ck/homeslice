@@ -27,6 +27,8 @@ export interface RoomInput extends ShapeInput {
   name?: string;
   kind?: RoomKind;
   floor?: string;
+  /** Cover entity of an awning over this (outdoor) area, mounted on the house wall. */
+  awning?: string;
 }
 
 /**
@@ -148,6 +150,7 @@ export interface Room {
   floor: string;
   /** Positive shoelace area in plan coordinates (see geometry.signedArea). */
   polygon: Vec2[];
+  awning?: string;
 }
 
 /** Where an opening is defined: a level's own list, or a façade entry shared by levels. */
