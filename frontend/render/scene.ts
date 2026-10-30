@@ -69,6 +69,10 @@ export function viewOptions(
   };
 }
 
+/** Dots per flow line, and the least power that moves them. */
+const FLOW_DOTS = 6;
+const MIN_FLOW_WATTS = 10;
+
 // One perspective camera does both: "isometric" is a very narrow lens from far away, so
 // switching projections animates as a smooth zoom.
 const FOV: Record<Projection, number> = { isometric: 3, perspective: 40 };
@@ -110,7 +114,35 @@ const COLORS = {
   stripOpen: "#7fb0ff",
   awning: "#d9c9a3",
   roof: "#8e5b45",
+  panel: "#1d2b44",
+  panelFrame: "#b9c0c8",
 };
+
+/** Colours of the energy overlay, per kind. */
+export const ENERGY_COLORS: Record<string, string> = {
+  solar: "#ffc23d",
+  battery: "#4cd07d",
+  grid: "#5aa9ff",
+  inverter: "#c9d1d9",
+  device: "#ff8a4c",
+};
+
+/** An item of the energy overlay as the renderer needs it. */
+export interface EnergyItem {
+  key: string;
+  kind: string;
+  levelIndex: number | null;
+  at: Vec2 | null;
+  roof: string;
+}
+
+interface Flow {
+  key: string;
+  line: THREE.Line<THREE.BufferGeometry, THREE.LineBasicMaterial>;
+  dots: THREE.Points<THREE.BufferGeometry, THREE.PointsMaterial>;
+  /** Watts towards the hub (negative: away from it). */
+  watts: number;
+}
 const FOCUS_MS = 450;
 const HOVER_MS = 160;
 /** Opacity of the levels above a hovered level. */
@@ -194,6 +226,13 @@ export class HouseRenderer {
   private lampObjects: THREE.Object3D[] = [];
   private glowTexture?: THREE.Texture;
   private roof: THREE.Group | null = null;
+  /** The roof's shape and the level it sits on, for placing solar panels. */
+  private roofInfo: { level: Level; shape: RoofShape } | null = null;
+  private energyObjects: THREE.Object3D[] = [];
+  /** Where each energy item is, in its level group's coordinates (solar: on the roof). */
+  private energyPoints = new Map<string, { levelIndex: number; local: THREE.Vector3; onRoof?: boolean }>();
+  private flows: Flow[] = [];
+  private hubKey: string | null = null;
   /** Awnings by "level/room": the fabric scales along its depth with the cover position. */
   private awnings = new Map<string, THREE.Mesh>();
   /** Upper parts of outer walls, hidden while they face a low camera. */
@@ -252,6 +291,7 @@ export class HouseRenderer {
       this.levelIds.push(level.id);
     }
     const top = house.levels[house.levels.length - 1];
+    this.roofInfo = top ? { level: top, shape: house.roof } : null;
     if (this.view.roof && top) {
       this.roof = this.buildRoof(top, house.roof);
       const l = this.levels[this.levels.length - 1];
@@ -280,6 +320,11 @@ export class HouseRenderer {
     this.glasses.clear();
     this.awnings.clear();
     this.roof = null;
+    this.roofInfo = null;
+    this.energyObjects = [];
+    this.energyPoints.clear();
+    this.flows = [];
+    this.hubKey = null;
     this.lamps.clear();
     this.lampObjects = [];
     this.cuttables = [];
@@ -614,6 +659,175 @@ export class HouseRenderer {
     g.userData.outdoor = true;
     g.traverse((x) => (x.userData.outdoor = true));
     return g;
+  }
+
+  // ----- energy overlay -----
+
+  /**
+   * The energy overlay: a marker for each item, solar panels on the roof, and a line from
+   * each item to the hub (the inverter, else the battery, else the grid) for its flow.
+   */
+  setEnergy(items: EnergyItem[]) {
+    for (const o of this.energyObjects) {
+      o.removeFromParent();
+      o.traverse((x) => {
+        if (x instanceof THREE.Mesh || x instanceof THREE.Line || x instanceof THREE.Points) {
+          x.geometry.dispose();
+          (x.material as THREE.Material).dispose();
+        }
+      });
+    }
+    this.energyObjects = [];
+    this.energyPoints.clear();
+    this.flows = [];
+    const hub = items.find((i) => i.kind === "inverter") ?? items.find((i) => i.kind === "battery") ?? items.find((i) => i.kind === "grid");
+    this.hubKey = hub?.key ?? null;
+    for (const item of items) {
+      const color = ENERGY_COLORS[item.kind] ?? ENERGY_COLORS.device;
+      if (item.kind === "solar") {
+        const panels = this.solarPanels(item.roof);
+        if (!panels) continue;
+        this.energyObjects.push(panels.group);
+        this.energyPoints.set(item.key, { levelIndex: this.levels.length - 1, local: panels.centre, onRoof: true });
+      } else if (item.levelIndex !== null && item.at && this.levels[item.levelIndex]) {
+        const level = this.levels[item.levelIndex];
+        const marker = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 0.5, 20), new THREE.MeshLambertMaterial({ color }));
+        marker.position.set(item.at[0], 0.25, item.at[1]);
+        marker.userData.outdoor = true;
+        level.group.add(marker);
+        level.materials.add(marker.material);
+        this.applyLevel(level);
+        this.energyObjects.push(marker);
+        this.energyPoints.set(item.key, { levelIndex: item.levelIndex, local: new THREE.Vector3(item.at[0], 0.5, item.at[1]) });
+      }
+    }
+    // a line and moving dots from each item to the hub, drawn over the house
+    for (const item of items) {
+      if (item.key === this.hubKey || !this.energyPoints.has(item.key) || !this.hubKey || !this.energyPoints.has(this.hubKey)) continue;
+      const color = new THREE.Color(ENERGY_COLORS[item.kind] ?? ENERGY_COLORS.device);
+      const line = new THREE.Line(
+        new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3()]),
+        new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0.45, depthTest: false }),
+      );
+      const dots = new THREE.Points(
+        new THREE.BufferGeometry().setAttribute("position", new THREE.BufferAttribute(new Float32Array(3 * FLOW_DOTS), 3)),
+        new THREE.PointsMaterial({ color, size: 7, sizeAttenuation: false, depthTest: false, transparent: true }),
+      );
+      line.renderOrder = dots.renderOrder = 10;
+      this.root.add(line, dots);
+      this.energyObjects.push(line, dots);
+      this.flows.push({ key: item.key, line, dots, watts: 0 });
+    }
+  }
+
+  /** Power per item (W towards the hub); flows below a few watts stand still. */
+  setFlows(watts: Record<string, number | null>) {
+    for (const f of this.flows) f.watts = watts[f.key] ?? 0;
+  }
+
+  /** Whether anything is flowing (the card animates only then). */
+  get flowing() {
+    return this.flows.some((f) => Math.abs(f.watts) >= MIN_FLOW_WATTS);
+  }
+
+  /** For tests: the energy overlay's state. */
+  energyState() {
+    return { items: this.energyPoints.size, flows: this.flows.map((f) => ({ key: f.key, watts: f.watts, visible: f.line.visible, dots: f.dots.visible })), hub: this.hubKey };
+  }
+
+  /** Moves the flow lines with their levels and the dots along them. */
+  private updateFlows(now: number) {
+    const hub = this.hubKey ? this.energyPoints.get(this.hubKey) : undefined;
+    for (const f of this.flows) {
+      const from = this.energyPoints.get(f.key);
+      const shown = !!hub && !!from && this.pointVisible(from) && this.pointVisible(hub);
+      f.line.visible = shown;
+      f.dots.visible = shown && Math.abs(f.watts) >= MIN_FLOW_WATTS;
+      if (!shown || !hub || !from) continue;
+      const a = this.levels[from.levelIndex].group.localToWorld(from.local.clone());
+      const b = this.levels[hub.levelIndex].group.localToWorld(hub.local.clone());
+      const pos = f.line.geometry.attributes.position as THREE.BufferAttribute;
+      pos.setXYZ(0, a.x, a.y, a.z);
+      pos.setXYZ(1, b.x, b.y, b.z);
+      pos.needsUpdate = true;
+      f.line.geometry.computeBoundingSphere();
+      if (!f.dots.visible) continue;
+      // towards the hub when positive; faster with more power
+      const [start, end] = f.watts > 0 ? [a, b] : [b, a];
+      const length = start.distanceTo(end) || 1;
+      const speed = Math.min(4, 0.6 + Math.abs(f.watts) / 800); // m/s
+      const spacing = length / FLOW_DOTS;
+      const offset = ((now / 1000) * speed) % spacing;
+      const dots = f.dots.geometry.attributes.position as THREE.BufferAttribute;
+      for (let i = 0; i < FLOW_DOTS; i++) {
+        const t = (offset + i * spacing) / length;
+        dots.setXYZ(i, start.x + (end.x - start.x) * t, start.y + (end.y - start.y) * t, start.z + (end.z - start.z) * t);
+      }
+      dots.needsUpdate = true;
+      f.dots.geometry.computeBoundingSphere();
+    }
+  }
+
+  private pointVisible(p: { levelIndex: number; onRoof?: boolean }) {
+    const l = this.levels[p.levelIndex];
+    if (!l || !l.group.visible || l.opacity * l.hoverOpacity < 0.5) return false;
+    // solar panels show with the roof only (the overview)
+    return !p.onRoof || !!this.roof?.visible;
+  }
+
+  /** Solar panels on one side of the roof: dark panels in rows, with a light frame. */
+  private solarPanels(side: string): { group: THREE.Group; centre: THREE.Vector3 } | null {
+    const info = this.roofInfo;
+    if (!info || !this.roof) return null;
+    const { level, shape } = info;
+    const { min, max } = bbox(level.outline);
+    const o = shape.overhang;
+    const t = Math.tan((shape.pitch * Math.PI) / 180);
+    const eastWest = shape.ridge === "east_west";
+    const sides = eastWest ? ["south", "north"] : ["west", "east"];
+    const s = sides.includes(side) ? side : sides[0];
+    const [u0, u1] = eastWest ? [min[1], max[1]] : [min[0], max[0]];
+    const [r0, r1] = eastWest ? [min[0], max[0]] : [min[1], max[1]];
+    const half = (u1 - u0) / 2;
+    const base = level.height;
+    // eave and ridge across the slope (u) and their heights
+    const far = s === "south" || s === "east";
+    const eaveU = far ? u1 + o : u0 - o;
+    const ridgeU = u0 + half;
+    const eaveH = base - o * t;
+    const ridgeH = base + half * t;
+    const plan = (r: number, u: number): [number, number] => (eastWest ? [r, u] : [u, r]);
+    const point = (r: number, k: number) => {
+      // k: 0 at the eave, 1 at the ridge; slightly above the tiles
+      const u = eaveU + (ridgeU - eaveU) * k;
+      const h = eaveH + (ridgeH - eaveH) * k + 0.06;
+      const [x, y] = plan(r, u);
+      return new THREE.Vector3(x, h, y);
+    };
+    const group = new THREE.Group();
+    group.visible = this.roof.visible;
+    const panel = new THREE.MeshLambertMaterial({ color: COLORS.panel, side: THREE.DoubleSide });
+    this.levels[this.levels.length - 1].materials.add(panel);
+    const along = r1 - r0;
+    const cols = Math.max(1, Math.floor((along - 0.6) / 1.05));
+    const rows = 3;
+    const r = (i: number) => r0 + (along - cols * 1.05) / 2 + i * 1.05;
+    for (let row = 0; row < rows; row++)
+      for (let col = 0; col < cols; col++) {
+        const k0 = 0.12 + (row * 0.78) / rows;
+        const k1 = k0 + 0.78 / rows - 0.03;
+        const quad = [point(r(col), k0), point(r(col) + 1, k0), point(r(col) + 1, k1), point(r(col), k1)];
+        const geo = new THREE.BufferGeometry().setFromPoints([quad[0], quad[1], quad[2], quad[0], quad[2], quad[3]]);
+        geo.computeVertexNormals();
+        group.add(this.mesh(geo, panel, false));
+        const outline = new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(quad), new THREE.LineBasicMaterial({ color: COLORS.panelFrame }));
+        group.add(outline);
+      }
+    group.userData.outdoor = true;
+    group.traverse((x) => (x.userData.outdoor = true));
+    // the panels show and hide with the roof
+    this.roof.add(group);
+    return { group, centre: point(r0 + along / 2, 0.5) };
   }
 
   /** For tests: whether the roof is drawn. */
@@ -976,6 +1190,14 @@ export class HouseRenderer {
     return { x: ((v.x + 1) / 2) * this.size.width, y: ((1 - v.y) / 2) * this.size.height };
   }
 
+  /** Screen position of an energy item, or null when it isn't shown. */
+  projectEnergy(key: string): { x: number; y: number } | null {
+    const p = this.energyPoints.get(key);
+    if (!p || !this.pointVisible(p)) return null;
+    const v = this.levels[p.levelIndex].group.localToWorld(p.local.clone()).project(this.camera);
+    return { x: ((v.x + 1) / 2) * this.size.width, y: ((1 - v.y) / 2) * this.size.height };
+  }
+
   /** Sets the canvas size (CSS px) and draws a frame. */
   render(width: number, height: number) {
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
@@ -985,8 +1207,9 @@ export class HouseRenderer {
   }
 
   /** Draws a frame at the current size and camera. */
-  draw() {
+  draw(now = performance.now()) {
     this.fitCamera();
+    if (this.flows.length) this.updateFlows(now);
     this.applyCuts();
     this.renderer.render(this.scene, this.camera);
   }

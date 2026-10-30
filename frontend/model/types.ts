@@ -131,6 +131,26 @@ export interface VerticalInput extends ShapeInput {
   entry?: number;
 }
 
+/**
+ * Something that makes, stores or uses power, for the energy overlay. Entities default to
+ * Home Assistant's energy settings (solar, battery, grid); devices name their power sensor.
+ */
+export interface EnergyInput {
+  kind: EnergyKind;
+  /** Level and plan position (metres); solar panels go on the roof instead. */
+  level?: string;
+  at?: [number, number];
+  /** Power sensor (W or kW); positive = producing for solar, discharging for a battery, importing for the grid. */
+  power?: string;
+  /** Battery charge sensor (%). */
+  soc?: string;
+  name?: string;
+  /** Solar: the roof side the panels are on (default south). */
+  roof?: Side;
+}
+
+export type EnergyKind = "solar" | "battery" | "grid" | "inverter" | "device";
+
 export interface RoofInput {
   /** Only gable roofs for now. */
   shape?: "gable";
@@ -157,6 +177,7 @@ export interface HouseInput {
   /** Bottom to top. */
   levels: LevelInput[];
   roof?: RoofInput;
+  energy?: EnergyInput[];
 }
 
 // ----- expanded -----
@@ -234,6 +255,19 @@ export interface House {
   levels: Level[];
   vertical: Vertical[];
   roof: Required<RoofInput>;
+  energy: Energy[];
+}
+
+export interface Energy {
+  kind: EnergyKind;
+  /** Index into the input list (for the editor). */
+  index: number;
+  levelIndex: number | null;
+  at: Vec2 | null;
+  power?: string;
+  soc?: string;
+  name?: string;
+  roof: Side;
 }
 
 export interface Issue {

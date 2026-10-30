@@ -6,7 +6,8 @@ import { labelPoint } from "../model/geometry";
 import type { House, Issue, Room, Vec2 } from "../model/types";
 import { listedLights, placeLights, type PlacedLight } from "../model/lights";
 import { deriveWalls, innerPolygon, type Wall } from "../model/walls";
-import { HouseRenderer, viewOptions, type ViewOptions } from "../render/scene";
+import { formatPower, readEnergy, type EnergyPrefs, type EnergyReading } from "../ha/energy";
+import { ENERGY_COLORS, HouseRenderer, viewOptions, type ViewOptions } from "../render/scene";
 
 export interface PopupOverride {
   /** `extend` (default) adds the cards after the generated ones, `replace` shows only them. */
@@ -25,6 +26,8 @@ export interface HomesliceCardConfig {
   popups?: Record<string, PopupOverride>;
   /** Drag to turn, scroll/pinch to zoom, double-click to reset (default false: the view is locked). */
   interactive?: boolean;
+  /** Show the energy overlay: solar on the roof, battery, grid and devices with their power flows. */
+  energy?: boolean;
 }
 
 interface PlacedRoom {
@@ -54,6 +57,25 @@ interface Label {
   hasLights: boolean;
   on: boolean;
 }
+
+/** The power label of an energy item. */
+interface EnergyLabel {
+  key: string;
+  kind: string;
+  x: number;
+  y: number;
+  icon: string;
+  name: string;
+  text: string;
+}
+
+const ENERGY_ICONS: Record<string, string> = {
+  solar: "mdi:solar-power-variant",
+  battery: "mdi:home-battery",
+  grid: "mdi:transmission-tower",
+  inverter: "mdi:lightning-bolt",
+  device: "mdi:power-plug",
+};
 
 /** A toggle for one lamp, shown on the focused level in rooms with several lights. */
 interface LampButton {
@@ -98,6 +120,7 @@ export class HomesliceCard extends LitElement {
     _loading: { state: true },
     _labels: { state: true },
     _lampButtons: { state: true },
+    _energyLabels: { state: true },
     _level: { state: true },
     _popup: { state: true },
     _hover: { state: true },
@@ -111,6 +134,14 @@ export class HomesliceCard extends LitElement {
   private _loading = true;
   private _labels: Label[] = [];
   private _lampButtons: LampButton[] = [];
+  private _energyLabels: EnergyLabel[] = [];
+  /** HA's energy settings (for the overlay's default sensors), once loaded. */
+  private energyPrefs: EnergyPrefs | null = null;
+  private energyReadings: EnergyReading[] = [];
+  private flowFrame = 0;
+  private lastFlowFrame = 0;
+  private visible = true;
+  private intersection?: IntersectionObserver;
   /** Lamps of the whole house, placed for the current HA areas. */
   private lamps: PlacedLight[] = [];
   private lampSignature = "";
@@ -149,6 +180,8 @@ export class HomesliceCard extends LitElement {
   setConfig(config: HomesliceCardConfig) {
     this.config = { house: "home", ...config };
     this.view = viewOptions(config.view);
+    // the overlay puts solar panels on the roof, so it shows the roof unless told not to
+    if (config.energy && config.view?.roof === undefined) this.view.roof = true;
     this.loadedFor = undefined;
   }
 
@@ -203,14 +236,24 @@ export class HomesliceCard extends LitElement {
     this.updateComplete.then(() => {
       const wrap = this.renderRoot.querySelector(".wrap");
       if (wrap) this.resizeObserver?.observe(wrap);
+      // animate energy flows only while the card can be seen
+      this.intersection = new IntersectionObserver((entries) => {
+        this.visible = entries.some((e) => e.isIntersecting);
+        this.animateFlows();
+      });
+      if (wrap) this.intersection.observe(wrap);
     });
+    document.addEventListener("visibilitychange", this.onVisibility);
   }
 
   override disconnectedCallback() {
     super.disconnectedCallback();
     window.removeEventListener("keydown", this.onKey);
     this.resizeObserver?.disconnect();
+    this.intersection?.disconnect();
+    document.removeEventListener("visibilitychange", this.onVisibility);
     cancelAnimationFrame(this.frame);
+    cancelAnimationFrame(this.flowFrame);
     this.renderer?.dispose();
     this.renderer = undefined;
     this.loadedFor = undefined;
@@ -281,6 +324,10 @@ export class HomesliceCard extends LitElement {
       ws.flatMap((w) => w.openings.filter((o) => o.cover || o.contact).map((o) => ({ levelId, id: o.id, room: o.room, cover: o.cover, contact: o.contact }))),
     );
     this.renderer.setModel(house, walls, this.view);
+    if (this.config.energy) {
+      this.renderer.setEnergy(house.energy.map((e) => ({ key: `energy-${e.index}`, kind: e.kind, levelIndex: e.levelIndex, at: e.at, roof: e.roof })));
+      if (!this.energyPrefs) void this.loadEnergyPrefs();
+    }
     // keep the focused floor across model updates, if it still exists
     const focused = this._level ? house.levels.find((l) => l.id === this._level) : undefined;
     this._level = focused?.id ?? null;
@@ -289,6 +336,62 @@ export class HomesliceCard extends LitElement {
     this.stateSignature = "";
     this.syncStates();
     this.scheduleDraw();
+  }
+
+  // ----- energy overlay -----
+
+  private onVisibility = () => this.animateFlows();
+
+  private async loadEnergyPrefs() {
+    try {
+      this.energyPrefs = await this.hass!.callWS<EnergyPrefs>({ type: "energy/get_prefs" });
+    } catch {
+      this.energyPrefs = { energy_sources: [], device_consumption: [] };
+    }
+    this.stateSignature = "";
+    this.syncStates();
+  }
+
+  /** Runs the flow animation (about 30 frames a second) while something flows and the card is seen. */
+  private animateFlows() {
+    cancelAnimationFrame(this.flowFrame);
+    if (!this.config.energy || !this.renderer?.flowing || !this.visible || document.visibilityState === "hidden") return;
+    const step = (now: number) => {
+      if (!this.renderer || !this.renderer.flowing || !this.visible || document.visibilityState === "hidden") return;
+      if (now - this.lastFlowFrame >= 33 && !this.transitioning) {
+        this.lastFlowFrame = now;
+        this.renderer.draw(now);
+      }
+      this.flowFrame = requestAnimationFrame(step);
+    };
+    this.flowFrame = requestAnimationFrame(step);
+  }
+
+  private energyLabels(): EnergyLabel[] {
+    if (!this.config.energy || !this.house || !this.renderer || !this.hass) return [];
+    const out: EnergyLabel[] = [];
+    this.house.energy.forEach((e, i) => {
+      if (e.kind === "inverter") return;
+      const key = `energy-${e.index}`;
+      if (this._level && e.levelIndex !== null && this.house!.levels[e.levelIndex]?.id !== this._level) return;
+      const p = this.renderer!.projectEnergy(key);
+      if (!p) return;
+      const r = this.energyReadings[i] ?? { power: null, soc: null, flow: null };
+      const name = e.name ?? (e.kind === "device" ? ((this.hass!.states[e.power ?? ""]?.attributes.friendly_name as string | undefined) ?? e.power ?? "") : this.t(`card.energy_${e.kind}` as StringKey));
+      // which way it flows, in words
+      const still = r.power === null || Math.abs(r.power) < 10;
+      const state =
+        still ? "" : e.kind === "battery" ? this.t(r.power! > 0 ? "card.energy_discharging" : "card.energy_charging") : e.kind === "grid" ? this.t(r.power! > 0 ? "card.energy_import" : "card.energy_export") : "";
+      const text = `${e.kind === "battery" && r.soc !== null ? `${Math.round(r.soc)} % · ` : ""}${formatPower(r.power === null ? null : Math.abs(r.power))}`;
+      out.push({ key, kind: e.kind, ...p, icon: ENERGY_ICONS[e.kind] ?? ENERGY_ICONS.device, name: state ? `${name} · ${state}` : name, text });
+    });
+    // labels close together are stacked upwards instead of covering each other
+    const placed: EnergyLabel[] = [];
+    for (const l of [...out].sort((a, b) => b.y - a.y)) {
+      while (placed.some((q) => Math.abs(q.x - l.x) < 150 && Math.abs(q.y - l.y) < 42)) l.y -= 44;
+      placed.push(l);
+    }
+    return out;
   }
 
   // ----- live state -----
@@ -304,10 +407,15 @@ export class HomesliceCard extends LitElement {
     const contacts = this.openings.map((o) => (o.contact ? contactOpen(hass, o.contact) : false));
     const temperatures = this.rooms.map((r) => (r.room.areaId ? areaTemperature(hass, r.room.areaId) : null));
     const awnings = this.rooms.map((r) => (r.room.awning ? coverOpen(hass, r.room.awning) : null));
-    const signature = JSON.stringify([lights, lamps, covers, contacts, temperatures, awnings]);
+    this.energyReadings = this.config.energy ? this.house.energy.map((e) => readEnergy(hass, e, this.energyPrefs)) : [];
+    const signature = JSON.stringify([lights, lamps, covers, contacts, temperatures, awnings, this.energyReadings]);
     if (signature === this.stateSignature) return;
     this.stateSignature = signature;
     this.lamps.forEach((l, i) => this.renderer!.setLamp(l.entity, lamps[i]));
+    if (this.config.energy) {
+      this.renderer.setFlows(Object.fromEntries(this.house.energy.map((e, i) => [`energy-${e.index}`, this.energyReadings[i]?.flow ?? null])));
+      this.animateFlows();
+    }
     this.rooms.forEach((r, i) => {
       this.renderer!.setRoomLight(r.levelId, r.room.id, lights[i]);
       if (r.room.awning) this.renderer!.setAwning(r.levelId, r.room.id, awnings[i]);
@@ -568,11 +676,14 @@ export class HomesliceCard extends LitElement {
 
   private placeLabels() {
     if (!this.renderer || !this.hass) return;
+    const roofed = this.renderer.roofVisible();
     const labels: Label[] = [];
     for (const r of this.rooms) {
       if (!this.renderer.isLevelVisible(r.levelId)) continue;
       // with a level focused, only that level gets labels
       if (this._level && r.levelId !== this._level) continue;
+      // under the roof nothing can be seen
+      if (roofed && r.levelIndex === this.house!.levels.length - 1) continue;
       const p = this.renderer.project(r.levelId, r.point, 0.05);
       if (!p) continue;
       const areaId = r.room.areaId;
@@ -605,6 +716,7 @@ export class HomesliceCard extends LitElement {
       }
     }
     this._lampButtons = buttons;
+    this._energyLabels = this.energyLabels();
   }
 
   protected override render() {
@@ -656,6 +768,13 @@ export class HomesliceCard extends LitElement {
                 <span class="name">${l.name}</span>
                 ${l.temperature ? html`<span class="temp">${l.temperature}</span>` : nothing}
               </button>
+            </div>`,
+          )}
+          ${this._energyLabels.map(
+            (e) => html`<div class="energy-label ${e.kind}" style="left:${e.x}px;top:${e.y}px;--energy:${ENERGY_COLORS[e.kind] ?? ENERGY_COLORS.device}">
+              <ha-icon icon=${e.icon}></ha-icon>
+              <span class="name">${e.name}</span>
+              <span class="value">${e.text}</span>
             </div>`,
           )}
           ${this._lampButtons.map(
@@ -845,6 +964,34 @@ export class HomesliceCard extends LitElement {
       cursor: pointer;
       padding: 0;
       --mdc-icon-size: 22px;
+    }
+    .energy-label {
+      position: absolute;
+      transform: translate(-50%, calc(-100% - 10px));
+      display: grid;
+      grid-template-columns: auto auto;
+      align-items: center;
+      column-gap: 6px;
+      padding: 4px 10px 4px 8px;
+      border-radius: 10px;
+      border: 1px solid var(--energy);
+      background: rgba(20, 24, 28, 0.85);
+      color: #eef1f4;
+      pointer-events: none;
+      white-space: nowrap;
+      --mdc-icon-size: 18px;
+    }
+    .energy-label ha-icon {
+      grid-row: span 2;
+      color: var(--energy);
+    }
+    .energy-label .name {
+      font-size: 11px;
+      opacity: 0.8;
+    }
+    .energy-label .value {
+      font-size: 13px;
+      font-weight: 600;
     }
     .lamp.single {
       position: absolute;

@@ -440,6 +440,55 @@ console.log("demo house, roof");
   await page.close();
 }
 
+console.log("demo house, energy");
+{
+  const { page, errors } = await open("dev/fixtures/demo-hass.json", { energy: true }, undefined, (f) => {
+    f.model.energy = [
+      { kind: "solar" },
+      { kind: "battery", level: "ground", at: [1, 1] },
+      { kind: "grid", level: "ground", at: [2, 1] },
+      { kind: "device", power: "sensor.heat_pump_power", level: "ground", at: [6, 8] },
+    ];
+    f.energy_prefs = {
+      energy_sources: [
+        { type: "solar", stat_rate: "sensor.pv_power" },
+        { type: "battery", stat_rate: "sensor.battery_power" },
+        { type: "grid", stat_rate: "sensor.grid_power" },
+      ],
+      device_consumption: [],
+    };
+    const st = (id, state, unit, extra = {}) => (f.states[id] = { entity_id: id, state, attributes: { unit_of_measurement: unit, ...extra } });
+    st("sensor.pv_power", "2.4", "kW");
+    st("sensor.battery_power", "-900", "W");
+    st("sensor.battery_soc", "64", "%", { device_class: "battery" });
+    st("sensor.grid_power", "-300", "W");
+    st("sensor.heat_pump_power", "1200", "W", { friendly_name: "Heat pump" });
+    f.entities["sensor.battery_power"] = { entity_id: "sensor.battery_power", device_id: "battery" };
+    f.entities["sensor.battery_soc"] = { entity_id: "sensor.battery_soc", device_id: "battery" };
+    return f;
+  });
+  await test("energy overlay: panels on the roof, labels with power, flows to the battery", async () => {
+    await page.waitForFunction(() => window.card.renderer.energyState().flows.some((f) => f.watts !== 0));
+    const state = await page.evaluate(() => window.card.renderer.energyState());
+    assert(state.hub === "energy-1" && state.flows.length === 3, `energy: ${JSON.stringify(state)}`);
+    const w = Object.fromEntries(state.flows.map((f) => [f.key, f.watts]));
+    assert(w["energy-0"] === 2400 && w["energy-2"] === -300 && w["energy-3"] === -1200, `flows: ${JSON.stringify(w)}`);
+    assert(state.flows.every((f) => f.visible && f.dots), "flows not drawn");
+    assert(await page.evaluate(() => window.card.renderer.roofVisible()), "the overlay should show the roof");
+    const labels = await page.locator("homeslice-card .energy-label").allTextContents();
+    const text = labels.map((l) => l.replace(/\s+/g, " ").trim()).join(" | ");
+    assert(text.includes("2.4 kW") && text.includes("64 %") && text.includes("Heat pump") && text.includes("1.2 kW"), `labels: ${text}`);
+    await page.waitForTimeout(200);
+    await shot(page, "demo-energy");
+    // a floor picked: only its items; no roof, no solar
+    await act(page, () => page.locator("homeslice-card nav.levels button", { hasText: "Ground Floor" }).click());
+    const focused = await page.locator("homeslice-card .energy-label").count();
+    assert(focused === 3, `labels on the ground floor: ${focused}`);
+    assert(errors.length === 0, errors.join(" | "));
+  });
+  await page.close();
+}
+
 console.log("demo house, phone");
 {
   const { page, errors } = await open("dev/fixtures/demo-hass.json", {}, { width: 390, height: 800 });

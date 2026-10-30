@@ -184,5 +184,15 @@
   "cardeditor.outdoor": "Show gardens and terraces",
   "cardeditor.roof": "Show the roof (overview only)",
   "cardeditor.interactive": "Allow turning and zooming on the dashboard",
-  "cardeditor.more": "The house itself is edited in the Homeslice panel in the sidebar. Room popups can be changed in YAML (popups)."
+  "cardeditor.more": "The house itself is edited in the Homeslice panel in the sidebar. Room popups can be changed in YAML (popups).",
+  "card.energy_solar": "Solar",
+  "card.energy_battery": "Battery",
+  "card.energy_grid": "Grid",
+  "card.energy_inverter": "Inverter",
+  "card.energy_device": "Device",
+  "card.energy_charging": "charging",
+  "card.energy_discharging": "discharging",
+  "card.energy_import": "import",
+  "card.energy_export": "export",
+  "cardeditor.energy": "Energy overlay (solar, battery, grid and devices with their power; place them in the Homeslice panel)"
 }

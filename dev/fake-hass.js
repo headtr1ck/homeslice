@@ -65,6 +65,7 @@ export function makeHass(fixture, onChange) {
         delete underlays[`${msg.house}/${msg.level}`];
         return null;
       }
+      if (msg.type === "energy/get_prefs") return structuredClone(fixture.energy_prefs ?? { energy_sources: [], device_consumption: [] });
       if (msg.type === "homeslice/model") {
         const m = houses[msg.house ?? fixture.model?.id];
         if (!m) throw new Error(`fake hass: no house ${msg.house}`);

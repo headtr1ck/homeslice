@@ -5,6 +5,7 @@
 import { bbox, edges, normalizeOrientation, outwardNormal, rectPolygon, sideOf, signedArea } from "./geometry";
 import type {
   Coord,
+  Energy,
   House,
   HouseInput,
   Issue,
@@ -289,6 +290,23 @@ export function expandHouse(input: unknown): ExpandResult {
     overhang: r.overhang ?? 0.3,
   };
 
+  const energy: Energy[] = [];
+  const KINDS = ["solar", "battery", "grid", "inverter", "device"];
+  (h.energy ?? []).forEach((e, index) => {
+    const ep = `energy.${index}`;
+    if (!e || !KINDS.includes(e.kind)) return err(ep, `kind must be one of ${KINDS.join(", ")}, got ${JSON.stringify(e?.kind)}.`);
+    let onLevel: number | null = null;
+    if (e.kind !== "solar") {
+      const li = e.level === undefined ? undefined : levelIndex.get(e.level);
+      if (li === undefined) return err(ep, `A ${e.kind} needs level: <level id> and at: [x, y]${e.level ? ` (unknown level "${e.level}")` : ""}.`);
+      if (!Array.isArray(e.at) || e.at.length !== 2) return err(ep, "at must be [x, y] in metres.");
+      onLevel = li;
+    }
+    if (e.kind === "device" && !e.power) return err(ep, "A device needs power: <sensor>.");
+    if (e.roof && !SIDES.includes(e.roof)) return err(ep, `roof must be one of ${SIDES.join(", ")}.`);
+    energy.push({ kind: e.kind, index, levelIndex: onLevel, at: e.at ? [e.at[0], e.at[1]] : null, power: e.power, soc: e.soc, name: e.name, roof: e.roof ?? "south" });
+  });
+
   if (issues.some((i) => i.severity === "error")) return { house: null, issues };
-  return { house: { id: h.id, name: h.name ?? h.id, walls, levels, vertical, roof }, issues };
+  return { house: { id: h.id, name: h.name ?? h.id, walls, levels, vertical, roof, energy }, issues };
 }
