@@ -16,6 +16,7 @@ import type {
   Side,
   Vec2,
   Vertical,
+  ViewInput,
   WallThickness,
 } from "./types";
 
@@ -275,6 +276,30 @@ export function expandHouse(input: unknown): ExpandResult {
     vertical.push({ id: vi.id, kind: vi.kind ?? "stairs", polygon, from, to, shape: stairShape, up, start, entry });
   });
 
+  const views: ViewInput[] = [];
+  const viewIds = new Set<string>();
+  (h.views ?? []).forEach((v, i) => {
+    const vp = `views.${v?.id ?? i}`;
+    if (!v?.id) return err(vp, "Every view needs an id.");
+    if (viewIds.has(v.id)) return err(vp, `Duplicate view id "${v.id}".`);
+    viewIds.add(v.id);
+    views.push(v);
+  });
+
+  // every house has a roof (defaults unless set); views decide whether it is drawn
+  const r = h.roof ?? {};
+  if (r.ridge && r.ridge !== "east_west" && r.ridge !== "north_south") err("roof", `ridge must be east_west or north_south, got "${r.ridge}".`);
+  const pitch = r.pitch ?? 35;
+  if (!(pitch > 0 && pitch < 75)) err("roof", `pitch must be between 0 and 75 degrees, got ${pitch}.`);
+  const top = levels[levels.length - 1];
+  const tb = bbox(top?.outline.length ? top.outline : [[0, 0], [1, 1]]);
+  const roof: House["roof"] = {
+    shape: "gable",
+    ridge: r.ridge ?? (tb.max[0] - tb.min[0] >= tb.max[1] - tb.min[1] ? "east_west" : "north_south"),
+    pitch,
+    overhang: r.overhang ?? 0.3,
+  };
+
   if (issues.some((i) => i.severity === "error")) return { house: null, issues };
-  return { house: { id: h.id, name: h.name ?? h.id, walls, levels, vertical }, issues };
+  return { house: { id: h.id, name: h.name ?? h.id, walls, levels, vertical, views, roof }, issues };
 }

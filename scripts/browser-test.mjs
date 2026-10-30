@@ -59,14 +59,14 @@ function assert(condition, message) {
 
 const browser = await chromium.launch({ executablePath: chromePath(), args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"] });
 
-async function open(fixtureFile, config = {}, viewport = { width: 1632, height: 1000 }) {
+async function open(fixtureFile, config = {}, viewport = { width: 1632, height: 1000 }, edit = (fixture) => fixture) {
   const page = await browser.newPage({ viewport });
   const errors = [];
   page.on("console", (m) => m.type() === "error" && errors.push(m.text()));
   page.on("pageerror", (e) => errors.push(e.message));
   await page.goto(`${base}/dev/harness.html`);
   await page.waitForFunction(() => window.ready);
-  const fixture = loadFixture(fixtureFile);
+  const fixture = edit(loadFixture(fixtureFile));
   await page.evaluate((m) => (window.__demoModel = m), fixture.model);
   await page.evaluate(([f, c]) => window.setup(f, c), [fixture, config]);
   // the first size measurement triggers one more redraw; let it pass before acting
@@ -396,6 +396,34 @@ console.log("demo house, camera controls");
 }
 
 console.log(results.splice(0).join("\n"));
+console.log("demo house, saved view");
+{
+  const { page, errors } = await open("dev/fixtures/demo-hass.json", { view: "tablet" }, undefined, (f) => {
+    f.model.views = [{ id: "tablet", azimuth: 200, elevation: 45, roof: true }];
+    return f;
+  });
+  await test("a saved view sets the camera, is locked and shows the roof in the overview only", async () => {
+    const o = await page.evaluate(() => window.card.renderer.orientation);
+    assert(o.azimuth === 200 && o.elevation === 45, `camera ${JSON.stringify(o)}`);
+    assert(!(await page.locator("homeslice-card canvas.interactive").count()), "saved view should be locked");
+    assert(await page.evaluate(() => window.card.renderer.roofVisible()), "roof not shown");
+    await shot(page, "demo-roof");
+    await act(page, () => page.locator("homeslice-card nav.levels button", { hasText: "Ground Floor" }).click());
+    assert(!(await page.evaluate(() => window.card.renderer.roofVisible())), "roof still shown with a floor picked");
+    assert(errors.length === 0, errors.join(" | "));
+  });
+  await page.close();
+}
+{
+  const { page } = await open("dev/fixtures/demo-hass.json", { view: "nope" });
+  await test("an unknown view is reported and the defaults are used", async () => {
+    const text = await page.locator("homeslice-card details").textContent();
+    assert(text.includes('no saved view "nope"'), `issues: ${text}`);
+    assert(await page.locator("homeslice-card canvas.interactive").count(), "default view should be interactive");
+  });
+  await page.close();
+}
+
 console.log("demo house, outdoor areas hidden");
 {
   const { page, errors } = await open("dev/fixtures/demo-hass.json", { view: { show_outdoor: false } });
@@ -722,6 +750,32 @@ console.log("editor");
     assert((await room("kitchen")).lights?.[0]?.hidden === true, "not hidden");
     await page.locator("homeslice-panel .inspector ul.lights li.hidden button").click();
     assert(!(await room("kitchen")).lights, "hidden entry not removed by Show");
+    await page.locator("homeslice-panel .modes button", { hasText: "Rooms" }).click();
+    assert(errors.length === 0, errors.join(" | "));
+  });
+
+  await test("views mode: save a view from the free camera, roof and unlock options, card YAML", async () => {
+    await page.keyboard.press("Escape");
+    await page.locator("homeslice-panel .modes button", { hasText: "Views" }).click();
+    await page.locator("homeslice-panel .view-list button", { hasText: "View from this angle" }).click();
+    let views = (await model()).views;
+    assert(views?.length === 1 && views[0].id === "view_1" && views[0].azimuth === 250, `views: ${JSON.stringify(views)}`);
+    const big = await page.locator("homeslice-panel canvas.big-preview").boundingBox();
+    await page.mouse.move(big.x + 300, big.y + 300);
+    await page.mouse.down();
+    await page.mouse.move(big.x + 400, big.y + 340, { steps: 5 });
+    await page.mouse.up();
+    assert((await page.locator("homeslice-panel .camera-readout").textContent()).includes("not saved"), "changed angle not flagged");
+    await page.locator("homeslice-panel .inspector button", { hasText: "Save the current angle" }).click();
+    views = (await model()).views;
+    assert(views[0].azimuth !== 250 && views[0].elevation !== 38, `angle not saved: ${JSON.stringify(views[0])}`);
+    await page.locator("homeslice-panel .inspector label.check", { hasText: "roof" }).locator("input").check();
+    assert((await model()).views[0].roof === true, "roof not on");
+    await page.waitForFunction(() => window.panel.bigRenderer?.roofVisible());
+    await page.locator("homeslice-panel .inspector label.check", { hasText: "turn and zoom" }).locator("input").check();
+    assert((await model()).views[0].locked === false, "not unlocked");
+    assert((await page.locator("homeslice-panel pre.yaml").textContent()).includes("view: view_1"), "card yaml");
+    await shot(page, "editor-views");
     await page.locator("homeslice-panel .modes button", { hasText: "Rooms" }).click();
     assert(errors.length === 0, errors.join(" | "));
   });

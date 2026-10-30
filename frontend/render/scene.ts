@@ -6,7 +6,7 @@
 import * as THREE from "three";
 import type { House, Level, Vec2, Vertical } from "../model/types";
 import { innerPolygon, type Wall, type WallOpening } from "../model/walls";
-import { pointInPolygon } from "../model/geometry";
+import { bbox, pointInPolygon } from "../model/geometry";
 import { stairFrame, stairHole } from "../model/stairs";
 
 /** `isometric`: parallel lines stay parallel; `perspective`: walls lean, like a photo. */
@@ -37,6 +37,8 @@ export interface ViewOptions {
   levels: Record<string, Partial<Orientation>>;
   /** Draw outdoor areas (garden, terrace); they are see-through so lower floors show. */
   showOutdoor: boolean;
+  /** Draw the house's roof in the overview (hidden while a floor is picked or hovered). */
+  roof: boolean;
 }
 
 export const DEFAULT_VIEW: ViewOptions = {
@@ -49,7 +51,23 @@ export const DEFAULT_VIEW: ViewOptions = {
   focus: { azimuth: 180, elevation: 65, projection: "perspective" },
   levels: {},
   showOutdoor: true,
+  roof: false,
 };
+
+/** View options from a card config or a saved view (which use snake_case keys). */
+export function viewOptions(
+  view: (Partial<ViewOptions> & { cut_height?: number; cut_below?: number; show_outdoor?: boolean; locked?: boolean; id?: string; name?: string }) | undefined,
+): Partial<ViewOptions> {
+  if (!view) return {};
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { cut_height, cut_below, show_outdoor, locked, id, name, ...rest } = view;
+  return {
+    ...rest,
+    ...(cut_height !== undefined ? { cutHeight: cut_height } : {}),
+    ...(cut_below !== undefined ? { cutBelow: cut_below } : {}),
+    ...(show_outdoor !== undefined ? { showOutdoor: show_outdoor } : {}),
+  };
+}
 
 // One perspective camera does both: "isometric" is a very narrow lens from far away, so
 // switching projections animates as a smooth zoom.
@@ -91,6 +109,7 @@ const COLORS = {
   stripClosed: "#6b747c",
   stripOpen: "#7fb0ff",
   awning: "#d9c9a3",
+  roof: "#8e5b45",
 };
 const FOCUS_MS = 450;
 const HOVER_MS = 160;
@@ -105,6 +124,9 @@ function shapeOf(poly: Vec2[], holes: Vec2[][] = []): THREE.Shape {
   for (const hole of holes) shape.holes.push(new THREE.Path(hole.map(([x, y]) => new THREE.Vector2(x, -y))));
   return shape;
 }
+
+/** For tests and debugging. */
+export type RoofShape = House["roof"];
 
 /** A soft round spot of light: white in the middle, fading out to the edge. */
 function glowTexture(): THREE.Texture {
@@ -171,6 +193,7 @@ export class HouseRenderer {
   private lamps = new Map<string, THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>[]>();
   private lampObjects: THREE.Object3D[] = [];
   private glowTexture?: THREE.Texture;
+  private roof: THREE.Group | null = null;
   /** Awnings by "level/room": the fabric scales along its depth with the cover position. */
   private awnings = new Map<string, THREE.Mesh>();
   /** Upper parts of outer walls, hidden while they face a low camera. */
@@ -228,6 +251,12 @@ export class HouseRenderer {
       this.levels.push({ group, baseY, materials, tintable, opacity: 1, lift: 0, hoverOpacity: 1 });
       this.levelIds.push(level.id);
     }
+    const top = house.levels[house.levels.length - 1];
+    if (this.view.roof && top) {
+      this.roof = this.buildRoof(top, house.roof);
+      const l = this.levels[this.levels.length - 1];
+      l.group.add(this.roof);
+    }
     this.focus = null;
     this.hover = null;
     this.orientation = this.cameraFor(null);
@@ -250,6 +279,7 @@ export class HouseRenderer {
     this.covers.clear();
     this.glasses.clear();
     this.awnings.clear();
+    this.roof = null;
     this.lamps.clear();
     this.lampObjects = [];
     this.cuttables = [];
@@ -558,6 +588,39 @@ export class HouseRenderer {
     }
   }
 
+  /** A gable roof on top of the level: a prism over its outline's bounds, with overhang. */
+  private buildRoof(level: Level, roof: RoofShape): THREE.Group {
+    const g = new THREE.Group();
+    const { min, max } = bbox(level.outline);
+    const o = roof.overhang;
+    const t = Math.tan((roof.pitch * Math.PI) / 180);
+    const eastWest = roof.ridge === "east_west";
+    // profile across the ridge (u) and up (v); extruded along the ridge
+    const [u0, u1] = eastWest ? [min[1], max[1]] : [min[0], max[0]];
+    const [r0, r1] = eastWest ? [min[0], max[0]] : [min[1], max[1]];
+    const half = (u1 - u0) / 2;
+    const shape = new THREE.Shape([new THREE.Vector2(-o, -o * t), new THREE.Vector2(2 * half + o, -o * t), new THREE.Vector2(half, half * t)]);
+    const geo = new THREE.ExtrudeGeometry(shape, { depth: r1 - r0 + 2 * o, bevelEnabled: false });
+    const base = level.height;
+    const m = new THREE.Matrix4();
+    // shape x → across, shape y → up, extrusion z → along the ridge
+    if (eastWest) m.set(0, 0, 1, r0 - o, 0, 1, 0, base, 1, 0, 0, u0, 0, 0, 0, 1);
+    else m.set(1, 0, 0, u0, 0, 1, 0, base, 0, 0, 1, r0 - o, 0, 0, 0, 1);
+    geo.applyMatrix4(m);
+    geo.computeVertexNormals();
+    const mat = new THREE.MeshLambertMaterial({ color: COLORS.roof, side: THREE.DoubleSide });
+    this.levels[this.levels.length - 1]?.materials.add(mat);
+    g.add(this.mesh(geo, mat));
+    g.userData.outdoor = true;
+    g.traverse((x) => (x.userData.outdoor = true));
+    return g;
+  }
+
+  /** For tests: whether the roof is drawn. */
+  roofVisible() {
+    return !!this.roof?.visible;
+  }
+
   /** For tests: whether a lamp is drawn lit. */
   lampState(entity: string) {
     const l = this.lamps.get(entity);
@@ -705,6 +768,8 @@ export class HouseRenderer {
 
   private applyLevel(l: LevelState) {
     l.group.position.y = l.baseY + l.lift;
+    // the roof belongs to the overview only
+    if (this.roof && l === this.levels[this.levels.length - 1]) this.roof.visible = this.focus === null && this.hover === null;
     const opacity = l.opacity * l.hoverOpacity;
     l.group.visible = opacity > 0.01;
     const fading = opacity < 0.999;

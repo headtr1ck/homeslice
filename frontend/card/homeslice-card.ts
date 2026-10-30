@@ -6,7 +6,7 @@ import { labelPoint } from "../model/geometry";
 import type { House, Issue, Room, Vec2 } from "../model/types";
 import { listedLights, placeLights, type PlacedLight } from "../model/lights";
 import { deriveWalls, innerPolygon, type Wall } from "../model/walls";
-import { HouseRenderer, type ViewOptions } from "../render/scene";
+import { HouseRenderer, viewOptions, type ViewOptions } from "../render/scene";
 
 export interface PopupOverride {
   /** `extend` (default) adds the cards after the generated ones, `replace` shows only them. */
@@ -17,12 +17,19 @@ export interface PopupOverride {
 export interface HomesliceCardConfig {
   type: string;
   house?: string;
-  view?: Partial<ViewOptions>;
+  /**
+   * A view saved with the house (its id), or view options inline. Without one, the
+   * house's first saved view is used, else the defaults.
+   */
+  view?: string | (Partial<ViewOptions> & { locked?: boolean });
   /** Fixed height in px; by default the card follows the house's shape. */
   height?: number;
   /** Popup overrides keyed by room id or area id. */
   popups?: Record<string, PopupOverride>;
-  /** Drag to turn, scroll/pinch to zoom, double-click to reset (default true). */
+  /**
+   * Drag to turn, scroll/pinch to zoom, double-click to reset. By default saved views
+   * are locked (unless unlocked in the editor) and inline views are not.
+   */
   interactive?: boolean;
 }
 
@@ -81,19 +88,6 @@ declare global {
 }
 
 /** Card YAML uses HA's snake_case; the renderer uses camelCase. */
-function viewOptions(
-  view: (Partial<ViewOptions> & { cut_height?: number; cut_below?: number; show_outdoor?: boolean }) | undefined,
-): Partial<ViewOptions> {
-  if (!view) return {};
-  const { cut_height, cut_below, show_outdoor, ...rest } = view;
-  return {
-    ...rest,
-    ...(cut_height !== undefined ? { cutHeight: cut_height } : {}),
-    ...(cut_below !== undefined ? { cutBelow: cut_below } : {}),
-    ...(show_outdoor !== undefined ? { showOutdoor: show_outdoor } : {}),
-  };
-}
-
 /** Makes sure a card type's element is defined before cards of that type are created. */
 async function preloadCard(helpers: CardHelpers, type: string) {
   const tag = type.startsWith("custom:") ? type.slice("custom:".length) : `hui-${type}-card`;
@@ -127,6 +121,9 @@ export class HomesliceCard extends LitElement {
   private lamps: PlacedLight[] = [];
   private lampSignature = "";
   private walls = new Map<string, Wall[]>();
+  /** The view in use and whether it is locked (see config.view). */
+  private view: Partial<ViewOptions> = {};
+  private locked = false;
   /** Focused level: the levels above it are lifted away. */
   private _level: string | null = null;
   private _popup: Popup | null = null;
@@ -272,16 +269,17 @@ export class HomesliceCard extends LitElement {
     }
     this.house = house;
     this.walls = walls;
+    this.resolveView(house);
     this.lampSignature = "";
     this.rooms = house.levels.flatMap((level) =>
       level.rooms
-        .filter((room) => room.kind !== "void" && (room.kind !== "outdoor" || viewOptions(this.config.view).showOutdoor !== false))
+        .filter((room) => room.kind !== "void" && (room.kind !== "outdoor" || this.view.showOutdoor !== false))
         .map((room) => ({ key: `${level.id}/${room.id}`, levelId: level.id, levelIndex: level.index, room, point: labelPoint(room.polygon) })),
     );
     this.openings = [...walls.entries()].flatMap(([levelId, ws]) =>
       ws.flatMap((w) => w.openings.filter((o) => o.cover || o.contact).map((o) => ({ levelId, id: o.id, room: o.room, cover: o.cover, contact: o.contact }))),
     );
-    this.renderer.setModel(house, walls, viewOptions(this.config.view));
+    this.renderer.setModel(house, walls, this.view);
     // keep the focused floor across model updates, if it still exists
     const focused = this._level ? house.levels.find((l) => l.id === this._level) : undefined;
     this._level = focused?.id ?? null;
@@ -290,6 +288,19 @@ export class HomesliceCard extends LitElement {
     this.stateSignature = "";
     this.syncStates();
     this.scheduleDraw();
+  }
+
+  private resolveView(house: House) {
+    const v = this.config.view;
+    const saved = typeof v === "string" ? house.views.find((x) => x.id === v) : v ? undefined : house.views[0];
+    if (typeof v === "string" && !saved) this._issues = [...this._issues, { severity: "warning", path: "view", message: this.t("card.unknown_view", { view: v }) }];
+    if (saved) {
+      this.view = viewOptions(saved as Parameters<typeof viewOptions>[0]);
+      this.locked = saved.locked !== false;
+    } else {
+      this.view = typeof v === "object" ? viewOptions(v) : {};
+      this.locked = typeof v === "object" && v.locked === true;
+    }
   }
 
   // ----- live state -----
@@ -444,7 +455,7 @@ export class HomesliceCard extends LitElement {
   }
 
   private get interactive() {
-    return this.config.interactive !== false;
+    return this.config.interactive ?? !this.locked;
   }
 
   private onPointerDown(e: PointerEvent) {

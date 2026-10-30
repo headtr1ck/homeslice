@@ -7,15 +7,19 @@ import { areaEntities, type Hass } from "../ha/hass";
 import { localize, type StringKey } from "../i18n/localize";
 import { expandHouse } from "../model/expand";
 import { bbox, labelPoint, pointInPolygon } from "../model/geometry";
-import type { HouseInput, Issue, OpeningInput, OpeningSource, OpeningType, RoomInput, Side, Vec2, Vertical } from "../model/types";
+import type { HouseInput, Issue, OpeningInput, OpeningSource, OpeningType, RoomInput, Side, Vec2, Vertical, ViewInput } from "../model/types";
 import { deriveWalls, innerPolygon, sideOfRoom, type Wall } from "../model/walls";
-import { HouseRenderer } from "../render/scene";
+import { HouseRenderer, viewOptions } from "../render/scene";
 import { stairFrame, stairHole } from "../model/stairs";
 import { listedLights, placeLights, type PlacedLight } from "../model/lights";
 import {
   History,
   addOpening,
   addRoom,
+  addView,
+  deleteView,
+  setRoof,
+  updateView,
   placeLight,
   removeLight,
   setLightHidden,
@@ -57,7 +61,7 @@ import {
 
 type Tool = "select" | "rect" | "stairs";
 /** The editor's phases: shape the house, then doors and windows, then objects and entities. */
-type Mode = "rooms" | "openings" | "objects";
+type Mode = "rooms" | "openings" | "objects" | "views";
 
 type Drag =
   | { kind: "pan"; start: Vec2; offset: Vec2 }
@@ -119,6 +123,8 @@ export class HomeslicePanel extends LitElement {
     _create: { state: true },
     _pendingArea: { state: true },
     _stair: { state: true },
+    _view3d: { state: true },
+    _copied: { state: true },
   };
 
   narrow = false;
@@ -149,6 +155,11 @@ export class HomeslicePanel extends LitElement {
   private _guides: { x?: number; y?: number; ring?: Vec2 } | null = null;
   /** The "new house" form while it is open. */
   private _create: { name: string; width: number; depth: number; floors: string[]; rooms: boolean } | null = null;
+  /** Views mode: the selected saved view and the big preview's current camera. */
+  private _view3d: { id: string | null; azimuth: number; elevation: number; isometric: boolean } = { id: null, azimuth: 250, elevation: 38, isometric: true };
+  private _copied = false;
+  private bigRenderer?: HouseRenderer;
+  private bigDrag: Vec2 | null = null;
   /** Selected stair or shaft (id in `vertical`). */
   private _stair: string | null = null;
   /** Area to link to the next room drawn with the rectangle tool. */
@@ -809,6 +820,12 @@ export class HomeslicePanel extends LitElement {
       clearTimeout(this.previewTimer);
       this.previewTimer = window.setTimeout(() => this.updatePreview(), 120);
     }
+    if (changed.has("_mode") && this._mode === "views" && !this.savedView() && this._model?.views?.length) this.selectView(this._model.views[0].id);
+    if (this._mode === "views" && (changed.has("_model") || changed.has("_mode") || changed.has("_view3d"))) this.updateBigPreview(changed.has("_model") || changed.has("_mode"));
+    if (changed.has("_mode") && this._mode !== "views" && this.bigRenderer) {
+      this.bigRenderer.dispose();
+      this.bigRenderer = undefined;
+    }
   }
 
   private updatePreview() {
@@ -836,6 +853,164 @@ export class HomeslicePanel extends LitElement {
     }
     const { width, height } = canvas.getBoundingClientRect();
     if (width && height) this.renderer.render(width, height);
+  }
+
+  // ----- views mode: big preview with a free camera -----
+
+  private savedView(id = this._view3d.id): ViewInput | undefined {
+    return this._model?.views?.find((v) => v.id === id);
+  }
+
+  /** Rebuilds the big preview with the selected view's look; keeps the free camera. */
+  private updateBigPreview(rebuild: boolean) {
+    const canvas = this.renderRoot.querySelector("canvas.big-preview") as HTMLCanvasElement | null;
+    if (!canvas || !this._model) return;
+    if (this.bigRenderer && this.bigRenderer.renderer.domElement !== canvas) {
+      this.bigRenderer.dispose();
+      this.bigRenderer = undefined;
+    }
+    if (!this.bigRenderer) {
+      try {
+        this.bigRenderer = new HouseRenderer(canvas);
+      } catch {
+        return;
+      }
+      rebuild = true;
+    }
+    if (rebuild) {
+      const { house, issues } = expandHouse(this._model);
+      if (!house) return;
+      const walls = new Map<string, Wall[]>();
+      for (const l of house.levels) walls.set(l.id, deriveWalls(l, house.walls, issues));
+      const saved = this.savedView();
+      this.bigRenderer.setModel(house, walls, viewOptions(saved as Parameters<typeof viewOptions>[0]));
+    }
+    const v = this._view3d;
+    this.bigRenderer.orientation = { azimuth: v.azimuth, elevation: v.elevation, fov: v.isometric ? 3 : 40 };
+    const { width, height } = canvas.getBoundingClientRect();
+    if (width && height) this.bigRenderer.render(width, height);
+  }
+
+  private selectView(id: string | null) {
+    const v = this.savedView(id);
+    this._view3d = { id, azimuth: v?.azimuth ?? 250, elevation: v?.elevation ?? 38, isometric: (v?.projection ?? "isometric") === "isometric" };
+    this.updateBigPreview(true);
+  }
+
+  private onBigDown(e: PointerEvent) {
+    (e.currentTarget as Element).setPointerCapture(e.pointerId);
+    this.bigDrag = [e.clientX, e.clientY];
+  }
+
+  private onBigMove(e: PointerEvent) {
+    if (!this.bigDrag) return;
+    const v = this._view3d;
+    const azimuth = (((v.azimuth - (e.clientX - this.bigDrag[0]) * 0.35) % 360) + 360) % 360;
+    const elevation = Math.max(5, Math.min(89, v.elevation + (e.clientY - this.bigDrag[1]) * 0.25));
+    this.bigDrag = [e.clientX, e.clientY];
+    this._view3d = { ...v, azimuth: Math.round(azimuth), elevation: Math.round(elevation) };
+  }
+
+  private onBigWheel(e: WheelEvent) {
+    e.preventDefault();
+    this.bigRenderer?.zoomBy(Math.exp(-e.deltaY * 0.0015));
+    this.updateBigPreview(false);
+  }
+
+  private cameraReadout() {
+    const v = this._view3d;
+    const saved = this.savedView();
+    const changed = saved && (saved.azimuth !== v.azimuth || saved.elevation !== v.elevation || (saved.projection ?? "isometric") !== (v.isometric ? "isometric" : "perspective"));
+    return html`${this.t("editor.camera", { azimuth: v.azimuth, elevation: v.elevation })}${changed ? html` · <b>${this.t("editor.camera_changed")}</b>` : nothing}`;
+  }
+
+  private renderViewsInspector() {
+    const m = this._model!;
+    const views = m.views ?? [];
+    const v = this.savedView();
+    const cam = this._view3d;
+    const set = (patch: Partial<ViewInput>) => v && this.commit(updateView(m, v.id, patch));
+    const yaml = `type: custom:homeslice-card\nhouse: ${this._house}${v ? `\nview: ${v.id}` : ""}`;
+    return html`<h2>${this.t("editor.views")}</h2>
+      <p class="muted">${this.t("editor.views_hint")}</p>
+      <div class="view-list">
+        ${views.map((x) => html`<button class=${x.id === cam.id ? "active" : ""} @click=${() => this.selectView(x.id)}>${x.name ?? x.id}</button>`)}
+        <button @click=${() => {
+          const { model, id } = addView(m, {
+            name: this.t("editor.view_default_name", { n: views.length + 1 }),
+            azimuth: cam.azimuth,
+            elevation: cam.elevation,
+            projection: cam.isometric ? "isometric" : "perspective",
+          });
+          this.commit(model);
+          this._view3d = { ...cam, id };
+        }}>+ ${this.t("editor.view_add")}</button>
+      </div>
+      ${v
+        ? html`<label>${this.t("editor.view_name")}
+              <input .value=${v.name ?? ""} @change=${(e: Event) => set({ name: (e.target as HTMLInputElement).value.trim() || undefined })} />
+            </label>
+            <p class="muted">${this.t("editor.view_angle", { azimuth: v.azimuth ?? 250, elevation: v.elevation ?? 38 })}</p>
+            <button class="primary" @click=${() => set({ azimuth: cam.azimuth, elevation: cam.elevation, projection: cam.isometric ? "isometric" : "perspective" })}>
+              ${this.t("editor.view_use_angle")}
+            </button>
+            <div class="row">
+              <label>${this.t("editor.view_projection")}
+                <select @change=${(e: Event) => {
+                  const projection = (e.target as HTMLSelectElement).value as "isometric" | "perspective";
+                  set({ projection });
+                  this._view3d = { ...cam, isometric: projection === "isometric" };
+                }}>
+                  <option value="isometric" ?selected=${(v.projection ?? "isometric") === "isometric"}>${this.t("editor.projection_isometric")}</option>
+                  <option value="perspective" ?selected=${v.projection === "perspective"}>${this.t("editor.projection_perspective")}</option>
+                </select>
+              </label>
+              <label>${this.t("editor.view_explode")}
+                <input type="number" min="0" max="10" step="0.1" .value=${String(v.explode ?? 2.6)} @change=${(e: Event) => {
+                  const val = Number((e.target as HTMLInputElement).value);
+                  if (val >= 0) set({ explode: val === 2.6 ? undefined : val });
+                }} />
+              </label>
+            </div>
+            <label class="check"><input type="checkbox" .checked=${v.show_outdoor !== false} @change=${(e: Event) => set({ show_outdoor: (e.target as HTMLInputElement).checked ? undefined : false })} />
+              ${this.t("editor.view_outdoor")}</label>
+            <label class="check"><input type="checkbox" .checked=${!!v.roof} @change=${(e: Event) => {
+              const on = (e.target as HTMLInputElement).checked;
+              this.commit(updateView(m, v.id, { roof: on }));
+            }} />
+              ${this.t("editor.view_roof")}</label>
+            <label class="check"><input type="checkbox" .checked=${v.locked === false} @change=${(e: Event) => set({ locked: !(e.target as HTMLInputElement).checked })} />
+              ${this.t("editor.view_unlocked")}</label>
+            <h3>${this.t("editor.view_card")}</h3>
+            <pre class="yaml">${yaml}</pre>
+            <button @click=${async () => {
+              await navigator.clipboard?.writeText(yaml).catch(() => undefined);
+              this._copied = true;
+              setTimeout(() => (this._copied = false), 1500);
+            }}>${this._copied ? this.t("editor.copied") : this.t("editor.copy")}</button>
+            ${v.roof
+              ? html`<h3>${this.t("editor.roof")}</h3>
+                  <div class="row">
+                    <label>${this.t("editor.roof_ridge")}
+                      <select @change=${(e: Event) => this.commit(setRoof(m, { ridge: ((e.target as HTMLSelectElement).value || undefined) as "east_west" | "north_south" | undefined }))}>
+                        <option value="" ?selected=${!m.roof?.ridge}>${this.t("editor.roof_ridge_auto")}</option>
+                        <option value="east_west" ?selected=${m.roof?.ridge === "east_west"}>${this.t("editor.roof_east_west")}</option>
+                        <option value="north_south" ?selected=${m.roof?.ridge === "north_south"}>${this.t("editor.roof_north_south")}</option>
+                      </select>
+                    </label>
+                    <label>${this.t("editor.roof_pitch")}
+                      <input type="number" min="5" max="70" step="1" .value=${String(m.roof?.pitch ?? 35)} @change=${(e: Event) => {
+                        const val = Number((e.target as HTMLInputElement).value);
+                        if (val > 0 && val < 75) this.commit(setRoof(m, { pitch: val === 35 ? undefined : val }));
+                      }} />
+                    </label>
+                  </div>`
+              : nothing}
+            <button class="danger" @click=${() => {
+              this.commit(deleteView(m, v.id));
+              this._view3d = { ...cam, id: null };
+            }}>${this.t("editor.view_delete")}</button>`
+        : html`<p class="muted">${this.t(views.length ? "editor.views_pick" : "editor.views_none")}</p>`}`;
   }
 
   private previewTouched = false;
@@ -893,7 +1068,7 @@ export class HomeslicePanel extends LitElement {
           <option value="__new__">${this.t("editor.new_house")}…</option>
         </select>
         <div class="segmented modes" role="tablist">
-          ${(["rooms", "openings", "objects"] as Mode[]).map(
+          ${(["rooms", "openings", "objects", "views"] as Mode[]).map(
             (mode, i) => html`<button role="tab" aria-selected=${this._mode === mode} class=${this._mode === mode ? "active" : ""} @click=${() => {
               this._mode = mode;
               this._room = null;
@@ -912,7 +1087,7 @@ export class HomeslicePanel extends LitElement {
       </header>
       ${this._error ? html`<div class="error">${this._error}</div>` : nothing}
       <main>
-        <aside class="tools">
+        <aside class="tools ${this._mode === "views" ? "hidden" : ""}">
           <button class=${this._tool === "select" ? "active" : ""} title=${this.t("editor.tool_select")} aria-label=${this.t("editor.tool_select")} @click=${() => (this._tool = "select")}>
             <ha-icon icon="mdi:cursor-default-outline"></ha-icon>
           </button>
@@ -957,15 +1132,24 @@ export class HomeslicePanel extends LitElement {
           <button class="add-level" title=${this.t("editor.add_level_above")} @click=${() => this.addLevelAt(this._model!.levels.length)}>+ ${this.t("editor.add_level")}</button>
         </aside>
         <section class="plan-wrap">
-          ${this.renderPlan()}
+          ${this._mode === "views"
+            ? html`<canvas
+                  class="big-preview"
+                  @pointerdown=${this.onBigDown}
+                  @pointermove=${this.onBigMove}
+                  @pointerup=${() => (this.bigDrag = null)}
+                  @wheel=${this.onBigWheel}
+                ></canvas>
+                <div class="camera-readout">${this.cameraReadout()}</div>`
+            : this.renderPlan()}
           ${this._hint
             ? html`<div class="hint" style="left:${this._hint.x + 16}px;top:${this._hint.y + 16}px">${this._hint.lines.map((l) => html`<div>${l}</div>`)}</div>`
             : nothing}
-          <div class="help">${this.t(this._mode === "openings" ? "editor.openings_hint" : this._mode === "objects" ? "editor.help_objects" : this._tool === "rect" ? "editor.help_rect" : this._tool === "stairs" ? "editor.help_stairs" : "editor.help_select")}${this._pendingArea && this._tool === "rect" ? html` <b>${this.t("editor.drawing_for", { area: this._hass?.areas?.[this._pendingArea]?.name ?? this._pendingArea })}</b>` : nothing}</div>
+          <div class="help">${this.t(this._mode === "views" ? "editor.help_views" : this._mode === "openings" ? "editor.openings_hint" : this._mode === "objects" ? "editor.help_objects" : this._tool === "rect" ? "editor.help_rect" : this._tool === "stairs" ? "editor.help_stairs" : "editor.help_select")}${this._pendingArea && this._tool === "rect" ? html` <b>${this.t("editor.drawing_for", { area: this._hass?.areas?.[this._pendingArea]?.name ?? this._pendingArea })}</b>` : nothing}</div>
         </section>
         <section class="side">
           <canvas
-            class="preview"
+            class="preview ${this._mode === "views" ? "hidden" : ""}"
             @pointerdown=${this.onPreviewDown}
             @pointermove=${this.onPreviewMove}
             @pointerup=${() => (this.previewDrag = null)}
@@ -1187,6 +1371,7 @@ export class HomeslicePanel extends LitElement {
     const l = this.levelInput;
     if (!l) return nothing;
     if (this._mode === "objects") return this.renderObjectsInspector();
+    if (this._mode === "views") return this.renderViewsInspector();
     if (this._mode === "openings") {
       if (this._opening) return this.renderOpeningInspector(this._opening);
       return html`<h2>${this.t("editor.mode_openings")}</h2><p class="muted">${this.t("editor.openings_hint")}</p>`;
@@ -1905,6 +2090,45 @@ export class HomeslicePanel extends LitElement {
       stroke: #6b747c;
       stroke-dasharray: 3 3;
       pointer-events: none;
+    }
+    canvas.big-preview {
+      width: 100%;
+      height: 100%;
+      display: block;
+      cursor: grab;
+      touch-action: none;
+    }
+    canvas.preview.hidden,
+    aside.tools.hidden {
+      display: none;
+    }
+    .camera-readout {
+      position: absolute;
+      top: 8px;
+      left: 8px;
+      font-size: 12px;
+      color: var(--secondary-text-color, #aaa);
+      background: rgba(0, 0, 0, 0.4);
+      padding: 4px 8px;
+      border-radius: 6px;
+    }
+    .view-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-bottom: 8px;
+    }
+    .view-list button.active {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+    pre.yaml {
+      font-size: 12px;
+      background: rgba(255, 255, 255, 0.05);
+      padding: 8px;
+      border-radius: 6px;
+      margin: 0 0 4px;
+      white-space: pre-wrap;
     }
     .lamp-marker {
       cursor: grab;

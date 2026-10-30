@@ -2,7 +2,7 @@
 // each returns a new model, which keeps undo/redo trivial and makes them easy to test.
 
 import { bbox, dist, normalizeOrientation, project, signedArea } from "../model/geometry";
-import type { Coord, HouseInput, LevelInput, OpeningInput, OpeningSource, RoomInput, ShapeInput, Side, Vec2, VerticalInput } from "../model/types";
+import type { Coord, HouseInput, LevelInput, OpeningInput, OpeningSource, RoomInput, ShapeInput, RoofInput, Side, Vec2, VerticalInput, ViewInput } from "../model/types";
 
 /** Points closer than this count as the same corner (shared by neighbouring rooms). */
 export const SAME_POINT = 0.01;
@@ -739,5 +739,45 @@ export function removeLight(model: HouseInput, levelId: string, roomId: string, 
   if (!room?.lights) return m;
   room.lights = room.lights.filter((x) => x.entity !== entity);
   if (!room.lights.length) delete room.lights;
+  return m;
+}
+
+// ----- views and roof -----
+
+export function addView(model: HouseInput, view: Omit<ViewInput, "id">, base = "view"): { model: HouseInput; id: string } {
+  const m = clone(model);
+  const id = uniqueId((m.views ?? []).map((v) => v.id), slug(view.name ?? base, base));
+  m.views = [...(m.views ?? []), { id, ...view }];
+  return { model: m, id };
+}
+
+/** Changes a view; empty values (and `locked: true`, the default) are dropped. */
+export function updateView(model: HouseInput, id: string, patch: Partial<ViewInput>): HouseInput {
+  const m = clone(model);
+  m.views = (m.views ?? []).map((v) => {
+    if (v.id !== id) return v;
+    const next = { ...v, ...patch };
+    for (const [k, val] of Object.entries(patch)) if (val === undefined || val === "" || (k === "locked" && val === true) || (k === "roof" && val === false)) delete (next as Record<string, unknown>)[k];
+    return next;
+  });
+  return m;
+}
+
+export function deleteView(model: HouseInput, id: string): HouseInput {
+  const m = clone(model);
+  m.views = (m.views ?? []).filter((v) => v.id !== id);
+  if (!m.views.length) delete m.views;
+  return m;
+}
+
+/** Sets roof properties (creating the roof); `null` removes it. */
+export function setRoof(model: HouseInput, roof: Partial<RoofInput> | null): HouseInput {
+  const m = clone(model);
+  if (roof === null) delete m.roof;
+  else {
+    const next = { ...(m.roof ?? {}), ...roof };
+    for (const [k, v] of Object.entries(roof)) if (v === undefined) delete (next as Record<string, unknown>)[k];
+    m.roof = next;
+  }
   return m;
 }
