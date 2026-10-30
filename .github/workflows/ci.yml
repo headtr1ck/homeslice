@@ -19,7 +19,7 @@ jobs:
       - run: npm test
       - name: Browser tests
         run: |
-          npx playwright@1.60 install --with-deps chromium
+          npx playwright-core install --with-deps chromium
           npm run test:browser
       - uses: actions/upload-artifact@v4
         if: always()
