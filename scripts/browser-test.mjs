@@ -261,7 +261,7 @@ console.log("demo house");
     });
     assert(spot, "no visible spot on the ground floor");
     await page.mouse.move(spot.x, spot.y);
-    await page.waitForTimeout(350);
+    await page.waitForFunction(() => window.card.renderer.levels[1].hoverOpacity < 0.2, null, { timeout: 10000 });
     const state = await page.evaluate(() => ({
       hover: window.card.renderer.hoveredIndex,
       above: window.card.renderer.levels[1].hoverOpacity,
@@ -288,10 +288,10 @@ console.log("demo house");
 
   await test("hovering a floor button does the same; leaving clears it", async () => {
     await page.locator("homeslice-card nav.levels button", { hasText: "First Floor" }).hover();
-    await page.waitForTimeout(250);
+    await page.waitForFunction(() => window.card.renderer.hoveredIndex === 1, null, { timeout: 10000 });
     assert((await page.evaluate(() => window.card.renderer.hoveredIndex)) === 1, "first floor not hovered via its button");
     await page.mouse.move(2, 2);
-    await page.waitForTimeout(250);
+    await page.waitForFunction(() => window.card.renderer.levels[1].hoverOpacity === 1, null, { timeout: 10000 });
     const state = await page.evaluate(() => ({ hover: window.card.renderer.hoveredIndex, above: window.card.renderer.levels[1].hoverOpacity }));
     assert(state.hover === null && state.above === 1, `hover not cleared: ${JSON.stringify(state)}`);
     assert((await page.locator("homeslice-card .label.faded").count()) === 0, "labels still faded");
