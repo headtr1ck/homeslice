@@ -99,7 +99,7 @@
   "editor.size_hint": "Outside dimensions of the building; rough values are fine, you can drag the outside walls later.",
   "editor.new_house_floors": "Floors of this house",
   "editor.no_ha_floors": "No floors in Home Assistant yet: the house starts with one level. Floors and areas can be linked later.",
-  "editor.areas_count": "({count} areas)",
+  "editor.areas_count": "· areas: {count}",
   "editor.new_house_rooms": "Start each level with a placeholder room per area",
   "editor.cancel": "Cancel",
   "editor.create": "Create",
