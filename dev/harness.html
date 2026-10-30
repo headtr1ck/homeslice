@@ -50,6 +50,17 @@
     window.card = card;
     await rendered;
   };
+  window.setupCardEditor = async (fixture, config) => {
+    await customElements.whenDefined("homeslice-card-editor");
+    const editor = document.createElement("homeslice-card-editor");
+    editor.style.cssText = "display:flex;width:500px";
+    window.editorConfigs = [];
+    editor.addEventListener("config-changed", (e) => window.editorConfigs.push(e.detail.config));
+    editor.setConfig(config);
+    document.getElementById("root").append(editor);
+    editor.hass = makeHass(fixture, (h) => (editor.hass = h));
+    window.cardEditor = editor;
+  };
   window.setupPanel = async (fixture) => {
     await customElements.whenDefined("homeslice-panel");
     document.getElementById("root").style.cssText = "width:100vw;height:100vh;padding:0";

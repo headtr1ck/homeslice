@@ -17,19 +17,13 @@ export interface PopupOverride {
 export interface HomesliceCardConfig {
   type: string;
   house?: string;
-  /**
-   * A view saved with the house (its id), or view options inline. Without one, the
-   * house's first saved view is used, else the defaults.
-   */
-  view?: string | (Partial<ViewOptions> & { locked?: boolean });
+  /** Camera and look: azimuth, elevation, projection, explode, show_outdoor, roof, … */
+  view?: Partial<ViewOptions> & { cut_height?: number; cut_below?: number; show_outdoor?: boolean };
   /** Fixed height in px; by default the card follows the house's shape. */
   height?: number;
   /** Popup overrides keyed by room id or area id. */
   popups?: Record<string, PopupOverride>;
-  /**
-   * Drag to turn, scroll/pinch to zoom, double-click to reset. By default saved views
-   * are locked (unless unlocked in the editor) and inline views are not.
-   */
+  /** Drag to turn, scroll/pinch to zoom, double-click to reset (default false: the view is locked). */
   interactive?: boolean;
 }
 
@@ -121,9 +115,8 @@ export class HomesliceCard extends LitElement {
   private lamps: PlacedLight[] = [];
   private lampSignature = "";
   private walls = new Map<string, Wall[]>();
-  /** The view in use and whether it is locked (see config.view). */
+  /** The view options in use (from config.view). */
   private view: Partial<ViewOptions> = {};
-  private locked = false;
   /** Focused level: the levels above it are lifted away. */
   private _level: string | null = null;
   private _popup: Popup | null = null;
@@ -155,7 +148,16 @@ export class HomesliceCard extends LitElement {
 
   setConfig(config: HomesliceCardConfig) {
     this.config = { house: "home", ...config };
+    this.view = viewOptions(config.view);
     this.loadedFor = undefined;
+  }
+
+  static getConfigElement() {
+    return document.createElement("homeslice-card-editor");
+  }
+
+  static getStubConfig() {
+    return { house: "home", view: { azimuth: 250, elevation: 38 } };
   }
 
   getCardSize() {
@@ -269,7 +271,6 @@ export class HomesliceCard extends LitElement {
     }
     this.house = house;
     this.walls = walls;
-    this.resolveView(house);
     this.lampSignature = "";
     this.rooms = house.levels.flatMap((level) =>
       level.rooms
@@ -288,19 +289,6 @@ export class HomesliceCard extends LitElement {
     this.stateSignature = "";
     this.syncStates();
     this.scheduleDraw();
-  }
-
-  private resolveView(house: House) {
-    const v = this.config.view;
-    const saved = typeof v === "string" ? house.views.find((x) => x.id === v) : v ? undefined : house.views[0];
-    if (typeof v === "string" && !saved) this._issues = [...this._issues, { severity: "warning", path: "view", message: this.t("card.unknown_view", { view: v }) }];
-    if (saved) {
-      this.view = viewOptions(saved as Parameters<typeof viewOptions>[0]);
-      this.locked = saved.locked !== false;
-    } else {
-      this.view = typeof v === "object" ? viewOptions(v) : {};
-      this.locked = typeof v === "object" && v.locked === true;
-    }
   }
 
   // ----- live state -----
@@ -455,7 +443,7 @@ export class HomesliceCard extends LitElement {
   }
 
   private get interactive() {
-    return this.config.interactive ?? !this.locked;
+    return this.config.interactive === true;
   }
 
   private onPointerDown(e: PointerEvent) {

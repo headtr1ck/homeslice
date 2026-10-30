@@ -25,9 +25,6 @@ import {
   addLevel,
   deleteLevel,
   newHouse,
-  addView,
-  updateView,
-  deleteView,
   setRoof,
   placeLight,
   setLightHidden,
@@ -314,15 +311,8 @@ describe("lights", () => {
   });
 });
 
-describe("views", () => {
-  it("adds, updates and deletes views; defaults are left out", () => {
-    let { model, id } = addView(house(), { name: "Tablet", azimuth: 250, elevation: 38 });
-    expect(id).toBe("tablet");
-    model = updateView(model, id, { locked: false, roof: true });
-    expect(model.views![0]).toEqual({ id: "tablet", name: "Tablet", azimuth: 250, elevation: 38, locked: false, roof: true });
-    model = updateView(model, id, { locked: true, roof: false });
-    expect(model.views![0]).toEqual({ id: "tablet", name: "Tablet", azimuth: 250, elevation: 38 });
-    expect(deleteView(model, id).views).toBeUndefined();
+describe("roof", () => {
+  it("sets roof properties", () => {
     expect(setRoof(house(), { pitch: 40 }).roof).toEqual({ pitch: 40 });
   });
 });

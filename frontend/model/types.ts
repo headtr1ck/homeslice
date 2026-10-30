@@ -131,25 +131,6 @@ export interface VerticalInput extends ShapeInput {
   entry?: number;
 }
 
-/** A camera angle and look, saved with the house and picked by cards (`view: <id>`). */
-export interface ViewInput {
-  id: string;
-  name?: string;
-  azimuth?: number;
-  elevation?: number;
-  projection?: "isometric" | "perspective";
-  explode?: number;
-  cut_height?: number;
-  cut_below?: number;
-  show_outdoor?: boolean;
-  /** Draw the roof in the overview (default false). */
-  roof?: boolean;
-  /** Dashboards can't turn or zoom this view (default true). */
-  locked?: boolean;
-  focus?: { azimuth?: number; elevation?: number; projection?: "isometric" | "perspective" };
-  levels?: Record<string, { azimuth?: number; elevation?: number; projection?: "isometric" | "perspective" }>;
-}
-
 export interface RoofInput {
   /** Only gable roofs for now. */
   shape?: "gable";
@@ -175,7 +156,6 @@ export interface HouseInput {
   vertical?: VerticalInput[];
   /** Bottom to top. */
   levels: LevelInput[];
-  views?: ViewInput[];
   roof?: RoofInput;
 }
 
@@ -253,7 +233,6 @@ export interface House {
   walls: WallThickness;
   levels: Level[];
   vertical: Vertical[];
-  views: ViewInput[];
   roof: Required<RoofInput>;
 }
 
