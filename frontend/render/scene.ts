@@ -13,11 +13,11 @@ export interface ViewOptions {
   elevation: number;
   /** Extra gap between levels in metres. */
   explode: number;
-  /** Party walls are cut down to this height so you can look in. */
-  partyHeight: number;
+  /** Outer walls facing the camera are cut down to this height so you can look in. */
+  cutHeight: number;
 }
 
-export const DEFAULT_VIEW: ViewOptions = { azimuth: 210, elevation: 32, explode: 1.6, partyHeight: 0.5 };
+export const DEFAULT_VIEW: ViewOptions = { azimuth: 250, elevation: 38, explode: 2.6, cutHeight: 0.4 };
 
 const FLOOR_COLORS: Record<string, string> = {
   wood: "#b07c49",
@@ -127,8 +127,11 @@ export class HouseRenderer {
     const wallMat = this.lambert("#eeeae3");
     const glass = this.lambert("#9cc8ee", { transparent: true, opacity: 0.45 });
     const garage = this.lambert("#7d858d");
+    const toCamera = this.cameraPlanDirection();
     for (const w of walls) {
-      const H = w.type === "party" ? Math.min(this.view.partyHeight, w.height) : w.height;
+      // outer walls whose outside faces the camera are cut down, like a dollhouse
+      const facing = w.type !== "interior" && w.normal[0] * toCamera[0] + w.normal[1] * toCamera[1] > 0.2;
+      const H = facing ? Math.min(this.view.cutHeight, w.height) : w.height;
       const box = (s: number, e: number, z0: number, z1: number, mat: THREE.Material, thickness = w.thickness) => {
         if (e - s < 1e-3 || z1 - z0 < 1e-3) return;
         g.add(this.wallBox(w, s, e, z0, z1, thickness, mat));
@@ -136,12 +139,12 @@ export class HouseRenderer {
       let cursor = 0;
       const length = Math.hypot(w.b[0] - w.a[0], w.b[1] - w.a[1]);
       for (const o of w.openings) {
-        if (w.type === "party") break;
         box(cursor, o.start, 0, H, wallMat);
-        box(o.start, o.end, 0, o.sill, wallMat);
+        box(o.start, o.end, 0, Math.min(o.sill, H), wallMat);
         box(o.start, o.end, o.sill + o.height, H, wallMat);
-        if (o.type === "window") box(o.start, o.end, o.sill, o.sill + o.height, glass, 0.03);
-        if (o.type === "garage_door") box(o.start, o.end, o.sill, o.sill + o.height, garage, 0.06);
+        const top = Math.min(o.sill + o.height, H);
+        if (o.type === "window") box(o.start, o.end, o.sill, top, glass, 0.03);
+        if (o.type === "garage_door") box(o.start, o.end, o.sill, top, garage, 0.06);
         cursor = o.end;
       }
       box(cursor, length, 0, H, wallMat);
@@ -185,6 +188,12 @@ export class HouseRenderer {
       g.add(m);
     }
     return g;
+  }
+
+  /** Horizontal direction from the house towards the camera, in plan coordinates. */
+  private cameraPlanDirection(): Vec2 {
+    const az = THREE.MathUtils.degToRad(this.view.azimuth);
+    return [Math.sin(az), -Math.cos(az)];
   }
 
   private viewDirection(): THREE.Vector3 {

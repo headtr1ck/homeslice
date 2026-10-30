@@ -121,7 +121,9 @@ export class HomesliceCard extends LitElement {
       if (!wrap || !this.renderer) return;
       const width = wrap.clientWidth;
       if (!width) return;
-      const height = this.config.height ?? Math.min(Math.round(width / this.renderer.aspect), window.innerHeight - 24);
+      // follow the house's shape, but never taller than the space left below the card's top
+      const available = window.innerHeight - Math.max(0, wrap.getBoundingClientRect().top) - 16;
+      const height = this.config.height ?? Math.max(200, Math.min(Math.round(width / this.renderer.aspect), available));
       wrap.style.height = `${height}px`;
       this.renderer.render(width, height);
     });
