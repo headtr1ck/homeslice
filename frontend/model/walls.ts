@@ -20,6 +20,16 @@ import type { Issue, Level, Opening, OpeningType, Side, Vec2, WallThickness, Wal
 
 export const SNAP = 0.05;
 
+/** The side of a (positively oriented) room polygon that the segment p–q lies on. */
+export function sideOfRoom(polygon: Vec2[], p: Vec2, q: Vec2): Side | null {
+  const mid: Vec2 = [(p[0] + q[0]) / 2, (p[1] + q[1]) / 2];
+  const edge = edges(polygon).find(([a, b]) => {
+    const pr = project(mid, a, b);
+    return pr.distance < SNAP && pr.t > 0 && pr.t < pr.length;
+  });
+  return edge ? sideOf(outwardNormal(...edge)) : null;
+}
+
 export interface WallOpening {
   id: string;
   room: string;
@@ -103,8 +113,18 @@ export function deriveWalls(level: Level, thickness: WallThickness, issues: Issu
 
   // 3. classify
   const partyWalls = new Set(level.partyWalls);
+  // the side of `room` a piece lies on (from the room's edge containing it)
+  const sideFrom = (roomId: string, p: Vec2, q: Vec2): Side | null => {
+    const room = level.rooms.find((r) => r.id === roomId);
+    return room ? sideOfRoom(room.polygon, p, q) : null;
+  };
+  const isOpen = (piece: Piece) =>
+    piece.rooms.size === 2 &&
+    level.openBoundaries.some(
+      (o) => o.between.every((r) => piece.rooms.has(r)) && (!o.side || sideFrom(o.between[0], piece.a, piece.b) === o.side),
+    );
   const typeOf = (piece: Piece): WallType => {
-    if (!piece.outline) return "interior";
+    if (!piece.outline) return isOpen(piece) ? "open" : "interior";
     const side = sideOf(outwardNormal(...piece.outline));
     return side && partyWalls.has(side) ? "party" : "exterior";
   };
@@ -140,9 +160,9 @@ export function deriveWalls(level: Level, thickness: WallThickness, issues: Issu
 
   // build walls
   const walls: Wall[] = segs.map((s, i) => {
-    const t = thickness[s.type];
+    const t = s.type === "open" ? 0 : thickness[s.type];
     const normal = outwardNormal(s.a, s.b);
-    const shift = s.type === "interior" ? [0, 0] as Vec2 : scale(normal, -t / 2);
+    const shift = s.type === "interior" || s.type === "open" ? [0, 0] as Vec2 : scale(normal, -t / 2);
     return {
       id: `${level.id}_${s.type}_${i}`,
       type: s.type,
@@ -150,12 +170,29 @@ export function deriveWalls(level: Level, thickness: WallThickness, issues: Issu
       a: add(s.a, shift),
       b: add(s.b, shift),
       normal,
-      side: s.type === "interior" ? null : sideOf(normal),
+      side: s.type === "interior" || s.type === "open" ? null : sideOf(normal),
       thickness: t,
       height: level.height,
       rooms: [...s.rooms].sort(),
       openings: [],
     };
+  });
+
+  // free-standing walls (not on a room boundary)
+  level.freeWalls.forEach((f, i) => {
+    walls.push({
+      id: `${level.id}_free_${i}`,
+      type: "interior",
+      line: [f.a, f.b],
+      a: f.a,
+      b: f.b,
+      normal: outwardNormal(f.a, f.b),
+      side: null,
+      thickness: f.thickness ?? thickness.interior,
+      height: level.height,
+      rooms: [],
+      openings: [],
+    });
   });
 
   // rooms reaching outside the outline are almost always a typo
@@ -203,6 +240,7 @@ function placeOpening(o: Opening, level: Level, walls: Wall[], issues: Issue[], 
   const m = onEdge(mid);
 
   const wall = walls.find((w) => {
+    if (w.type === "open") return false;
     const pr = project(m, w.line[0], w.line[1]);
     return pr.distance < SNAP && pr.t > 0 && pr.t < pr.length;
   });

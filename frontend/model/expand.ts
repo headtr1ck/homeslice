@@ -144,6 +144,28 @@ export function expandHouse(input: unknown): ExpandResult {
       });
     });
 
+    const openBoundaries: Level["openBoundaries"] = [];
+    const freeWalls: Level["freeWalls"] = [];
+    (li.walls ?? []).forEach((wi, i) => {
+      const wp = `${lp}.walls[${i}]`;
+      if (wi?.between) {
+        const unknown = wi.between.filter((r) => !roomIds.has(r));
+        if (wi.between.length !== 2 || unknown.length) return err(wp, `between needs two rooms of this level (unknown: ${unknown.join(", ") || "none"}; rooms: ${[...roomIds].join(", ")}).`);
+        if (wi.side && !SIDES.includes(wi.side)) return err(wp, `side must be one of ${SIDES.join(", ")}, got "${wi.side}".`);
+        if ((wi.type ?? "open") === "open") openBoundaries.push({ between: wi.between, side: wi.side });
+        return;
+      }
+      if (wi?.line) {
+        const [[x0, y0], [x1, y1]] = wi.line;
+        const a: Vec2 = [coord(x0, "x", wp), coord(y0, "y", wp)];
+        const b: Vec2 = [coord(x1, "x", wp), coord(y1, "y", wp)];
+        if (Math.hypot(b[0] - a[0], b[1] - a[1]) < 0.05) return err(wp, "A wall line needs two different points.");
+        if ((wi.type ?? "wall") === "wall") freeWalls.push({ a, b, thickness: wi.thickness });
+        return;
+      }
+      err(wp, "A wall entry needs between: [room, room] or line: [[x, y], [x, y]].");
+    });
+
     const outline = shape(li.outline, `${lp}.outline`) ?? houseOutline;
     if (!outline) err(lp, "No outline: set outline on the house (shared by all levels) or on this level.");
 
@@ -161,6 +183,8 @@ export function expandHouse(input: unknown): ExpandResult {
       partyWalls: li.party_walls ?? h.party_walls ?? [],
       rooms,
       openings,
+      openBoundaries,
+      freeWalls,
     });
     elevation += height + slab;
   });

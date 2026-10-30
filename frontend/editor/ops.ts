@@ -2,7 +2,7 @@
 // each returns a new model, which keeps undo/redo trivial and makes them easy to test.
 
 import { bbox, dist, normalizeOrientation, project, signedArea } from "../model/geometry";
-import type { Coord, HouseInput, LevelInput, RoomInput, Vec2 } from "../model/types";
+import type { Coord, HouseInput, LevelInput, RoomInput, ShapeInput, Side, Vec2 } from "../model/types";
 
 /** Points closer than this count as the same corner (shared by neighbouring rooms). */
 export const SAME_POINT = 0.01;
@@ -50,34 +50,95 @@ export function level(model: HouseInput, levelId: string): LevelInput {
   return l;
 }
 
-/** Moves every room corner at `from` (shared corners move together) to `to`. */
-export function moveVertex(model: HouseInput, levelId: string, from: Vec2, to: Vec2): HouseInput {
-  const m = clone(model);
+/** Polygon of an outline (or any rect/polygon shape). */
+export function shapePolygon(model: HouseInput, shape: ShapeInput | undefined): Vec2[] {
+  return shape ? roomPolygon(model, { id: "", ...shape }) : [];
+}
+
+/**
+ * The outline a level uses: its own, or the house outline shared by every level without
+ * one. Editing it affects all `levels` listed.
+ */
+export function outlineScope(model: HouseInput, levelId: string): { owner: "house" | "level"; levels: string[]; poly: Vec2[] } {
+  const l = level(model, levelId);
+  if (l.outline) return { owner: "level", levels: [levelId], poly: shapePolygon(model, l.outline) };
+  return { owner: "house", levels: model.levels.filter((x) => !x.outline).map((x) => x.id), poly: shapePolygon(model, model.outline) };
+}
+
+function writeOutline(m: HouseInput, levelId: string, owner: "house" | "level", poly: Vec2[]) {
+  const { id: _id, ...shape } = setRoomPolygon({ id: "" }, poly);
+  if (owner === "house") m.outline = shape;
+  else level(m, levelId).outline = shape;
+}
+
+const onSegmentOf = (a: Vec2, b: Vec2) => (p: Vec2) => {
+  const pr = project(p, a, b);
+  return pr.distance < SAME_POINT && pr.t > -SAME_POINT && pr.t < pr.length + SAME_POINT;
+};
+
+function mapRooms(m: HouseInput, levelId: string, fn: (p: Vec2) => Vec2 | null) {
   const l = level(m, levelId);
   l.rooms = l.rooms.map((room) => {
     const poly = roomPolygon(m, room);
-    if (!poly.some((p) => dist(p, from) < SAME_POINT)) return room;
-    return setRoomPolygon(room, poly.map((p) => (dist(p, from) < SAME_POINT ? to : p)));
+    const moved = poly.map((p) => fn(p) ?? p);
+    return moved.some((p, i) => p !== poly[i]) ? setRoomPolygon(room, moved) : room;
   });
+}
+
+/**
+ * Moves every room corner at `from` (shared corners move together) to `to`. A corner of
+ * the outline moves the outline too, on every level sharing it.
+ */
+export function moveVertex(model: HouseInput, levelId: string, from: Vec2, to: Vec2): HouseInput {
+  const m = clone(model);
+  const scope = outlineScope(m, levelId);
+  const outlineCorner = scope.poly.some((p) => dist(p, from) < SAME_POINT);
+  const levels = outlineCorner ? scope.levels : [levelId];
+  for (const id of levels) mapRooms(m, id, (p) => (dist(p, from) < SAME_POINT ? to : null));
+  if (outlineCorner) writeOutline(m, levelId, scope.owner, scope.poly.map((p) => (dist(p, from) < SAME_POINT ? to : p)));
   return m;
 }
 
 /**
  * Moves a wall: every corner on the segment a–b (including T-junctions of neighbouring
- * rooms) moves by `delta`, so the rooms on both sides follow.
+ * rooms) moves by `delta`, so the rooms on both sides follow. A segment on the outline
+ * moves the whole façade: the full outline edge, with every room along it, on every level
+ * sharing the outline.
  */
 export function moveEdge(model: HouseInput, levelId: string, a: Vec2, b: Vec2, delta: Vec2): HouseInput {
   const m = clone(model);
+  const scope = outlineScope(m, levelId);
+  const facade = scope.poly
+    .map((p, i) => [p, scope.poly[(i + 1) % scope.poly.length]] as [Vec2, Vec2])
+    .find(([p, q]) => onSegmentOf(p, q)(a) && onSegmentOf(p, q)(b));
+  if (!facade) {
+    const on = onSegmentOf(a, b);
+    mapRooms(m, levelId, (p) => (on(p) ? [p[0] + delta[0], p[1] + delta[1]] : null));
+    return m;
+  }
+  const on = onSegmentOf(facade[0], facade[1]);
+  const shift = (p: Vec2): Vec2 => [p[0] + delta[0], p[1] + delta[1]];
+  for (const id of scope.levels) mapRooms(m, id, (p) => (on(p) ? shift(p) : null));
+  writeOutline(m, levelId, scope.owner, scope.poly.map((p) => (on(p) ? shift(p) : p)));
+  return m;
+}
+
+/** Gives a level its own copy of the house outline (e.g. for an overhang), or drops it again. */
+export function setOwnOutline(model: HouseInput, levelId: string, own: boolean): HouseInput {
+  const m = clone(model);
   const l = level(m, levelId);
-  const onSegment = (p: Vec2) => {
-    const pr = project(p, a, b);
-    return pr.distance < SAME_POINT && pr.t > -SAME_POINT && pr.t < pr.length + SAME_POINT;
-  };
-  l.rooms = l.rooms.map((room) => {
-    const poly = roomPolygon(m, room);
-    if (!poly.some(onSegment)) return room;
-    return setRoomPolygon(room, poly.map((p) => (onSegment(p) ? ([p[0] + delta[0], p[1] + delta[1]] as Vec2) : p)));
-  });
+  if (own && !l.outline && m.outline) l.outline = clone(m.outline);
+  if (!own) delete l.outline;
+  return m;
+}
+
+/** Moves a level to a new position in the bottom-to-top list. */
+export function moveLevel(model: HouseInput, levelId: string, toIndex: number): HouseInput {
+  const m = clone(model);
+  const from = m.levels.findIndex((l) => l.id === levelId);
+  if (from < 0) return m;
+  const [l] = m.levels.splice(from, 1);
+  m.levels.splice(Math.max(0, Math.min(m.levels.length, toIndex)), 0, l);
   return m;
 }
 
@@ -148,6 +209,41 @@ export function updateRoom(model: HouseInput, levelId: string, roomId: string, p
     return next;
   });
   if (patch.id && patch.id !== roomId) for (const o of l.openings ?? []) if (o.room === roomId) o.room = patch.id;
+  return m;
+}
+
+const OPPOSITE: Record<Side, Side> = { north: "south", south: "north", east: "west", west: "east" };
+
+/**
+ * Which sides (as seen from room `a`) of the boundary between rooms a and b are open,
+ * according to the level's wall entries.
+ */
+export function openSides(model: HouseInput, levelId: string, a: string, b: string, allSides: Side[]): Side[] {
+  const open = new Set<Side>();
+  for (const w of level(model, levelId).walls ?? []) {
+    if (!w.between || (w.type ?? "open") !== "open") continue;
+    const [x, y] = w.between;
+    if (!((x === a && y === b) || (x === b && y === a))) continue;
+    if (!w.side) allSides.forEach((s) => open.add(s));
+    else open.add(x === a ? w.side : OPPOSITE[w.side]);
+  }
+  return allSides.filter((s) => open.has(s));
+}
+
+/**
+ * Opens or closes one side (seen from room `a`) of the boundary between rooms a and b.
+ * Rewrites that pair's entries: one entry without side when everything is open.
+ */
+export function setBoundaryOpen(model: HouseInput, levelId: string, a: string, b: string, side: Side, open: boolean, allSides: Side[]): HouseInput {
+  const m = clone(model);
+  const l = level(m, levelId);
+  const sides = new Set(openSides(m, levelId, a, b, allSides));
+  if (open) sides.add(side);
+  else sides.delete(side);
+  const others = (l.walls ?? []).filter((w) => !(w.between && w.between.includes(a) && w.between.includes(b)));
+  const mine = sides.size === allSides.length ? [{ between: [a, b] as [string, string] }] : [...sides].map((s) => ({ between: [a, b] as [string, string], side: s }));
+  l.walls = [...others, ...mine];
+  if (!l.walls.length) delete l.walls;
   return m;
 }
 

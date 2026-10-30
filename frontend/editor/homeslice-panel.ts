@@ -7,8 +7,8 @@ import type { Hass } from "../ha/hass";
 import { localize, type StringKey } from "../i18n/localize";
 import { expandHouse } from "../model/expand";
 import { labelPoint } from "../model/geometry";
-import type { HouseInput, Issue, RoomInput, Vec2 } from "../model/types";
-import { deriveWalls, type Wall } from "../model/walls";
+import type { HouseInput, Issue, RoomInput, Side, Vec2 } from "../model/types";
+import { deriveWalls, sideOfRoom, type Wall } from "../model/walls";
 import { HouseRenderer } from "../render/scene";
 import {
   History,
@@ -18,7 +18,12 @@ import {
   cornerAngle,
   deleteRoom,
   moveEdge,
+  moveLevel,
   moveVertex,
+  openSides,
+  outlineScope,
+  setBoundaryOpen,
+  setOwnOutline,
   removeVertex,
   roomPolygon,
   snap,
@@ -48,6 +53,9 @@ const PLAN_COLORS: Record<string, string> = {
 
 const fmtM = (v: number) => `${v.toFixed(2)} m`;
 
+/** Selection id for the level's outline (its outside walls). */
+const OUTLINE = "__outline__";
+
 export class HomeslicePanel extends LitElement {
   static override properties = {
     narrow: { type: Boolean },
@@ -63,6 +71,8 @@ export class HomeslicePanel extends LitElement {
     _saved: { state: true },
     _error: { state: true },
     _rectPreview: { state: true },
+    _dragLevel: { state: true },
+    _wall: { state: true },
   };
 
   narrow = false;
@@ -82,6 +92,10 @@ export class HomeslicePanel extends LitElement {
   private _saved = "";
   private _error = "";
   private _rectPreview: Vec2[] | null = null;
+  /** Level being dragged in the level list. */
+  private _dragLevel: string | null = null;
+  /** Selected wall between two rooms: the rooms and its side as seen from `a`. */
+  private _wall: { a: string; b: string; side: Side } | null = null;
   private history = new History<HouseInput>();
   private renderer?: HouseRenderer;
   private previewTimer = 0;
@@ -187,6 +201,7 @@ export class HomeslicePanel extends LitElement {
       this._room = null;
     } else if (e.key === "Escape") {
       this._room = null;
+      this._wall = null;
       this._tool = "select";
       this._drag = null;
       this._rectPreview = null;
@@ -277,7 +292,9 @@ export class HomeslicePanel extends LitElement {
       this._drag = { kind: "rect", start: snap(world, ctx).p, ctx };
       return;
     }
-    const roomId = (target.closest("[data-room]") as SVGElement | null)?.dataset.room;
+    const wallHit = target.closest("[data-wall]") as SVGElement | null;
+    this._wall = wallHit ? JSON.parse(wallHit.dataset.wall!) : null;
+    const roomId = wallHit ? null : target.closest("[data-outline]") ? OUTLINE : (target.closest("[data-room]") as SVGElement | null)?.dataset.room;
     this._room = roomId ?? null;
     this._drag = { kind: "pan", start: this.eventScreen(e), offset: [this._view.ox, this._view.oy] };
   }
@@ -382,6 +399,11 @@ export class HomeslicePanel extends LitElement {
     return r ? [`${this.roomName(r)}: ${area(roomPolygon(this._model!, r)).toFixed(2)} m²`] : [];
   }
 
+  private levelInputRoomPolygon(id: string): Vec2[] | null {
+    const r = this.levelInput?.rooms.find((x) => x.id === id);
+    return r ? roomPolygon(this._model!, r) : null;
+  }
+
   private roomName(r: RoomInput) {
     return (r.area_id && this._hass?.areas?.[r.area_id]?.name) || r.name || r.id;
   }
@@ -469,14 +491,6 @@ export class HomeslicePanel extends LitElement {
         <select class="house" aria-label=${this.t("editor.house")} @change=${(e: Event) => this.openHouse((e.target as HTMLSelectElement).value)}>
           ${this._houses.map((h) => html`<option value=${h.id} ?selected=${h.id === this._house}>${h.name}</option>`)}
         </select>
-        <nav class="levels">
-          ${levels.map(
-            (l) => html`<button class=${l.id === this._level ? "active" : ""} @click=${() => {
-              this._level = l.id;
-              this._room = null;
-            }}>${(l.floor_id && this._hass?.floors?.[l.floor_id]?.name) || l.name || l.id}</button>`,
-          )}
-        </nav>
         <span class="spacer"></span>
         <button class="icon" title=${this.t("editor.undo")} aria-label=${this.t("editor.undo")} ?disabled=${!this.history.canUndo} @click=${() => this.undo()}>↶</button>
         <button class="icon" title=${this.t("editor.redo")} aria-label=${this.t("editor.redo")} ?disabled=${!this.history.canRedo} @click=${() => this.redo()}>↷</button>
@@ -496,6 +510,37 @@ export class HomeslicePanel extends LitElement {
           <button title=${this.t("editor.fit")} aria-label=${this.t("editor.fit")} @click=${() => this.fitView()}>
             <ha-icon icon="mdi:fit-to-screen-outline"></ha-icon>
           </button>
+        </aside>
+        <aside class="levels" aria-label=${this.t("editor.levels")}>
+          ${levels.map(
+            (l) => html`<button
+              draggable="true"
+              class="level ${l.id === this._level ? "active" : ""} ${l.id === this._dragLevel ? "dragging" : ""}"
+              title=${this.t("editor.level_drag")}
+              @click=${() => {
+                this._level = l.id;
+                this._room = null;
+              }}
+              @dragstart=${(e: DragEvent) => {
+                this._dragLevel = l.id;
+                e.dataTransfer?.setData("text/plain", l.id);
+              }}
+              @dragend=${() => (this._dragLevel = null)}
+              @dragover=${(e: DragEvent) => e.preventDefault()}
+              @drop=${(e: DragEvent) => {
+                e.preventDefault();
+                const id = this._dragLevel;
+                this._dragLevel = null;
+                if (!id || id === l.id) return;
+                // the list shows top first; the model stores bottom first
+                const target = this._model!.levels.findIndex((x) => x.id === l.id);
+                this.commit(moveLevel(this._model!, id, target));
+              }}
+            >
+              <ha-icon icon="mdi:drag-vertical"></ha-icon>
+              <span>${(l.floor_id && this._hass?.floors?.[l.floor_id]?.name) || l.name || l.id}</span>
+            </button>`,
+          )}
         </aside>
         <section class="plan-wrap">
           ${this.renderPlan()}
@@ -534,7 +579,7 @@ export class HomeslicePanel extends LitElement {
     const level = house?.levels.find((x) => x.id === this._level);
     const walls = level && house ? deriveWalls(level, house.walls, []) : [];
     const selected = l?.rooms.find((r) => r.id === this._room);
-    const selPoly = selected ? roomPolygon(m, selected) : [];
+    const selPoly = this._room === OUTLINE ? outlineScope(m, this._level).poly : selected ? roomPolygon(m, selected) : [];
     const grid = this._view.scale >= 20 ? 1 : 5;
     return html`<svg
       class="plan tool-${this._tool}"
@@ -561,7 +606,10 @@ export class HomeslicePanel extends LitElement {
           <text class="room-area" x=${at[0]} y=${at[1] + 13} text-anchor="middle">${area(poly).toFixed(1)} m²</text>
         </g>`;
       })}
-      ${walls.map((w) => this.renderWall(w))}
+      ${[...walls]
+        // inner walls first, so their ends disappear under the outer walls
+        .sort((a, b) => Number(a.type === "exterior" || a.type === "party") - Number(b.type === "exterior" || b.type === "party"))
+        .map((w) => this.renderWall(w))}
       ${(house?.vertical ?? [])
         .filter((v) => idx >= v.from && idx <= v.to)
         .map((v) => svg`<polygon class="stairwell" points=${pts(v.polygon)}></polygon>`)}
@@ -575,8 +623,21 @@ export class HomeslicePanel extends LitElement {
     const [bx, by] = this.toScreen(w.b);
     const len = Math.hypot(w.b[0] - w.a[0], w.b[1] - w.a[1]) || 1;
     const along = (t: number): Vec2 => this.toScreen([w.a[0] + ((w.b[0] - w.a[0]) * t) / len, w.a[1] + ((w.b[1] - w.a[1]) * t) / len]);
+    const sel = this._wall;
+    const room = sel && w.rooms.includes(sel.a) && w.rooms.includes(sel.b) ? this.levelInputRoomPolygon(sel.a) : null;
+    const selected = !!sel && !!room && sideOfRoom(room, w.line[0], w.line[1]) === sel.side;
+    let hit: unknown = nothing;
+    if ((w.type === "interior" || w.type === "open") && w.rooms.length === 2) {
+      const [a, b] = w.rooms;
+      const own = this.levelInputRoomPolygon(a);
+      const side = own ? sideOfRoom(own, w.line[0], w.line[1]) : null;
+      if (side) hit = svg`<line class="wall-hit" data-wall=${JSON.stringify({ a, b, side })} x1=${ax} y1=${ay} x2=${bx} y2=${by} stroke-width="14"></line>`;
+    }
+    if (w.type === "open") return svg`<line class="wall open ${selected ? "selected" : ""}" x1=${ax} y1=${ay} x2=${bx} y2=${by}></line>${hit}`;
     const width = Math.max(2, w.thickness * this._view.scale);
-    return svg`<line class="wall ${w.type}" x1=${ax} y1=${ay} x2=${bx} y2=${by} stroke-width=${width}></line>
+    const outside = w.type !== "interior";
+    return svg`<line class="wall ${w.type} ${(outside && this._room === OUTLINE) || selected ? "selected" : ""}" x1=${ax} y1=${ay} x2=${bx} y2=${by} stroke-width=${width}></line>${hit}
+      ${outside ? svg`<line class="wall-hit" data-outline="1" x1=${ax} y1=${ay} x2=${bx} y2=${by} stroke-width=${Math.max(12, width)}></line>` : nothing}
       ${w.openings.map((o) => {
         const [x1, y1] = along(o.start);
         const [x2, y2] = along(o.end);
@@ -612,6 +673,8 @@ export class HomeslicePanel extends LitElement {
     const m = this._model!;
     const l = this.levelInput;
     if (!l) return nothing;
+    if (this._room === OUTLINE) return this.renderOutlineInspector();
+    if (this._wall) return this.renderWallInspector(this._wall);
     const r = l.rooms.find((x) => x.id === this._room);
     const set = (patch: Partial<RoomInput>) => r && this.commit(updateRoom(m, this._level, r.id, patch));
     if (!r) {
@@ -672,6 +735,55 @@ export class HomeslicePanel extends LitElement {
         this.commit(deleteRoom(m, this._level, r.id));
         this._room = null;
       }}>${this.t("editor.delete_room")}</button>`;
+  }
+
+  /** Pieces of the boundary between two rooms, with their side as seen from `a`. */
+  private boundary(a: string, b: string): { side: Side; wall: Wall }[] {
+    const m = this._model!;
+    const { house } = expandHouse(m);
+    const level = house?.levels.find((x) => x.id === this._level);
+    const room = level?.rooms.find((r) => r.id === a);
+    if (!level || !house || !room) return [];
+    return deriveWalls(level, house.walls, [])
+      .filter((w) => (w.type === "interior" || w.type === "open") && w.rooms.includes(a) && w.rooms.includes(b))
+      .map((wall) => ({ wall, side: sideOfRoom(room.polygon, wall.line[0], wall.line[1]) }))
+      .filter((x): x is { side: Side; wall: Wall } => !!x.side);
+  }
+
+  private renderWallInspector(sel: { a: string; b: string; side: Side }) {
+    const m = this._model!;
+    const l = this.levelInput!;
+    const name = (id: string) => {
+      const r = l.rooms.find((x) => x.id === id);
+      return r ? this.roomName(r) : id;
+    };
+    const all = [...new Set(this.boundary(sel.a, sel.b).map((x) => x.side))];
+    const open = openSides(m, this._level, sel.a, sel.b, all).includes(sel.side);
+    const set = (o: boolean) => this.commit(setBoundaryOpen(m, this._level, sel.a, sel.b, sel.side, o, all));
+    return html`<h2>${this.t("editor.wall")}</h2>
+      <p class="muted">${this.t("editor.wall_between", { a: name(sel.a), b: name(sel.b), side: this.t(`editor.side_${sel.side}` as StringKey) })}</p>
+      <div class="segmented" role="radiogroup">
+        <button role="radio" aria-checked=${!open} class=${!open ? "active" : ""} @click=${() => set(false)}>${this.t("editor.wall_solid")}</button>
+        <button role="radio" aria-checked=${open} class=${open ? "active" : ""} @click=${() => set(true)}>${this.t("editor.wall_open")}</button>
+      </div>
+      <p class="muted">${this.t("editor.wall_hint")}</p>`;
+  }
+
+  private renderOutlineInspector() {
+    const m = this._model!;
+    const scope = outlineScope(m, this._level);
+    const names = scope.levels.map((id) => {
+      const lv = m.levels.find((x) => x.id === id)!;
+      return (lv.floor_id && this._hass?.floors?.[lv.floor_id]?.name) || lv.name || lv.id;
+    });
+    const poly = scope.poly;
+    return html`<h2>${this.t("editor.outline")}</h2>
+      <p class="muted">${area(poly).toFixed(2)} m² ${this.t("editor.outline_area")}</p>
+      <p class="muted">${scope.owner === "house" ? this.t("editor.outline_shared", { levels: names.join(", ") }) : this.t("editor.outline_own")}</p>
+      <p class="muted">${this.t("editor.outline_hint")}</p>
+      <button @click=${() => this.commit(setOwnOutline(m, this._level, scope.owner === "house"))}>
+        ${scope.owner === "house" ? this.t("editor.outline_make_own") : this.t("editor.outline_use_house")}
+      </button>`;
   }
 
   static override styles = css`
@@ -738,9 +850,83 @@ export class HomeslicePanel extends LitElement {
       color: var(--error-color, #e57373);
       margin-top: 8px;
     }
-    nav.levels {
+    aside.levels {
       display: flex;
+      flex-direction: column;
+      gap: 6px;
+      padding: 8px;
+      width: 150px;
+      border-right: 1px solid var(--divider-color, #333);
+    }
+    button.level {
+      display: flex;
+      align-items: center;
       gap: 4px;
+      padding: 0 8px 0 2px;
+      min-height: 44px;
+      text-align: left;
+      cursor: grab;
+      --mdc-icon-size: 18px;
+    }
+    button.level ha-icon {
+      color: var(--secondary-text-color);
+    }
+    button.level.dragging {
+      opacity: 0.4;
+    }
+    .wall-hit {
+      stroke: transparent;
+      cursor: pointer;
+    }
+    .wall.selected {
+      stroke: var(--accent);
+    }
+    .wall.open {
+      stroke: #848b92;
+      stroke-width: 1.5;
+      stroke-dasharray: 6 5;
+      pointer-events: none;
+    }
+    .wall.open.selected {
+      stroke: var(--accent);
+      stroke-width: 3;
+    }
+    .segmented {
+      display: flex;
+    }
+    .segmented button {
+      flex: 1;
+      border-radius: 0;
+    }
+    .segmented button:first-child {
+      border-radius: 8px 0 0 8px;
+    }
+    .segmented button:last-child {
+      border-radius: 0 8px 8px 0;
+    }
+    fieldset.open-to {
+      border: 1px solid var(--divider-color, #444);
+      border-radius: 8px;
+      padding: 6px 10px 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    fieldset.open-to legend {
+      font-size: 12px;
+      color: var(--secondary-text-color);
+    }
+    label.check {
+      flex-direction: row;
+      align-items: center;
+      gap: 8px;
+      color: var(--primary-text-color);
+      font-size: 14px;
+    }
+    label.check input {
+      min-height: 0;
+      width: 18px;
+      height: 18px;
     }
     .error {
       padding: 8px 16px;
@@ -817,7 +1003,8 @@ export class HomeslicePanel extends LitElement {
     }
     .wall {
       stroke: #5d646b;
-      stroke-linecap: square;
+      /* flat ends: outer walls meet exactly at the corners */
+      stroke-linecap: butt;
       pointer-events: none;
     }
     .wall.party {
@@ -953,6 +1140,12 @@ export class HomeslicePanel extends LitElement {
     @media (max-width: 900px) {
       main {
         flex-direction: column;
+      }
+      aside.levels {
+        flex-direction: row;
+        width: auto;
+        overflow-x: auto;
+        border-right: none;
       }
       .tools {
         flex-direction: row;

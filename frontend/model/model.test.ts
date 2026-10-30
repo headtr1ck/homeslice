@@ -165,6 +165,44 @@ describe("deriveWalls", () => {
     expect(interior.map((x) => x.rooms.join("|")).sort()).toEqual(["bottom|left", "bottom|top", "left|top"]);
   });
 
+  it("opens a boundary between two rooms, all of it or one side", () => {
+    // left (0–5) | right (5–10) over the full depth, plus a small room in the right's corner
+    const input = twoRooms();
+    input.levels[0].rooms = [
+      { id: "living", polygon: [[0, 0], [10, 0], [10, 5], [6, 5], [6, 8], [0, 8]] },
+      { id: "kitchen", rect: [6, 5, 4, 3] },
+    ];
+    input.levels[0].openings = [];
+    const between = (walls: { rooms: string[]; type: string }[]) =>
+      walls.filter((w) => w.rooms.join("|") === "kitchen|living").map((w) => w.type).sort();
+
+    let h = expand(input);
+    expect(between(deriveWalls(h.levels[0], h.walls))).toEqual(["interior", "interior"]);
+
+    input.levels[0].walls = [{ between: ["kitchen", "living"], side: "west" }];
+    h = expand(input);
+    expect(between(deriveWalls(h.levels[0], h.walls))).toEqual(["interior", "open"]);
+    const open = deriveWalls(h.levels[0], h.walls).find((w) => w.type === "open")!;
+    expect(open.line.map((p) => p[0])).toEqual([6, 6]); // the west side of the kitchen
+
+    input.levels[0].walls = [{ between: ["living", "kitchen"] }];
+    h = expand(input);
+    expect(between(deriveWalls(h.levels[0], h.walls))).toEqual(["open", "open"]);
+  });
+
+  it("adds free-standing walls and checks wall entries", () => {
+    const input = twoRooms();
+    input.levels[0].walls = [{ line: [[1, 2], [3, 2]], thickness: 0.1 }];
+    const h = expand(input);
+    const free = deriveWalls(h.levels[0], h.walls).find((w) => w.id.includes("free"))!;
+    expect(free).toMatchObject({ a: [1, 2], b: [3, 2], thickness: 0.1, type: "interior" });
+    input.levels[0].walls = [{ between: ["left", "nope"] }, {}];
+    expect(expandHouse(input).issues.map((i) => i.message)).toEqual([
+      "between needs two rooms of this level (unknown: nope; rooms: left, right).",
+      "A wall entry needs between: [room, room] or line: [[x, y], [x, y]].",
+    ]);
+  });
+
   it("warns about openings without a wall", () => {
     const input = twoRooms();
     input.levels[0].openings = [{ room: "left", side: "east", at: 9, width: 1 }];

@@ -268,6 +268,7 @@ export class HouseRenderer {
     const glass = this.lambert(COLORS.glass, { transparent: true, opacity: 0.45 });
     const garage = this.lambert(COLORS.garageDoor);
     for (const w of walls) {
+      if (w.type === "open") continue; // rooms open to each other: no wall
       // outer walls are split at the cut height; the upper part hides while it faces a low camera
       const cuttable = w.type !== "interior";
       const cutAt = Math.min(this.view.cutHeight, w.height);

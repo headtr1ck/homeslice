@@ -1,6 +1,23 @@
 import { describe, expect, it } from "vitest";
 import type { HouseInput } from "../model/types";
-import { History, addRoom, area, cornerAngle, deleteRoom, moveEdge, moveVertex, removeVertex, roomPolygon, snap, splitEdge, updateRoom } from "./ops";
+import {
+  History,
+  addRoom,
+  area,
+  cornerAngle,
+  deleteRoom,
+  moveEdge,
+  moveLevel,
+  moveVertex,
+  removeVertex,
+  openSides,
+  roomPolygon,
+  setBoundaryOpen,
+  setOwnOutline,
+  snap,
+  splitEdge,
+  updateRoom,
+} from "./ops";
 
 // left | right, sharing the wall at x = 5
 const house = (): HouseInput => ({
@@ -46,6 +63,48 @@ describe("editing operations", () => {
     const out = moveEdge(m, "g", [5, 0], [5, 8], [1, 0]);
     expect(rooms(out).top.rect).toEqual([6, 0, 4, 4]);
     expect(rooms(out).bottom.rect).toEqual([6, 4, 4, 4]);
+  });
+
+  it("moving part of an outside wall moves the whole façade on every level sharing the outline", () => {
+    const m = house();
+    m.levels.push({ id: "f", rooms: [{ id: "up", rect: [0, 0, 10, 8] }] });
+    // drag only the right room's south edge (a part of the south façade)
+    const out = moveEdge(m, "g", [10, 8], [5, 8], [0, 1]);
+    expect(out.outline).toEqual({ rect: [0, 0, 10, 9] });
+    expect(rooms(out).left.rect).toEqual([0, 0, 5, 9]);
+    expect(rooms(out).right.rect).toEqual([5, 0, 5, 9]);
+    expect(out.levels[1].rooms[0].rect).toEqual([0, 0, 10, 9]);
+  });
+
+  it("a level with its own outline changes alone", () => {
+    const m = setOwnOutline(house(), "g", true);
+    m.levels.push({ id: "f", rooms: [{ id: "up", rect: [0, 0, 10, 8] }] });
+    const out = moveVertex(m, "g", [10, 0], [10, -1]);
+    expect(out.levels[0].outline).toEqual({ polygon: [[0, 0], [10, -1], [10, 8], [0, 8]] });
+    expect(out.outline).toEqual({ rect: [0, 0, 10, 8] });
+    expect(out.levels[1].rooms[0].rect).toEqual([0, 0, 10, 8]);
+    expect(setOwnOutline(out, "g", false).levels[0].outline).toBeUndefined();
+  });
+
+  it("opens and closes single sides of a boundary between two rooms", () => {
+    const sides = ["west", "north"] as const;
+    let m = setBoundaryOpen(house(), "g", "kitchen", "living", "west", true, [...sides]);
+    expect(m.levels[0].walls).toEqual([{ between: ["kitchen", "living"], side: "west" }]);
+    m = setBoundaryOpen(m, "g", "kitchen", "living", "north", true, [...sides]);
+    expect(m.levels[0].walls).toEqual([{ between: ["kitchen", "living"] }]);
+    // seen from the living room, the kitchen's west side is its east side
+    expect(openSides(m, "g", "living", "kitchen", ["east", "south"])).toEqual(["east", "south"]);
+    m = setBoundaryOpen(m, "g", "kitchen", "living", "west", false, [...sides]);
+    expect(m.levels[0].walls).toEqual([{ between: ["kitchen", "living"], side: "north" }]);
+    m = setBoundaryOpen(m, "g", "kitchen", "living", "north", false, [...sides]);
+    expect(m.levels[0].walls).toBeUndefined();
+  });
+
+  it("reorders levels", () => {
+    const m = house();
+    m.levels.push({ id: "f", rooms: [] }, { id: "s", rooms: [] });
+    expect(moveLevel(m, "s", 0).levels.map((l) => l.id)).toEqual(["s", "g", "f"]);
+    expect(moveLevel(m, "g", 2).levels.map((l) => l.id)).toEqual(["f", "s", "g"]);
   });
 
   it("splits and removes corners in all rooms sharing the edge", () => {

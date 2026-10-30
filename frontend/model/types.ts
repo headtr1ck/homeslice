@@ -10,7 +10,8 @@ export type Coord = number | string;
 export type Side = "north" | "south" | "east" | "west";
 export type RoomKind = "room" | "outdoor" | "void";
 export type OpeningType = "window" | "door" | "garage_door" | "opening";
-export type WallType = "exterior" | "party" | "interior";
+/** `open`: a boundary between two rooms that are open to each other (no wall is built). */
+export type WallType = "exterior" | "party" | "interior" | "open";
 
 // ----- input (short form) -----
 
@@ -26,6 +27,23 @@ export interface RoomInput extends ShapeInput {
   name?: string;
   kind?: RoomKind;
   floor?: string;
+}
+
+/**
+ * Walls are generated from the room boundaries; these entries change them. Either a
+ * boundary between two rooms (optionally only one side of the first room), or a
+ * free-standing wall along a line.
+ */
+export interface WallInput {
+  /** The boundary between these two rooms. */
+  between?: [string, string];
+  /** Only the boundary on this side of the first room. */
+  side?: Side;
+  /** A free-standing wall (not on a room boundary). */
+  line?: [[Coord, Coord], [Coord, Coord]];
+  /** `open`: no wall there (default for `between`); `wall`: build one (default for `line`). */
+  type?: "open" | "wall";
+  thickness?: number;
 }
 
 export interface OpeningInput {
@@ -52,6 +70,7 @@ export interface LevelInput {
   party_walls?: Side[];
   rooms: RoomInput[];
   openings?: OpeningInput[];
+  walls?: WallInput[];
 }
 
 /**
@@ -151,6 +170,10 @@ export interface Level {
   partyWalls: Side[];
   rooms: Room[];
   openings: Opening[];
+  /** Boundaries between two rooms that are open (no wall), optionally one side only. */
+  openBoundaries: { between: [string, string]; side?: Side }[];
+  /** Free-standing walls. */
+  freeWalls: { a: Vec2; b: Vec2; thickness?: number }[];
 }
 
 export interface Vertical {

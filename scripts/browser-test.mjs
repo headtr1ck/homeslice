@@ -412,8 +412,8 @@ console.log("editor");
   });
 
   await test("selecting a room shows its handles and inspector", async () => {
-    await page.locator('homeslice-panel svg.plan g[data-room="kitchen"] text.room-name').click({ force: true });
-    await page.locator('homeslice-panel svg.plan g[data-room="kitchen"] polygon').click({ position: { x: 30, y: 30 } });
+    const kb = await page.locator('homeslice-panel svg.plan g[data-room="kitchen"] polygon').boundingBox();
+    await page.mouse.click(kb.x + kb.width / 2, kb.y + kb.height * 0.7);
     assert((await page.locator("homeslice-panel .inspector h2").textContent()) === "Kitchen", "inspector does not show the kitchen");
     assert((await page.locator("homeslice-panel svg.plan circle.vertex").count()) === 4, "kitchen should have 4 corner handles");
   });
@@ -467,7 +467,61 @@ console.log("editor");
     assert((await page.locator("homeslice-panel button.save").textContent()).trim() === "Saved", "save button doesn't say Saved");
   });
 
+  await test("outside walls: select the outline, moving the façade moves every floor", async () => {
+    await page.keyboard.press("Escape");
+    // the west wall's click zone
+    const west = await page.evaluate(() => {
+      const lines = [...window.panel.shadowRoot.querySelectorAll("svg.plan line.wall-hit[data-outline]")];
+      const r = lines.map((l) => l.getBoundingClientRect()).sort((a, b) => a.left - b.left)[0];
+      return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+    });
+    await page.mouse.click(west.x, west.y);
+    assert((await page.locator("homeslice-panel .inspector h2").textContent()) === "Outside walls", "outline not selected");
+    const handle = page.locator('homeslice-panel svg.plan rect.edge-handle[data-at="[[8,10],[0,10]]"]');
+    const box = await handle.boundingBox();
+    assert(box, "no handle on the south façade");
+    const scale = await page.evaluate(() => window.panel._view.scale);
+    await page.mouse.move(box.x + 5, box.y + 5);
+    await page.mouse.down();
+    await page.mouse.move(box.x + 5, box.y + 5 + scale * 0.5, { steps: 6 });
+    await page.mouse.up();
+    const m = await model();
+    assert(JSON.stringify(m.outline) === '{"rect":[0,0,8,10.5]}', `outline: ${JSON.stringify(m.outline)}`);
+    const kids = m.levels[1].rooms.find((r) => r.id === "kids");
+    assert(JSON.stringify(kids.rect) === "[0,6,8,4.5]", `first floor didn't follow: ${JSON.stringify(kids)}`);
+    await page.keyboard.press("Control+z");
+  });
+
+  await test("a wall between two rooms can be opened on one side", async () => {
+    await page.keyboard.press("Escape");
+    const hit = await page.evaluate(() => {
+      const l = [...window.panel.shadowRoot.querySelectorAll("svg.plan line.wall-hit[data-wall]")].find((x) => {
+        const w = JSON.parse(x.dataset.wall);
+        return [w.a, w.b].sort().join() === "kitchen,living";
+      });
+      const r = l.getBoundingClientRect();
+      return { x: r.left + r.width / 2, y: r.top + r.height / 2, wall: JSON.parse(l.dataset.wall) };
+    });
+    await page.mouse.click(hit.x, hit.y);
+    assert((await page.locator("homeslice-panel .inspector h2").textContent()) === "Wall", "wall not selected");
+    await page.locator("homeslice-panel .segmented button", { hasText: "Open" }).click();
+    const walls = (await model()).levels[0].walls;
+    assert(JSON.stringify(walls) === JSON.stringify([{ between: [hit.wall.a, hit.wall.b] }]) || walls?.length === 1, `walls: ${JSON.stringify(walls)}`);
+    await page.waitForTimeout(300);
+    assert(await page.locator("homeslice-panel svg.plan line.wall.open").count(), "open boundary not drawn dashed");
+    await shot(page, "editor-open-wall");
+    await page.keyboard.press("Control+z");
+  });
+
+  await test("levels can be reordered by drag and drop", async () => {
+    await page.locator("homeslice-panel button.level", { hasText: "First Floor" }).dragTo(page.locator("homeslice-panel button.level", { hasText: "Ground Floor" }));
+    assert(JSON.stringify((await model()).levels.map((l) => l.id)) === '["first","ground"]', `order: ${JSON.stringify((await model()).levels.map((l) => l.id))}`);
+    await page.keyboard.press("Control+z");
+    assert(JSON.stringify((await model()).levels.map((l) => l.id)) === '["ground","first"]', "undo didn't restore the order");
+  });
+
   await test("Delete removes the selected room", async () => {
+    await page.locator('homeslice-panel svg.plan g[data-room="room"] polygon').click({ force: true });
     await page.keyboard.press("Delete");
     assert(!(await room("room")), "room still there");
     assert(await page.locator("homeslice-panel button.save.dirty").count(), "delete not marked as unsaved");
