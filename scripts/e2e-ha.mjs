@@ -75,6 +75,18 @@ await step("every floor can be focused", async () => {
   await buttons.nth(n - 1).click();
 });
 
+await step("the editor opens the house (read-only check, nothing is saved)", async () => {
+  await page.goto(`${base}/homeslice`);
+  await page.waitForSelector("homeslice-panel >> svg.plan .room", { timeout: 30000 });
+  await page.waitForTimeout(1500);
+  await shot("editor");
+  const names = await page.locator("homeslice-panel svg.plan text.room-name").allTextContents();
+  if (names.length < 3) throw new Error(`only ${names.length} rooms in the editor`);
+  await page.locator("homeslice-panel nav.levels button").first().click();
+  await page.waitForTimeout(800);
+  await shot("editor-top-level");
+});
+
 await step("no Homeslice errors in the console", async () => {
   if (errors.length) throw new Error(errors.join(" | "));
 });

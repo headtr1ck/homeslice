@@ -234,7 +234,9 @@ export class HomeslicePanel extends LitElement {
     const l = this.levelInput;
     const svgEl = this.renderRoot.querySelector("svg.plan") as SVGSVGElement | null;
     if (!m || !l || !svgEl) return;
-    const pts = l.rooms.flatMap((r) => roomPolygon(m, r));
+    // fit the building; gardens and terraces may run off the edge
+    const indoor = l.rooms.filter((r) => (r.kind ?? "room") === "room");
+    const pts = (indoor.length ? indoor : l.rooms).flatMap((r) => roomPolygon(m, r));
     if (!pts.length) return;
     const xs = pts.map((p) => p[0]);
     const ys = pts.map((p) => p[1]);
@@ -579,7 +581,7 @@ export class HomeslicePanel extends LitElement {
         const [x1, y1] = along(o.start);
         const [x2, y2] = along(o.end);
         return svg`<line class="opening-gap" x1=${x1} y1=${y1} x2=${x2} y2=${y2} stroke-width=${width + 1}></line>
-          <line class="opening ${o.type}" x1=${x1} y1=${y1} x2=${x2} y2=${y2}></line>`;
+          <line class="opening type-${o.type}" x1=${x1} y1=${y1} x2=${x2} y2=${y2}></line>`;
       })}`;
   }
 
@@ -676,7 +678,8 @@ export class HomeslicePanel extends LitElement {
     :host {
       display: flex;
       flex-direction: column;
-      height: 100%;
+      /* HA gives custom panels no fixed height */
+      height: 100vh;
       background: var(--primary-background-color, #111);
       color: var(--primary-text-color, #eee);
       font-family: var(--ha-font-family-body, Roboto, sans-serif);
@@ -833,9 +836,9 @@ export class HomeslicePanel extends LitElement {
       stroke-width: 3;
       pointer-events: none;
     }
-    .opening.door,
-    .opening.garage_door,
-    .opening.opening {
+    .opening.type-door,
+    .opening.type-garage_door,
+    .opening.type-opening {
       stroke: #b07c49;
     }
     .stairwell {
