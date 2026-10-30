@@ -1,0 +1,10 @@
+{
+  "card.name": "Homeslice",
+  "card.description": "Your house as an interactive, exploded 3D view.",
+  "card.loading": "Loading house…",
+  "card.load_failed": "Could not load the house: {message}",
+  "card.no_webgl": "This browser can't show 3D graphics (WebGL is unavailable).",
+  "card.issues": "{count} problems in the house file",
+  "card.issue_error": "Error",
+  "card.issue_warning": "Warning"
+}

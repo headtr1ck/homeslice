@@ -1,0 +1,13 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Homeslice",
+        "description": "Adds the Homeslice card to your dashboards. Put your house model in `homeslice/home.yaml` inside your configuration folder."
+      }
+    },
+    "abort": {
+      "single_instance_allowed": "Homeslice is already set up."
+    }
+  }
+}

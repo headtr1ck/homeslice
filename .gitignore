@@ -1,0 +1,9 @@
+node_modules/
+custom_components/homeslice/frontend/
+__pycache__/
+*.pyc
+.venv/
+coverage/
+# private house models stay out of the repository
+/houses/
+.deploy.env

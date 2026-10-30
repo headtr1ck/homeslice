@@ -1,0 +1,27 @@
+{
+  "name": "homeslice",
+  "version": "0.0.1",
+  "description": "Model your house once and show it as an interactive, exploded isometric 3D view in Home Assistant.",
+  "license": "MIT",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "vite build",
+    "watch": "vite build --watch",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "deploy": "scripts/deploy.sh"
+  },
+  "dependencies": {
+    "lit": "^3.3.3",
+    "three": "^0.187.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "@types/three": "^0.187.0",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.5",
+    "vitest": "^5.0.5",
+    "yaml": "^2.9.1"
+  }
+}

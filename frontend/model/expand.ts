@@ -1,0 +1,183 @@
+// Turns the short input form into the expanded model: resolves grid names, rectangles,
+// defaults and elevations. Problems are collected as issues instead of thrown, so a
+// partly broken file still renders and the user sees every problem at once.
+
+import { normalizeOrientation, rectPolygon, signedArea } from "./geometry";
+import type {
+  Coord,
+  House,
+  HouseInput,
+  Issue,
+  Level,
+  Opening,
+  OpeningType,
+  Room,
+  ShapeInput,
+  Vec2,
+  Vertical,
+  WallThickness,
+} from "./types";
+
+export const DEFAULTS = {
+  levelHeight: 2.6,
+  slab: 0.25,
+  walls: { exterior: 0.36, interior: 0.12, party: 0.24 } satisfies WallThickness,
+  floor: { room: "wood", outdoor: "lawn", void: "none" },
+  opening: {
+    window: { sill: 0.9, height: 1.3 },
+    door: { sill: 0, height: 2.1 },
+    garage_door: { sill: 0, height: 2.1 },
+    opening: { sill: 0, height: 2.1 },
+  } satisfies Record<OpeningType, { sill: number; height: number }>,
+};
+
+const SIDES = ["north", "south", "east", "west"];
+const OPENING_TYPES = Object.keys(DEFAULTS.opening);
+
+export interface ExpandResult {
+  house: House | null;
+  issues: Issue[];
+}
+
+export function expandHouse(input: unknown): ExpandResult {
+  const issues: Issue[] = [];
+  const err = (path: string, message: string) => issues.push({ severity: "error", path, message });
+  const warn = (path: string, message: string) => issues.push({ severity: "warning", path, message });
+
+  if (!input || typeof input !== "object") {
+    err("", "The house file is empty or not a mapping.");
+    return { house: null, issues };
+  }
+  const h = input as HouseInput;
+  if (h.schema !== 1) err("schema", `Unsupported schema ${JSON.stringify(h.schema)}; expected 1.`);
+  if (!Array.isArray(h.levels) || h.levels.length === 0) {
+    err("levels", "A house needs at least one level.");
+    return { house: null, issues };
+  }
+
+  const coord = (c: Coord, axis: "x" | "y", path: string): number => {
+    if (typeof c === "number") return c;
+    const v = h.grid?.[axis]?.[c];
+    if (v === undefined) {
+      const known = Object.keys(h.grid?.[axis] ?? {});
+      err(path, `Unknown grid ${axis} axis "${c}"` + (known.length ? ` (known: ${known.join(", ")}).` : "; no grid defined."));
+      return 0;
+    }
+    return v;
+  };
+
+  const shape = (s: ShapeInput | undefined, path: string): Vec2[] | null => {
+    if (!s) return null;
+    if (s.rect && s.polygon) warn(path, "Both rect and polygon given; using polygon.");
+    if (s.polygon) {
+      if (!Array.isArray(s.polygon) || s.polygon.length < 3) {
+        err(`${path}.polygon`, "A polygon needs at least 3 points.");
+        return null;
+      }
+      const pts = s.polygon.map(([x, y], i): Vec2 => [coord(x, "x", `${path}.polygon[${i}]`), coord(y, "y", `${path}.polygon[${i}]`)]);
+      if (Math.abs(signedArea(pts)) < 1e-6) {
+        err(`${path}.polygon`, "The polygon has no area (points on one line?).");
+        return null;
+      }
+      return normalizeOrientation(pts);
+    }
+    if (s.rect) {
+      const [x, y, w, d] = s.rect;
+      if (!(w > 0 && d > 0)) {
+        err(`${path}.rect`, `Width and depth must be positive, got ${w} × ${d}.`);
+        return null;
+      }
+      return rectPolygon(coord(x, "x", `${path}.rect`), coord(y, "y", `${path}.rect`), w, d);
+    }
+    return null;
+  };
+
+  const walls: WallThickness = { ...DEFAULTS.walls, ...(h.walls ?? {}) };
+  const houseOutline = shape(h.outline, "outline");
+
+  const ids = new Set<string>();
+  const levels: Level[] = [];
+  let elevation = 0;
+  h.levels.forEach((li, index) => {
+    const lp = `levels.${li?.id ?? index}`;
+    if (!li?.id) err(lp, "Every level needs an id.");
+    if (ids.has(li.id)) err(lp, `Duplicate level id "${li.id}".`);
+    ids.add(li.id);
+
+    const roomIds = new Set<string>();
+    const rooms: Room[] = [];
+    (li.rooms ?? []).forEach((ri, i) => {
+      const rp = `${lp}.rooms.${ri?.id ?? i}`;
+      if (!ri?.id) return err(rp, "Every room needs an id.");
+      if (roomIds.has(ri.id)) err(rp, `Duplicate room id "${ri.id}" on this level.`);
+      roomIds.add(ri.id);
+      const polygon = shape(ri, rp);
+      if (!polygon) {
+        if (!ri.rect && !ri.polygon) err(rp, "A room needs rect: [x, y, width, depth] or polygon: [[x, y], …].");
+        return;
+      }
+      const kind = ri.kind ?? "room";
+      rooms.push({ id: ri.id, areaId: ri.area_id, name: ri.name, kind, floor: ri.floor ?? DEFAULTS.floor[kind], polygon });
+    });
+
+    const openings: Opening[] = [];
+    (li.openings ?? []).forEach((oi, i) => {
+      const op = `${lp}.openings[${i}]`;
+      if (!roomIds.has(oi?.room)) return err(op, `Unknown room "${oi?.room}"` + ` (rooms on this level: ${[...roomIds].join(", ")}).`);
+      if (!SIDES.includes(oi.side)) return err(op, `side must be one of ${SIDES.join(", ")}, got "${oi.side}".`);
+      const type = oi.type ?? "window";
+      if (!OPENING_TYPES.includes(type)) return err(op, `type must be one of ${OPENING_TYPES.join(", ")}, got "${type}".`);
+      if (!(oi.width > 0)) return err(op, "width must be positive.");
+      const d = DEFAULTS.opening[type];
+      openings.push({
+        id: oi.id ?? `${oi.room}_${oi.side}_${i}`,
+        room: oi.room,
+        side: oi.side,
+        at: oi.at ?? 0,
+        width: oi.width,
+        type,
+        sill: oi.sill ?? d.sill,
+        height: oi.height ?? d.height,
+        cover: oi.cover,
+        contact: oi.contact,
+      });
+    });
+
+    const outline = shape(li.outline, `${lp}.outline`) ?? houseOutline;
+    if (!outline) err(lp, "No outline: set outline on the house (shared by all levels) or on this level.");
+
+    const height = li.height ?? DEFAULTS.levelHeight;
+    const slab = li.slab ?? DEFAULTS.slab;
+    levels.push({
+      id: li.id,
+      floorId: li.floor_id,
+      name: li.name ?? li.id,
+      index,
+      elevation,
+      height,
+      slab,
+      outline: outline ?? [],
+      partyWalls: li.party_walls ?? h.party_walls ?? [],
+      rooms,
+      openings,
+    });
+    elevation += height + slab;
+  });
+
+  const levelIndex = new Map(levels.map((l) => [l.id, l.index]));
+  const vertical: Vertical[] = [];
+  (h.vertical ?? []).forEach((vi, i) => {
+    const vp = `vertical.${vi?.id ?? i}`;
+    const polygon = shape(vi, vp);
+    const from = levelIndex.get(vi.from);
+    const to = levelIndex.get(vi.to);
+    if (from === undefined) err(vp, `Unknown level "${vi.from}" in from.`);
+    if (to === undefined) err(vp, `Unknown level "${vi.to}" in to.`);
+    if (!polygon || from === undefined || to === undefined) return;
+    if (to <= from) return err(vp, "to must be a level above from.");
+    vertical.push({ id: vi.id, kind: vi.kind ?? "stairs", polygon, from, to });
+  });
+
+  if (issues.some((i) => i.severity === "error")) return { house: null, issues };
+  return { house: { id: h.id, name: h.name ?? h.id, walls, levels, vertical }, issues };
+}
