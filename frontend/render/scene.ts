@@ -6,7 +6,8 @@
 import * as THREE from "three";
 import type { House, Level, Vec2, Vertical } from "../model/types";
 import { innerPolygon, type Wall, type WallOpening } from "../model/walls";
-import { bbox, pointInPolygon } from "../model/geometry";
+import { pointInPolygon } from "../model/geometry";
+import { stairFrame, stairHole } from "../model/stairs";
 
 /** `isometric`: parallel lines stay parallel; `perspective`: walls lean, like a photo. */
 export type Projection = "isometric" | "perspective";
@@ -106,7 +107,7 @@ function shapeOf(poly: Vec2[], holes: Vec2[][] = []): THREE.Shape {
 
 function holesFor(level: Level, vertical: Vertical[]): Vec2[][] {
   // a stairwell cuts the floors it leads up to, not the one it starts on
-  return vertical.filter((v) => level.index > v.from && level.index <= v.to).map((v) => v.polygon);
+  return vertical.filter((v) => level.index > v.from && level.index <= v.to).map(stairHole);
 }
 
 interface LevelState {
@@ -351,16 +352,8 @@ export class HouseRenderer {
    */
   private stairs(v: Vertical, level: Level): THREE.Group {
     const g = new THREE.Group();
-    const { min, max } = bbox(v.polygon);
     // local frame: u along the climb, w across the stairwell from the start side
-    const dirs: Record<string, Vec2> = { north: [0, -1], south: [0, 1], east: [1, 0], west: [-1, 0] };
-    const d = dirs[v.up];
-    const e: Vec2 = [-dirs[v.start][0], -dirs[v.start][1]];
-    const ox = d[0] !== 0 ? (d[0] > 0 ? min[0] : max[0]) : e[0] > 0 ? min[0] : max[0];
-    const oy = d[1] !== 0 ? (d[1] > 0 ? min[1] : max[1]) : e[1] > 0 ? min[1] : max[1];
-    const L = d[0] !== 0 ? max[0] - min[0] : max[1] - min[1];
-    const W = d[0] !== 0 ? max[1] - min[1] : max[0] - min[0];
-    const plan = ([u, w]: Vec2): Vec2 => [ox + d[0] * u + e[0] * w, oy + d[1] * u + e[1] * w];
+    const { L, W, plan } = stairFrame(v);
 
     const rise = level.height; // up to the ceiling: the real rise would poke out above the walls
     const n = Math.max(3, Math.round(rise / 0.19));
@@ -372,9 +365,11 @@ export class HouseRenderer {
       const fw = W / 2; // flight width
       const S = Math.max(0.5, L - fw); // straight part; the turn takes a square at the far end
       const k = Math.min(6, Math.max(3, Math.round(n / 3))); // winders over 180°
-      const a = Math.ceil((n - k) / 2);
+      // the first flight starts `entry` in; the straight steps are shared by length
+      const E = Math.min(v.entry, S - 0.25);
+      const a = Math.max(1, Math.round(((n - k) * (S - E)) / (2 * S - E)));
       const b = n - k - a;
-      for (let i = 0; i < a; i++) treads.push({ poly: rect((i * S) / a, ((i + 1) * S) / a, 0, fw), top: (i + 1) * step });
+      for (let i = 0; i < a; i++) treads.push({ poly: rect(E + (i * (S - E)) / a, E + ((i + 1) * (S - E)) / a, 0, fw), top: (i + 1) * step });
       // winders: wedges around the turn's pivot, clipped to the stairwell's far end
       const pivot: Vec2 = [S, W / 2];
       const hit = (deg: number): Vec2 => {
@@ -397,7 +392,8 @@ export class HouseRenderer {
       for (let m = 0; m < b; m++) treads.push({ poly: rect(S - ((m + 1) * S) / b, S - (m * S) / b, W - fw, W), top: (a + k + m + 1) * step });
     } else {
       const width = W * 0.9;
-      for (let i = 0; i < n; i++) treads.push({ poly: rect((i * L) / n, ((i + 1) * L) / n, (W - width) / 2, (W + width) / 2), top: (i + 1) * step });
+      const E = Math.min(v.entry, L - 0.5);
+      for (let i = 0; i < n; i++) treads.push({ poly: rect(E + (i * (L - E)) / n, E + ((i + 1) * (L - E)) / n, (W - width) / 2, (W + width) / 2), top: (i + 1) * step });
     }
 
     const wood = this.lambert(COLORS.tread);

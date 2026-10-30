@@ -109,6 +109,11 @@ export interface VerticalInput extends ShapeInput {
   up?: Side;
   /** u_turn: the side of the stairwell the first flight runs along. */
   start?: Side;
+  /**
+   * Metres of floor at the start of the stairwell before the first step, e.g. where the
+   * stair up begins further in than the one arriving from below (default 0).
+   */
+  entry?: number;
 }
 
 export interface HouseInput {
@@ -189,6 +194,7 @@ export interface Vertical {
   shape: StairShape;
   up: Side;
   start: Side;
+  entry: number;
 }
 
 export interface House {

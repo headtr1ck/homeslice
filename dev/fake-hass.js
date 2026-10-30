@@ -50,12 +50,21 @@ export function makeHass(fixture, onChange) {
     },
     saved: [],
     async callWS(msg) {
-      if (msg.type === "homeslice/model") return structuredClone(fixture.model);
-      if (msg.type === "homeslice/houses") return [{ id: fixture.model.id, name: fixture.model.name ?? fixture.model.id }];
+      // several houses: the fixture's model is the first; `houses` holds the rest
+      const houses = (fixture.houses ??= fixture.model ? { [fixture.model.id]: fixture.model } : {});
+      if (msg.type === "homeslice/model") {
+        const m = houses[msg.house ?? fixture.model?.id];
+        if (!m) throw new Error(`fake hass: no house ${msg.house}`);
+        return structuredClone(m);
+      }
+      if (msg.type === "homeslice/houses") return Object.values(houses).map((m) => ({ id: m.id, name: m.name ?? m.id, source: "api" }));
       if (msg.type === "homeslice/model/save") {
         hass.saved.push(structuredClone(msg.model));
-        fixture.model = msg.model;
-        for (const callback of subscribers) callback({ model: structuredClone(msg.model) });
+        houses[msg.house] = msg.model;
+        if (!fixture.model || msg.house === fixture.model.id) {
+          fixture.model = msg.model;
+          for (const callback of subscribers) callback({ model: structuredClone(msg.model) });
+        }
         return null;
       }
       throw new Error(`fake hass: unknown websocket command ${msg.type}`);

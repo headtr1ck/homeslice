@@ -10,10 +10,18 @@ import { labelPoint } from "../model/geometry";
 import type { HouseInput, Issue, OpeningInput, OpeningSource, OpeningType, RoomInput, Side, Vec2 } from "../model/types";
 import { deriveWalls, innerPolygon, sideOfRoom, type Wall } from "../model/walls";
 import { HouseRenderer } from "../render/scene";
+import { stairHole } from "../model/stairs";
 import {
   History,
   addOpening,
   addRoom,
+  addLevel,
+  deleteLevel,
+  newHouse,
+  slug,
+  uniqueId,
+  updateLevel,
+  type AreaSeed,
   deleteOpening,
   readOpening,
   updateOpening,
@@ -96,6 +104,8 @@ export class HomeslicePanel extends LitElement {
     _mode: { state: true },
     _opening: { state: true },
     _guides: { state: true },
+    _create: { state: true },
+    _pendingArea: { state: true },
   };
 
   narrow = false;
@@ -124,6 +134,10 @@ export class HomeslicePanel extends LitElement {
   private _opening: { src: OpeningSource; room: string } | null = null;
   /** Snap feedback drawn on the plan: guide lines and the corner snapped to. */
   private _guides: { x?: number; y?: number; ring?: Vec2 } | null = null;
+  /** The "new house" form while it is open. */
+  private _create: { name: string; width: number; depth: number; floors: string[]; rooms: boolean } | null = null;
+  /** Area to link to the next room drawn with the rectangle tool. */
+  private _pendingArea: string | null = null;
   private history = new History<HouseInput>();
   private renderer?: HouseRenderer;
   private previewTimer = 0;
@@ -174,9 +188,102 @@ export class HomeslicePanel extends LitElement {
     this._model = model;
     this._saved = JSON.stringify(model);
     this.history = new History();
-    this._level = model.levels.find((l) => l.floor_id === "ground_floor")?.id ?? model.levels[0]?.id ?? "";
+    this._level = this.entranceLevel(model);
     this._room = null;
     this.fitted = "";
+  }
+
+  /** The level to open first: the one on HA's entrance floor (level 0), else the lowest indoor one. */
+  private entranceLevel(model: HouseInput): string {
+    const floors = this._hass?.floors ?? {};
+    return (
+      model.levels.find((l) => l.floor_id && floors[l.floor_id]?.level === 0)?.id ??
+      model.levels.find((l) => l.floor_id && (floors[l.floor_id]?.level ?? -1) >= 0)?.id ??
+      model.levels[0]?.id ??
+      ""
+    );
+  }
+
+  /** HA floors, top first (as HA lists them). */
+  private haFloors() {
+    return Object.values(this._hass?.floors ?? {}).sort((a, b) => (b.level ?? 0) - (a.level ?? 0) || a.name.localeCompare(b.name));
+  }
+
+  private floorAreas(floorId: string | undefined): AreaSeed[] {
+    if (!floorId) return [];
+    return Object.values(this._hass?.areas ?? {})
+      .filter((a) => a.floor_id === floorId)
+      .sort((a, b) => a.name.localeCompare(b.name))
+      .map((a) => ({ area_id: a.area_id, name: a.name }));
+  }
+
+  private startCreate() {
+    if (this.dirty && !confirm(this.t("editor.discard"))) return;
+    const floors = this.haFloors();
+    this._create = { name: this._houses.length ? "" : this.t("editor.new_house_default_name"), width: 10, depth: 8, floors: floors.map((f) => f.floor_id), rooms: true };
+  }
+
+  private async createHouse() {
+    const c = this._create;
+    if (!c) return;
+    const name = c.name.trim() || this.t("editor.new_house_default_name");
+    const id = uniqueId(
+      this._houses.map((h) => h.id),
+      slug(name, "home"),
+    );
+    // HA lists floors top first; the model goes bottom to top
+    const seeds = this.haFloors()
+      .filter((f) => c.floors.includes(f.floor_id))
+      .reverse()
+      .map((f) => ({ floor_id: f.floor_id, areas: c.rooms ? this.floorAreas(f.floor_id) : [] }));
+    const model = newHouse(id, name, [Math.max(1, c.width), Math.max(1, c.depth)], seeds);
+    try {
+      await this._hass!.callWS({ type: "homeslice/model/save", house: id, model });
+      this._create = null;
+      this._houses = await this._hass!.callWS<{ id: string; name: string }[]>({ type: "homeslice/houses" });
+      this._saved = "";
+      this._model = null;
+      await this.openHouse(id);
+    } catch (e) {
+      this._error = this.t("editor.save_failed", { message: String((e as { message?: string }).message ?? e) });
+    }
+  }
+
+  private renderCreate() {
+    const c = this._create!;
+    const set = (patch: Partial<typeof c>) => (this._create = { ...c, ...patch });
+    const floors = this.haFloors();
+    return html`<div class="create" role="dialog" aria-label=${this.t("editor.new_house")}>
+      <h2>${this.t("editor.new_house")}</h2>
+      <label>${this.t("editor.house_name")}
+        <input .value=${c.name} @input=${(e: Event) => set({ name: (e.target as HTMLInputElement).value })} />
+      </label>
+      <div class="row">
+        <label>${this.t("editor.width_ew")}
+          <input type="number" min="1" step="0.1" .value=${String(c.width)} @change=${(e: Event) => set({ width: Number((e.target as HTMLInputElement).value) || 10 })} />
+        </label>
+        <label>${this.t("editor.depth_ns")}
+          <input type="number" min="1" step="0.1" .value=${String(c.depth)} @change=${(e: Event) => set({ depth: Number((e.target as HTMLInputElement).value) || 8 })} />
+        </label>
+      </div>
+      <p class="muted">${this.t("editor.size_hint")}</p>
+      <fieldset>
+        <legend>${this.t("editor.new_house_floors")}</legend>
+        ${floors.length
+          ? floors.map(
+              (f) => html`<label class="check"><input type="checkbox" .checked=${c.floors.includes(f.floor_id)} @change=${(e: Event) =>
+                set({ floors: (e.target as HTMLInputElement).checked ? [...c.floors, f.floor_id] : c.floors.filter((x) => x !== f.floor_id) })} />
+                ${f.name} <span class="muted">${this.t("editor.areas_count", { count: this.floorAreas(f.floor_id).length })}</span></label>`,
+            )
+          : html`<p class="muted">${this.t("editor.no_ha_floors")}</p>`}
+      </fieldset>
+      <label class="check"><input type="checkbox" .checked=${c.rooms} @change=${(e: Event) => set({ rooms: (e.target as HTMLInputElement).checked })} />
+        ${this.t("editor.new_house_rooms")}</label>
+      <div class="row end">
+        ${this._model ? html`<button @click=${() => (this._create = null)}>${this.t("editor.cancel")}</button>` : nothing}
+        <button class="primary" @click=${() => this.createHouse()}>${this.t("editor.create")}</button>
+      </div>
+    </div>`;
   }
 
   get dirty() {
@@ -235,6 +342,7 @@ export class HomeslicePanel extends LitElement {
       this._wall = null;
       this._opening = null;
       this._tool = "select";
+      this._pendingArea = null;
       this._drag = null;
       this._rectPreview = null;
     } else if (e.key === "r" && !mod) this._tool = "rect";
@@ -480,7 +588,10 @@ export class HomeslicePanel extends LitElement {
       const [[x0, y0], , [x1, y1]] = this._rectPreview;
       this._rectPreview = null;
       if (Math.abs(x1 - x0) >= 0.3 && Math.abs(y1 - y0) >= 0.3) {
-        const { model, id } = addRoom(this._model, this._level, [[Math.min(x0, x1), Math.min(y0, y1)], [Math.max(x0, x1), Math.min(y0, y1)], [Math.max(x0, x1), Math.max(y0, y1)], [Math.min(x0, x1), Math.max(y0, y1)]]);
+        const pending = this._pendingArea;
+        const props = pending ? { id: uniqueId(this.levelInput!.rooms.map((r) => r.id), slug(pending, "room")), area_id: pending } : {};
+        this._pendingArea = null;
+        const { model, id } = addRoom(this._model, this._level, [[Math.min(x0, x1), Math.min(y0, y1)], [Math.max(x0, x1), Math.min(y0, y1)], [Math.max(x0, x1), Math.max(y0, y1)], [Math.min(x0, x1), Math.max(y0, y1)]], props);
         this.commit(model);
         this._room = id;
         this._tool = "select";
@@ -647,8 +758,12 @@ export class HomeslicePanel extends LitElement {
   }
 
   protected override render() {
+    if (this._create) return html`<div class="empty">${this._error ? html`<div class="error">${this._error}</div>` : nothing}${this.renderCreate()}</div>`;
     if (!this._model) {
-      return html`<div class="empty">${this._error || (this._houses.length ? this.t("card.loading") : this.t("editor.no_houses"))}</div>`;
+      return html`<div class="empty">
+        ${this._error || (this._houses.length || !this._hass ? this.t("card.loading") : html`<p>${this.t("editor.no_houses")}</p>
+          <button class="primary" @click=${() => this.startCreate()}>${this.t("editor.new_house")}</button>`)}
+      </div>`;
     }
     const levels = [...this._model.levels].reverse();
     const issues = this.issues();
@@ -656,8 +771,15 @@ export class HomeslicePanel extends LitElement {
       <header>
         <ha-menu-button .hass=${this._hass} .narrow=${this.narrow}></ha-menu-button>
         <h1>Homeslice</h1>
-        <select class="house" aria-label=${this.t("editor.house")} @change=${(e: Event) => this.openHouse((e.target as HTMLSelectElement).value)}>
+        <select class="house" aria-label=${this.t("editor.house")} @change=${(e: Event) => {
+          const sel = e.target as HTMLSelectElement;
+          if (sel.value === "__new__") {
+            sel.value = this._house;
+            this.startCreate();
+          } else void this.openHouse(sel.value);
+        }}>
           ${this._houses.map((h) => html`<option value=${h.id} ?selected=${h.id === this._house}>${h.name}</option>`)}
+          <option value="__new__">${this.t("editor.new_house")}…</option>
         </select>
         <div class="segmented modes" role="tablist">
           ${(["rooms", "openings", "objects"] as Mode[]).map(
@@ -713,16 +835,17 @@ export class HomeslicePanel extends LitElement {
               @keydown=${(e: KeyboardEvent) => this.onLevelKey(e, l.id)}
             >
               <ha-icon icon="mdi:drag-vertical"></ha-icon>
-              <span>${(l.floor_id && this._hass?.floors?.[l.floor_id]?.name) || l.name || l.id}</span>
+              <span>${this.levelName(l)}</span>
             </button>`;
           })}
+          <button class="add-level" title=${this.t("editor.add_level_above")} @click=${() => this.addLevelAt(this._model!.levels.length)}>+ ${this.t("editor.add_level")}</button>
         </aside>
         <section class="plan-wrap">
           ${this.renderPlan()}
           ${this._hint
             ? html`<div class="hint" style="left:${this._hint.x + 16}px;top:${this._hint.y + 16}px">${this._hint.lines.map((l) => html`<div>${l}</div>`)}</div>`
             : nothing}
-          <div class="help">${this.t(this._mode === "openings" ? "editor.openings_hint" : this._mode === "objects" ? "editor.objects_soon" : this._tool === "rect" ? "editor.help_rect" : "editor.help_select")}</div>
+          <div class="help">${this.t(this._mode === "openings" ? "editor.openings_hint" : this._mode === "objects" ? "editor.objects_soon" : this._tool === "rect" ? "editor.help_rect" : "editor.help_select")}${this._pendingArea && this._tool === "rect" ? html` <b>${this.t("editor.drawing_for", { area: this._hass?.areas?.[this._pendingArea]?.name ?? this._pendingArea })}</b>` : nothing}</div>
         </section>
         <section class="side">
           <canvas
@@ -786,8 +909,9 @@ export class HomeslicePanel extends LitElement {
         .sort((a, b) => Number(a.type === "exterior" || a.type === "party") - Number(b.type === "exterior" || b.type === "party"))
         .map((w) => this.renderWall(w))}
       ${(house?.vertical ?? [])
+        // the hole where a stair arrives; on its first level, the stair's footprint
         .filter((v) => idx >= v.from && idx <= v.to)
-        .map((v) => svg`<polygon class="stairwell" points=${pts(v.polygon)}></polygon>`)}
+        .map((v) => svg`<polygon class="stairwell ${idx === v.from ? "start" : ""}" points=${pts(idx === v.from ? v.polygon : stairHole(v))}></polygon>`)}
       ${selPoly.length && this._mode === "rooms" ? this.renderHandles(selPoly, selected ? this.inner(selected, walls) : selPoly) : nothing}
       ${this._rectPreview ? svg`<polygon class="rect-preview" points=${pts(this._rectPreview)}></polygon>` : nothing}
       ${this.renderGuides()}
@@ -884,25 +1008,7 @@ export class HomeslicePanel extends LitElement {
     if (this._wall) return this.renderWallInspector(this._wall);
     const r = l.rooms.find((x) => x.id === this._room);
     const set = (patch: Partial<RoomInput>) => r && this.commit(updateRoom(m, this._level, r.id, patch));
-    if (!r) {
-      const floors = Object.values(this._hass?.floors ?? {});
-      return html`<h2>${this.t("editor.level")}</h2>
-        <label>${this.t("editor.ha_floor")}
-          <select @change=${(e: Event) => {
-            const next = clone(m);
-            const lv = next.levels.find((x) => x.id === this._level)!;
-            const v = (e.target as HTMLSelectElement).value;
-            if (v) lv.floor_id = v;
-            else delete lv.floor_id;
-            this.commit(next);
-          }}>
-            <option value="">—</option>
-            ${floors.map((f) => html`<option value=${f.floor_id} ?selected=${f.floor_id === l.floor_id}>${f.name}</option>`)}
-          </select>
-        </label>
-        <p class="muted">${this.t("editor.rooms_count", { count: l.rooms.length })}</p>
-        <p class="muted">${this.t("editor.select_hint")}</p>`;
-    }
+    if (!r) return this.renderLevelInspector();
     const poly = this.inner(r);
     const areas = Object.values(this._hass?.areas ?? {}).sort((a, b) => {
       // the level's own floor first
@@ -1116,6 +1222,85 @@ export class HomeslicePanel extends LitElement {
         <button role="radio" aria-checked=${open} class=${open ? "active" : ""} @click=${() => set(true)}>${this.t("editor.wall_open")}</button>
       </div>
       <p class="muted">${this.t("editor.wall_hint")}</p>`;
+  }
+
+  private levelName(l: { floor_id?: string; name?: string; id: string }) {
+    return (l.floor_id && this._hass?.floors?.[l.floor_id]?.name) || l.name || l.id;
+  }
+
+  /** Adds a level at `index` (0 = bottom), on the next HA floor in that direction that has no level yet. */
+  private addLevelAt(index: number) {
+    const m = this._model!;
+    const used = new Set(m.levels.map((l) => l.floor_id).filter(Boolean));
+    const free = this.haFloors().filter((f) => !used.has(f.floor_id));
+    // an HA floor that fits between the neighbours, closest to the one it's added next to
+    const lvl = (l?: { floor_id?: string }) => (l?.floor_id ? this._hass?.floors?.[l.floor_id]?.level : undefined) ?? undefined;
+    const lo = lvl(m.levels[index - 1]) ?? -Infinity;
+    const hi = lvl(m.levels[index]) ?? Infinity;
+    const fits = free.filter((f) => (f.level ?? 0) > lo && (f.level ?? 0) < hi).sort((a, b) => (a.level ?? 0) - (b.level ?? 0));
+    const floor = index >= m.levels.length ? fits[0] : fits[fits.length - 1];
+    const seed = floor ? { floor_id: floor.floor_id, areas: this.floorAreas(floor.floor_id) } : { name: this.t("editor.new_level_name"), areas: [] };
+    const { model, id } = addLevel(m, index, seed);
+    this.commit(model);
+    this._level = id;
+    this._room = null;
+    this._wall = null;
+  }
+
+  private renderLevelInspector() {
+    const m = this._model!;
+    const l = this.levelInput!;
+    const index = m.levels.findIndex((x) => x.id === l.id);
+    const used = new Set(m.levels.filter((x) => x.id !== l.id).map((x) => x.floor_id));
+    const set = (patch: Parameters<typeof updateLevel>[2]) => this.commit(updateLevel(m, l.id, patch));
+    const placed = new Set(l.rooms.map((r) => r.area_id));
+    const unplaced = this.floorAreas(l.floor_id).filter((a) => !placed.has(a.area_id));
+    return html`<h2>${this.levelName(l)}</h2>
+      <label>${this.t("editor.ha_floor")}
+        <select @change=${(e: Event) => set({ floor_id: (e.target as HTMLSelectElement).value || undefined })}>
+          <option value="">—</option>
+          ${this.haFloors().map((f) => html`<option value=${f.floor_id} ?selected=${f.floor_id === l.floor_id} ?disabled=${used.has(f.floor_id)}>${f.name}</option>`)}
+        </select>
+      </label>
+      ${l.floor_id
+        ? nothing
+        : html`<label>${this.t("editor.level_name")}
+            <input .value=${l.name ?? ""} @change=${(e: Event) => set({ name: (e.target as HTMLInputElement).value.trim() || undefined })} />
+          </label>`}
+      <div class="row">
+        <label>${this.t("editor.level_height")}
+          <input type="number" min="1" max="10" step="0.05" .value=${String(l.height ?? 2.6)} @change=${(e: Event) => {
+            const v = Number((e.target as HTMLInputElement).value);
+            set({ height: v > 0 && v !== 2.6 ? v : undefined });
+          }} />
+        </label>
+      </div>
+      <p class="muted">${this.t("editor.rooms_count", { count: l.rooms.length })} · ${this.t("editor.select_hint")}</p>
+      ${unplaced.length
+        ? html`<h3>${this.t("editor.unplaced_areas")}</h3>
+            <p class="muted">${this.t("editor.unplaced_hint")}</p>
+            <ul class="unplaced">
+              ${unplaced.map(
+                (a) => html`<li>
+                  <span>${a.name}</span>
+                  <button class=${this._pendingArea === a.area_id ? "active" : ""} @click=${() => {
+                    this._pendingArea = a.area_id;
+                    this._tool = "rect";
+                  }}>${this.t("editor.draw_room")}</button>
+                </li>`,
+              )}
+            </ul>`
+        : nothing}
+      <div class="row">
+        <button @click=${() => this.addLevelAt(index + 1)}>${this.t("editor.add_level_above")}</button>
+        <button @click=${() => this.addLevelAt(index)}>${this.t("editor.add_level_below")}</button>
+      </div>
+      <button class="danger" ?disabled=${m.levels.length <= 1} @click=${() => {
+        if (!confirm(this.t("editor.delete_level_confirm", { name: this.levelName(l) }))) return;
+        const next = deleteLevel(m, l.id);
+        this.commit(next);
+        this._level = next.levels[Math.max(0, index - 1)].id;
+      }}>${this.t("editor.delete_level")}</button>`;
   }
 
   private renderOutlineInspector() {
@@ -1425,6 +1610,9 @@ export class HomeslicePanel extends LitElement {
       stroke-dasharray: 3 3;
       pointer-events: none;
     }
+    .stairwell.start {
+      fill: none;
+    }
     .edge-hit {
       stroke: transparent;
       stroke-width: 14;
@@ -1536,9 +1724,84 @@ export class HomeslicePanel extends LitElement {
     .issues li.error {
       color: var(--error-color);
     }
+    .create {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      width: min(440px, calc(100vw - 32px));
+      text-align: left;
+      background: var(--card-background-color, #1c1c1c);
+      border-radius: 12px;
+      padding: 20px;
+    }
+    .create h2 {
+      margin: 0;
+    }
+    .create label {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      font-size: 12px;
+      color: var(--secondary-text-color, #aaa);
+    }
+    .create label.check,
+    .inspector label.check {
+      flex-direction: row;
+      align-items: center;
+      gap: 8px;
+    }
+    .create fieldset {
+      border: 1px solid var(--divider-color, #333);
+      border-radius: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .row > label {
+      flex: 1;
+    }
+    .row.end {
+      justify-content: flex-end;
+    }
+    button.primary {
+      background: var(--accent);
+      color: var(--text-primary-color, #fff);
+      border-color: var(--accent);
+    }
+    .add-level {
+      font-size: 13px;
+      opacity: 0.8;
+    }
+    ul.unplaced {
+      list-style: none;
+      padding: 0;
+      margin: 0 0 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    ul.unplaced li {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .inspector h3 {
+      font-size: 14px;
+      margin: 12px 0 2px;
+    }
     .empty {
       padding: 32px;
       color: var(--secondary-text-color);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
     }
     @media (max-width: 900px) {
       main {

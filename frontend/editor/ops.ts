@@ -461,3 +461,155 @@ export class History<T> {
     return this.future.length > 0;
   }
 }
+
+// ----- houses and levels -----
+
+/** "Living Room" → "living_room": ids are lower-case letters, digits and _. */
+export function slug(text: string, fallback = "item"): string {
+  const s = text
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[̀-ͯ]/g, "")
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+  return s || fallback;
+}
+
+export function uniqueId(taken: Iterable<string>, base: string): string {
+  const ids = new Set(taken);
+  if (!ids.has(base)) return base;
+  for (let i = 2; ; i++) if (!ids.has(`${base}_${i}`)) return `${base}_${i}`;
+}
+
+export interface AreaSeed {
+  area_id: string;
+  name: string;
+}
+
+/**
+ * Placeholder rooms for areas: a grid of rectangles filling `rect` (x, y, width, depth),
+ * sharing walls, so a new level starts as a valid plan the user only has to reshape.
+ */
+export function layoutRooms(rect: [number, number, number, number], areas: AreaSeed[], taken: string[] = []): RoomInput[] {
+  if (!areas.length) return [];
+  const [x0, y0, w, d] = rect;
+  const cols = Math.max(1, Math.round(Math.sqrt((areas.length * w) / d)));
+  const rows = Math.ceil(areas.length / cols);
+  const snap = (v: number) => Math.round(v * 20) / 20;
+  const ids = [...taken];
+  return areas.map((a, i) => {
+    const row = Math.floor(i / cols);
+    // the last row shares the full width between what is left
+    const inRow = row === rows - 1 ? areas.length - row * cols : cols;
+    const col = i - row * cols;
+    const xa = snap(x0 + (w * col) / inRow);
+    const xb = snap(x0 + (w * (col + 1)) / inRow);
+    const ya = snap(y0 + (d * row) / rows);
+    const yb = snap(y0 + (d * (row + 1)) / rows);
+    const id = uniqueId(ids, slug(a.area_id, "room"));
+    ids.push(id);
+    return { id, area_id: a.area_id, rect: [xa, ya, round(xb - xa), round(yb - ya)] };
+  });
+}
+
+export interface LevelSeed {
+  floor_id?: string;
+  name?: string;
+  areas: AreaSeed[];
+}
+
+/** A new house: one level per seed (bottom to top), each with placeholder rooms for its areas. */
+export function newHouse(id: string, name: string, size: [number, number], levels: LevelSeed[]): HouseInput {
+  const [w, d] = size.map(round);
+  const ids: string[] = [];
+  return {
+    schema: 1,
+    id,
+    name,
+    outline: { rect: [0, 0, w, d] },
+    levels: (levels.length ? levels : [{ name: "Ground floor", areas: [] }]).map((seed) => {
+      const lid = uniqueId(ids, slug(seed.floor_id ?? seed.name ?? "level", "level"));
+      ids.push(lid);
+      const l: LevelInput = { id: lid, rooms: layoutRooms([0, 0, w, d], seed.areas) };
+      if (seed.floor_id) l.floor_id = seed.floor_id;
+      else if (seed.name) l.name = seed.name;
+      return l;
+    }),
+  };
+}
+
+/**
+ * Adds a level at `index` (0 = bottom). It uses the house outline; placeholder rooms are
+ * laid out for `seed.areas` inside the outline's bounding box.
+ */
+export function addLevel(model: HouseInput, index: number, seed: LevelSeed): { model: HouseInput; id: string } {
+  const m = clone(model);
+  const id = uniqueId(
+    m.levels.map((l) => l.id),
+    slug(seed.floor_id ?? seed.name ?? "level", "level"),
+  );
+  const poly = shapePolygon(m, m.outline);
+  const { min, max } = poly.length ? bbox(poly) : { min: [0, 0] as Vec2, max: [10, 8] as Vec2 };
+  const l: LevelInput = { id, rooms: layoutRooms([min[0], min[1], round(max[0] - min[0]), round(max[1] - min[1])], seed.areas) };
+  if (seed.floor_id) l.floor_id = seed.floor_id;
+  else if (seed.name) l.name = seed.name;
+  m.levels.splice(Math.max(0, Math.min(m.levels.length, index)), 0, l);
+  return { model: m, id };
+}
+
+/**
+ * Removes a level and everything that refers to it: its rows in stacked façade openings
+ * and stairs or shafts that start or end there.
+ */
+export function deleteLevel(model: HouseInput, levelId: string): HouseInput {
+  const m = clone(model);
+  if (m.levels.length <= 1) return m;
+  m.levels = m.levels.filter((l) => l.id !== levelId);
+  if (m.facade_openings) {
+    m.facade_openings = m.facade_openings
+      .map((o) => {
+        const next = { ...o, levels: o.levels.filter((l) => l !== levelId) };
+        for (const key of ["covers", "contacts"] as const) {
+          if (!next[key]) continue;
+          const map = { ...next[key] };
+          delete map[levelId];
+          if (Object.keys(map).length) next[key] = map;
+          else delete next[key];
+        }
+        return next;
+      })
+      .filter((o) => o.levels.length);
+    if (!m.facade_openings.length) delete m.facade_openings;
+  }
+  if (m.vertical) {
+    m.vertical = m.vertical.filter((v) => v.from !== levelId && v.to !== levelId);
+    if (!m.vertical.length) delete m.vertical;
+  }
+  return m;
+}
+
+/** Changes level properties; empty values are dropped (defaults apply). Renaming the id updates references. */
+export function updateLevel(model: HouseInput, levelId: string, patch: Partial<Omit<LevelInput, "rooms">>): HouseInput {
+  const m = clone(model);
+  const l = level(m, levelId);
+  Object.assign(l, patch);
+  for (const [k, v] of Object.entries(patch)) if (v === undefined || v === "") delete (l as unknown as Record<string, unknown>)[k];
+  const id = patch.id;
+  if (id && id !== levelId) {
+    for (const o of m.facade_openings ?? []) {
+      o.levels = o.levels.map((x) => (x === levelId ? id : x));
+      for (const key of ["covers", "contacts"] as const) {
+        const map = o[key];
+        if (map && levelId in map) {
+          map[id] = map[levelId];
+          delete map[levelId];
+        }
+      }
+    }
+    for (const v of m.vertical ?? []) {
+      if (v.from === levelId) v.from = id;
+      if (v.to === levelId) v.to = id;
+    }
+  }
+  return m;
+}

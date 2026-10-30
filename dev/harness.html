@@ -59,7 +59,7 @@
     panel.hass = makeHass(fixture, (h) => (panel.hass = h));
     window.panel = panel;
     await new Promise((r) => {
-      const wait = () => (panel.shadowRoot?.querySelector("svg.plan .room") ? r() : setTimeout(wait, 50));
+      const wait = () => (panel.shadowRoot?.querySelector(fixture.model ? "svg.plan .room" : ".empty button") ? r() : setTimeout(wait, 50));
       wait();
     });
   };

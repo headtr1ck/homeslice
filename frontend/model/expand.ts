@@ -259,7 +259,10 @@ export function expandHouse(input: unknown): ExpandResult {
     const across: Side[] = up === "east" || up === "west" ? ["north", "south"] : ["east", "west"];
     const start = vi.start ?? across[1];
     if (!across.includes(start)) return err(vp, `start must be ${across.join(" or ")} for a stair climbing ${up}, got "${start}".`);
-    vertical.push({ id: vi.id, kind: vi.kind ?? "stairs", polygon, from, to, shape: stairShape, up, start });
+    const length = up === "east" || up === "west" ? max[0] - min[0] : max[1] - min[1];
+    const entry = vi.entry ?? 0;
+    if (typeof entry !== "number" || entry < 0 || entry > length - 0.5) return err(vp, `entry must be between 0 and ${(length - 0.5).toFixed(2)} m (the stairwell is ${length.toFixed(2)} m long), got ${entry}.`);
+    vertical.push({ id: vi.id, kind: vi.kind ?? "stairs", polygon, from, to, shape: stairShape, up, start, entry });
   });
 
   if (issues.some((i) => i.severity === "error")) return { house: null, issues };

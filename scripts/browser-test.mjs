@@ -629,6 +629,81 @@ console.log("editor");
   await page.close();
 }
 
+console.log("editor, starting from scratch");
+{
+  const page = await browser.newPage({ viewport: { width: 1600, height: 900 } });
+  const errors = [];
+  page.on("pageerror", (e) => errors.push(e.message));
+  page.on("console", (m) => m.type() === "error" && errors.push(m.text()));
+  page.on("dialog", (d) => d.accept());
+  await page.goto(`${base}/dev/harness.html`);
+  await page.waitForFunction(() => window.ready);
+  const fixture = loadFixture("dev/fixtures/demo-hass.json");
+  fixture.model = null;
+  fixture.floors.basement = { floor_id: "basement", name: "Basement", level: -1 };
+  fixture.areas.cellar = { area_id: "cellar", name: "Cellar", floor_id: "basement" };
+  await page.evaluate((f) => window.setupPanel(f), fixture);
+  const model = () => page.evaluate(() => window.panel._model);
+  const lvl = async (id) => (await model()).levels.find((l) => l.id === id);
+
+  await test("with no house, a new one is made from HA's floors and areas", async () => {
+    await page.locator("homeslice-panel .empty button.primary").click();
+    const dialog = page.locator("homeslice-panel .create");
+    assert((await dialog.locator("input[type=checkbox]").count()) === 4, "expected three floors and the rooms option");
+    await dialog.locator("input").first().fill("Test house");
+    await dialog.locator("input[type=number]").nth(0).fill("9");
+    await dialog.locator("input[type=number]").nth(0).dispatchEvent("change");
+    await shot(page, "editor-new-house");
+    await dialog.locator("button.primary").click();
+    await page.waitForFunction(() => window.panel.shadowRoot.querySelector("svg.plan .room"));
+    const m = await model();
+    assert(m.id === "test_house" && m.name === "Test house", `id/name: ${m.id} ${m.name}`);
+    assert(JSON.stringify(m.outline) === '{"rect":[0,0,9,8]}', `outline: ${JSON.stringify(m.outline)}`);
+    assert(JSON.stringify(m.levels.map((l) => l.id)) === '["basement","ground_floor","first_floor"]', `levels: ${m.levels.map((l) => l.id)}`);
+    // opens on the entrance floor with a room per area
+    assert((await page.locator("homeslice-panel button.level.active").textContent()).includes("Ground Floor"), "not on the ground floor");
+    const names = await page.locator("homeslice-panel svg.plan text.room-name").allTextContents();
+    for (const n of ["Hall", "Kitchen", "Living Room", "Garden"]) assert(names.includes(n), `missing ${n}: ${names}`);
+    assert(!(await page.locator("homeslice-panel button.save.dirty").count()), "a new house should be saved right away");
+    await page.waitForFunction(() => window.panel.renderer?.renderer.info.render.triangles > 100, null, { timeout: 10000 });
+    await shot(page, "editor-new-house-created");
+  });
+
+  await test("an area without a room can be drawn from the level inspector", async () => {
+    await page.locator('homeslice-panel svg.plan g[data-room="hall"] polygon').click({ force: true });
+    await page.keyboard.press("Delete");
+    await page.keyboard.press("Escape");
+    const item = page.locator("homeslice-panel ul.unplaced li", { hasText: "Hall" });
+    await item.locator("button").click();
+    const plan = await page.locator("homeslice-panel svg.plan").boundingBox();
+    const { scale, ox, oy } = await page.evaluate(() => window.panel._view);
+    const at = (x, y) => [plan.x + ox + x * scale, plan.y + oy + y * scale];
+    await page.mouse.move(...at(0.5, 0.5));
+    await page.mouse.down();
+    await page.mouse.move(...at(3, 3), { steps: 5 });
+    await page.mouse.up();
+    const hall = (await lvl("ground_floor")).rooms.find((r) => r.area_id === "hall");
+    assert(hall?.id === "hall", `hall: ${JSON.stringify(hall)}`);
+    assert(!(await page.locator("homeslice-panel ul.unplaced li", { hasText: "Hall" }).count()), "hall still listed as unplaced");
+  });
+
+  await test("levels: height, add above, delete", async () => {
+    await page.keyboard.press("Escape");
+    const height = page.locator("homeslice-panel .inspector input[type=number]");
+    await height.fill("2.8");
+    await height.dispatchEvent("change");
+    assert((await lvl("ground_floor")).height === 2.8, "height not stored");
+    await page.locator("homeslice-panel button.add-level").click();
+    const m = await model();
+    assert(m.levels.length === 4 && m.levels[3].name === "New level", `levels: ${JSON.stringify(m.levels.map((l) => l.id))}`);
+    assert((await page.locator("homeslice-panel .inspector h2").textContent()) === "New level", "new level not selected");
+    await page.locator("homeslice-panel .inspector button.danger").click();
+    assert((await model()).levels.length === 3, "level not deleted");
+    assert(errors.length === 0, errors.join(" | "));
+  });
+  await page.close();
+}
+
 // --- private fixtures (real houses, not in git) ---
 const privateDir = join(root, "dev/fixtures/private");
 for (const file of existsSync(privateDir) ? readdirSync(privateDir).filter((f) => f.endsWith(".json")) : []) {

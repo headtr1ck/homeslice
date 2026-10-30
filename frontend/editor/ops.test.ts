@@ -22,6 +22,12 @@ import {
   snap,
   splitEdge,
   updateRoom,
+  addLevel,
+  deleteLevel,
+  newHouse,
+  slug,
+  uniqueId,
+  updateLevel,
 } from "./ops";
 
 // left | right, sharing the wall at x = 5
@@ -202,5 +208,44 @@ describe("editing operations", () => {
     expect(h.canRedo).toBe(true);
     h.push(5);
     expect(h.canRedo).toBe(false);
+  });
+});
+
+describe("houses and levels", () => {
+  it("a new house gets one level per floor with placeholder rooms sharing walls", () => {
+    const m = newHouse("home", "Home", [10, 8], [
+      { floor_id: "ground_floor", areas: [{ area_id: "kitchen", name: "Kitchen" }, { area_id: "living_room", name: "Living" }, { area_id: "hall", name: "Hall" }] },
+      { floor_id: "first_floor", areas: [] },
+    ]);
+    expect(m.outline).toEqual({ rect: [0, 0, 10, 8] });
+    expect(m.levels.map((l) => l.id)).toEqual(["ground_floor", "first_floor"]);
+    const rects = m.levels[0].rooms.map((r) => r.rect);
+    // two columns: two rooms in the first row, the last fills the second
+    expect(rects).toEqual([[0, 0, 5, 4], [5, 0, 5, 4], [0, 4, 10, 4]]);
+    expect(m.levels[0].rooms.map((r) => r.area_id)).toEqual(["kitchen", "living_room", "hall"]);
+    expect(m.levels[1].rooms).toEqual([]);
+  });
+
+  it("adds, renames and deletes levels with their references", () => {
+    let m = house();
+    m = addLevel(m, 1, { name: "First", areas: [{ area_id: "bed", name: "Bed" }] }).model;
+    expect(m.levels.map((l) => l.id)).toEqual(["g", "first"]);
+    expect(m.levels[1].rooms[0]).toMatchObject({ area_id: "bed", rect: [0, 0, 10, 8] });
+    m.facade_openings = [{ side: "south", at: 1, width: 1, levels: ["g", "first"], covers: { first: "cover.f" } }];
+    m.vertical = [{ id: "stairs", rect: [0, 0, 1, 2], from: "g", to: "first" }];
+    m = updateLevel(m, "first", { id: "upper", height: 2.5 });
+    expect(m.facade_openings![0]).toMatchObject({ levels: ["g", "upper"], covers: { upper: "cover.f" } });
+    expect(m.vertical![0].to).toBe("upper");
+    expect(m.levels[1].height).toBe(2.5);
+    m = deleteLevel(m, "upper");
+    expect(m.levels.map((l) => l.id)).toEqual(["g"]);
+    expect(m.facade_openings![0]).toEqual({ side: "south", at: 1, width: 1, levels: ["g"] });
+    expect(m.vertical).toBeUndefined();
+    expect(deleteLevel(m, "g").levels).toHaveLength(1); // the last level stays
+  });
+
+  it("makes ids from names", () => {
+    expect(slug("Wohnzimmer Süd")).toBe("wohnzimmer_sud");
+    expect(uniqueId(["a", "a_2"], "a")).toBe("a_3");
   });
 });
