@@ -66,6 +66,22 @@ declare global {
   }
 }
 
+/** Card YAML uses HA's snake_case; the renderer uses camelCase. */
+function viewOptions(view: (Partial<ViewOptions> & { cut_height?: number; cut_below?: number }) | undefined): Partial<ViewOptions> {
+  if (!view) return {};
+  const { cut_height, cut_below, ...rest } = view;
+  return { ...rest, ...(cut_height !== undefined ? { cutHeight: cut_height } : {}), ...(cut_below !== undefined ? { cutBelow: cut_below } : {}) };
+}
+
+/** Makes sure a card type's element is defined before cards of that type are created. */
+async function preloadCard(helpers: CardHelpers, type: string) {
+  const tag = type.startsWith("custom:") ? type.slice("custom:".length) : `hui-${type}-card`;
+  if (customElements.get(tag)) return;
+  // creating a (never attached) card makes HA import the type
+  if (!type.startsWith("custom:")) helpers.createCardElement({ type });
+  await Promise.race([customElements.whenDefined(tag), new Promise((r) => setTimeout(r, 3000))]);
+}
+
 export class HomesliceCard extends LitElement {
   static override properties = {
     hass: { attribute: false },
@@ -191,7 +207,7 @@ export class HomesliceCard extends LitElement {
     this.openings = [...walls.entries()].flatMap(([levelId, ws]) =>
       ws.flatMap((w) => w.openings.filter((o) => o.cover || o.contact).map((o) => ({ levelId, id: o.id, cover: o.cover, contact: o.contact }))),
     );
-    this.renderer.setModel(house, walls, this.config.view);
+    this.renderer.setModel(house, walls, viewOptions(this.config.view));
     this._level = null;
     this.stateSignature = "";
     this.syncStates();
@@ -269,12 +285,18 @@ export class HomesliceCard extends LitElement {
     this.popupCards = [];
   }
 
-  /** Creates HA's own cards inside the popup (they need HA's card helpers). */
+  /**
+   * Creates HA's own cards inside the popup. Card types HA loads lazily are loaded
+   * first: some (media control) misbehave when they connect before their config arrives.
+   */
   private async fillPopup() {
     if (!this._popup || !this.hass) return;
     const popup = this._popup;
     const helpers = await window.loadCardHelpers?.();
     if (!helpers || this._popup !== popup) return;
+    const types = [...new Set(popup.sections.flatMap((s) => s.cards.map((c) => String(c.type))))];
+    await Promise.all(types.map((type) => preloadCard(helpers, type)));
+    if (this._popup !== popup) return;
     this.popupCards = [];
     const containers = this.renderRoot.querySelectorAll<HTMLElement>(".popup .cards");
     popup.sections.forEach((section, i) => {
@@ -505,8 +527,8 @@ export class HomesliceCard extends LitElement {
       min-width: 120px;
       padding: 0 14px;
       border-radius: 12px;
-      border: 1px solid rgba(255, 255, 255, 0.15);
-      background: rgba(20, 24, 28, 0.85);
+      border: 1px solid var(--divider-color, rgba(255, 255, 255, 0.15));
+      background: var(--card-background-color, rgba(20, 24, 28, 0.85));
       color: var(--primary-text-color, #eee);
       font: inherit;
       font-size: 14px;
@@ -515,7 +537,8 @@ export class HomesliceCard extends LitElement {
     }
     .levels button.active {
       border-color: var(--primary-color);
-      background: rgba(40, 60, 90, 0.9);
+      box-shadow: inset 0 0 0 1px var(--primary-color);
+      font-weight: 500;
     }
     .backdrop {
       position: fixed;

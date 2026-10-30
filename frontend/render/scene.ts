@@ -235,6 +235,7 @@ export class HouseRenderer {
       geo.translate(0, room.kind === "outdoor" ? -level.slab + 0.01 : 0.004, 0);
       const floor = this.mesh(geo, this.lambert(FLOOR_COLORS[room.floor] ?? FLOOR_COLORS.wood), false);
       floor.userData.room = `${level.id}/${room.id}`;
+      floor.userData.outdoor = room.kind === "outdoor";
       this.floors.set(`${level.id}/${room.id}`, floor);
       g.add(floor);
     }
@@ -571,7 +572,10 @@ export class HouseRenderer {
     s.updateProjectionMatrix();
   }
 
-  /** World box of the whole house (index null) or of one level, levels at rest. */
+  /**
+   * World box of the whole house (index null) or of one level, levels at rest. A focused
+   * level is framed on its rooms; outdoor areas may run off the edge.
+   */
   private boxFor(index: number | null): THREE.Box3 {
     const box = new THREE.Box3();
     this.levels.forEach((l, i) => {
@@ -579,7 +583,8 @@ export class HouseRenderer {
       const y = l.group.position.y;
       l.group.position.y = l.baseY;
       l.group.updateMatrixWorld(true);
-      box.expandByObject(l.group);
+      if (index === null) box.expandByObject(l.group);
+      else for (const child of l.group.children) if (!child.userData.outdoor) box.expandByObject(child);
       l.group.position.y = y;
       l.group.updateMatrixWorld(true);
     });

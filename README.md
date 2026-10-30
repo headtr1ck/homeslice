@@ -8,8 +8,8 @@ on your dashboards.
 
 ## Status
 
-Phase 0: a dashboard card renders walls, floors, openings and stairs from a hand-written
-house file. No editor yet.
+Phase 1: a dashboard card renders the house from a hand-written file, with live lights,
+covers, window contacts and temperatures, floor focus and room popups. No editor yet.
 
 ## Try it (development)
 
@@ -21,12 +21,30 @@ house file. No editor yet.
 
    ```yaml
    type: custom:homeslice-card
-   house: home            # file name without .yaml
-   view:                  # optional
-     azimuth: 210         # where the camera looks from: 0 north, 90 east, 180 south, 270 west
-     elevation: 32        # degrees above the horizon
-     explode: 1.6         # gap between floors in metres
+   house: home                    # file name without .yaml
+   view:                          # all optional
+     azimuth: 250                 # overview camera: 0 north, 90 east, 180 south, 270 west
+     elevation: 38                # degrees above the horizon
+     projection: isometric        # or perspective
+     explode: 2.6                 # gap between floors in metres
+     cut_height: 0.4              # outer walls facing a low camera are cut to this height…
+     cut_below: 60                # …while the camera is lower than this (degrees)
+     focus:                       # camera when a floor is picked
+       azimuth: 180
+       elevation: 65
+       projection: perspective
+     levels:                      # per-floor cameras, by level id
+       ground: { elevation: 90, projection: isometric }
+   popups:                        # optional, by room id or area id
+     living_room:
+       mode: extend               # or replace
+       cards:
+         - type: weather-forecast
+           entity: weather.home
    ```
+
+   Tap a lamp to switch a room's lights, tap a room (or its name) for a popup with its
+   devices, pick a floor on the left to lift the floors above away.
 
 ## House file (short form)
 
@@ -68,6 +86,16 @@ npm run deploy       # build and copy to Home Assistant over SSH (settings in .d
 ```
 
 Private house files go into `houses/` (ignored by git); `npm test` validates them too.
+
+```sh
+npm run test:browser   # build, then click through the card in headless Chromium (fake hass)
+HOMESLICE_HA_URL=ws://host:8123/api/websocket node scripts/snapshot-hass.mjs houses/home.yaml
+                       # private fixture from a real HA, used by test:browser
+HOMESLICE_HA_HTTP=http://host:8123 HOMESLICE_DASHBOARD=/dashboard-x/house node scripts/e2e-ha.mjs
+                       # read-only check against a real HA dashboard
+```
+
+Screenshots land in `test-results/`.
 
 ## License
 
