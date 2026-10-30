@@ -611,6 +611,23 @@ export class HomesliceCard extends LitElement {
     const levels = [...(this.house?.levels ?? [])].reverse();
     return html`
       <ha-card>
+          ${this.house
+          ? html`<nav class="levels">
+              ${levels.map(
+                (l) => html`<button
+                  class="${this._level === l.id ? "active" : ""} ${this._hover === l.index ? "hover" : ""}"
+                  @click=${() => this.selectLevel(l.id)}
+                  @pointerenter=${(e: PointerEvent) => e.pointerType === "mouse" && this.hoverLevel(l.index)}
+                  @pointerleave=${() => this.hoverLevel(null)}
+                >
+                  ${this.levelName(l.id)}
+                </button>`,
+              )}
+              <button class=${this._level === null ? "active" : ""} @click=${() => this.selectLevel(null)}>
+                ${this.t("card.all_floors")}
+              </button>
+            </nav>`
+          : nothing}
         <div class="wrap">
           <canvas
             class=${this.interactive ? "interactive" : ""}
@@ -652,23 +669,6 @@ export class HomesliceCard extends LitElement {
               <ha-icon icon=${b.on ? "mdi:lightbulb-on" : "mdi:lightbulb-outline"}></ha-icon>
             </button>`,
           )}
-          ${this.house
-            ? html`<nav class="levels">
-                ${levels.map(
-                  (l) => html`<button
-                    class="${this._level === l.id ? "active" : ""} ${this._hover === l.index ? "hover" : ""}"
-                    @click=${() => this.selectLevel(l.id)}
-                    @pointerenter=${(e: PointerEvent) => e.pointerType === "mouse" && this.hoverLevel(l.index)}
-                    @pointerleave=${() => this.hoverLevel(null)}
-                  >
-                    ${this.levelName(l.id)}
-                  </button>`,
-                )}
-                <button class=${this._level === null ? "active" : ""} @click=${() => this.selectLevel(null)}>
-                  ${this.t("card.all_floors")}
-                </button>
-              </nav>`
-            : nothing}
           ${this._loading ? html`<div class="overlay">${this.t("card.loading")}</div>` : nothing}
           ${this._error ? html`<div class="overlay error">${this._error}</div>` : nothing}
         </div>
@@ -691,11 +691,49 @@ export class HomesliceCard extends LitElement {
     `;
   }
 
+  // On phones the popup is a bottom sheet: swipe it down by its top to close it.
+  private sheetStart: number | null = null;
+
+  private get sheet() {
+    return this.renderRoot.querySelector(".popup") as HTMLElement | null;
+  }
+
+  private onSheetDown(e: PointerEvent) {
+    if (!window.matchMedia("(max-width: 600px)").matches || (e.target as Element).closest("button")) return;
+    (e.currentTarget as Element).setPointerCapture(e.pointerId);
+    this.sheetStart = e.clientY;
+  }
+
+  private onSheetMove(e: PointerEvent) {
+    const sheet = this.sheet;
+    if (this.sheetStart === null || !sheet) return;
+    const dy = Math.max(0, e.clientY - this.sheetStart);
+    sheet.style.transition = "none";
+    sheet.style.transform = `translateY(${dy}px)`;
+  }
+
+  private onSheetUp(e: PointerEvent) {
+    const sheet = this.sheet;
+    if (this.sheetStart === null || !sheet) return;
+    const dy = e.clientY - this.sheetStart;
+    this.sheetStart = null;
+    sheet.style.transition = "";
+    if (dy > 90) this.closePopup();
+    else sheet.style.transform = "";
+  }
+
   private renderPopup(p: Popup) {
     const temperature = p.areaId && this.hass ? areaTemperature(this.hass, p.areaId) : null;
     return html`<div class="backdrop" @click=${() => this.closePopup()}>
       <div class="popup" role="dialog" aria-modal="true" aria-label=${p.name} @click=${(e: Event) => e.stopPropagation()}>
-        <header>
+        <div
+          class="grabber"
+          @pointerdown=${this.onSheetDown}
+          @pointermove=${this.onSheetMove}
+          @pointerup=${this.onSheetUp}
+          @pointercancel=${this.onSheetUp}
+        ></div>
+        <header @pointerdown=${this.onSheetDown} @pointermove=${this.onSheetMove} @pointerup=${this.onSheetUp} @pointercancel=${this.onSheetUp}>
           <div>
             <h2>${p.name}</h2>
             ${temperature ? html`<span class="temp">${temperature}</span>` : nothing}
@@ -717,6 +755,10 @@ export class HomesliceCard extends LitElement {
   }
 
   static override styles = css`
+    :host {
+      container: homeslice / inline-size;
+      display: block;
+    }
     ha-card {
       overflow: hidden;
       background: none;
@@ -817,13 +859,33 @@ export class HomesliceCard extends LitElement {
       color: #3a2a05;
       box-shadow: 0 0 14px rgba(255, 207, 107, 0.6);
     }
+    ha-card {
+      position: relative;
+    }
     .levels {
       position: absolute;
       left: 8px;
       top: 8px;
+      z-index: 2;
       display: flex;
       flex-direction: column;
       gap: 6px;
+    }
+    /* narrow cards (phones): the floors become a row of chips above the house */
+    @container homeslice (max-width: 600px) {
+      .levels {
+        position: static;
+        flex-direction: row;
+        overflow-x: auto;
+        padding: 4px 4px 8px;
+        scrollbar-width: none;
+      }
+      .levels button {
+        min-width: auto;
+        min-height: 40px;
+        white-space: nowrap;
+        flex: none;
+      }
     }
     .levels button {
       min-height: 44px;
@@ -916,6 +978,56 @@ export class HomesliceCard extends LitElement {
       from {
         transform: translateY(16px);
         opacity: 0;
+      }
+    }
+    .popup .grabber {
+      display: none;
+    }
+    /* phones: a bottom sheet, swiped down to close */
+    @media (max-width: 600px) {
+      .backdrop {
+        place-items: end stretch;
+      }
+      .popup {
+        width: 100%;
+        max-height: 88vh;
+        padding: 0 16px calc(16px + env(safe-area-inset-bottom, 0px));
+        border-radius: var(--ha-card-border-radius, 16px) var(--ha-card-border-radius, 16px) 0 0;
+        animation: slide-up 0.24s ease-out;
+        transition: transform 0.2s ease-out;
+      }
+      .popup .grabber {
+        display: block;
+        position: sticky;
+        top: 0;
+        height: 24px;
+        margin: 0 -16px;
+        background: inherit;
+        touch-action: none;
+        cursor: grab;
+        z-index: 1;
+      }
+      .popup .grabber::after {
+        content: "";
+        position: absolute;
+        left: 50%;
+        top: 9px;
+        width: 40px;
+        height: 5px;
+        margin-left: -20px;
+        border-radius: 3px;
+        background: var(--divider-color, rgba(127, 127, 127, 0.5));
+      }
+      .popup header {
+        touch-action: none;
+      }
+      .popup .cards {
+        grid-template-columns: 1fr;
+      }
+    }
+    @keyframes slide-up {
+      from {
+        transform: translateY(100%);
       }
     }
     @media (prefers-reduced-motion: reduce) {
