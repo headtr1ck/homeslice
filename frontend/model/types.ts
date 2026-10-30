@@ -29,6 +29,19 @@ export interface RoomInput extends ShapeInput {
   floor?: string;
   /** Cover entity of an awning over this (outdoor) area, mounted on the house wall. */
   awning?: string;
+  /**
+   * Lights in this room. The area's lights are included automatically and placed
+   * evenly; list a light to place it (`at`), hide it, or add one from another area.
+   */
+  lights?: LightInput[];
+}
+
+export interface LightInput {
+  entity: string;
+  /** Metres east and south of the room's north-west corner (its bounding box). */
+  at?: [number, number];
+  /** Leave this light out of the house view. */
+  hidden?: boolean;
 }
 
 /**
@@ -151,6 +164,8 @@ export interface Room {
   /** Positive shoelace area in plan coordinates (see geometry.signedArea). */
   polygon: Vec2[];
   awning?: string;
+  /** As in the input, with `at` in plan coordinates. */
+  lights: { entity: string; at?: Vec2; hidden: boolean }[];
 }
 
 /** Where an opening is defined: a level's own list, or a façade entry shared by levels. */

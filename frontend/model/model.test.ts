@@ -1,8 +1,9 @@
-import { stairHole } from "./stairs";
 import { describe, expect, it } from "vitest";
 import { expandHouse } from "./expand";
-import { signedArea } from "./geometry";
-import type { HouseInput } from "./types";
+import { bbox, signedArea } from "./geometry";
+import { placeLights } from "./lights";
+import { stairHole } from "./stairs";
+import type { HouseInput, Room } from "./types";
 import { deriveWalls, type Wall } from "./walls";
 
 // A 10 × 8 m house with two rooms side by side and a shared wall on the west.
@@ -318,5 +319,30 @@ describe("stairs", () => {
     expect(hole).toContainEqual([1, 2]);
     expect(hole).toContainEqual([1, 1]);
     expect(hole).toContainEqual([0, 1]);
+  });
+});
+
+describe("lights", () => {
+  const room = (lights: Room["lights"] = []): Room => ({ id: "r", kind: "room", floor: "wood", polygon: [[0, 0], [4, 0], [4, 2], [0, 2]], lights });
+  it("spreads the area's lights and keeps placed ones", () => {
+    const placed = placeLights("g", room([{ entity: "light.a", at: [1, 1], hidden: false }]), room().polygon, ["light.a", "light.b", "light.c"], new Set(["light.a"]));
+    expect(placed).toEqual([
+      { levelId: "g", roomId: "r", entity: "light.a", at: [1, 1], auto: false },
+      { levelId: "g", roomId: "r", entity: "light.b", at: [1, 1], auto: true },
+      { levelId: "g", roomId: "r", entity: "light.c", at: [3, 1], auto: true },
+    ]);
+  });
+  it("leaves out hidden lights and lights placed in another room", () => {
+    const placed = placeLights("g", room([{ entity: "light.a", hidden: true }]), room().polygon, ["light.a", "light.b"], new Set(["light.a", "light.b"]));
+    expect(placed).toEqual([]);
+  });
+  it("expands at relative to the room's north-west corner", () => {
+    const input = twoRooms();
+    input.levels[0].rooms[1].lights = [{ entity: "light.x", at: [1, 2] }];
+    const r = expand(input).levels[0].rooms[1];
+    const { min } = bbox(r.polygon);
+    expect(r.lights[0].at).toEqual([min[0] + 1, min[1] + 2]);
+    input.levels[0].rooms[1].lights = [{ entity: "switch.x" }];
+    expect(expandHouse(input).issues[0].message).toContain("A light needs entity: light.");
   });
 });

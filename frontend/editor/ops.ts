@@ -693,3 +693,51 @@ export function setStairsRect(model: HouseInput, id: string, rect: [number, numb
   });
   return m;
 }
+
+// ----- lights -----
+
+/**
+ * Puts a light into a room (taking it out of any other room on the level) at `at`,
+ * metres from the room's north-west corner; `at` undefined places it automatically.
+ */
+export function placeLight(model: HouseInput, levelId: string, roomId: string, entity: string, at?: [number, number]): HouseInput {
+  const m = clone(model);
+  const l = level(m, levelId);
+  for (const r of l.rooms) {
+    if (r.id === roomId || !r.lights) continue;
+    r.lights = r.lights.filter((x) => x.entity !== entity);
+    if (!r.lights.length) delete r.lights;
+  }
+  const room = l.rooms.find((r) => r.id === roomId);
+  if (!room) return m;
+  const entry = room.lights?.find((x) => x.entity === entity) ?? { entity };
+  if (at) entry.at = [round(at[0]), round(at[1])];
+  else delete entry.at;
+  room.lights = [...(room.lights ?? []).filter((x) => x.entity !== entity), entry];
+  return m;
+}
+
+/** Shows or hides a light in a room's list (hiding an area light needs an entry). */
+export function setLightHidden(model: HouseInput, levelId: string, roomId: string, entity: string, hidden: boolean): HouseInput {
+  const m = clone(model);
+  const room = level(m, levelId).rooms.find((r) => r.id === roomId);
+  if (!room) return m;
+  const entry = room.lights?.find((x) => x.entity === entity) ?? { entity };
+  if (hidden) entry.hidden = true;
+  else delete entry.hidden;
+  room.lights = [...(room.lights ?? []).filter((x) => x.entity !== entity), entry];
+  return m;
+}
+
+/**
+ * Drops a light's entry from a room. Lights of the room's area then go back to
+ * automatic placement; lights from elsewhere leave the room.
+ */
+export function removeLight(model: HouseInput, levelId: string, roomId: string, entity: string): HouseInput {
+  const m = clone(model);
+  const room = level(m, levelId).rooms.find((r) => r.id === roomId);
+  if (!room?.lights) return m;
+  room.lights = room.lights.filter((x) => x.entity !== entity);
+  if (!room.lights.length) delete room.lights;
+  return m;
+}

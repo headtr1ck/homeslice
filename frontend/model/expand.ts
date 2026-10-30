@@ -118,7 +118,15 @@ export function expandHouse(input: unknown): ExpandResult {
         return;
       }
       const kind = ri.kind ?? "room";
-      const room: Room = { id: ri.id, areaId: ri.area_id, name: ri.name, kind, floor: ri.floor ?? DEFAULTS.floor[kind], polygon };
+      const { min } = bbox(polygon);
+      const lights: Room["lights"] = [];
+      (ri.lights ?? []).forEach((li, j) => {
+        if (typeof li?.entity !== "string" || !li.entity.startsWith("light.")) return err(`${rp}.lights.${j}`, `A light needs entity: light.…, got ${JSON.stringify(li?.entity)}.`);
+        if (li.at !== undefined && !(Array.isArray(li.at) && li.at.length === 2 && li.at.every((v) => typeof v === "number")))
+          return err(`${rp}.lights.${j}`, "at must be [metres east, metres south] of the room's north-west corner.");
+        lights.push({ entity: li.entity, at: li.at ? [min[0] + li.at[0], min[1] + li.at[1]] : undefined, hidden: !!li.hidden });
+      });
+      const room: Room = { id: ri.id, areaId: ri.area_id, name: ri.name, kind, floor: ri.floor ?? DEFAULTS.floor[kind], polygon, lights };
       if (ri.awning) room.awning = ri.awning;
       rooms.push(room);
     });

@@ -1,10 +1,11 @@
 import { LitElement, css, html, nothing, type PropertyValues } from "lit";
-import { areaEntities, areaLight, areaPopup, areaTemperature, contactOpen, coverOpen, type Hass, type PopupSection } from "../ha/hass";
+import { areaEntities, areaPopup, areaTemperature, contactOpen, coverOpen, lightsLook, type Hass, type PopupSection } from "../ha/hass";
 import { localize, type StringKey } from "../i18n/localize";
 import { expandHouse } from "../model/expand";
 import { labelPoint } from "../model/geometry";
 import type { House, Issue, Room, Vec2 } from "../model/types";
-import { deriveWalls, type Wall } from "../model/walls";
+import { listedLights, placeLights, type PlacedLight } from "../model/lights";
+import { deriveWalls, innerPolygon, type Wall } from "../model/walls";
 import { HouseRenderer, type ViewOptions } from "../render/scene";
 
 export interface PopupOverride {
@@ -50,6 +51,15 @@ interface Label {
   temperature: string | null;
   areaId?: string;
   hasLights: boolean;
+  on: boolean;
+}
+
+/** A toggle for one lamp, shown on the focused level in rooms with several lights. */
+interface LampButton {
+  entity: string;
+  x: number;
+  y: number;
+  name: string;
   on: boolean;
 }
 
@@ -99,6 +109,7 @@ export class HomesliceCard extends LitElement {
     _error: { state: true },
     _loading: { state: true },
     _labels: { state: true },
+    _lampButtons: { state: true },
     _level: { state: true },
     _popup: { state: true },
     _hover: { state: true },
@@ -111,6 +122,11 @@ export class HomesliceCard extends LitElement {
   private _error = "";
   private _loading = true;
   private _labels: Label[] = [];
+  private _lampButtons: LampButton[] = [];
+  /** Lamps of the whole house, placed for the current HA areas. */
+  private lamps: PlacedLight[] = [];
+  private lampSignature = "";
+  private walls = new Map<string, Wall[]>();
   /** Focused level: the levels above it are lifted away. */
   private _level: string | null = null;
   private _popup: Popup | null = null;
@@ -255,6 +271,8 @@ export class HomesliceCard extends LitElement {
       }
     }
     this.house = house;
+    this.walls = walls;
+    this.lampSignature = "";
     this.rooms = house.levels.flatMap((level) =>
       level.rooms
         .filter((room) => room.kind !== "void" && (room.kind !== "outdoor" || viewOptions(this.config.view).showOutdoor !== false))
@@ -280,14 +298,17 @@ export class HomesliceCard extends LitElement {
   private syncStates() {
     if (!this.hass || !this.renderer || !this.house) return;
     const hass = this.hass;
-    const lights = this.rooms.map((r) => (r.room.areaId ? areaLight(hass, r.room.areaId) : null));
+    this.syncLamps(hass);
+    const lights = this.rooms.map((r) => lightsLook(hass, this.roomLights(r.key)));
+    const lamps = this.lamps.map((l) => lightsLook(hass, [l.entity]));
     const covers = this.openings.map((o) => (o.cover ? coverOpen(hass, o.cover) : null));
     const contacts = this.openings.map((o) => (o.contact ? contactOpen(hass, o.contact) : false));
     const temperatures = this.rooms.map((r) => (r.room.areaId ? areaTemperature(hass, r.room.areaId) : null));
     const awnings = this.rooms.map((r) => (r.room.awning ? coverOpen(hass, r.room.awning) : null));
-    const signature = JSON.stringify([lights, covers, contacts, temperatures, awnings]);
+    const signature = JSON.stringify([lights, lamps, covers, contacts, temperatures, awnings]);
     if (signature === this.stateSignature) return;
     this.stateSignature = signature;
+    this.lamps.forEach((l, i) => this.renderer!.setLamp(l.entity, lamps[i]));
     this.rooms.forEach((r, i) => {
       this.renderer!.setRoomLight(r.levelId, r.room.id, lights[i]);
       if (r.room.awning) this.renderer!.setAwning(r.levelId, r.room.id, awnings[i]);
@@ -309,6 +330,7 @@ export class HomesliceCard extends LitElement {
     await this.renderer.setHover(null);
     this.transitioning = true;
     this._labels = [];
+    this._lampButtons = [];
     await this.renderer.setFocus(index);
     this.transitioning = false;
     this.placeLabels();
@@ -321,9 +343,39 @@ export class HomesliceCard extends LitElement {
     return (level.floorId && this.hass?.floors?.[level.floorId]?.name) || level.name;
   }
 
+  /** The room's lights: its placed lamps (its area's and any added in the editor). */
+  private roomLights(key: string): string[] {
+    return this.lamps.filter((l) => `${l.levelId}/${l.roomId}` === key).map((l) => l.entity);
+  }
+
   private toggleLights(label: Label) {
-    if (!label.areaId || !this.hass) return;
-    void this.hass.callService("light", label.on ? "turn_off" : "turn_on", {}, { area_id: label.areaId });
+    const entity_id = this.roomLights(label.key);
+    if (!entity_id.length || !this.hass) return;
+    void this.hass.callService("light", label.on ? "turn_off" : "turn_on", {}, { entity_id });
+  }
+
+  private toggleLamp(lamp: LampButton) {
+    void this.hass?.callService("light", lamp.on ? "turn_off" : "turn_on", {}, { entity_id: lamp.entity });
+  }
+
+  /** Places the lamps; only redone when the house's lights or their areas change. */
+  private syncLamps(hass: Hass) {
+    if (!this.house) return;
+    const listed = listedLights(this.house);
+    const lamps = this.house.levels.flatMap((level) =>
+      level.rooms
+        .filter((room) => room.kind !== "void")
+        .flatMap((room) => {
+          const floor = room.kind === "room" ? innerPolygon(room.polygon, this.walls.get(level.id) ?? []) : room.polygon;
+          return placeLights(level.id, room, floor, room.areaId ? areaEntities(hass, room.areaId, "light") : [], listed);
+        }),
+    );
+    const signature = JSON.stringify(lamps);
+    if (signature === this.lampSignature) return;
+    this.lampSignature = signature;
+    this.lamps = lamps;
+    this.renderer?.setLamps(lamps);
+    this.stateSignature = ""; // lamps were rebuilt: apply their states again
   }
 
   // ----- popup -----
@@ -341,6 +393,7 @@ export class HomesliceCard extends LitElement {
     // the room's own blinds, contacts and awning, even when HA has them in no area
     const placed = [
       ...this.openings.filter((o) => o.levelId === r.levelId && o.room === r.room.id).flatMap((o) => [o.cover, o.contact]),
+      ...this.roomLights(key),
       r.room.awning,
     ].filter((e): e is string => !!e);
     const generated: { title: string; cards: Record<string, unknown>[] }[] =
@@ -459,6 +512,7 @@ export class HomesliceCard extends LitElement {
     if (!this.interactive || !this.renderer || this.transitioning) return;
     this.transitioning = true;
     this._labels = [];
+    this._lampButtons = [];
     await this.renderer.resetView();
     this.transitioning = false;
     this.placeLabels();
@@ -530,11 +584,28 @@ export class HomesliceCard extends LitElement {
         name: this.roomName(r),
         temperature: areaId ? areaTemperature(this.hass, areaId) : null,
         areaId,
-        hasLights: !!areaId && areaEntities(this.hass, areaId, "light").length > 0,
-        on: !!areaId && areaLight(this.hass, areaId) !== null,
+        hasLights: this.roomLights(r.key).length > 0,
+        on: lightsLook(this.hass, this.roomLights(r.key)) !== null,
       });
     }
     this._labels = labels;
+    // single lamps on the focused level, in rooms with more than one
+    const buttons: LampButton[] = [];
+    if (this._level && this.renderer.isLevelVisible(this._level)) {
+      const perRoom = new Map<string, number>();
+      for (const l of this.lamps) perRoom.set(`${l.levelId}/${l.roomId}`, (perRoom.get(`${l.levelId}/${l.roomId}`) ?? 0) + 1);
+      for (const l of this.lamps) {
+        if (l.levelId !== this._level || (perRoom.get(`${l.levelId}/${l.roomId}`) ?? 0) < 2) continue;
+        const p = this.renderer.project(l.levelId, l.at, 0.05);
+        if (!p) continue;
+        // keep clear of the room's label (lamp button over the name, centred on its point)
+        const label = labels.find((x) => x.key === `${l.levelId}/${l.roomId}`);
+        if (label && Math.abs(p.x - label.x) < 62 && Math.abs(p.y - label.y) < 64) p.y = label.y + (p.y < label.y ? -64 : 54);
+        const state = this.hass.states[l.entity];
+        buttons.push({ entity: l.entity, ...p, name: (state?.attributes.friendly_name as string | undefined) ?? l.entity, on: state?.state === "on" });
+      }
+    }
+    this._lampButtons = buttons;
   }
 
   protected override render() {
@@ -570,6 +641,17 @@ export class HomesliceCard extends LitElement {
                 ${l.temperature ? html`<span class="temp">${l.temperature}</span>` : nothing}
               </button>
             </div>`,
+          )}
+          ${this._lampButtons.map(
+            (b) => html`<button
+              class="lamp single ${b.on ? "on" : ""}"
+              style="left:${b.x}px;top:${b.y}px"
+              title=${b.name}
+              aria-label=${this.t(b.on ? "card.light_off" : "card.light_on", { light: b.name })}
+              @click=${() => this.toggleLamp(b)}
+            >
+              <ha-icon icon=${b.on ? "mdi:lightbulb-on" : "mdi:lightbulb-outline"}></ha-icon>
+            </button>`,
           )}
           ${this.house
             ? html`<nav class="levels">
@@ -722,6 +804,13 @@ export class HomesliceCard extends LitElement {
       cursor: pointer;
       padding: 0;
       --mdc-icon-size: 22px;
+    }
+    .lamp.single {
+      position: absolute;
+      transform: translate(-50%, -50%);
+      width: 30px;
+      height: 30px;
+      --mdc-icon-size: 17px;
     }
     .lamp.on {
       background: #ffcf6b;

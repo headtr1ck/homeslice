@@ -52,7 +52,12 @@ export interface RoomLight {
 
 /** Combined state of an area's lights: null when all are off. */
 export function areaLight(hass: Hass, areaId: string): RoomLight | null {
-  const on = areaEntities(hass, areaId, "light")
+  return lightsLook(hass, areaEntities(hass, areaId, "light"));
+}
+
+/** Combined state of some lights (one or more): null when all are off. */
+export function lightsLook(hass: Hass, entities: string[]): RoomLight | null {
+  const on = entities
     .map((id) => hass.states[id])
     .filter((s) => s?.state === "on");
   if (!on.length) return null;

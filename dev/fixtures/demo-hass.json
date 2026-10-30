@@ -126,6 +126,10 @@
     "cover.awning": {
       "entity_id": "cover.awning",
       "area_id": null
+    },
+    "light.reading_lamp": {
+      "entity_id": "light.reading_lamp",
+      "area_id": "living_room"
     }
   },
   "states": {
@@ -264,6 +268,13 @@
       "attributes": {
         "friendly_name": "Awning",
         "current_position": 60
+      }
+    },
+    "light.reading_lamp": {
+      "entity_id": "light.reading_lamp",
+      "state": "off",
+      "attributes": {
+        "friendly_name": "Reading lamp"
       }
     }
   }

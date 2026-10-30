@@ -25,6 +25,9 @@ import {
   addLevel,
   deleteLevel,
   newHouse,
+  placeLight,
+  setLightHidden,
+  removeLight,
   addStairs,
   updateStairs,
   deleteStairs,
@@ -288,5 +291,21 @@ describe("stairs", () => {
     model = setStairsRect(model, id, [5, 1, 3, 2]);
     expect(stairsRect(model, model.vertical![0])).toEqual([5, 1, 3, 2]);
     expect(deleteStairs(model, id).vertical).toBeUndefined();
+  });
+});
+
+describe("lights", () => {
+  it("places, moves between rooms, hides and removes lights", () => {
+    let m = placeLight(house(), "g", "left", "light.a", [1, 2]);
+    expect(rooms(m).left.lights).toEqual([{ entity: "light.a", at: [1, 2] }]);
+    m = placeLight(m, "g", "right", "light.a", [0.5, 0.5]);
+    expect(rooms(m).left.lights).toBeUndefined();
+    expect(rooms(m).right.lights).toEqual([{ entity: "light.a", at: [0.5, 0.5] }]);
+    m = placeLight(m, "g", "right", "light.a");
+    expect(rooms(m).right.lights).toEqual([{ entity: "light.a" }]);
+    m = setLightHidden(m, "g", "right", "light.a", true);
+    expect(rooms(m).right.lights).toEqual([{ entity: "light.a", hidden: true }]);
+    m = removeLight(m, "g", "right", "light.a");
+    expect(rooms(m).right.lights).toBeUndefined();
   });
 });

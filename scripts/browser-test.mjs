@@ -112,10 +112,10 @@ console.log("demo house");
     assert((await lamp(page, "Kitchen").count()) === 1, "no lamp button for the kitchen (light only has a device area)");
   });
 
-  await test("lamp button turns an area's lights on via the area target", async () => {
+  await test("lamp button turns the room's lights on", async () => {
     await act(page, () => lamp(page, "Kitchen").click());
     const last = (await calls(page)).at(-1);
-    assert(last.domain === "light" && last.service === "turn_on" && last.target.area_id === "kitchen", `unexpected call ${JSON.stringify(last)}`);
+    assert(last.domain === "light" && last.service === "turn_on" && JSON.stringify(last.target.entity_id) === '["light.kitchen"]', `unexpected call ${JSON.stringify(last)}`);
     assert((await state(page, "light.kitchen")) === "on", "kitchen light still off");
     assert(await lamp(page, "Kitchen").evaluate((b) => b.classList.contains("on")), "kitchen lamp button not shown as on");
     await shot(page, "demo-kitchen-on");
@@ -126,6 +126,13 @@ console.log("demo house");
     assert((await calls(page)).at(-1).service === "turn_off", "living room lamp should have turned lights off");
     assert((await state(page, "light.tablet_screen")) === "on", "hidden tablet screen light was switched off");
     assert(!(await lamp(page, "Living Room").evaluate((b) => b.classList.contains("on"))), "living room still shown as on (hidden light counted?)");
+  });
+
+  await test("lamps glow where they are and follow their light", async () => {
+    const lampState = (e) => page.evaluate((e) => window.card.renderer.lampState(e), e);
+    assert(JSON.stringify(await lampState("light.kitchen")) === '{"count":1,"on":true}', `kitchen lamp: ${JSON.stringify(await lampState("light.kitchen"))}`);
+    assert(JSON.stringify(await lampState("light.reading_lamp")) === '{"count":1,"on":false}', "reading lamp");
+    assert((await lampState("light.tablet_screen")) === null, "hidden light got a lamp");
   });
 
   await test("floor picker hides the floors above", async () => {
@@ -260,6 +267,17 @@ console.log("demo house");
     assert(text.includes("Nothing in this room"), `empty popup text: ${text}`);
     await page.locator("homeslice-card .backdrop").click({ position: { x: 5, y: 5 } });
     assert((await page.locator("homeslice-card .popup").count()) === 0, "popup still open after tapping outside");
+  });
+
+  await test("a focused floor shows a toggle per lamp in rooms with several lights", async () => {
+    await act(page, () => page.locator("homeslice-card nav.levels button", { hasText: "Ground Floor" }).click());
+    const buttons = page.locator("homeslice-card button.lamp.single");
+    assert((await buttons.count()) === 2, `lamp toggles: ${await buttons.count()}`);
+    await act(page, () => page.locator('homeslice-card button.lamp.single[title="Reading lamp"]').click());
+    assert((await state(page, "light.reading_lamp")) === "on", "reading lamp not switched on");
+    assert((await page.evaluate(() => window.card.renderer.lampState("light.reading_lamp"))).on, "reading lamp not drawn lit");
+    await shot(page, "demo-lamps");
+    await act(page, () => page.locator('homeslice-card button.lamp.single[title="Reading lamp"]').click());
   });
 
   await test("'All floors' returns to the overview camera", async () => {
@@ -671,6 +689,40 @@ console.log("editor");
     assert((await page.locator("homeslice-panel .inspector h2").textContent()) === "Stairs", "new stairs not selected");
     await page.keyboard.press("Delete");
     assert((await page.evaluate(() => window.panel._model.vertical.length)) === 1, "stairs not deleted");
+    assert(errors.length === 0, errors.join(" | "));
+  });
+
+  await test("objects mode: lights are placed automatically and can be dragged into another room", async () => {
+    await page.keyboard.press("Escape");
+    await page.locator("homeslice-panel .modes button", { hasText: "Objects" }).click();
+    const markers = page.locator("homeslice-panel svg.plan g.lamp-marker");
+    assert((await markers.count()) >= 3, `lamp markers: ${await markers.count()}`);
+    assert((await page.locator("homeslice-panel svg.plan g.lamp-marker.placed").count()) === 0, "nothing is placed yet");
+    const reading = page.locator('homeslice-panel svg.plan g.lamp-marker[data-light*="reading_lamp"] circle').first();
+    const box = await reading.boundingBox();
+    const kitchen = await page.locator('homeslice-panel svg.plan g[data-room="kitchen"] polygon').boundingBox();
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(kitchen.x + kitchen.width * 0.3, kitchen.y + kitchen.height * 0.4, { steps: 8 });
+    const hint = await page.locator("homeslice-panel .hint").textContent();
+    await page.mouse.up();
+    assert(hint.includes("Reading lamp") && hint.includes("Kitchen"), `hint: ${hint}`);
+    const k = await room("kitchen");
+    assert(k.lights?.[0]?.entity === "light.reading_lamp" && k.lights[0].at, `kitchen lights: ${JSON.stringify(k.lights)}`);
+    assert((await page.locator("homeslice-panel .inspector h2").textContent()) === "Kitchen", "kitchen not selected");
+    await shot(page, "editor-lights");
+    // back to automatic: it stays in the kitchen, spread with the kitchen's own light
+    await page.locator("homeslice-panel .inspector ul.lights li", { hasText: "Reading lamp" }).locator("button", { hasText: "Auto" }).click();
+    assert(JSON.stringify((await room("kitchen")).lights) === '[{"entity":"light.reading_lamp"}]', `after auto: ${JSON.stringify((await room("kitchen")).lights)}`);
+    // removing it sends it back to its own area's room
+    await page.locator("homeslice-panel .inspector ul.lights li", { hasText: "Reading lamp" }).locator("button", { hasText: "Remove" }).click();
+    assert(!(await room("kitchen")).lights, "kitchen still lists the lamp");
+    // hiding an area light
+    await page.locator("homeslice-panel .inspector ul.lights li").first().locator("button", { hasText: "Hide" }).click();
+    assert((await room("kitchen")).lights?.[0]?.hidden === true, "not hidden");
+    await page.locator("homeslice-panel .inspector ul.lights li.hidden button").click();
+    assert(!(await room("kitchen")).lights, "hidden entry not removed by Show");
+    await page.locator("homeslice-panel .modes button", { hasText: "Rooms" }).click();
     assert(errors.length === 0, errors.join(" | "));
   });
 

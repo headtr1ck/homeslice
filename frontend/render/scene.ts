@@ -106,6 +106,23 @@ function shapeOf(poly: Vec2[], holes: Vec2[][] = []): THREE.Shape {
   return shape;
 }
 
+/** A soft round spot of light: white in the middle, fading out to the edge. */
+function glowTexture(): THREE.Texture {
+  const size = 128;
+  const canvas = document.createElement("canvas");
+  canvas.width = canvas.height = size;
+  const ctx = canvas.getContext("2d")!;
+  const g = ctx.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
+  g.addColorStop(0, "rgba(255,255,255,0.75)");
+  g.addColorStop(0.45, "rgba(255,255,255,0.3)");
+  g.addColorStop(1, "rgba(255,255,255,0)");
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, size, size);
+  const t = new THREE.CanvasTexture(canvas);
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+
 function holesFor(level: Level, vertical: Vertical[]): Vec2[][] {
   // a stairwell cuts the floors it leads up to, not the one it starts on
   return vertical.filter((v) => level.index > v.from && level.index <= v.to).map(stairHole);
@@ -144,11 +161,16 @@ export class HouseRenderer {
   private sun = new THREE.DirectionalLight(0xffffff, 2.2);
   private view: ViewOptions = DEFAULT_VIEW;
   private levels: LevelState[] = [];
+
   private levelIds: string[] = [];
   /** Room floors keyed by `level/room`, each with its own material so it can glow. */
   private floors = new Map<string, THREE.Mesh<THREE.BufferGeometry, THREE.MeshLambertMaterial>>();
   private covers = new Map<string, CoverView>();
   private glasses = new Map<string, THREE.MeshLambertMaterial>();
+  /** Lamps by entity: the fitting and its pool of light on the floor. */
+  private lamps = new Map<string, THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>[]>();
+  private lampObjects: THREE.Object3D[] = [];
+  private glowTexture?: THREE.Texture;
   /** Awnings by "level/room": the fabric scales along its depth with the cover position. */
   private awnings = new Map<string, THREE.Mesh>();
   /** Upper parts of outer walls, hidden while they face a low camera. */
@@ -228,6 +250,8 @@ export class HouseRenderer {
     this.covers.clear();
     this.glasses.clear();
     this.awnings.clear();
+    this.lamps.clear();
+    this.lampObjects = [];
     this.cuttables = [];
   }
 
@@ -485,6 +509,59 @@ export class HouseRenderer {
     mesh.userData.outdoor = true;
     this.awnings.set(`${level.id}/${room.id}`, mesh);
     g.add(mesh);
+  }
+
+  /**
+   * Places the lamps (replacing the previous ones): a soft pool of light on the floor
+   * under each, shown while the light is on.
+   */
+  setLamps(lamps: { levelId: string; entity: string; at: Vec2 }[]) {
+    for (const o of this.lampObjects) {
+      o.removeFromParent();
+      if (o instanceof THREE.Mesh) o.geometry.dispose();
+    }
+    this.lampObjects = [];
+    this.lamps.clear();
+    this.glowTexture ??= glowTexture();
+    for (const lamp of lamps) {
+      const i = this.levelIds.indexOf(lamp.levelId);
+      const level = this.levels[i];
+      if (!level) continue;
+      const glow = new THREE.Mesh(
+        new THREE.CircleGeometry(1.2, 32).rotateX(-Math.PI / 2),
+        new THREE.MeshBasicMaterial({ map: this.glowTexture, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }),
+      );
+      glow.position.set(lamp.at[0], 0.02, lamp.at[1]);
+      glow.visible = false;
+      glow.renderOrder = 2;
+      glow.userData.outdoor = true; // not a tap target for rooms
+      level.group.add(glow);
+      level.materials.add(glow.material);
+      this.lampObjects.push(glow);
+      this.applyLevel(level);
+      const list = this.lamps.get(lamp.entity) ?? [];
+      list.push(glow);
+      this.lamps.set(lamp.entity, list);
+    }
+  }
+
+  /** A lamp's light: colour and brightness, or null when off. */
+  setLamp(entity: string, light: LightLook | null) {
+    for (const glow of this.lamps.get(entity) ?? []) {
+      if (!light) {
+        glow.visible = false;
+        continue;
+      }
+      const c = new THREE.Color().setRGB(light.rgb[0] / 255, light.rgb[1] / 255, light.rgb[2] / 255, THREE.SRGBColorSpace);
+      glow.material.color.copy(c).multiplyScalar(0.35 + 0.65 * light.brightness);
+      glow.visible = true;
+    }
+  }
+
+  /** For tests: whether a lamp is drawn lit. */
+  lampState(entity: string) {
+    const l = this.lamps.get(entity);
+    return l ? { count: l.length, on: l.some((x) => x.visible) } : null;
   }
 
   /** Awning position: 1 fully extended, 0 retracted, null unknown (drawn retracted). */

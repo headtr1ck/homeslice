@@ -6,15 +6,19 @@ import { LitElement, css, html, nothing, svg, type PropertyValues } from "lit";
 import { areaEntities, type Hass } from "../ha/hass";
 import { localize, type StringKey } from "../i18n/localize";
 import { expandHouse } from "../model/expand";
-import { labelPoint } from "../model/geometry";
+import { bbox, labelPoint, pointInPolygon } from "../model/geometry";
 import type { HouseInput, Issue, OpeningInput, OpeningSource, OpeningType, RoomInput, Side, Vec2, Vertical } from "../model/types";
 import { deriveWalls, innerPolygon, sideOfRoom, type Wall } from "../model/walls";
 import { HouseRenderer } from "../render/scene";
 import { stairFrame, stairHole } from "../model/stairs";
+import { listedLights, placeLights, type PlacedLight } from "../model/lights";
 import {
   History,
   addOpening,
   addRoom,
+  placeLight,
+  removeLight,
+  setLightHidden,
   addStairs,
   deleteStairs,
   setStairsRect,
@@ -62,6 +66,7 @@ type Drag =
   | { kind: "rect"; start: Vec2; ctx: SnapContext }
   | { kind: "stair-move"; origin: HouseInput; id: string; rect: [number, number, number, number]; startWorld: Vec2; ctx: SnapContext; moved: boolean }
   | { kind: "stair-resize"; origin: HouseInput; id: string; fixed: Vec2; ctx: SnapContext }
+  | { kind: "light"; origin: HouseInput; entity: string; room: string; startWorld: Vec2; ctx: SnapContext; moved: boolean }
   | { kind: "wall"; origin: HouseInput; a: Vec2; b: Vec2; startWorld: Vec2; normal: Vec2; thickness: number; faces: number[] }
   | { kind: "opening"; origin: HouseInput; src: OpeningSource; axis: 0 | 1; startWorld: Vec2; at: number; snaps: OpeningSnaps };
 
@@ -472,6 +477,21 @@ export class HomeslicePanel extends LitElement {
       return;
     }
     if (this._mode === "objects") {
+      const hitLight = target.closest("[data-light]") as SVGElement | null;
+      if (hitLight) {
+        const { entity, room } = JSON.parse(hitLight.dataset.light!) as { entity: string; room: string };
+        const lamps = this.levelLamps();
+        const ctx = this.snapContext();
+        // line up with the other lamps and the rooms' centres
+        const extra = [...lamps.filter((x) => x.entity !== entity).map((x) => x.at), ...(this.levelInput?.rooms ?? []).map((r) => labelPoint(this.inner(r)))];
+        ctx.points = extra;
+        ctx.align = { x: extra.map((p) => p[0]), y: extra.map((p) => p[1]) };
+        this._room = room;
+        this._drag = { kind: "light", origin: clone(this._model), entity, room, startWorld: world, ctx, moved: false };
+        return;
+      }
+      const roomId = (target.closest("[data-room]") as SVGElement | null)?.dataset.room;
+      this._room = roomId ?? null;
       this._drag = { kind: "pan", start: this.eventScreen(e), offset: [this._view.ox, this._view.oy] };
       return;
     }
@@ -557,6 +577,20 @@ export class HomeslicePanel extends LitElement {
       const delta: Vec2 = [drag.normal[0] * snappedAlong, drag.normal[1] * snappedAlong];
       this._model = moveEdge(drag.origin, this._level, drag.a, drag.b, delta);
       this._hint = { x: screen[0], y: screen[1], lines: [this.moveReadout(delta), ...this.roomReadout()] };
+      return;
+    }
+    if (drag.kind === "light") {
+      if (!drag.moved && Math.hypot(world[0] - drag.startWorld[0], world[1] - drag.startWorld[1]) * this._view.scale < 4) return;
+      drag.moved = true;
+      const s = snapped(world, drag.ctx);
+      const rooms = (this.levelInput?.rooms ?? []).filter((r) => r.kind !== "void");
+      const room = rooms.find((r) => pointInPolygon(s.p, roomPolygon(this._model!, r))) ?? rooms.find((r) => r.id === drag.room);
+      if (!room) return;
+      const { min } = bbox(roomPolygon(this._model!, room));
+      this._guides = { x: s.alignX, y: s.alignY, ring: s.target };
+      this._model = placeLight(drag.origin, this._level, room.id, drag.entity, [s.p[0] - min[0], s.p[1] - min[1]]);
+      this._room = room.id;
+      this._hint = { x: screen[0], y: screen[1], lines: [this.entityName(drag.entity), `→ ${this.roomName(room)}`] };
       return;
     }
     if (drag.kind === "stair-move") {
@@ -647,7 +681,7 @@ export class HomeslicePanel extends LitElement {
     this._hint = null;
     this._guides = null;
     if (!drag || !this._model) return;
-    if (drag.kind === "vertex" || drag.kind === "edge" || drag.kind === "opening" || drag.kind === "wall" || drag.kind === "stair-move" || drag.kind === "stair-resize") {
+    if (drag.kind === "vertex" || drag.kind === "edge" || drag.kind === "opening" || drag.kind === "wall" || drag.kind === "stair-move" || drag.kind === "stair-resize" || drag.kind === "light") {
       if (JSON.stringify(drag.origin) !== JSON.stringify(this._model)) this.commit(this._model, drag.origin);
     } else if (drag.kind === "rect" && this._rectPreview && this._tool === "stairs") {
       const [[x0, y0], , [x1, y1]] = this._rectPreview;
@@ -927,7 +961,7 @@ export class HomeslicePanel extends LitElement {
           ${this._hint
             ? html`<div class="hint" style="left:${this._hint.x + 16}px;top:${this._hint.y + 16}px">${this._hint.lines.map((l) => html`<div>${l}</div>`)}</div>`
             : nothing}
-          <div class="help">${this.t(this._mode === "openings" ? "editor.openings_hint" : this._mode === "objects" ? "editor.objects_soon" : this._tool === "rect" ? "editor.help_rect" : this._tool === "stairs" ? "editor.help_stairs" : "editor.help_select")}${this._pendingArea && this._tool === "rect" ? html` <b>${this.t("editor.drawing_for", { area: this._hass?.areas?.[this._pendingArea]?.name ?? this._pendingArea })}</b>` : nothing}</div>
+          <div class="help">${this.t(this._mode === "openings" ? "editor.openings_hint" : this._mode === "objects" ? "editor.help_objects" : this._tool === "rect" ? "editor.help_rect" : this._tool === "stairs" ? "editor.help_stairs" : "editor.help_select")}${this._pendingArea && this._tool === "rect" ? html` <b>${this.t("editor.drawing_for", { area: this._hass?.areas?.[this._pendingArea]?.name ?? this._pendingArea })}</b>` : nothing}</div>
         </section>
         <section class="side">
           <canvas
@@ -985,8 +1019,11 @@ export class HomeslicePanel extends LitElement {
         const at = this.toScreen(labelPoint(poly));
         return svg`<g data-room=${r.id}>
           <polygon class="room ${r.kind ?? "room"} ${r.id === this._room ? "selected" : ""}" points=${pts(poly)} fill=${PLAN_COLORS[r.floor ?? (r.kind === "outdoor" ? "lawn" : "wood")] ?? PLAN_COLORS.wood}></polygon>
-          <text class="room-name" x=${at[0]} y=${at[1] - 2} text-anchor="middle">${this.roomName(r)}</text>
-          <text class="room-area" x=${at[0]} y=${at[1] + 13} text-anchor="middle">${area(poly).toFixed(1)} m²</text>
+          ${this._mode === "objects"
+            ? // lamps sit at the room's centre: the name goes below them
+              svg`<text class="room-name" x=${at[0]} y=${at[1] + 26} text-anchor="middle">${this.roomName(r)}</text>`
+            : svg`<text class="room-name" x=${at[0]} y=${at[1] - 2} text-anchor="middle">${this.roomName(r)}</text>
+                <text class="room-area" x=${at[0]} y=${at[1] + 13} text-anchor="middle">${area(poly).toFixed(1)} m²</text>`}
         </g>`;
       })}
       ${[...walls]
@@ -1006,10 +1043,46 @@ export class HomeslicePanel extends LitElement {
           </g>`;
         })}
       ${this._stair && this._mode === "rooms" ? this.renderStairHandles() : nothing}
+      ${this._mode === "objects" ? this.renderLamps() : nothing}
       ${selPoly.length && this._mode === "rooms" ? this.renderHandles(selPoly, selected ? this.inner(selected, walls) : selPoly) : nothing}
       ${this._rectPreview ? svg`<polygon class="rect-preview" points=${pts(this._rectPreview)}></polygon>` : nothing}
       ${this.renderGuides()}
     </svg>`;
+  }
+
+  /** Lamps on this level: placed ones and the area lights spread automatically. */
+  private levelLamps(): PlacedLight[] {
+    const m = this._model;
+    if (!m) return [];
+    const { house } = expandHouse(m);
+    const level = house?.levels.find((l) => l.id === this._level);
+    if (!house || !level) return [];
+    const walls = deriveWalls(level, house.walls, []);
+    const listed = listedLights(house);
+    const hass = this._hass;
+    return level.rooms
+      .filter((r) => r.kind !== "void")
+      .flatMap((r) =>
+        placeLights(level.id, r, r.kind === "room" ? innerPolygon(r.polygon, walls) : r.polygon, r.areaId && hass ? areaEntities(hass, r.areaId, "light") : [], listed),
+      );
+  }
+
+  private entityName(id: string) {
+    return (this._hass?.states[id]?.attributes.friendly_name as string | undefined) ?? id;
+  }
+
+  private renderLamps() {
+    return svg`${this.levelLamps().map((l) => {
+      const [x, y] = this.toScreen(l.at);
+      const on = this._hass?.states[l.entity]?.state === "on";
+      const sel = this._room === l.roomId;
+      return svg`<g class="lamp-marker ${l.auto ? "auto" : "placed"} ${on ? "on" : ""} ${sel ? "selected" : ""}" data-light=${JSON.stringify({ entity: l.entity, room: l.roomId })}>
+        <circle cx=${x} cy=${y} r="10"></circle>
+        <path d="M ${x - 3.5} ${y + 5} h 7 M ${x - 2.5} ${y + 7.5} h 5" class="base"></path>
+        <circle cx=${x} cy=${y - 1.5} r="4.5" class="bulb"></circle>
+        <title>${this.entityName(l.entity)}${l.auto ? ` (${this.t("editor.light_auto")})` : ""}</title>
+      </g>`;
+    })}`;
   }
 
   /** The walking line of a stair, from its first step up (for the arrow on the plan). */
@@ -1113,7 +1186,7 @@ export class HomeslicePanel extends LitElement {
     const m = this._model!;
     const l = this.levelInput;
     if (!l) return nothing;
-    if (this._mode === "objects") return html`<h2>${this.t("editor.mode_objects")}</h2><p class="muted">${this.t("editor.objects_soon")}</p>`;
+    if (this._mode === "objects") return this.renderObjectsInspector();
     if (this._mode === "openings") {
       if (this._opening) return this.renderOpeningInspector(this._opening);
       return html`<h2>${this.t("editor.mode_openings")}</h2><p class="muted">${this.t("editor.openings_hint")}</p>`;
@@ -1421,6 +1494,45 @@ export class HomeslicePanel extends LitElement {
         ${ids.map((id) => html`<option value=${id} ?selected=${value === id}>${own.has(id) ? `★ ${name(id)}` : name(id)}</option>`)}
       </select>
     </label>`;
+  }
+
+  private renderObjectsInspector() {
+    const m = this._model!;
+    const lamps = this.levelLamps();
+    const r = this.levelInput?.rooms.find((x) => x.id === this._room);
+    if (!r) {
+      const auto = lamps.filter((l) => l.auto).length;
+      return html`<h2>${this.t("editor.mode_objects")}</h2>
+        <p class="muted">${this.t("editor.objects_hint")}</p>
+        <p class="muted">${this.t("editor.lights_count", { count: lamps.length, auto })}</p>`;
+    }
+    const own = lamps.filter((l) => l.roomId === r.id);
+    const hidden = (r.lights ?? []).filter((l) => l.hidden);
+    const areaLights = new Set(r.area_id && this._hass ? areaEntities(this._hass, r.area_id, "light") : []);
+    const shown = new Set([...own.map((l) => l.entity), ...hidden.map((l) => l.entity)]);
+    return html`<h2>${this.roomName(r)}</h2>
+      <h3>${this.t("editor.lights")}</h3>
+      ${own.length || hidden.length
+        ? html`<ul class="lights">
+            ${own.map(
+              (l) => html`<li>
+                <span class="name">${this.entityName(l.entity)}<small class="muted">${l.auto ? this.t("editor.light_auto") : this.t("editor.light_placed")}</small></span>
+                ${l.auto ? nothing : html`<button title=${this.t("editor.light_reset_hint")} @click=${() => this.commit(placeLight(m, this._level, r.id, l.entity))}>${this.t("editor.light_reset")}</button>`}
+                ${areaLights.has(l.entity)
+                  ? html`<button @click=${() => this.commit(setLightHidden(m, this._level, r.id, l.entity, true))}>${this.t("editor.light_hide")}</button>`
+                  : html`<button @click=${() => this.commit(removeLight(m, this._level, r.id, l.entity))}>${this.t("editor.light_remove")}</button>`}
+              </li>`,
+            )}
+            ${hidden.map(
+              (l) => html`<li class="hidden">
+                <span class="name">${this.entityName(l.entity)}<small class="muted">${this.t("editor.light_hidden")}</small></span>
+                <button @click=${() => this.commit(removeLight(m, this._level, r.id, l.entity))}>${this.t("editor.light_show")}</button>
+              </li>`,
+            )}
+          </ul>`
+        : html`<p class="muted">${this.t("editor.no_lights")}</p>`}
+      ${this.entitySelect(this.t("editor.light_add"), "light", r.area_id, undefined, (entity) => entity && this.commit(placeLight(m, this._level, r.id, entity)), (id) => !shown.has(id))}
+      <p class="muted">${this.t("editor.lights_hint")}</p>`;
   }
 
   private renderStairInspector(id: string) {
@@ -1793,6 +1905,55 @@ export class HomeslicePanel extends LitElement {
       stroke: #6b747c;
       stroke-dasharray: 3 3;
       pointer-events: none;
+    }
+    .lamp-marker {
+      cursor: grab;
+    }
+    .mode-objects .wall-hit {
+      pointer-events: none;
+    }
+    .lamp-marker circle:first-child {
+      fill: rgba(20, 24, 28, 0.85);
+      stroke: #c9d1d9;
+      stroke-width: 1.5;
+    }
+    .lamp-marker.auto circle:first-child {
+      stroke-dasharray: 3 2;
+    }
+    .lamp-marker.selected circle:first-child {
+      stroke: var(--accent);
+      stroke-width: 2.5;
+    }
+    .lamp-marker .bulb {
+      fill: #8d949b;
+    }
+    .lamp-marker .base {
+      stroke: #8d949b;
+      stroke-width: 1.5;
+    }
+    .lamp-marker.on .bulb {
+      fill: #ffcf6b;
+    }
+    ul.lights {
+      list-style: none;
+      padding: 0;
+      margin: 0 0 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    ul.lights li {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    ul.lights li .name {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+    ul.lights li.hidden .name {
+      opacity: 0.6;
     }
     .stair-hit {
       fill: transparent;

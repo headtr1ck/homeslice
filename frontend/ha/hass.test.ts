@@ -9,7 +9,7 @@ describe("HA helpers", () => {
   it("finds area entities directly and through devices, skipping hidden and diagnostic ones", () => {
     const h = hass();
     expect(areaEntities(h, "kitchen", "light")).toEqual(["light.kitchen"]);
-    expect(areaEntities(h, "living_room", "light")).toEqual(["light.living_room"]);
+    expect(areaEntities(h, "living_room", "light")).toEqual(["light.living_room", "light.reading_lamp"]);
     expect(areaEntities(h, "bedroom", "sensor")).toEqual(["sensor.bedroom_temperature"]);
   });
 
@@ -36,6 +36,9 @@ describe("HA helpers", () => {
   it("groups popup cards like HA's area views", () => {
     const sections = areaPopup(hass(), "living_room");
     expect(sections.map((s) => s.title)).toEqual(["lights", "covers", "climate", "media", "sensors"]);
-    expect(sections[0].cards).toEqual([{ type: "tile", entity: "light.living_room", features: [{ type: "light-brightness" }] }]);
+    expect(sections[0].cards).toEqual([
+      { type: "tile", entity: "light.living_room", features: [{ type: "light-brightness" }] },
+      { type: "tile", entity: "light.reading_lamp", features: [{ type: "light-brightness" }] },
+    ]);
   });
 });
