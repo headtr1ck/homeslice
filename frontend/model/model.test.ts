@@ -81,6 +81,20 @@ describe("expandHouse", () => {
     expect(y(1)).toBeCloseTo(2);
   });
 
+  it("expands stair shapes with sensible defaults and checks directions", () => {
+    const input = twoRooms();
+    input.levels.push({ id: "first", rooms: [{ id: "a", rect: [0, 0, 10, 8] }] });
+    input.vertical = [
+      { id: "s", rect: [6, 3, 3, 2], from: "ground", to: "first" },
+      { id: "u", rect: [1, 1, 3, 2], from: "ground", to: "first", shape: "u_turn", up: "west", start: "north" },
+    ];
+    const v = expand(input).vertical;
+    expect(v[0]).toMatchObject({ shape: "straight", up: "east", start: "south" });
+    expect(v[1]).toMatchObject({ shape: "u_turn", up: "west", start: "north" });
+    input.vertical = [{ id: "bad", rect: [1, 1, 3, 2], from: "ground", to: "first", shape: "u_turn", up: "east", start: "west" }];
+    expect(expandHouse(input).issues[0].message).toBe('start must be north or south for a stair climbing east, got "west".');
+  });
+
   it("resolves grid names and stores polygons positively oriented", () => {
     const input = twoRooms();
     input.grid = { x: { A: 0, B: 5 }, y: { "1": 0, "2": 8 } };

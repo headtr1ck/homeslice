@@ -80,6 +80,8 @@ const COLORS = {
   wall: "#eeeae3",
   slab: "#6f7275",
   stairs: "#d8d3ca",
+  tread: "#c9965c",
+  steel: "#3b4046",
   glass: "#9cc8ee",
   glassOpen: "#ffb05c",
   garageDoor: "#7d858d",
@@ -339,24 +341,85 @@ export class HouseRenderer {
     return m;
   }
 
+  /**
+   * One flight of stairs up to the next level: open wooden treads on dark steel. A
+   * u_turn stair has two flights side by side, joined by winders, with a screen of bars
+   * between them.
+   */
   private stairs(v: Vertical, level: Level): THREE.Group {
     const g = new THREE.Group();
     const { min, max } = bbox(v.polygon);
-    // up to the ceiling: the real rise to the next floor would poke out above the walls
-    const rise = level.height;
-    const n = Math.max(2, Math.round(rise / 0.18));
-    const alongX = max[0] - min[0] >= max[1] - min[1];
-    const run = alongX ? max[0] - min[0] : max[1] - min[1];
-    const width = (alongX ? max[1] - min[1] : max[0] - min[0]) * 0.45;
-    const mat = this.lambert(COLORS.stairs);
-    for (let i = 0; i < n; i++) {
-      const h = ((i + 1) * rise) / n;
-      const depth = run / n;
-      const m = this.mesh(new THREE.BoxGeometry(alongX ? depth : width, h, alongX ? width : depth), mat);
-      const along = (alongX ? min[0] : min[1]) + depth * (i + 0.5);
-      const across = alongX ? max[1] - width / 2 : max[0] - width / 2;
-      m.position.set(alongX ? along : across, h / 2, alongX ? across : along);
-      g.add(m);
+    // local frame: u along the climb, w across the stairwell from the start side
+    const dirs: Record<string, Vec2> = { north: [0, -1], south: [0, 1], east: [1, 0], west: [-1, 0] };
+    const d = dirs[v.up];
+    const e: Vec2 = [-dirs[v.start][0], -dirs[v.start][1]];
+    const ox = d[0] !== 0 ? (d[0] > 0 ? min[0] : max[0]) : e[0] > 0 ? min[0] : max[0];
+    const oy = d[1] !== 0 ? (d[1] > 0 ? min[1] : max[1]) : e[1] > 0 ? min[1] : max[1];
+    const L = d[0] !== 0 ? max[0] - min[0] : max[1] - min[1];
+    const W = d[0] !== 0 ? max[1] - min[1] : max[0] - min[0];
+    const plan = ([u, w]: Vec2): Vec2 => [ox + d[0] * u + e[0] * w, oy + d[1] * u + e[1] * w];
+
+    const rise = level.height; // up to the ceiling: the real rise would poke out above the walls
+    const n = Math.max(3, Math.round(rise / 0.19));
+    const step = rise / n;
+    const treads: { poly: Vec2[]; top: number }[] = [];
+    const rect = (u0: number, u1: number, w0: number, w1: number): Vec2[] => [[u0, w0], [u1, w0], [u1, w1], [u0, w1]];
+
+    if (v.shape === "u_turn") {
+      const fw = W / 2; // flight width
+      const S = Math.max(0.5, L - fw); // straight part; the turn takes a square at the far end
+      const k = Math.min(6, Math.max(3, Math.round(n / 3))); // winders over 180°
+      const a = Math.ceil((n - k) / 2);
+      const b = n - k - a;
+      for (let i = 0; i < a; i++) treads.push({ poly: rect((i * S) / a, ((i + 1) * S) / a, 0, fw), top: (i + 1) * step });
+      // winders: wedges around the turn's pivot, clipped to the stairwell's far end
+      const pivot: Vec2 = [S, W / 2];
+      const hit = (deg: number): Vec2 => {
+        const r = THREE.MathUtils.degToRad(deg);
+        const du = Math.cos(r);
+        const dw = Math.sin(r);
+        const t = Math.min(du > 1e-6 ? (L - S) / du : Infinity, dw > 1e-6 ? (W - pivot[1]) / dw : dw < -1e-6 ? -pivot[1] / dw : Infinity);
+        return [pivot[0] + du * t, pivot[1] + dw * t];
+      };
+      const corners: [number, Vec2][] = [
+        [-Math.atan2(W / 2, L - S) * (180 / Math.PI), [L, 0]],
+        [Math.atan2(W / 2, L - S) * (180 / Math.PI), [L, W]],
+      ];
+      for (let j = 0; j < k; j++) {
+        const a0 = -90 + (180 * j) / k;
+        const a1 = -90 + (180 * (j + 1)) / k;
+        const poly: Vec2[] = [pivot, hit(a0), ...corners.filter(([deg]) => deg > a0 && deg < a1).map(([, p]) => p), hit(a1)];
+        treads.push({ poly, top: (a + j + 1) * step });
+      }
+      for (let m = 0; m < b; m++) treads.push({ poly: rect(S - ((m + 1) * S) / b, S - (m * S) / b, W - fw, W), top: (a + k + m + 1) * step });
+    } else {
+      const width = W * 0.9;
+      for (let i = 0; i < n; i++) treads.push({ poly: rect((i * L) / n, ((i + 1) * L) / n, (W - width) / 2, (W + width) / 2), top: (i + 1) * step });
+    }
+
+    const wood = this.lambert(COLORS.tread);
+    const steel = this.lambert(COLORS.steel);
+    for (const t of treads) {
+      const poly = t.poly.map(plan);
+      const tread = new THREE.ExtrudeGeometry(shapeOf(normalize(poly)), { depth: 0.05, bevelEnabled: false });
+      tread.rotateX(-Math.PI / 2);
+      tread.translate(0, t.top - 0.05, 0);
+      g.add(this.mesh(tread, wood));
+      // dark steel carrier under the tread
+      const carrier = new THREE.ExtrudeGeometry(shapeOf(normalize(shrink(poly, 0.06))), { depth: 0.04, bevelEnabled: false });
+      carrier.rotateX(-Math.PI / 2);
+      carrier.translate(0, t.top - 0.09, 0);
+      g.add(this.mesh(carrier, steel));
+    }
+    if (v.shape === "u_turn") {
+      // screen of vertical bars between the two flights
+      const S = Math.max(0.5, L - W / 2);
+      for (let u = 0.06; u < S; u += 0.11) {
+        const [x, y] = plan([u, W / 2]);
+        const bar = this.mesh(new THREE.BoxGeometry(0.03, rise, 0.03), steel);
+        bar.position.set(x, rise / 2, y);
+        g.add(bar);
+      }
     }
     return g;
   }
@@ -725,6 +788,29 @@ export class HouseRenderer {
     this.clear();
     this.renderer.dispose();
   }
+}
+
+/** Counter-clockwise copy, as three.js shapes expect consistent winding. */
+function normalize(poly: Vec2[]): Vec2[] {
+  let area = 0;
+  for (let i = 0; i < poly.length; i++) {
+    const [x0, y0] = poly[i];
+    const [x1, y1] = poly[(i + 1) % poly.length];
+    area += x0 * y1 - x1 * y0;
+  }
+  return area < 0 ? [...poly].reverse() : poly;
+}
+
+/** Moves every point towards the centroid by `by` metres (rough inset for carriers). */
+function shrink(poly: Vec2[], by: number): Vec2[] {
+  const [cx, cy] = centroid(poly);
+  return poly.map(([x, y]) => {
+    const dx = x - cx;
+    const dy = y - cy;
+    const l = Math.hypot(dx, dy) || 1;
+    const k = Math.max(0, l - by) / l;
+    return [cx + dx * k, cy + dy * k] as Vec2;
+  });
 }
 
 function centroid(poly: Vec2[]): Vec2 {

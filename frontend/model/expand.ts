@@ -13,6 +13,7 @@ import type {
   OpeningType,
   Room,
   ShapeInput,
+  Side,
   Vec2,
   Vertical,
   WallThickness,
@@ -224,7 +225,15 @@ export function expandHouse(input: unknown): ExpandResult {
     if (to === undefined) err(vp, `Unknown level "${vi.to}" in to.`);
     if (!polygon || from === undefined || to === undefined) return;
     if (to <= from) return err(vp, "to must be a level above from.");
-    vertical.push({ id: vi.id, kind: vi.kind ?? "stairs", polygon, from, to });
+    const stairShape = vi.shape ?? "straight";
+    if (stairShape !== "straight" && stairShape !== "u_turn") return err(vp, `shape must be straight or u_turn, got "${stairShape}".`);
+    const { min, max } = bbox(polygon);
+    const up = vi.up ?? (max[0] - min[0] >= max[1] - min[1] ? "east" : "south");
+    if (!SIDES.includes(up)) return err(vp, `up must be one of ${SIDES.join(", ")}, got "${up}".`);
+    const across: Side[] = up === "east" || up === "west" ? ["north", "south"] : ["east", "west"];
+    const start = vi.start ?? across[1];
+    if (!across.includes(start)) return err(vp, `start must be ${across.join(" or ")} for a stair climbing ${up}, got "${start}".`);
+    vertical.push({ id: vi.id, kind: vi.kind ?? "stairs", polygon, from, to, shape: stairShape, up, start });
   });
 
   if (issues.some((i) => i.severity === "error")) return { house: null, issues };

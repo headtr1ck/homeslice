@@ -77,11 +77,19 @@ export interface FacadeOpeningInput {
   contacts?: Record<string, string>;
 }
 
+export type StairShape = "straight" | "u_turn";
+
 export interface VerticalInput extends ShapeInput {
   id: string;
   kind?: "stairs" | "shaft";
   from: string;
   to: string;
+  /** `straight` (default) or `u_turn`: two flights side by side, joined by winders. */
+  shape?: StairShape;
+  /** Compass direction the first flight climbs towards (default: along the longer side). */
+  up?: Side;
+  /** u_turn: the side of the stairwell the first flight runs along. */
+  start?: Side;
 }
 
 export interface HouseInput {
@@ -151,6 +159,9 @@ export interface Vertical {
   polygon: Vec2[];
   from: number;
   to: number;
+  shape: StairShape;
+  up: Side;
+  start: Side;
 }
 
 export interface House {
