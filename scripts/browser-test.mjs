@@ -389,6 +389,93 @@ console.log("demo house, per-level camera");
   await page.close();
 }
 
+console.log(results.splice(0).join("\n"));
+console.log("editor");
+{
+  const page = await browser.newPage({ viewport: { width: 1600, height: 900 } });
+  const errors = [];
+  page.on("pageerror", (e) => errors.push(e.message));
+  page.on("console", (m) => m.type() === "error" && errors.push(m.text()));
+  await page.goto(`${base}/dev/harness.html`);
+  await page.waitForFunction(() => window.ready);
+  await page.evaluate((f) => window.setupPanel(f), loadFixture("dev/fixtures/demo-hass.json"));
+  const model = () => page.evaluate(() => window.panel._model);
+  const room = async (id) => (await model()).levels[0].rooms.find((r) => r.id === id);
+
+  await test("opens the house on the ground floor with names, areas and a 3D preview", async () => {
+    const names = await page.locator("homeslice-panel svg.plan text.room-name").allTextContents();
+    assert(names.includes("Living Room") && names.includes("Kitchen") && !names.includes("Bedroom"), `plan labels: ${names.join(", ")}`);
+    const areas = await page.locator("homeslice-panel svg.plan text.room-area").allTextContents();
+    assert(areas.includes("20.0 m²"), `kitchen area missing: ${areas.join(", ")}`);
+    await page.waitForFunction(() => window.panel.renderer?.renderer.info.render.triangles > 100, null, { timeout: 10000 });
+    await shot(page, "editor-open");
+  });
+
+  await test("selecting a room shows its handles and inspector", async () => {
+    await page.locator('homeslice-panel svg.plan g[data-room="kitchen"] text.room-name').click({ force: true });
+    await page.locator('homeslice-panel svg.plan g[data-room="kitchen"] polygon').click({ position: { x: 30, y: 30 } });
+    assert((await page.locator("homeslice-panel .inspector h2").textContent()) === "Kitchen", "inspector does not show the kitchen");
+    assert((await page.locator("homeslice-panel svg.plan circle.vertex").count()) === 4, "kitchen should have 4 corner handles");
+  });
+
+  await test("dragging a shared wall moves both rooms; undo and redo", async () => {
+    // the wall between hall (x 0–3) and kitchen (x 3–8)
+    const handle = page.locator('homeslice-panel svg.plan rect.edge-handle[data-at="[[3,4],[3,0]]"], homeslice-panel svg.plan rect.edge-handle[data-at="[[3,0],[3,4]]"]');
+    const box = await handle.boundingBox();
+    assert(box, "no handle on the hall/kitchen wall");
+    const scale = await page.evaluate(() => window.panel._view.scale);
+    await page.mouse.move(box.x + 5, box.y + 5);
+    await page.mouse.down();
+    await page.mouse.move(box.x + 5 + scale * 0.5, box.y + 5, { steps: 6 });
+    const hint = await page.locator("homeslice-panel .hint").textContent();
+    await page.mouse.up();
+    assert(hint.includes("+0.50 m"), `drag readout: ${hint}`);
+    assert(JSON.stringify((await room("kitchen")).rect) === "[3.5,0,4.5,4]", `kitchen: ${JSON.stringify(await room("kitchen"))}`);
+    assert(JSON.stringify((await room("hall")).rect) === "[0,0,3.5,4]", `hall: ${JSON.stringify(await room("hall"))}`);
+    assert(await page.locator("homeslice-panel button.save.dirty").count(), "not marked as unsaved");
+    await shot(page, "editor-wall-moved");
+    await page.keyboard.press("Control+z");
+    assert(JSON.stringify((await room("kitchen")).rect) === "[3,0,5,4]", "undo did not restore the kitchen");
+    await page.keyboard.press("Control+Shift+z");
+    assert(JSON.stringify((await room("kitchen")).rect) === "[3.5,0,4.5,4]", "redo did not reapply the move");
+  });
+
+  await test("drawing a room and linking it to an area", async () => {
+    await page.keyboard.press("Escape");
+    await page.keyboard.press("r");
+    const toScreen = (p) => page.evaluate((p) => {
+      const v = window.panel._view;
+      const r = window.panel.shadowRoot.querySelector("svg.plan").getBoundingClientRect();
+      return [r.left + p[0] * v.scale + v.ox, r.top + p[1] * v.scale + v.oy];
+    }, p);
+    const [x0, y0] = await toScreen([0, 15.5]);
+    const [x1, y1] = await toScreen([4, 18]);
+    await page.mouse.move(x0, y0);
+    await page.mouse.down();
+    await page.mouse.move(x1, y1, { steps: 8 });
+    await page.mouse.up();
+    const added = await room("room");
+    assert(JSON.stringify(added?.rect) === "[0,15.5,4,2.5]", `new room: ${JSON.stringify(added)}`);
+    await page.locator("homeslice-panel .inspector select").first().selectOption("garden");
+    assert((await room("room")).area_id === "garden", "area not linked");
+  });
+
+  await test("saving stores the model in HA", async () => {
+    await page.locator("homeslice-panel button.save").click();
+    const saved = await page.evaluate(() => window.panel.hass.saved.length);
+    assert(saved === 1, `${saved} saves`);
+    assert((await page.locator("homeslice-panel button.save").textContent()).trim() === "Saved", "save button doesn't say Saved");
+  });
+
+  await test("Delete removes the selected room", async () => {
+    await page.keyboard.press("Delete");
+    assert(!(await room("room")), "room still there");
+    assert(await page.locator("homeslice-panel button.save.dirty").count(), "delete not marked as unsaved");
+    assert(errors.length === 0, errors.join(" | "));
+  });
+  await page.close();
+}
+
 // --- private fixtures (real houses, not in git) ---
 const privateDir = join(root, "dev/fixtures/private");
 for (const file of existsSync(privateDir) ? readdirSync(privateDir).filter((f) => f.endsWith(".json")) : []) {

@@ -1,9 +1,16 @@
 {
   "domain": "homeslice",
   "name": "Homeslice",
-  "codeowners": ["@headtr1ck"],
+  "codeowners": [
+    "@headtr1ck"
+  ],
   "config_flow": true,
-  "dependencies": ["frontend", "http", "websocket_api"],
+  "dependencies": [
+    "frontend",
+    "http",
+    "panel_custom",
+    "websocket_api"
+  ],
   "documentation": "https://github.com/headtr1ck/homeslice",
   "integration_type": "service",
   "iot_class": "calculated",

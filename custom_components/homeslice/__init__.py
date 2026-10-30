@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
+from homeassistant.components import panel_custom
 from homeassistant.components.frontend import add_extra_js_url
 from homeassistant.components.http import StaticPathConfig
 from homeassistant.config_entries import ConfigEntry
@@ -43,6 +44,16 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             [StaticPathConfig(FRONTEND_URL, str(FRONTEND_DIR), cache_headers=False)]
         )
         add_extra_js_url(hass, f"{FRONTEND_URL}/{FRONTEND_FILE}?v={version}")
+        # the editor: a sidebar page for admins
+        await panel_custom.async_register_panel(
+            hass,
+            frontend_url_path=DOMAIN,
+            webcomponent_name="homeslice-panel",
+            sidebar_title="Homeslice",
+            sidebar_icon="mdi:home-floor-3",
+            module_url=f"{FRONTEND_URL}/{FRONTEND_FILE}?v={version}",
+            require_admin=True,
+        )
         async_register_websocket(hass)
 
         async def import_files(call: ServiceCall) -> None:

@@ -48,8 +48,16 @@ export function makeHass(fixture, onChange) {
       fixture.model = model;
       for (const callback of subscribers) callback({ model: structuredClone(model) });
     },
+    saved: [],
     async callWS(msg) {
       if (msg.type === "homeslice/model") return structuredClone(fixture.model);
+      if (msg.type === "homeslice/houses") return [{ id: fixture.model.id, name: fixture.model.name ?? fixture.model.id }];
+      if (msg.type === "homeslice/model/save") {
+        hass.saved.push(structuredClone(msg.model));
+        fixture.model = msg.model;
+        for (const callback of subscribers) callback({ model: structuredClone(msg.model) });
+        return null;
+      }
       throw new Error(`fake hass: unknown websocket command ${msg.type}`);
     },
     async callService(domain, service, data = {}, target = {}) {

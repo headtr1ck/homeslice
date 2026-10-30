@@ -1,4 +1,5 @@
 import { HomesliceCard } from "./card/homeslice-card";
+import { HomeslicePanel } from "./editor/homeslice-panel";
 import { localize } from "./i18n/localize";
 
 declare global {
@@ -16,3 +17,5 @@ if (!customElements.get("homeslice-card")) {
     description: localize(language, "card.description"),
   });
 }
+
+if (!customElements.get("homeslice-panel")) customElements.define("homeslice-panel", HomeslicePanel);

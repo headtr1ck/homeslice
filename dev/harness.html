@@ -50,6 +50,19 @@
     window.card = card;
     await rendered;
   };
+  window.setupPanel = async (fixture) => {
+    await customElements.whenDefined("homeslice-panel");
+    document.getElementById("root").style.cssText = "width:100vw;height:100vh;padding:0";
+    const panel = document.createElement("homeslice-panel");
+    panel.style.cssText = "display:flex;height:100vh";
+    document.getElementById("root").append(panel);
+    panel.hass = makeHass(fixture, (h) => (panel.hass = h));
+    window.panel = panel;
+    await new Promise((r) => {
+      const wait = () => (panel.shadowRoot?.querySelector("svg.plan .room") ? r() : setTimeout(wait, 50));
+      wait();
+    });
+  };
   window.ready = true;
 </script>
 </body>

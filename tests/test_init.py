@@ -134,3 +134,9 @@ async def test_import_files_service_overwrites(hass: HomeAssistant, setup, hass_
     client = await hass_ws_client(hass)
     await client.send_json_auto_id({"type": "homeslice/model", "house": "home"})
     assert (await client.receive_json())["result"]["name"] == "From file"
+
+
+async def test_editor_panel_is_admin_only(hass: HomeAssistant, setup) -> None:
+    panel = hass.data["frontend_panels"]["homeslice"]
+    assert panel.require_admin
+    assert panel.config["_panel_custom"]["name"] == "homeslice-panel"
