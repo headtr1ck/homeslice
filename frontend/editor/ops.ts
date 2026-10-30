@@ -321,6 +321,18 @@ export interface Snapped {
   p: Vec2;
   /** What it snapped to, for the hint next to the cursor. */
   kind: "point" | "align" | "grid" | "free";
+  /** The corner snapped to (kind "point"). */
+  target?: Vec2;
+  /** Coordinates it lined up with (kind "align"), for guide lines. */
+  alignX?: number;
+  alignY?: number;
+}
+
+/** Snaps a value to the nearest target within tolerance; null if none. */
+export function snapValue(v: number, targets: number[], tolerance: number): number | null {
+  let best: number | null = null;
+  for (const t of targets) if (Math.abs(t - v) < tolerance && (best === null || Math.abs(t - v) < Math.abs(best - v))) best = t;
+  return best;
 }
 
 export function snap(p: Vec2, ctx: SnapContext): Snapped {
@@ -330,12 +342,12 @@ export function snap(p: Vec2, ctx: SnapContext): Snapped {
     const d = dist(p, q);
     if (d < bestD) [best, bestD] = [q, d];
   }
-  if (best) return { p: [best[0], best[1]], kind: "point" };
-  const near = (v: number, list: number[]) => list.reduce<number | null>((acc, c) => (Math.abs(c - v) < ctx.tolerance && (acc === null || Math.abs(c - v) < Math.abs(acc - v)) ? c : acc), null);
-  const ax = near(p[0], ctx.align.x);
-  const ay = near(p[1], ctx.align.y);
+  if (best) return { p: [best[0], best[1]], kind: "point", target: [best[0], best[1]] };
+  const ax = snapValue(p[0], ctx.align.x, ctx.tolerance);
+  const ay = snapValue(p[1], ctx.align.y, ctx.tolerance);
   const g = (v: number) => (ctx.grid > 0 ? Math.round(v / ctx.grid) * ctx.grid : v);
-  if (ax !== null || ay !== null) return { p: [round(ax ?? g(p[0])), round(ay ?? g(p[1]))], kind: "align" };
+  if (ax !== null || ay !== null)
+    return { p: [round(ax ?? g(p[0])), round(ay ?? g(p[1]))], kind: "align", ...(ax !== null ? { alignX: ax } : {}), ...(ay !== null ? { alignY: ay } : {}) };
   if (ctx.grid > 0) return { p: [round(g(p[0])), round(g(p[1]))], kind: "grid" };
   return { p, kind: "free" };
 }

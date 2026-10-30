@@ -564,6 +564,17 @@ console.log("editor");
     await page.mouse.up();
     assert((await model()).levels[0].openings.at(-1).at === 3.3, `after dragging: ${JSON.stringify((await model()).levels[0].openings.at(-1))}`);
 
+    // pulled close to the kitchen's centre (x 3.5 … 8 → 5.75), it snaps there and shows a guide
+    const hit2 = await page.locator("homeslice-panel svg.plan line.opening.selected").boundingBox();
+    await page.mouse.move(hit2.x + hit2.width / 2, hit2.y + hit2.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(hit2.x + hit2.width / 2 - scale * 1.53, hit2.y + hit2.height / 2, { steps: 8 });
+    const guides = await page.locator("homeslice-panel svg.plan line.guide").count();
+    await shot(page, "editor-snap-guide");
+    await page.mouse.up();
+    assert(guides === 1, `${guides} guide lines while snapped`);
+    assert((await model()).levels[0].openings.at(-1).at === 1.75, `not centred: ${JSON.stringify((await model()).levels[0].openings.at(-1))}`);
+
     const coverSelect = page.locator("homeslice-panel .inspector label", { hasText: "Blind" }).locator("select");
     const options = await coverSelect.locator("option").allTextContents();
     assert(options[1].startsWith("★"), `the kitchen's own blind should come first: ${options.join(" | ")}`);

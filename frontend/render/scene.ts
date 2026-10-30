@@ -284,8 +284,8 @@ export class HouseRenderer {
         this.cuttables.push({ mesh: upper, normal: w.normal });
         g.add(upper);
       };
-      let cursor = 0;
-      const length = Math.hypot(w.b[0] - w.a[0], w.b[1] - w.a[1]);
+      let cursor = -w.extendStart;
+      const length = Math.hypot(w.b[0] - w.a[0], w.b[1] - w.a[1]) + w.extendEnd;
       for (const o of w.openings) {
         box(cursor, o.start, 0, H, wallMat);
         box(o.start, o.end, 0, o.sill, wallMat);

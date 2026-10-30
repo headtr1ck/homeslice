@@ -203,6 +203,38 @@ describe("deriveWalls", () => {
     ]);
   });
 
+  it("fills inner corners of the outline and L-corners of inside walls", () => {
+    // L-shaped outline: the corner at (5, 4) is an inner corner
+    const input: HouseInput = {
+      schema: 1,
+      id: "l",
+      outline: { polygon: [[0, 0], [5, 0], [5, 4], [10, 4], [10, 8], [0, 8]] },
+      levels: [
+        {
+          id: "g",
+          rooms: [
+            { id: "a", polygon: [[0, 0], [5, 0], [5, 4], [3, 4], [3, 6], [0, 6]] },
+            { id: "b", polygon: [[3, 4], [10, 4], [10, 8], [0, 8], [0, 6], [3, 6]] },
+          ],
+        },
+      ],
+    };
+    const h = expand(input);
+    const w = deriveWalls(h.levels[0], h.walls);
+    const at = (p: [number, number]) => w.filter((x) => x.line.some((q) => q[0] === p[0] && q[1] === p[1]));
+    // outer walls meeting at the inner corner (5, 4) reach a wall thickness past it
+    for (const x of at([5, 4]).filter((x) => x.type === "exterior")) {
+      const end = x.line[0][0] === 5 && x.line[0][1] === 4 ? x.extendStart : x.extendEnd;
+      expect(end).toBeCloseTo(0.36);
+    }
+    // the inside walls' L-corner at (3, 6) is filled by half a wall thickness
+    const inner = at([3, 6]).filter((x) => x.type === "interior");
+    expect(inner).toHaveLength(2);
+    for (const x of inner) expect(Math.max(x.extendStart, x.extendEnd)).toBeCloseTo(0.06);
+    // outer corners need nothing
+    expect(at([10, 8]).every((x) => x.extendStart === 0 && x.extendEnd === 0)).toBe(true);
+  });
+
   it("warns about openings without a wall", () => {
     const input = twoRooms();
     input.levels[0].openings = [{ room: "left", side: "east", at: 9, width: 1 }];

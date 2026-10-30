@@ -46,7 +46,18 @@ type Drag =
   | { kind: "vertex"; origin: HouseInput; from: Vec2; ctx: SnapContext }
   | { kind: "edge"; origin: HouseInput; a: Vec2; b: Vec2; startWorld: Vec2; normal: Vec2; ctx: SnapContext }
   | { kind: "rect"; start: Vec2; ctx: SnapContext }
-  | { kind: "opening"; origin: HouseInput; src: OpeningSource; axis: 0 | 1; startWorld: Vec2; at: number };
+  | { kind: "opening"; origin: HouseInput; src: OpeningSource; axis: 0 | 1; startWorld: Vec2; at: number; snaps: OpeningSnaps };
+
+/** Where a dragged door or window can snap to, as positions along its wall. */
+interface OpeningSnaps {
+  /** The room's position along the wall axis (the opening's `at` is measured from here). */
+  origin: number;
+  width: number;
+  /** Positions the opening's start or end can line up with. */
+  edges: number[];
+  /** Positions its centre can line up with. */
+  centres: number[];
+}
 
 const PLAN_COLORS: Record<string, string> = {
   wood: "#e3c49f",
@@ -82,6 +93,7 @@ export class HomeslicePanel extends LitElement {
     _wall: { state: true },
     _mode: { state: true },
     _opening: { state: true },
+    _guides: { state: true },
   };
 
   narrow = false;
@@ -108,6 +120,8 @@ export class HomeslicePanel extends LitElement {
   private _mode: Mode = "rooms";
   /** Selected opening (doors & windows mode) and the room it belongs to on this level. */
   private _opening: { src: OpeningSource; room: string } | null = null;
+  /** Snap feedback drawn on the plan: guide lines and the corner snapped to. */
+  private _guides: { x?: number; y?: number; ring?: Vec2 } | null = null;
   private history = new History<HouseInput>();
   private renderer?: HouseRenderer;
   private previewTimer = 0;
@@ -298,7 +312,7 @@ export class HomeslicePanel extends LitElement {
         if (o) {
           this._opening = sel;
           const axis = o.side === "north" || o.side === "south" ? 0 : 1;
-          this._drag = { kind: "opening", origin: clone(this._model), src: sel.src, axis, startWorld: world, at: o.at };
+          this._drag = { kind: "opening", origin: clone(this._model), src: sel.src, axis, startWorld: world, at: o.at, snaps: this.openingSnaps(sel, o, axis) };
           return;
         }
       }
@@ -353,6 +367,7 @@ export class HomeslicePanel extends LitElement {
     }
     if (drag.kind === "vertex") {
       const s = snapped(world, drag.ctx);
+      this._guides = { x: s.alignX, y: s.alignY, ring: s.target };
       this._model = moveVertex(drag.origin, this._level, drag.from, s.p);
       this._hint = { x: screen[0], y: screen[1], lines: [...this.cornerReadout(s.p), this.t(`editor.snap_${s.kind}` as StringKey)] };
       return;
@@ -362,6 +377,7 @@ export class HomeslicePanel extends LitElement {
       const along = (world[0] - drag.startWorld[0]) * drag.normal[0] + (world[1] - drag.startWorld[1]) * drag.normal[1];
       const moved: Vec2 = [drag.a[0] + drag.normal[0] * along, drag.a[1] + drag.normal[1] * along];
       const s = snapped(moved, { ...drag.ctx, points: [] });
+      this._guides = { x: s.alignX, y: s.alignY };
       const snappedAlong = (s.p[0] - drag.a[0]) * drag.normal[0] + (s.p[1] - drag.a[1]) * drag.normal[1];
       const delta: Vec2 = [drag.normal[0] * snappedAlong, drag.normal[1] * snappedAlong];
       this._model = moveEdge(drag.origin, this._level, drag.a, drag.b, delta);
@@ -370,14 +386,29 @@ export class HomeslicePanel extends LitElement {
     }
     if (drag.kind === "opening") {
       const delta = world[drag.axis] - drag.startWorld[drag.axis];
-      const at = Math.max(0, Math.round((drag.at + delta) / 0.05) * 0.05);
+      const { origin, width, edges, centres } = drag.snaps;
+      const start = origin + drag.at + delta;
+      // line up the start, end or centre with room edges, the room's centre and the
+      // doors and windows on the levels above and below
+      const tol = free ? 0 : 10 / this._view.scale;
+      const options = [
+        ...edges.map((t) => ({ d: t - start, guide: t })),
+        ...edges.map((t) => ({ d: t - (start + width), guide: t })),
+        ...centres.map((t) => ({ d: t - (start + width / 2), guide: t })),
+      ].filter((c) => Math.abs(c.d) < tol);
+      const best = options.sort((a, b) => Math.abs(a.d) - Math.abs(b.d))[0];
+      const raw = best ? start + best.d - origin : Math.round((start - origin) / 0.05) * 0.05;
+      const at = Math.max(0, raw);
+      this._guides = best ? (drag.axis === 0 ? { x: best.guide } : { y: best.guide }) : null;
       this._model = updateOpening(drag.origin, this._level, drag.src, { at: Math.round(at * 100) / 100 });
       const o = readOpening(this._model, this._level, drag.src);
       this._hint = { x: screen[0], y: screen[1], lines: [this.t("editor.opening_at", { at: (o?.at ?? 0).toFixed(2), width: (o?.width ?? 0).toFixed(2) })] };
       return;
     }
     if (drag.kind === "rect") {
-      const end = snapped(world, drag.ctx).p;
+      const endSnap = snapped(world, drag.ctx);
+      const end = endSnap.p;
+      this._guides = { x: endSnap.alignX, y: endSnap.alignY, ring: endSnap.target };
       const [x0, y0] = drag.start;
       this._rectPreview = [[x0, y0], [end[0], y0], [end[0], end[1]], [x0, end[1]]];
       const w = Math.abs(end[0] - x0);
@@ -390,6 +421,7 @@ export class HomeslicePanel extends LitElement {
     const drag = this._drag;
     this._drag = null;
     this._hint = null;
+    this._guides = null;
     if (!drag || !this._model) return;
     if (drag.kind === "vertex" || drag.kind === "edge" || drag.kind === "opening") {
       if (JSON.stringify(drag.origin) !== JSON.stringify(this._model)) this.commit(this._model, drag.origin);
@@ -676,12 +708,24 @@ export class HomeslicePanel extends LitElement {
         .map((v) => svg`<polygon class="stairwell" points=${pts(v.polygon)}></polygon>`)}
       ${selPoly.length && this._mode === "rooms" ? this.renderHandles(selPoly) : nothing}
       ${this._rectPreview ? svg`<polygon class="rect-preview" points=${pts(this._rectPreview)}></polygon>` : nothing}
+      ${this.renderGuides()}
     </svg>`;
   }
 
+  private renderGuides() {
+    const g = this._guides;
+    if (!g) return nothing;
+    const x = g.x !== undefined ? this.toScreen([g.x, 0])[0] : null;
+    const y = g.y !== undefined ? this.toScreen([0, g.y])[1] : null;
+    const ring = g.ring ? this.toScreen(g.ring) : null;
+    return svg`${x !== null ? svg`<line class="guide" x1=${x} y1="0" x2=${x} y2="100%"></line>` : nothing}
+      ${y !== null ? svg`<line class="guide" x1="0" y1=${y} x2="100%" y2=${y}></line>` : nothing}
+      ${ring ? svg`<circle class="snap-ring" cx=${ring[0]} cy=${ring[1]} r="11"></circle>` : nothing}`;
+  }
+
   private renderWall(w: Wall) {
-    const [ax, ay] = this.toScreen(w.a);
-    const [bx, by] = this.toScreen(w.b);
+    const [ax, ay] = this.alongWall(w, -w.extendStart);
+    const [bx, by] = this.alongWall(w, Math.hypot(w.b[0] - w.a[0], w.b[1] - w.a[1]) + w.extendEnd);
     const len = Math.hypot(w.b[0] - w.a[0], w.b[1] - w.a[1]) || 1;
     const along = (t: number): Vec2 => this.toScreen([w.a[0] + ((w.b[0] - w.a[0]) * t) / len, w.a[1] + ((w.b[1] - w.a[1]) * t) / len]);
     if (this._mode === "openings" && w.type !== "open") {
@@ -856,6 +900,33 @@ export class HomeslicePanel extends LitElement {
     const target = index + (e.key === "ArrowUp" ? 1 : -1);
     if (target < 0 || target >= this._model.levels.length) return;
     this.commit(moveLevel(this._model, id, target));
+  }
+
+  /** Room edges and centre, and the doors and windows stacked above and below, along the wall. */
+  private openingSnaps(sel: { src: OpeningSource; room: string }, o: OpeningInput, axis: 0 | 1): OpeningSnaps {
+    const poly = this.levelInputRoomPolygon(sel.room) ?? [];
+    const along = poly.map((p) => p[axis]);
+    const across = poly.map((p) => p[1 - axis]);
+    const origin = Math.min(...along);
+    const end = Math.max(...along);
+    const line = o.side === "north" || o.side === "west" ? Math.min(...across) : Math.max(...across);
+    const edges = [origin, end];
+    const centres = [(origin + end) / 2];
+    const { house } = expandHouse(this._model!);
+    for (const level of house?.levels ?? []) {
+      for (const w of deriveWalls(level, house!.walls, [])) {
+        if (w.type === "open" || Math.abs(w.line[0][1 - axis] - line) > 0.6 || Math.abs(w.line[1][1 - axis] - line) > 0.6) continue;
+        const len = Math.hypot(w.line[1][0] - w.line[0][0], w.line[1][1] - w.line[0][1]) || 1;
+        const at = (t: number) => w.line[0][axis] + ((w.line[1][axis] - w.line[0][axis]) * t) / len;
+        for (const x of w.openings) {
+          if (level.id === this._level && JSON.stringify(x.source) === JSON.stringify(sel.src)) continue;
+          const [a, b] = [at(x.start), at(x.end)].sort((p, q) => p - q);
+          edges.push(a, b);
+          centres.push((a + b) / 2);
+        }
+      }
+    }
+    return { origin, width: o.width, edges, centres };
   }
 
   /** Adds a 1 m window centred on the clicked spot of a wall. */
@@ -1293,6 +1364,18 @@ export class HomeslicePanel extends LitElement {
       paint-order: stroke;
       stroke: var(--primary-background-color, #111);
       stroke-width: 3px;
+      pointer-events: none;
+    }
+    .guide {
+      stroke: #ff4fa3;
+      stroke-width: 1;
+      stroke-dasharray: 5 4;
+      pointer-events: none;
+    }
+    .snap-ring {
+      fill: none;
+      stroke: #ff4fa3;
+      stroke-width: 2;
       pointer-events: none;
     }
     .rect-preview {

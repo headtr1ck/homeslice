@@ -60,6 +60,12 @@ export interface Wall {
   height: number;
   rooms: string[];
   openings: WallOpening[];
+  /**
+   * How far the wall body reaches past its start/end, so corners are filled: inner
+   * corners of the outline and L-corners between inside walls.
+   */
+  extendStart: number;
+  extendEnd: number;
 }
 
 interface Piece {
@@ -176,8 +182,11 @@ export function deriveWalls(level: Level, thickness: WallThickness, issues: Issu
       height: level.height,
       rooms: [...s.rooms].sort(),
       openings: [],
+      extendStart: 0,
+      extendEnd: 0,
     };
   });
+  fillCorners(walls, level.outline);
 
   // free-standing walls (not on a room boundary)
   level.freeWalls.forEach((f, i) => {
@@ -193,6 +202,8 @@ export function deriveWalls(level: Level, thickness: WallThickness, issues: Issu
       height: level.height,
       rooms: [],
       openings: [],
+      extendStart: 0,
+      extendEnd: 0,
     });
   });
 
@@ -211,6 +222,42 @@ export function deriveWalls(level: Level, thickness: WallThickness, issues: Issu
   // 5. openings
   for (const o of level.openings) placeOpening(o, level, walls, issues, `${path}.openings.${o.id}`);
   return walls;
+}
+
+/**
+ * Fills corners: at an inner (reflex) corner of the outline the two outer walls stop
+ * short of each other, and two inside walls meeting at an angle leave the outer quarter
+ * of the corner empty. Extend those wall ends by the thickness of the wall they meet.
+ */
+function fillCorners(walls: Wall[], outline: Vec2[]) {
+  const same = (p: Vec2, q: Vec2) => dist(p, q) < SNAP;
+  const dir = (w: Wall): Vec2 => {
+    const l = dist(w.line[0], w.line[1]) || 1;
+    return [(w.line[1][0] - w.line[0][0]) / l, (w.line[1][1] - w.line[0][1]) / l];
+  };
+  const collinear = (u: Vec2, v: Vec2) => Math.abs(u[0] * v[1] - u[1] * v[0]) < 1e-3;
+  // reflex corners of the (positively oriented) outline
+  const reflex = outline.filter((p, i) => {
+    const prev = outline[(i - 1 + outline.length) % outline.length];
+    const next = outline[(i + 1) % outline.length];
+    return (p[0] - prev[0]) * (next[1] - p[1]) - (p[1] - prev[1]) * (next[0] - p[0]) < -1e-9;
+  });
+  for (const w of walls) {
+    if (w.type === "open") continue;
+    w.line.forEach((end, i) => {
+      let extend = 0;
+      if (w.type === "exterior" || w.type === "party") {
+        if (reflex.some((p) => same(p, end))) extend = w.thickness;
+      } else {
+        for (const o of walls) {
+          if (o === w || o.type !== "interior" || collinear(dir(w), dir(o))) continue;
+          if (same(o.line[0], end) || same(o.line[1], end)) extend = Math.max(extend, o.thickness / 2);
+        }
+      }
+      if (i === 0) w.extendStart = extend;
+      else w.extendEnd = extend;
+    });
+  }
 }
 
 function placeOpening(o: Opening, level: Level, walls: Wall[], issues: Issue[], path: string) {

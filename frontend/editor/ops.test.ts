@@ -156,8 +156,8 @@ describe("editing operations", () => {
 
   it("snaps to corners first, then to aligned coordinates, then to the grid", () => {
     const ctx = { grid: 0.1, points: [[5, 0]] as [number, number][], align: { x: [2], y: [] }, tolerance: 0.15 };
-    expect(snap([5.08, 0.05], ctx)).toEqual({ p: [5, 0], kind: "point" });
-    expect(snap([2.1, 3.33], ctx)).toEqual({ p: [2, 3.3], kind: "align" });
+    expect(snap([5.08, 0.05], ctx)).toEqual({ p: [5, 0], kind: "point", target: [5, 0] });
+    expect(snap([2.1, 3.33], ctx)).toEqual({ p: [2, 3.3], kind: "align", alignX: 2 });
     expect(snap([7.04, 3.33], ctx)).toEqual({ p: [7, 3.3], kind: "grid" });
   });
 
