@@ -346,3 +346,15 @@ describe("lights", () => {
     expect(expandHouse(input).issues[0].message).toContain("A light needs entity: light.");
   });
 });
+
+describe("documentation", () => {
+  it("the README's example house is valid", async () => {
+    const { readFileSync } = await import("node:fs");
+    const { parse } = await import("yaml");
+    const readme = readFileSync(new URL("../../README.md", import.meta.url), "utf8");
+    const block = readme.split("## House format")[1].split("```yaml")[1].split("```")[0];
+    const { house, issues } = expandHouse(parse(block));
+    expect(issues).toEqual([]);
+    expect(house?.levels.map((l) => l.id)).toEqual(["ground", "first"]);
+  });
+});
