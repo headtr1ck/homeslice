@@ -15,7 +15,7 @@ from homeassistant.core import Event, HomeAssistant, ServiceCall, callback
 from homeassistant.helpers import area_registry as ar, entity_registry as er, floor_registry as fr
 from homeassistant.helpers.debounce import Debouncer
 
-from .const import DOMAIN, FRONTEND_FILE, FRONTEND_URL
+from .const import DOMAIN, FRONTEND_FILE, FRONTEND_URL, PANEL_FILE
 from .repairs import async_check_house
 from .store import HomesliceStore
 from .underlay import Underlays
@@ -55,7 +55,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             webcomponent_name="homeslice-panel",
             sidebar_title="Homeslice",
             sidebar_icon="mdi:home-floor-3",
-            module_url=f"{FRONTEND_URL}/{FRONTEND_FILE}?v={version}",
+            module_url=f"{FRONTEND_URL}/{PANEL_FILE}?v={version}",
             require_admin=True,
         )
         async_register_websocket(hass)

@@ -8,3 +8,5 @@ DEFAULT_HOUSE = "home"
 
 FRONTEND_URL = "/homeslice_static"
 FRONTEND_FILE = "homeslice.js"
+# the editor page loads its own bundle
+PANEL_FILE = "homeslice-panel.js"

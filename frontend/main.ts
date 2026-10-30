@@ -1,6 +1,7 @@
+// The card bundle: loaded on every dashboard page, so it holds only the card and its
+// small visual editor. The sidebar editor is a bundle of its own (editor-main.ts).
 import { HomesliceCard } from "./card/homeslice-card";
 import { HomesliceCardEditor } from "./card/homeslice-card-editor";
-import { HomeslicePanel } from "./editor/homeslice-panel";
 import { localize } from "./i18n/localize";
 
 declare global {
@@ -20,6 +21,5 @@ if (!customElements.get("homeslice-card")) {
   });
 }
 
-if (!customElements.get("homeslice-panel")) customElements.define("homeslice-panel", HomeslicePanel);
 
 if (!customElements.get("homeslice-card-editor")) customElements.define("homeslice-card-editor", HomesliceCardEditor);
