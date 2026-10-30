@@ -78,7 +78,14 @@ const state = (page, id) => page.evaluate((id) => window.card.hass.states[id]?.s
 const labelNames = (page) => page.locator("homeslice-card .label span.name").allTextContents();
 const triangles = (page) => page.evaluate(() => window.card.renderer.renderer.info.render.triangles);
 /** Resolves after the card's next redraw; start it before the action that triggers it. */
-const nextRender = (page) => page.evaluate(() => new Promise((r) => window.card.addEventListener("homeslice-rendered", r, { once: true })));
+const nextRender = (page) =>
+  page.evaluate(
+    () =>
+      new Promise((resolve, reject) => {
+        window.card.addEventListener("homeslice-rendered", resolve, { once: true });
+        setTimeout(() => reject(new Error("the card did not redraw within 10 s")), 10000);
+      }),
+  );
 async function act(page, action) {
   const rendered = nextRender(page);
   await action();
@@ -173,7 +180,7 @@ console.log("demo house");
     const label = await page.locator("homeslice-card .label button.name", { hasText: "Living Room" }).boundingBox();
     // tap the floor a bit away from the label, so the canvas gets the click
     await page.mouse.click(label.x + label.width / 2 + 60, label.y + label.height / 2 + 40);
-    await page.waitForSelector("homeslice-card .popup .fake-card");
+    await page.waitForSelector("homeslice-card .popup .fake-card", { timeout: 5000 });
     await page.waitForTimeout(300); // fade-in
     const title = await page.locator("homeslice-card .popup h2").textContent();
     assert(title === "Living Room", `popup title ${title}`);
@@ -208,8 +215,111 @@ console.log("demo house");
     assert(o.elevation === 38 && o.azimuth === 250 && o.fov === 3, `overview camera ${JSON.stringify(o)}`);
   });
 
+  await test("hovering a floor highlights it and fades the floors above", async () => {
+    // find a canvas spot where the ground floor is the first thing hit
+    const spot = await page.evaluate(() => {
+      const canvas = window.card.shadowRoot.querySelector("canvas");
+      const r = canvas.getBoundingClientRect();
+      for (let y = r.height - 20; y > 20; y -= 15)
+        for (let x = 20; x < r.width - 20; x += 15)
+          if (window.card.renderer.levelAt(x, y) === 0) return { x: r.left + x, y: r.top + y };
+      return null;
+    });
+    assert(spot, "no visible spot on the ground floor");
+    await page.mouse.move(spot.x, spot.y);
+    await page.waitForTimeout(350);
+    const state = await page.evaluate(() => ({
+      hover: window.card.renderer.hoveredIndex,
+      above: window.card.renderer.levels[1].hoverOpacity,
+      below: window.card.renderer.levels[0].hoverOpacity,
+    }));
+    assert(state.hover === 0 && Math.abs(state.above - 0.18) < 1e-6 && state.below === 1, `hover state ${JSON.stringify(state)}`);
+    // what the GPU drew, not just the settings: a pixel of the faded floor must be darker
+    const pixel = await page.evaluate(() => {
+      const r = window.card.renderer;
+      const gl = r.renderer.getContext();
+      // top of the far (north-east) wall: nothing but background behind it
+      const p = r.project("first", [7.8, 0.2], 2.4);
+      const dpr = r.renderer.getPixelRatio();
+      r.draw();
+      const out = new Uint8Array(4);
+      gl.readPixels(Math.round(p.x * dpr), Math.round(gl.drawingBufferHeight - p.y * dpr), 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, out);
+      return [...out];
+    });
+    assert(pixel[3] < 200, `faded first floor still drawn opaque (rgba ${pixel.join(",")})`);
+    const faded = await page.locator("homeslice-card .label.faded span.name").allTextContents();
+    assert(faded.includes("Bedroom") && !faded.includes("Kitchen"), `faded labels: ${faded.join(", ")}`);
+    await shot(page, "demo-hover-ground");
+  });
+
+  await test("hovering a floor button does the same; leaving clears it", async () => {
+    await page.locator("homeslice-card nav.levels button", { hasText: "First Floor" }).hover();
+    await page.waitForTimeout(250);
+    assert((await page.evaluate(() => window.card.renderer.hoveredIndex)) === 1, "first floor not hovered via its button");
+    await page.mouse.move(2, 2);
+    await page.waitForTimeout(250);
+    const state = await page.evaluate(() => ({ hover: window.card.renderer.hoveredIndex, above: window.card.renderer.levels[1].hoverOpacity }));
+    assert(state.hover === null && state.above === 1, `hover not cleared: ${JSON.stringify(state)}`);
+    assert((await page.locator("homeslice-card .label.faded").count()) === 0, "labels still faded");
+  });
+
   await test("no errors in the console", async () => {
     assert(errors.length === 0, errors.join(" | "));
+  });
+  await page.close();
+}
+
+console.log(results.splice(0).join("\n"));
+console.log("demo house, camera controls");
+{
+  const { page, errors } = await open("dev/fixtures/demo-hass.json");
+  const canvasBox = await page.locator("homeslice-card canvas").boundingBox();
+  const cx = canvasBox.x + canvasBox.width / 2;
+  const cy = canvasBox.y + canvasBox.height / 2;
+  const camera = () => page.evaluate(() => ({ ...window.card.renderer.orientation, zoom: window.card.renderer.zoom }));
+
+  await test("dragging turns the house, shows the angle and doesn't open a popup", async () => {
+    await page.mouse.move(cx, cy);
+    await page.mouse.down();
+    for (let i = 1; i <= 10; i++) await page.mouse.move(cx + i * 20, cy - i * 4);
+    await page.mouse.up();
+    await page.waitForTimeout(100);
+    const c = await camera();
+    assert(Math.abs(c.azimuth - 180) < 1 && Math.abs(c.elevation - 28) < 1, `camera after drag ${JSON.stringify(c)}`);
+    const readout = await page.locator("homeslice-card .readout").textContent();
+    assert(readout === "180° · 28°", `readout: ${readout}`);
+    assert((await page.locator("homeslice-card .popup").count()) === 0, "a popup opened after dragging");
+    await shot(page, "demo-orbit");
+  });
+
+  await test("the wheel zooms", async () => {
+    await page.mouse.move(cx, cy);
+    await page.mouse.wheel(0, -300);
+    await page.waitForTimeout(100);
+    const c = await camera();
+    assert(c.zoom > 1.4 && c.zoom < 1.8, `zoom after wheel ${c.zoom}`);
+  });
+
+  await test("double-click goes back to the configured view", async () => {
+    await act(page, () => page.mouse.dblclick(cx, cy));
+    const c = await camera();
+    assert(c.azimuth === 250 && c.elevation === 38 && c.zoom === 1, `camera after reset ${JSON.stringify(c)}`);
+    await page.waitForTimeout(400);
+    assert((await page.locator("homeslice-card .popup").count()) === 0, "the double-click also opened a popup");
+    assert(errors.length === 0, errors.join(" | "));
+  });
+  await page.close();
+}
+{
+  const { page } = await open("dev/fixtures/demo-hass.json", { interactive: false });
+  await test("interactive: false locks the camera", async () => {
+    const b = await page.locator("homeslice-card canvas").boundingBox();
+    await page.mouse.move(b.x + 400, b.y + 300);
+    await page.mouse.down();
+    await page.mouse.move(b.x + 600, b.y + 300, { steps: 5 });
+    await page.mouse.up();
+    const c = await page.evaluate(() => window.card.renderer.orientation);
+    assert(c.azimuth === 250, `camera moved: ${JSON.stringify(c)}`);
   });
   await page.close();
 }

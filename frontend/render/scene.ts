@@ -89,6 +89,10 @@ const COLORS = {
   stripOpen: "#7fb0ff",
 };
 const FOCUS_MS = 450;
+const HOVER_MS = 160;
+/** Opacity of the levels above a hovered level. */
+const HOVER_FADE = 0.18;
+const HOVER_TINT = new THREE.Color(0x1d3047);
 const SHUTTER_DEPTH = 0.05;
 
 /** Shape in the XY plane that lands on the XZ plane after rotateX(-90°). */
@@ -107,9 +111,12 @@ interface LevelState {
   group: THREE.Group;
   baseY: number;
   materials: Set<THREE.Material>;
-  /** Animated values: 0..1 opacity and lift in metres. */
+  /** Materials of walls, slabs and stairs (not floors, whose glow shows the lights). */
+  tintable: THREE.MeshLambertMaterial[];
+  /** Animated values: 0..1 opacity and lift in metres for focus, 0..1 opacity for hover. */
   opacity: number;
   lift: number;
+  hoverOpacity: number;
 }
 
 /**
@@ -144,10 +151,14 @@ export class HouseRenderer {
   private size = { width: 1, height: 1 };
   private focus: number | null = null;
   private animation = 0;
+  private hover: number | null = null;
+  private hoverAnimation = 0;
   /** Current camera (animated between the overview and focus cameras). */
   orientation: CameraState = { azimuth: 0, elevation: 0, fov: FOV.isometric };
   /** What the camera frames (animated, levels at rest). */
   private box = new THREE.Box3();
+  /** Interactive zoom on top of the framing (1 = fit). */
+  zoom = 1;
   /** Width / height of the whole house as seen by the overview camera. */
   aspect = 1.6;
 
@@ -184,10 +195,13 @@ export class HouseRenderer {
       const baseY = level.elevation + level.index * this.view.explode;
       group.position.y = baseY;
       this.root.add(group);
-      this.levels.push({ group, baseY, materials, opacity: 1, lift: 0 });
+      const floorMaterials = new Set(level.rooms.map((r) => this.floors.get(`${level.id}/${r.id}`)?.material));
+      const tintable = [...materials].filter((m): m is THREE.MeshLambertMaterial => m instanceof THREE.MeshLambertMaterial && !floorMaterials.has(m));
+      this.levels.push({ group, baseY, materials, tintable, opacity: 1, lift: 0, hoverOpacity: 1 });
       this.levelIds.push(level.id);
     }
     this.focus = null;
+    this.hover = null;
     this.orientation = this.cameraFor(null);
     this.box = this.boxFor(null);
     this.aspect = this.extent(this.orientation, this.box);
@@ -196,6 +210,7 @@ export class HouseRenderer {
 
   private clear() {
     cancelAnimationFrame(this.animation);
+    cancelAnimationFrame(this.hoverAnimation);
     this.root.traverse((o) => {
       if (o instanceof THREE.Mesh) o.geometry.dispose();
     });
@@ -426,6 +441,7 @@ export class HouseRenderer {
     this.focus = index;
     const from = {
       camera: { ...this.orientation },
+      zoom: this.zoom,
       box: this.box.clone(),
       levels: this.levels.map((l) => ({ opacity: l.opacity, lift: l.lift })),
     };
@@ -446,6 +462,7 @@ export class HouseRenderer {
         elevation: mix(from.camera.elevation, to.camera.elevation),
         fov: mix(from.camera.fov, to.camera.fov),
       };
+      this.zoom = mix(from.zoom, 1);
       this.box.min.lerpVectors(from.box.min, to.box.min, e);
       this.box.max.lerpVectors(from.box.max, to.box.max, e);
       this.levels.forEach((l, i) => {
@@ -483,16 +500,96 @@ export class HouseRenderer {
 
   private applyLevel(l: LevelState) {
     l.group.position.y = l.baseY + l.lift;
-    l.group.visible = l.opacity > 0.01;
-    const fading = l.opacity < 0.999;
+    const opacity = l.opacity * l.hoverOpacity;
+    l.group.visible = opacity > 0.01;
+    const fading = opacity < 0.999;
     for (const m of l.materials) {
       const base = (m.userData.baseOpacity ??= m.opacity) as number;
       const baseTransparent = (m.userData.baseTransparent ??= m.transparent) as boolean;
       const baseDepthWrite = (m.userData.baseDepthWrite ??= m.depthWrite) as boolean;
-      m.transparent = fading || baseTransparent;
-      m.opacity = base * l.opacity;
+      // three.js compiles opaque materials with alpha forced to 1: switching needs a rebuild
+      if (m.transparent !== (fading || baseTransparent)) {
+        m.transparent = fading || baseTransparent;
+        m.needsUpdate = true;
+      }
+      m.opacity = base * opacity;
       m.depthWrite = !fading && baseDepthWrite;
     }
+  }
+
+  // ----- hover -----
+
+  /**
+   * Level under a canvas position (CSS px), or null. While a level is hovered it stays
+   * hovered as long as the pointer is anywhere over it, even behind faded levels above,
+   * so the highlight doesn't flicker.
+   */
+  levelAt(x: number, y: number): number | null {
+    const ndc = new THREE.Vector2((x / this.size.width) * 2 - 1, -(y / this.size.height) * 2 + 1);
+    const ray = new THREE.Raycaster();
+    ray.setFromCamera(ndc, this.camera);
+    const groups = this.levels.filter((l) => l.group.visible && l.opacity > 0.5).map((l) => l.group);
+    const hits = ray.intersectObjects(groups, true).filter((h) => h.object.visible && !h.object.userData.outdoor);
+    const levelOf = (o: THREE.Object3D | null): number => {
+      while (o && !groups.includes(o as THREE.Group)) o = o.parent;
+      return o ? this.levels.findIndex((l) => l.group === o) : -1;
+    };
+    if (this.hover !== null && hits.some((h) => levelOf(h.object) === this.hover)) return this.hover;
+    const first = hits.length ? levelOf(hits[0].object) : -1;
+    return first >= 0 ? first : null;
+  }
+
+  get hoveredIndex() {
+    return this.hover;
+  }
+
+  /** Highlights a level and fades the levels above it; null clears. Resolves when done. */
+  setHover(index: number | null): Promise<void> {
+    if (index === this.hover) return Promise.resolve();
+    this.hover = index;
+    this.levels.forEach((l, i) => {
+      for (const m of l.tintable) m.emissive.copy(i === index ? HOVER_TINT : new THREE.Color(0));
+    });
+    const from = this.levels.map((l) => l.hoverOpacity);
+    const to = this.levels.map((_, i) => (index !== null && i > index ? HOVER_FADE : 1));
+    cancelAnimationFrame(this.hoverAnimation);
+    return new Promise((resolve) => {
+      const start = performance.now();
+      const frame = (now: number) => {
+        const t = Math.min(1, (now - start) / HOVER_MS);
+        this.levels.forEach((l, i) => {
+          l.hoverOpacity = from[i] + (to[i] - from[i]) * t;
+          this.applyLevel(l);
+        });
+        this.draw();
+        if (t < 1) this.hoverAnimation = requestAnimationFrame(frame);
+        else resolve();
+      };
+      this.hoverAnimation = requestAnimationFrame(frame);
+    });
+  }
+
+  // ----- interactive camera -----
+
+  /** Turns the camera by the given degrees (dashboard drag) and redraws. */
+  orbit(dAzimuth: number, dElevation: number) {
+    const o = this.orientation;
+    this.orientation = {
+      ...o,
+      azimuth: (((o.azimuth + dAzimuth) % 360) + 360) % 360,
+      elevation: Math.min(90, Math.max(5, o.elevation + dElevation)),
+    };
+    this.draw();
+  }
+
+  zoomBy(factor: number) {
+    this.zoom = Math.min(4, Math.max(0.5, this.zoom * factor));
+    this.draw();
+  }
+
+  /** Animates back to the configured camera of the current focus. */
+  resetView(): Promise<void> {
+    return this.setFocus(this.focus);
   }
 
   // ----- camera -----
@@ -552,6 +649,7 @@ export class HouseRenderer {
       const depth = p.dot(toCamera);
       distance = Math.max(distance, depth + Math.abs(xs[i] - cx) / tanH, depth + Math.abs(ys[i] - cy) / tanV);
     });
+    distance /= this.zoom;
     const radius = this.box.getSize(new THREE.Vector3()).length() / 2;
     this.camera.fov = c.fov;
     this.camera.aspect = this.size.width / this.size.height;

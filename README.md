@@ -22,6 +22,7 @@ covers, window contacts and temperatures, floor focus and room popups. No editor
    ```yaml
    type: custom:homeslice-card
    house: home                    # file name without .yaml
+   interactive: true              # drag to turn, scroll/pinch to zoom, double-click to reset
    view:                          # all optional
      azimuth: 250                 # overview camera: 0 north, 90 east, 180 south, 270 west
      elevation: 38                # degrees above the horizon
@@ -45,7 +46,9 @@ covers, window contacts and temperatures, floor focus and room popups. No editor
    ```
 
    Tap a lamp to switch a room's lights, tap a room (or its name) for a popup with its
-   devices, pick a floor on the left to lift the floors above away.
+   devices, pick a floor on the left to lift the floors above away. Hovering a floor
+   (mouse) highlights it and makes the floors above see-through. While turning, the
+   current angle is shown, so good values can be copied into `view`.
 
 ## House file (short form)
 

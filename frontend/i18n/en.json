@@ -18,5 +18,6 @@
   "popup.sensors": "Sensors",
   "popup.more": "More",
   "popup.close": "Close",
-  "popup.empty": "Nothing in this room is linked to Home Assistant yet."
+  "popup.empty": "Nothing in this room is linked to Home Assistant yet.",
+  "card.camera": "{azimuth}° · {elevation}°"
 }

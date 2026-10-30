@@ -21,6 +21,8 @@ export interface HomesliceCardConfig {
   height?: number;
   /** Popup overrides keyed by room id or area id. */
   popups?: Record<string, PopupOverride>;
+  /** Drag to turn, scroll/pinch to zoom, double-click to reset (default true). */
+  interactive?: boolean;
 }
 
 interface PlacedRoom {
@@ -40,6 +42,7 @@ interface PlacedOpening {
 
 interface Label {
   key: string;
+  levelIndex: number;
   x: number;
   y: number;
   name: string;
@@ -98,6 +101,8 @@ export class HomesliceCard extends LitElement {
     _labels: { state: true },
     _level: { state: true },
     _popup: { state: true },
+    _hover: { state: true },
+    _readout: { state: true },
   };
 
   hass?: Hass;
@@ -109,6 +114,17 @@ export class HomesliceCard extends LitElement {
   /** Focused level: the levels above it are lifted away. */
   private _level: string | null = null;
   private _popup: Popup | null = null;
+  /** Level under the mouse (or under a hovered floor button). */
+  private _hover: number | null = null;
+  private hoverFrame = 0;
+  /** Camera angle shown while turning, so good values can be copied into the config. */
+  private _readout = "";
+  private readoutTimer = 0;
+  private pointers = new Map<number, { x: number; y: number }>();
+  private dragDistance = 0;
+  private pinch = 0;
+  private dragged = false;
+  private clickTimer = 0;
   private house?: House;
   private rooms: PlacedRoom[] = [];
   private openings: PlacedOpening[] = [];
@@ -248,6 +264,8 @@ export class HomesliceCard extends LitElement {
     if (!this.renderer || !this.house) return;
     this._level = this._level === id ? null : id;
     const index = this._level ? this.house.levels.find((l) => l.id === this._level)?.index ?? null : null;
+    this._hover = null;
+    await this.renderer.setHover(null);
     this.transitioning = true;
     this._labels = [];
     await this.renderer.setFocus(index);
@@ -320,11 +338,113 @@ export class HomesliceCard extends LitElement {
     });
   }
 
+  private hoverLevel(index: number | null) {
+    if (!this.renderer || this.transitioning || index === this._hover) return;
+    this._hover = index;
+    void this.renderer.setHover(index);
+  }
+
+  private get interactive() {
+    return this.config.interactive !== false;
+  }
+
+  private onPointerDown(e: PointerEvent) {
+    if (!this.interactive || !this.renderer || this.transitioning) return;
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    this.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (this.pointers.size === 1) {
+      this.dragDistance = 0;
+      this.dragged = false;
+    }
+    if (this.pointers.size === 2) this.pinch = this.pinchDistance();
+  }
+
+  private pinchDistance() {
+    const [a, b] = [...this.pointers.values()];
+    return Math.hypot(a.x - b.x, a.y - b.y);
+  }
+
+  private onPointerMove(e: PointerEvent) {
+    if (!this.renderer || this.transitioning) return;
+    const last = this.pointers.get(e.pointerId);
+    if (last) {
+      // dragging: one pointer turns, two pointers zoom
+      const dx = e.clientX - last.x;
+      const dy = e.clientY - last.y;
+      this.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (this.pointers.size >= 2) {
+        const d = this.pinchDistance();
+        if (this.pinch > 0) this.renderer.zoomBy(d / this.pinch);
+        this.pinch = d;
+        this.dragged = true;
+      } else {
+        this.dragDistance += Math.abs(dx) + Math.abs(dy);
+        if (this.dragDistance < 6) return;
+        this.dragged = true;
+        this.hoverLevel(null);
+        this.renderer.orbit(-dx * 0.35, dy * 0.25);
+      }
+      this.afterCameraMove();
+      return;
+    }
+    // hover: mouse only, touch screens have none
+    if (e.pointerType !== "mouse") return;
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    cancelAnimationFrame(this.hoverFrame);
+    this.hoverFrame = requestAnimationFrame(() => this.hoverLevel(this.renderer?.levelAt(x, y) ?? null));
+  }
+
+  private onPointerUp(e: PointerEvent) {
+    this.pointers.delete(e.pointerId);
+    if (this.pointers.size < 2) this.pinch = 0;
+  }
+
+  private onWheel(e: WheelEvent) {
+    if (!this.interactive || !this.renderer || this.transitioning) return;
+    e.preventDefault();
+    this.renderer.zoomBy(Math.exp(-e.deltaY * 0.0015));
+    this.afterCameraMove();
+  }
+
+  private async onDoubleClick() {
+    clearTimeout(this.clickTimer);
+    if (!this.interactive || !this.renderer || this.transitioning) return;
+    this.transitioning = true;
+    this._labels = [];
+    await this.renderer.resetView();
+    this.transitioning = false;
+    this.placeLabels();
+    this.dispatchEvent(new CustomEvent("homeslice-rendered"));
+  }
+
+  /** Labels follow the camera; the readout shows the angle for a while. */
+  private afterCameraMove() {
+    cancelAnimationFrame(this.hoverFrame);
+    this.hoverFrame = requestAnimationFrame(() => {
+      this.placeLabels();
+      const o = this.renderer!.orientation;
+      const zoom = this.renderer!.zoom;
+      this._readout = this.t("card.camera", { azimuth: Math.round(o.azimuth), elevation: Math.round(o.elevation) }) + (Math.abs(zoom - 1) > 0.01 ? ` · ${zoom.toFixed(1)}×` : "");
+      clearTimeout(this.readoutTimer);
+      this.readoutTimer = window.setTimeout(() => (this._readout = ""), 2500);
+    });
+  }
+
   private onCanvasClick(e: MouseEvent) {
+    if (this.dragged) {
+      this.dragged = false;
+      return;
+    }
     if (!this.renderer || this.transitioning) return;
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
     const key = this.renderer.pick(e.clientX - rect.left, e.clientY - rect.top);
-    if (key) this.openPopup(key);
+    if (!key) return;
+    // wait a moment: a second click makes it a double-click (reset view), not a popup
+    clearTimeout(this.clickTimer);
+    if (!this.interactive) this.openPopup(key);
+    else this.clickTimer = window.setTimeout(() => this.openPopup(key), 250);
   }
 
   // ----- drawing -----
@@ -359,6 +479,7 @@ export class HomesliceCard extends LitElement {
       const areaId = r.room.areaId;
       labels.push({
         key: r.key,
+        levelIndex: r.levelIndex,
         ...p,
         name: this.roomName(r),
         temperature: areaId ? areaTemperature(this.hass, areaId) : null,
@@ -375,9 +496,20 @@ export class HomesliceCard extends LitElement {
     return html`
       <ha-card>
         <div class="wrap">
-          <canvas @click=${this.onCanvasClick}></canvas>
+          <canvas
+            class=${this.interactive ? "interactive" : ""}
+            @click=${this.onCanvasClick}
+            @dblclick=${this.onDoubleClick}
+            @pointerdown=${this.onPointerDown}
+            @pointermove=${this.onPointerMove}
+            @pointerup=${this.onPointerUp}
+            @pointercancel=${this.onPointerUp}
+            @pointerleave=${() => this.pointers.size === 0 && this.hoverLevel(null)}
+            @wheel=${this.onWheel}
+          ></canvas>
+          ${this._readout ? html`<div class="readout">${this._readout}</div>` : nothing}
           ${this._labels.map(
-            (l) => html`<div class="label" style="left:${l.x}px;top:${l.y}px">
+            (l) => html`<div class="label ${this._hover !== null && l.levelIndex > this._hover ? "faded" : ""}" style="left:${l.x}px;top:${l.y}px">
               ${l.hasLights
                 ? html`<button
                     class="lamp ${l.on ? "on" : ""}"
@@ -396,7 +528,12 @@ export class HomesliceCard extends LitElement {
           ${this.house
             ? html`<nav class="levels">
                 ${levels.map(
-                  (l) => html`<button class=${this._level === l.id ? "active" : ""} @click=${() => this.selectLevel(l.id)}>
+                  (l) => html`<button
+                    class="${this._level === l.id ? "active" : ""} ${this._hover === l.index ? "hover" : ""}"
+                    @click=${() => this.selectLevel(l.id)}
+                    @pointerenter=${(e: PointerEvent) => e.pointerType === "mouse" && this.hoverLevel(l.index)}
+                    @pointerleave=${() => this.hoverLevel(null)}
+                  >
                     ${this.levelName(l.id)}
                   </button>`,
                 )}
@@ -470,6 +607,22 @@ export class HomesliceCard extends LitElement {
       height: 100%;
       cursor: pointer;
     }
+    canvas.interactive {
+      /* drags turn the house instead of scrolling the page */
+      touch-action: none;
+    }
+    .readout {
+      position: absolute;
+      right: 12px;
+      bottom: 12px;
+      padding: 4px 10px;
+      border-radius: 10px;
+      background: var(--card-background-color, rgba(20, 24, 28, 0.85));
+      color: var(--secondary-text-color, #aaa);
+      font-size: 12px;
+      font-variant-numeric: tabular-nums;
+      pointer-events: none;
+    }
     .label {
       position: absolute;
       transform: translate(-50%, -50%);
@@ -491,6 +644,15 @@ export class HomesliceCard extends LitElement {
       font: inherit;
       color: #fff;
       text-shadow: 0 0 3px #000, 0 0 6px #000;
+    }
+    .label {
+      transition: opacity 0.16s;
+    }
+    .label.faded {
+      opacity: 0.2;
+    }
+    .label.faded button {
+      pointer-events: none;
     }
     .label span.name {
       font-size: 12px;
@@ -541,6 +703,9 @@ export class HomesliceCard extends LitElement {
       font-size: 14px;
       text-align: left;
       cursor: pointer;
+    }
+    .levels button.hover {
+      border-color: var(--primary-color);
     }
     .levels button.active {
       border-color: var(--primary-color);
