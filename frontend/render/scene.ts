@@ -34,6 +34,8 @@ export interface ViewOptions {
   focus: Orientation;
   /** Per-level camera when that level is focused, keyed by level id. */
   levels: Record<string, Partial<Orientation>>;
+  /** Draw outdoor areas (garden, terrace); they are see-through so lower floors show. */
+  showOutdoor: boolean;
 }
 
 export const DEFAULT_VIEW: ViewOptions = {
@@ -45,6 +47,7 @@ export const DEFAULT_VIEW: ViewOptions = {
   cutBelow: 60,
   focus: { azimuth: 180, elevation: 65, projection: "perspective" },
   levels: {},
+  showOutdoor: true,
 };
 
 // One perspective camera does both: "isometric" is a very narrow lens from far away, so
@@ -228,12 +231,15 @@ export class HouseRenderer {
 
     // room floors
     for (const room of level.rooms) {
-      if (room.kind === "void") continue;
+      if (room.kind === "void" || (room.kind === "outdoor" && !this.view.showOutdoor)) continue;
       const inside = holes.filter((h) => pointInPolygon(centroid(h), room.polygon));
       const geo = new THREE.ShapeGeometry(shapeOf(room.polygon, inside));
       geo.rotateX(-Math.PI / 2);
       geo.translate(0, room.kind === "outdoor" ? -level.slab + 0.01 : 0.004, 0);
-      const floor = this.mesh(geo, this.lambert(FLOOR_COLORS[room.floor] ?? FLOOR_COLORS.wood), false);
+      const color = FLOOR_COLORS[room.floor] ?? FLOOR_COLORS.wood;
+      // outdoor areas reach over the floors below in the exploded view: keep them see-through
+      const material = room.kind === "outdoor" ? this.lambert(color, { transparent: true, opacity: 0.55, depthWrite: false }) : this.lambert(color);
+      const floor = this.mesh(geo, material, false);
       floor.userData.room = `${level.id}/${room.id}`;
       floor.userData.outdoor = room.kind === "outdoor";
       this.floors.set(`${level.id}/${room.id}`, floor);
@@ -482,9 +488,10 @@ export class HouseRenderer {
     for (const m of l.materials) {
       const base = (m.userData.baseOpacity ??= m.opacity) as number;
       const baseTransparent = (m.userData.baseTransparent ??= m.transparent) as boolean;
+      const baseDepthWrite = (m.userData.baseDepthWrite ??= m.depthWrite) as boolean;
       m.transparent = fading || baseTransparent;
       m.opacity = base * l.opacity;
-      m.depthWrite = !fading;
+      m.depthWrite = !fading && baseDepthWrite;
     }
   }
 

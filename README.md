@@ -29,6 +29,7 @@ covers, window contacts and temperatures, floor focus and room popups. No editor
      explode: 2.6                 # gap between floors in metres
      cut_height: 0.4              # outer walls facing a low camera are cut to this height…
      cut_below: 60                # …while the camera is lower than this (degrees)
+     show_outdoor: true           # garden, terrace etc. (drawn see-through)
      focus:                       # camera when a floor is picked
        azimuth: 180
        elevation: 65

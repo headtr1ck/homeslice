@@ -215,6 +215,18 @@ console.log("demo house");
 }
 
 console.log(results.splice(0).join("\n"));
+console.log("demo house, outdoor areas hidden");
+{
+  const { page, errors } = await open("dev/fixtures/demo-hass.json", { view: { show_outdoor: false } });
+  await test("show_outdoor: false leaves out gardens and their labels", async () => {
+    const names = await labelNames(page);
+    assert(!names.includes("Garden") && names.includes("Living Room"), `labels: ${names.join(", ")}`);
+    assert(errors.length === 0, errors.join(" | "));
+  });
+  await page.close();
+}
+
+console.log(results.splice(0).join("\n"));
 console.log("demo house, per-level camera");
 {
   const { page, errors } = await open("dev/fixtures/demo-hass.json", {

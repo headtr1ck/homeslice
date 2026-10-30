@@ -67,10 +67,17 @@ declare global {
 }
 
 /** Card YAML uses HA's snake_case; the renderer uses camelCase. */
-function viewOptions(view: (Partial<ViewOptions> & { cut_height?: number; cut_below?: number }) | undefined): Partial<ViewOptions> {
+function viewOptions(
+  view: (Partial<ViewOptions> & { cut_height?: number; cut_below?: number; show_outdoor?: boolean }) | undefined,
+): Partial<ViewOptions> {
   if (!view) return {};
-  const { cut_height, cut_below, ...rest } = view;
-  return { ...rest, ...(cut_height !== undefined ? { cutHeight: cut_height } : {}), ...(cut_below !== undefined ? { cutBelow: cut_below } : {}) };
+  const { cut_height, cut_below, show_outdoor, ...rest } = view;
+  return {
+    ...rest,
+    ...(cut_height !== undefined ? { cutHeight: cut_height } : {}),
+    ...(cut_below !== undefined ? { cutBelow: cut_below } : {}),
+    ...(show_outdoor !== undefined ? { showOutdoor: show_outdoor } : {}),
+  };
 }
 
 /** Makes sure a card type's element is defined before cards of that type are created. */
@@ -201,7 +208,7 @@ export class HomesliceCard extends LitElement {
     this.house = house;
     this.rooms = house.levels.flatMap((level) =>
       level.rooms
-        .filter((room) => room.kind !== "void")
+        .filter((room) => room.kind !== "void" && (room.kind !== "outdoor" || viewOptions(this.config.view).showOutdoor !== false))
         .map((room) => ({ key: `${level.id}/${room.id}`, levelId: level.id, levelIndex: level.index, room, point: labelPoint(room.polygon) })),
     );
     this.openings = [...walls.entries()].flatMap(([levelId, ws]) =>
