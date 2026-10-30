@@ -466,12 +466,10 @@ export class HomeslicePanel extends LitElement {
       const poly = roomPolygon(m, r);
       const i = poly.findIndex((p) => Math.hypot(p[0] - at[0], p[1] - at[1]) < 0.01);
       if (i < 0 || (this._room && r.id !== this._room)) continue;
-      // inside dimensions
+      // inside dimensions of the two sides at this corner
       const inner = this.inner(r);
-      const q = inner[i];
-      const prev = inner[(i - 1 + inner.length) % inner.length];
-      const next = inner[(i + 1) % inner.length];
-      lines.push(`${fmtM(Math.hypot(q[0] - prev[0], q[1] - prev[1]))} · ${fmtM(Math.hypot(q[0] - next[0], q[1] - next[1]))} · ${Math.round(cornerAngle(inner, i))}°`);
+      const sides = this.innerSides(poly, inner);
+      lines.push(`${fmtM(sides[(i - 1 + poly.length) % poly.length])} · ${fmtM(sides[i])} · ${Math.round(cornerAngle(poly, i))}°`);
       lines.push(`${this.roomName(r)}: ${area(inner).toFixed(2)} m²`);
       break;
     }
@@ -488,6 +486,23 @@ export class HomeslicePanel extends LitElement {
     const { house } = expandHouse(this._model!);
     const level = house?.levels.find((x) => x.id === this._level);
     return level && house ? deriveWalls(level, house.walls, []) : [];
+  }
+
+  /**
+   * Inside length of each side of a room: the stretch of the inner outline that lies
+   * along that side (the inner outline may have extra corners where walls change).
+   */
+  private innerSides(poly: Vec2[], inner: Vec2[]): number[] {
+    return poly.map((a, i) => {
+      const b = poly[(i + 1) % poly.length];
+      const length = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1;
+      const u: Vec2 = [(b[0] - a[0]) / length, (b[1] - a[1]) / length];
+      const ts = inner
+        .filter((p) => Math.abs((p[0] - a[0]) * u[1] - (p[1] - a[1]) * u[0]) < 0.45)
+        .map((p) => (p[0] - a[0]) * u[0] + (p[1] - a[1]) * u[1])
+        .filter((t) => t > -0.45 && t < length + 0.45);
+      return ts.length >= 2 ? Math.max(...ts) - Math.min(...ts) : length;
+    });
   }
 
   /** A room as it really is: to the inside of its walls (outdoor areas as drawn). */
@@ -782,15 +797,14 @@ export class HomeslicePanel extends LitElement {
 
   /** Handles sit on the wall centre lines; the lengths shown are inside dimensions. */
   private renderHandles(poly: Vec2[], inner: Vec2[]) {
+    const sides = this.innerSides(poly, inner);
     return svg`${poly.map((p, i) => {
       const q = poly[(i + 1) % poly.length];
-      const ip = inner[i] ?? p;
-      const iq = inner[(i + 1) % poly.length] ?? q;
       const [ax, ay] = this.toScreen(p);
       const [bx, by] = this.toScreen(q);
       const mx = (ax + bx) / 2;
       const my = (ay + by) / 2;
-      const len = Math.hypot(iq[0] - ip[0], iq[1] - ip[1]);
+      const len = sides[i];
       // label outside the edge (positive orientation: outside is to the right of a→b in screen terms)
       const nx = (by - ay) / (Math.hypot(bx - ax, by - ay) || 1);
       const ny = -(bx - ax) / (Math.hypot(bx - ax, by - ay) || 1);

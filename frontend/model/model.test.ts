@@ -257,6 +257,34 @@ describe("deriveWalls", () => {
     expect(Math.abs(signedArea(left))).toBeCloseTo(4.7 * 7.28);
   });
 
+  it("steps the inside face where a room edge runs along walls of different thickness", async () => {
+    const { innerPolygon } = await import("./walls");
+    // like the basement: the technical room's east edge is a party wall, then an inside
+    // wall to the corridor
+    const input: HouseInput = {
+      schema: 1,
+      id: "b",
+      outline: { polygon: [[0, 0], [2.5, 0], [2.5, 5.35], [5.5, 5.35], [5.5, 7.5], [0, 7.5]] },
+      party_walls: ["east"],
+      levels: [
+        {
+          id: "b",
+          rooms: [
+            { id: "technical", rect: [0, 0, 2.5, 7.5] },
+            { id: "corridor", rect: [2.5, 5.35, 3, 2.15] },
+          ],
+        },
+      ],
+    };
+    const h = expand(input);
+    const inner = innerPolygon(h.levels[0].rooms[0].polygon, deriveWalls(h.levels[0], h.walls));
+    const r = inner.map((p) => p.map((v) => Math.round(v * 100) / 100));
+    // the east side steps from the party wall (0.24) to half the inside wall (0.06)
+    expect(r).toContainEqual([2.26, 5.35]);
+    expect(r).toContainEqual([2.44, 5.35]);
+    expect(r).toContainEqual([2.44, 7.14]);
+  });
+
   it("warns about openings without a wall", () => {
     const input = twoRooms();
     input.levels[0].openings = [{ room: "left", side: "east", at: 9, width: 1 }];

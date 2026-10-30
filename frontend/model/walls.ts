@@ -9,6 +9,7 @@ import {
   add,
   bbox,
   dist,
+  len,
   edges,
   outwardNormal,
   project,
@@ -267,32 +268,68 @@ function fillCorners(walls: Wall[], outline: Vec2[]) {
 
 /**
  * A room's floor as it really is: each edge pulled inwards to the inside face of the wall
- * on it (a full outer wall, half an inside wall, nothing where the room is open).
+ * on it (a full outer wall, half an inside wall, nothing where the room is open). An edge
+ * running along walls of different thickness is split, giving the outline a small step.
  */
 export function innerPolygon(polygon: Vec2[], walls: Wall[]): Vec2[] {
-  const n = polygon.length;
-  const lines = edges(polygon).map(([a, b]) => {
-    const mid: Vec2 = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
-    const wall = walls.find((w) => {
-      if (w.type === "open") return false;
-      const pr = project(mid, w.line[0], w.line[1]);
-      return pr.distance < SNAP && pr.t > -SNAP && pr.t < pr.length + SNAP;
-    });
-    const inset = !wall ? 0 : wall.type === "interior" ? wall.thickness / 2 : wall.thickness;
-    const out = outwardNormal(a, b);
-    const shift: Vec2 = [-out[0] * inset, -out[1] * inset];
-    return [add(a, shift), add(b, shift)] as [Vec2, Vec2];
-  });
-  // each corner: where the two shifted neighbouring edges meet
-  return lines.map((cur, i) => {
-    const prev = lines[(i - 1 + n) % n];
+  // offset pieces of every edge, in order around the room
+  const pieces: [Vec2, Vec2][] = [];
+  for (const [a, b] of edges(polygon)) {
+    const length = dist(a, b);
+    if (length < 1e-9) continue;
+    const u = scale(sub(b, a), 1 / length);
+    const inward = scale(outwardNormal(a, b), -1);
+    // the walls lying along this edge, as ranges along it
+    const ranges: { t0: number; t1: number; inset: number }[] = [];
+    for (const w of walls) {
+      if (w.type === "open") continue;
+      const p0 = project(w.line[0], a, b);
+      const p1 = project(w.line[1], a, b);
+      if (p0.distance > SNAP || p1.distance > SNAP) continue;
+      const t0 = Math.max(0, Math.min(p0.t, p1.t));
+      const t1 = Math.min(length, Math.max(p0.t, p1.t));
+      if (t1 - t0 < 1e-6) continue;
+      ranges.push({ t0, t1, inset: w.type === "interior" ? w.thickness / 2 : w.thickness });
+    }
+    ranges.sort((x, y) => x.t0 - y.t0);
+    // fill the stretches without a wall (open) with no inset, merge equal neighbours
+    const parts: { t0: number; t1: number; inset: number }[] = [];
+    let t = 0;
+    for (const r of ranges) {
+      if (r.t0 > t + 1e-6) parts.push({ t0: t, t1: r.t0, inset: 0 });
+      const start = Math.max(t, r.t0);
+      if (r.t1 > start + 1e-6) parts.push({ t0: start, t1: r.t1, inset: r.inset });
+      t = Math.max(t, r.t1);
+    }
+    if (t < length - 1e-6) parts.push({ t0: t, t1: length, inset: 0 });
+    const merged = parts.reduce<typeof parts>((acc, p) => {
+      const last = acc[acc.length - 1];
+      if (last && Math.abs(last.inset - p.inset) < 1e-9) last.t1 = p.t1;
+      else acc.push({ ...p });
+      return acc;
+    }, []);
+    for (const p of merged) {
+      const off = scale(inward, p.inset);
+      pieces.push([add(add(a, scale(u, p.t0)), off), add(add(a, scale(u, p.t1)), off)]);
+    }
+  }
+  // corners: neighbouring pieces meet where their lines cross; parallel pieces (a step
+  // within one edge) are joined by a short connecting edge
+  const out: Vec2[] = [];
+  pieces.forEach((cur, i) => {
+    const prev = pieces[(i - 1 + pieces.length) % pieces.length];
     const d1 = sub(prev[1], prev[0]);
     const d2 = sub(cur[1], cur[0]);
     const den = d1[0] * d2[1] - d1[1] * d2[0];
-    if (Math.abs(den) < 1e-9) return cur[0];
+    if (Math.abs(den) < 1e-9 * (len(d1) * len(d2) || 1)) {
+      if (dist(prev[1], cur[0]) > 1e-6) out.push(prev[1]);
+      out.push(cur[0]);
+      return;
+    }
     const t = ((cur[0][0] - prev[0][0]) * d2[1] - (cur[0][1] - prev[0][1]) * d2[0]) / den;
-    return add(prev[0], scale(d1, t));
+    out.push(add(prev[0], scale(d1, t)));
   });
+  return out;
 }
 
 function placeOpening(o: Opening, level: Level, walls: Wall[], issues: Issue[], path: string) {

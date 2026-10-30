@@ -85,6 +85,9 @@ await step("the editor opens the house (read-only check, nothing is saved)", asy
   await page.locator("homeslice-panel button.level").first().click();
   await page.waitForTimeout(800);
   await shot("editor-top-level");
+  await page.locator("homeslice-panel button.level").last().click();
+  await page.waitForTimeout(800);
+  await shot("editor-bottom-level");
 });
 
 await step("no Homeslice errors in the console", async () => {
