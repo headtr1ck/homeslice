@@ -25,6 +25,7 @@ import {
   addLevel,
   deleteLevel,
   newHouse,
+  layoutRooms,
   slug,
   uniqueId,
   updateLevel,
@@ -224,6 +225,19 @@ describe("houses and levels", () => {
     expect(rects).toEqual([[0, 0, 5, 4], [5, 0, 5, 4], [0, 4, 10, 4]]);
     expect(m.levels[0].rooms.map((r) => r.area_id)).toEqual(["kitchen", "living_room", "hall"]);
     expect(m.levels[1].rooms).toEqual([]);
+  });
+
+  it("areas that sound like outside become outdoor areas south of the house", () => {
+    const rooms = layoutRooms([0, 0, 10, 8], [
+      { area_id: "kitchen", name: "Kitchen" },
+      { area_id: "garten", name: "Garten" },
+      { area_id: "terrace", name: "Terrace" },
+    ]);
+    expect(rooms).toEqual([
+      { id: "kitchen", area_id: "kitchen", rect: [0, 0, 10, 8] },
+      { id: "garten", area_id: "garten", kind: "outdoor", rect: [0, 8, 5, 3] },
+      { id: "terrace", area_id: "terrace", kind: "outdoor", rect: [5, 8, 5, 3] },
+    ]);
   });
 
   it("adds, renames and deletes levels with their references", () => {

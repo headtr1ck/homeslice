@@ -664,6 +664,8 @@ console.log("editor, starting from scratch");
     assert((await page.locator("homeslice-panel button.level.active").textContent()).includes("Ground Floor"), "not on the ground floor");
     const names = await page.locator("homeslice-panel svg.plan text.room-name").allTextContents();
     for (const n of ["Hall", "Kitchen", "Living Room", "Garden"]) assert(names.includes(n), `missing ${n}: ${names}`);
+    const garden = m.levels[1].rooms.find((r) => r.area_id === "garden");
+    assert(garden.kind === "outdoor" && garden.rect[1] === 8, `garden: ${JSON.stringify(garden)}`);
     assert(!(await page.locator("homeslice-panel button.save.dirty").count()), "a new house should be saved right away");
     await page.waitForFunction(() => window.panel.renderer?.renderer.info.render.triangles > 100, null, { timeout: 10000 });
     await shot(page, "editor-new-house-created");

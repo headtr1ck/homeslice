@@ -486,30 +486,50 @@ export interface AreaSeed {
   name: string;
 }
 
+/** Area names that are most likely outside (English and German). */
+const OUTDOOR = /garden|garten|terrace|terrasse|patio|balcon|balkon|yard|deck|porch|veranda|pool|driveway|einfahrt|outdoor|outside|au(ss|ß)en|hof\b|wintergarden|wintergarten/i;
+
+export const looksOutdoor = (a: AreaSeed) => OUTDOOR.test(a.name) || OUTDOOR.test(a.area_id);
+
 /**
  * Placeholder rooms for areas: a grid of rectangles filling `rect` (x, y, width, depth),
  * sharing walls, so a new level starts as a valid plan the user only has to reshape.
+ * Areas that sound like outside (garden, terrace, …) become outdoor areas in a 3 m strip
+ * south of the house.
  */
 export function layoutRooms(rect: [number, number, number, number], areas: AreaSeed[], taken: string[] = []): RoomInput[] {
-  if (!areas.length) return [];
   const [x0, y0, w, d] = rect;
-  const cols = Math.max(1, Math.round(Math.sqrt((areas.length * w) / d)));
-  const rows = Math.ceil(areas.length / cols);
-  const snap = (v: number) => Math.round(v * 20) / 20;
   const ids = [...taken];
-  return areas.map((a, i) => {
-    const row = Math.floor(i / cols);
-    // the last row shares the full width between what is left
-    const inRow = row === rows - 1 ? areas.length - row * cols : cols;
-    const col = i - row * cols;
-    const xa = snap(x0 + (w * col) / inRow);
-    const xb = snap(x0 + (w * (col + 1)) / inRow);
-    const ya = snap(y0 + (d * row) / rows);
-    const yb = snap(y0 + (d * (row + 1)) / rows);
+  const make = (a: AreaSeed, r: [number, number, number, number], props: Partial<RoomInput> = {}): RoomInput => {
     const id = uniqueId(ids, slug(a.area_id, "room"));
     ids.push(id);
-    return { id, area_id: a.area_id, rect: [xa, ya, round(xb - xa), round(yb - ya)] };
+    return { id, area_id: a.area_id, ...props, rect: r };
+  };
+  const indoor = areas.filter((a) => !looksOutdoor(a));
+  const outdoor = areas.filter(looksOutdoor);
+  const snap = (v: number) => Math.round(v * 20) / 20;
+  const rooms: RoomInput[] = [];
+  if (indoor.length) {
+    const cols = Math.max(1, Math.round(Math.sqrt((indoor.length * w) / d)));
+    const rows = Math.ceil(indoor.length / cols);
+    indoor.forEach((a, i) => {
+      const row = Math.floor(i / cols);
+      // the last row shares the full width between what is left
+      const inRow = row === rows - 1 ? indoor.length - row * cols : cols;
+      const col = i - row * cols;
+      const xa = snap(x0 + (w * col) / inRow);
+      const xb = snap(x0 + (w * (col + 1)) / inRow);
+      const ya = snap(y0 + (d * row) / rows);
+      const yb = snap(y0 + (d * (row + 1)) / rows);
+      rooms.push(make(a, [xa, ya, round(xb - xa), round(yb - ya)]));
+    });
+  }
+  outdoor.forEach((a, i) => {
+    const xa = snap(x0 + (w * i) / outdoor.length);
+    const xb = snap(x0 + (w * (i + 1)) / outdoor.length);
+    rooms.push(make(a, [xa, round(y0 + d), round(xb - xa), 3], { kind: "outdoor" }));
   });
+  return rooms;
 }
 
 export interface LevelSeed {
