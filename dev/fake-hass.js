@@ -52,6 +52,19 @@ export function makeHass(fixture, onChange) {
     async callWS(msg) {
       // several houses: the fixture's model is the first; `houses` holds the rest
       const houses = (fixture.houses ??= fixture.model ? { [fixture.model.id]: fixture.model } : {});
+      const underlays = (fixture.underlays ??= {});
+      if (msg.type === "homeslice/underlay/get") return msg.level ? structuredClone(underlays[`${msg.house}/${msg.level}`] ?? null) : { levels: [] };
+      if (msg.type === "homeslice/underlay/set") {
+        const key = `${msg.house}/${msg.level}`;
+        const { type, house, level, id, ...patch } = msg;
+        if (!patch.image && !underlays[key]) throw new Error("Upload an image first");
+        underlays[key] = { ...underlays[key], ...patch };
+        return null;
+      }
+      if (msg.type === "homeslice/underlay/delete") {
+        delete underlays[`${msg.house}/${msg.level}`];
+        return null;
+      }
       if (msg.type === "homeslice/model") {
         const m = houses[msg.house ?? fixture.model?.id];
         if (!m) throw new Error(`fake hass: no house ${msg.house}`);

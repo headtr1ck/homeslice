@@ -11,16 +11,21 @@ from homeassistant.core import HomeAssistant, callback
 
 from .const import DEFAULT_HOUSE, DOMAIN
 from .store import HomesliceStore, ModelError
+from .underlay import UnderlayError, Underlays
 
 
 def _store(hass: HomeAssistant) -> HomesliceStore:
     return hass.data[DOMAIN]["store"]
 
 
+def _underlays(hass: HomeAssistant) -> Underlays:
+    return hass.data[DOMAIN]["underlays"]
+
+
 @callback
 def async_register_websocket(hass: HomeAssistant) -> None:
     """Register the websocket commands."""
-    for command in (ws_list, ws_get_model, ws_subscribe, ws_save, ws_delete, ws_import_files):
+    for command in (ws_list, ws_get_model, ws_subscribe, ws_save, ws_delete, ws_import_files, ws_underlay_get, ws_underlay_set, ws_underlay_delete):
         websocket_api.async_register_command(hass, command)
 
 
@@ -86,8 +91,9 @@ async def ws_save(hass: HomeAssistant, connection: websocket_api.ActiveConnectio
 @websocket_api.require_admin
 @websocket_api.async_response
 async def ws_delete(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
-    """Delete a house (admins only)."""
+    """Delete a house and its floor plan images (admins only)."""
     await _store(hass).async_delete(msg["house"])
+    await _underlays(hass).async_delete(msg["house"])
     connection.send_result(msg["id"])
 
 
@@ -97,3 +103,60 @@ async def ws_delete(hass: HomeAssistant, connection: websocket_api.ActiveConnect
 async def ws_import_files(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
     """Import <config>/homeslice/*.yaml into storage (admins only)."""
     connection.send_result(msg["id"], {"imported": await _store(hass).async_import_files(force=msg["force"])})
+
+
+PLACE = vol.Schema(
+    {
+        # plan position (metres) of the image's top-left corner, metres per pixel, degrees
+        vol.Required("origin"): vol.All([vol.Coerce(float)], vol.Length(min=2, max=2)),
+        vol.Required("scale"): vol.All(vol.Coerce(float), vol.Range(min=1e-5, max=10)),
+        vol.Optional("rotation", default=0): vol.Coerce(float),
+    }
+)
+
+
+@websocket_api.websocket_command(
+    {vol.Required("type"): "homeslice/underlay/get", vol.Required("house"): str, vol.Optional("level"): str}
+)
+@websocket_api.require_admin
+@websocket_api.async_response
+async def ws_underlay_get(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
+    """A level's floor plan image and placement; without a level, the levels that have one."""
+    if "level" not in msg:
+        connection.send_result(msg["id"], {"levels": await _underlays(hass).async_list(msg["house"])})
+        return
+    connection.send_result(msg["id"], await _underlays(hass).async_get(msg["house"], msg["level"]))
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): "homeslice/underlay/set",
+        vol.Required("house"): str,
+        vol.Required("level"): str,
+        vol.Optional("image"): str,
+        vol.Optional("place"): PLACE,
+        vol.Optional("opacity"): vol.All(vol.Coerce(float), vol.Range(min=0, max=1)),
+    }
+)
+@websocket_api.require_admin
+@websocket_api.async_response
+async def ws_underlay_set(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
+    """Store a level's floor plan image and/or its placement (admins only)."""
+    patch = {k: msg[k] for k in ("image", "place", "opacity") if k in msg}
+    try:
+        stored = await _underlays(hass).async_set(msg["house"], msg["level"], patch)
+    except UnderlayError as err:
+        connection.send_error(msg["id"], "invalid_underlay", str(err))
+        return
+    connection.send_result(msg["id"], {k: v for k, v in stored.items() if k != "image"})
+
+
+@websocket_api.websocket_command(
+    {vol.Required("type"): "homeslice/underlay/delete", vol.Required("house"): str, vol.Required("level"): str}
+)
+@websocket_api.require_admin
+@websocket_api.async_response
+async def ws_underlay_delete(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
+    """Remove a level's floor plan image (admins only)."""
+    await _underlays(hass).async_delete(msg["house"], msg["level"])
+    connection.send_result(msg["id"])

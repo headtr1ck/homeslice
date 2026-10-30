@@ -18,6 +18,7 @@ from homeassistant.helpers.debounce import Debouncer
 from .const import DOMAIN, FRONTEND_FILE, FRONTEND_URL
 from .repairs import async_check_house
 from .store import HomesliceStore
+from .underlay import Underlays
 from .websocket import async_register_websocket
 
 _LOGGER = logging.getLogger(__name__)
@@ -32,6 +33,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     store = HomesliceStore(hass)
     await store.async_load()
     data["store"] = store
+    data["underlays"] = Underlays(hass)
     # Phase 1 kept houses as YAML files; import them on first start.
     if not store.houses:
         imported = await store.async_import_files()

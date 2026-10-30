@@ -156,3 +156,38 @@ async def test_import_skips_houses_edited_in_the_editor(hass: HomeAssistant, set
     await hass.services.async_call(DOMAIN, "import_files", {"force": True}, blocking=True)
     await client.send_json_auto_id({"type": "homeslice/model", "house": "home"})
     assert "name" not in (await client.receive_json())["result"]
+
+
+PNG = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
+
+
+async def test_underlays_are_stored_per_level_admin_only(
+    hass: HomeAssistant, setup, hass_ws_client, hass_read_only_access_token
+) -> None:
+    client = await hass_ws_client(hass)
+    await client.send_json_auto_id({"type": "homeslice/underlay/get", "house": "home", "level": "ground"})
+    assert (await client.receive_json())["result"] is None
+    await client.send_json_auto_id({"type": "homeslice/underlay/set", "house": "home", "level": "ground", "place": {"origin": [0, 0], "scale": 0.01}})
+    assert (await client.receive_json())["error"]["code"] == "invalid_underlay"  # no image yet
+    await client.send_json_auto_id({"type": "homeslice/underlay/set", "house": "home", "level": "ground", "image": "data:text/html,<b>"})
+    assert (await client.receive_json())["error"]["code"] == "invalid_underlay"
+    await client.send_json_auto_id({"type": "homeslice/underlay/set", "house": "home", "level": "ground", "image": PNG, "opacity": 0.5})
+    assert (await client.receive_json())["result"] == {"opacity": 0.5}
+    await client.send_json_auto_id(
+        {"type": "homeslice/underlay/set", "house": "home", "level": "ground", "place": {"origin": [1, 2], "scale": 0.02}}
+    )
+    assert (await client.receive_json())["result"]["place"] == {"origin": [1.0, 2.0], "scale": 0.02, "rotation": 0}
+    await client.send_json_auto_id({"type": "homeslice/underlay/get", "house": "home", "level": "ground"})
+    got = (await client.receive_json())["result"]
+    assert got["image"] == PNG and got["opacity"] == 0.5
+    await client.send_json_auto_id({"type": "homeslice/underlay/get", "house": "home"})
+    assert (await client.receive_json())["result"] == {"levels": ["ground"]}
+
+    reader = await hass_ws_client(hass, hass_read_only_access_token)
+    await reader.send_json_auto_id({"type": "homeslice/underlay/get", "house": "home", "level": "ground"})
+    assert (await reader.receive_json())["error"]["code"] == "unauthorized"
+
+    await client.send_json_auto_id({"type": "homeslice/underlay/delete", "house": "home", "level": "ground"})
+    await client.receive_json()
+    await client.send_json_auto_id({"type": "homeslice/underlay/get", "house": "home"})
+    assert (await client.receive_json())["result"] == {"levels": []}

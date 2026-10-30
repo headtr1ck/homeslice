@@ -850,6 +850,55 @@ console.log("editor, starting from scratch");
     assert(!(await page.locator("homeslice-panel ul.unplaced li", { hasText: "Hall" }).count()), "hall still listed as unplaced");
   });
 
+  await test("floor plan image: upload, scale from two points, move, turn, remove", async () => {
+    await page.keyboard.press("Escape");
+    // a 400 × 200 test image
+    const dataUrl = await page.evaluate(() => {
+      const c = document.createElement("canvas");
+      c.width = 400;
+      c.height = 200;
+      const ctx = c.getContext("2d");
+      ctx.fillStyle = "#fff";
+      ctx.fillRect(0, 0, 400, 200);
+      ctx.fillStyle = "#000";
+      ctx.fillRect(100, 98, 200, 4);
+      return c.toDataURL("image/png");
+    });
+    await page.locator("homeslice-panel .inspector label.file input").setInputFiles({ name: "plan.png", mimeType: "image/png", buffer: Buffer.from(dataUrl.split(",")[1], "base64") });
+    await page.waitForSelector("homeslice-panel svg.plan image.underlay");
+    assert((await page.locator("homeslice-panel .calib").textContent()).includes("Click the start"), "calibration not started");
+    const screenOf = (px) =>
+      page.evaluate((px) => {
+        const p = window.panel;
+        const [x, y] = p.toScreen(p.underlayToPlan(p._underlay, px));
+        const r = p.shadowRoot.querySelector("svg.plan").getBoundingClientRect();
+        return [r.left + x, r.top + y];
+      }, px);
+    await page.mouse.click(...(await screenOf([100, 100])));
+    await page.mouse.click(...(await screenOf([300, 100])));
+    await page.locator("homeslice-panel .calib input.calib-distance").fill("4");
+    await page.locator("homeslice-panel .calib button.primary").click();
+    const placed = await page.evaluate(() => window.panel._underlay.place);
+    assert(Math.abs(placed.scale - 0.02) < 1e-6, `scale: ${placed.scale}`);
+    // moving is on after scaling
+    const scale = await page.evaluate(() => window.panel._view.scale);
+    const from = await screenOf([200, 150]);
+    await page.mouse.move(...from);
+    await page.mouse.down();
+    await page.mouse.move(from[0] + scale, from[1], { steps: 4 });
+    await page.mouse.up();
+    const moved = await page.evaluate(() => window.panel._underlay.place.origin);
+    assert(Math.abs(moved[0] - placed.origin[0] - 1) < 0.02, `moved: ${JSON.stringify(moved)} from ${JSON.stringify(placed.origin)}`);
+    await shot(page, "editor-underlay");
+    await page.keyboard.press("Escape");
+    await page.locator("homeslice-panel .inspector button[aria-label='Turn right 90°']").click();
+    assert((await page.evaluate(() => window.panel._underlay.place.rotation)) === 90, "not turned");
+    const stored = await page.evaluate(() => window.panel.hass.callWS({ type: "homeslice/underlay/get", house: "test_house", level: "ground_floor" }));
+    assert(stored?.place?.rotation === 90 && Math.abs(stored.place.scale - 0.02) < 1e-6, `stored: ${JSON.stringify(stored?.place)}`);
+    await page.locator("homeslice-panel .inspector button", { hasText: "Remove image" }).click();
+    assert(!(await page.locator("homeslice-panel svg.plan image.underlay").count()), "image still shown");
+  });
+
   await test("levels: height, add above, delete", async () => {
     await page.keyboard.press("Escape");
     const height = page.locator("homeslice-panel .inspector input[type=number]");

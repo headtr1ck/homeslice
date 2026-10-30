@@ -63,8 +63,52 @@ type Tool = "select" | "rect" | "stairs";
 /** The editor's phases: shape the house, then doors and windows, then objects and entities. */
 type Mode = "rooms" | "openings" | "objects" | "views";
 
+/** Natural size of an image (data URL). */
+function imageSize(src: string): Promise<{ width: number; height: number }> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve({ width: img.naturalWidth, height: img.naturalHeight });
+    img.onerror = () => reject(new Error("not an image"));
+    img.src = src;
+  });
+}
+
+/** Reads an image file and shrinks it to at most `max` pixels on its longer side (JPEG). */
+async function shrinkImage(file: File, max: number): Promise<string> {
+  const src = await new Promise<string>((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(String(r.result));
+    r.onerror = () => reject(r.error);
+    r.readAsDataURL(file);
+  });
+  const { width, height } = await imageSize(src);
+  const k = Math.min(1, max / Math.max(width, height));
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.round(width * k);
+  canvas.height = Math.round(height * k);
+  const ctx = canvas.getContext("2d")!;
+  ctx.fillStyle = "#fff"; // transparent PNGs get a white background
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  const img = new Image();
+  img.src = src;
+  await img.decode();
+  ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+  return canvas.toDataURL("image/jpeg", 0.85);
+}
+
+/** A level's floor plan image: where its top-left corner sits, metres per pixel, degrees. */
+interface Underlay {
+  level: string;
+  image: string;
+  width: number;
+  height: number;
+  place: { origin: Vec2; scale: number; rotation: number };
+  opacity: number;
+}
+
 type Drag =
   | { kind: "pan"; start: Vec2; offset: Vec2 }
+  | { kind: "underlay"; start: Vec2; origin: Vec2 }
   | { kind: "vertex"; origin: HouseInput; from: Vec2; ctx: SnapContext }
   | { kind: "edge"; origin: HouseInput; a: Vec2; b: Vec2; startWorld: Vec2; normal: Vec2; ctx: SnapContext }
   | { kind: "rect"; start: Vec2; ctx: SnapContext }
@@ -124,6 +168,10 @@ export class HomeslicePanel extends LitElement {
     _pendingArea: { state: true },
     _stair: { state: true },
     _view3d: { state: true },
+    _underlay: { state: true },
+    _underlayHidden: { state: true },
+    _calib: { state: true },
+    _underlayMove: { state: true },
     _copied: { state: true },
   };
 
@@ -155,6 +203,15 @@ export class HomeslicePanel extends LitElement {
   private _guides: { x?: number; y?: number; ring?: Vec2 } | null = null;
   /** The "new house" form while it is open. */
   private _create: { name: string; width: number; depth: number; floors: string[]; rooms: boolean } | null = null;
+  /** The current level's floor plan image (loaded from HA), if any. */
+  private _underlay: Underlay | null = null;
+  private _underlayHidden = false;
+  /** Setting the image's scale: two clicked points (image pixels), then their distance. */
+  private _calib: { a?: Vec2; b?: Vec2; distance?: string } | null = null;
+  /** Dragging moves the image instead of editing the plan. */
+  private _underlayMove = false;
+  private underlayRequest = "";
+  private underlaySaveTimer = 0;
   /** Views mode: the selected saved view and the big preview's current camera. */
   private _view3d: { id: string | null; azimuth: number; elevation: number; isometric: boolean } = { id: null, azimuth: 250, elevation: 38, isometric: true };
   private _copied = false;
@@ -373,6 +430,8 @@ export class HomeslicePanel extends LitElement {
       this._tool = "select";
       this._stair = null;
       this._pendingArea = null;
+      this._calib = null;
+      this._underlayMove = false;
       this._drag = null;
       this._rectPreview = null;
     } else if (e.key === "r" && !mod) this._tool = "rect";
@@ -466,6 +525,16 @@ export class HomeslicePanel extends LitElement {
     const target = e.target as Element;
     (e.currentTarget as Element).setPointerCapture(e.pointerId);
     const world = this.eventWorld(e);
+    const u = this._underlay?.level === this._level ? this._underlay : null;
+    if (u && this._calib && !(this._calib.a && this._calib.b)) {
+      const p = this.planToUnderlay(u, world);
+      this._calib = this._calib.a ? { ...this._calib, b: p } : { a: p };
+      return;
+    }
+    if (u && this._underlayMove) {
+      this._drag = { kind: "underlay", start: world, origin: u.place.origin };
+      return;
+    }
     if (this._mode === "openings") {
       const hitOpening = target.closest("[data-opening]") as SVGElement | null;
       if (hitOpening) {
@@ -567,6 +636,11 @@ export class HomeslicePanel extends LitElement {
     const screen = this.eventScreen(e);
     const free = e.altKey;
     const snapped = (p: Vec2, ctx: SnapContext): Snapped => (free ? { p, kind: "free" } : snap(p, ctx));
+    if (drag.kind === "underlay") {
+      const u = this._underlay;
+      if (u) this._underlay = { ...u, place: { ...u.place, origin: [drag.origin[0] + world[0] - drag.start[0], drag.origin[1] + world[1] - drag.start[1]] } };
+      return;
+    }
     if (drag.kind === "pan") {
       this._view = { ...this._view, ox: drag.offset[0] + screen[0] - drag.start[0], oy: drag.offset[1] + screen[1] - drag.start[1] };
       return;
@@ -692,6 +766,10 @@ export class HomeslicePanel extends LitElement {
     this._hint = null;
     this._guides = null;
     if (!drag || !this._model) return;
+    if (drag.kind === "underlay" && this._underlay) {
+      this.saveUnderlay({ place: this._underlay.place });
+      return;
+    }
     if (drag.kind === "vertex" || drag.kind === "edge" || drag.kind === "opening" || drag.kind === "wall" || drag.kind === "stair-move" || drag.kind === "stair-resize" || drag.kind === "light") {
       if (JSON.stringify(drag.origin) !== JSON.stringify(this._model)) this.commit(this._model, drag.origin);
     } else if (drag.kind === "rect" && this._rectPreview && this._tool === "stairs") {
@@ -812,6 +890,7 @@ export class HomeslicePanel extends LitElement {
   // ----- 3D preview -----
 
   protected override updated(changed: PropertyValues) {
+    if ((changed.has("_level") || changed.has("_house")) && this._model) void this.loadUnderlay();
     if (changed.has("_model") || changed.has("_level")) {
       if (this._model && this.fitted !== `${this._house}/${this._level}`) {
         this.fitted = `${this._house}/${this._level}`;
@@ -856,6 +935,187 @@ export class HomeslicePanel extends LitElement {
   }
 
   // ----- views mode: big preview with a free camera -----
+
+  // ----- floor plan image -----
+
+  private async loadUnderlay() {
+    const key = `${this._house}/${this._level}`;
+    if (this.underlayRequest === key) return;
+    this.underlayRequest = key;
+    this._underlay = null;
+    this._calib = null;
+    this._underlayMove = false;
+    try {
+      const got = await this._hass!.callWS<{ image: string; place?: Underlay["place"]; opacity?: number } | null>({
+        type: "homeslice/underlay/get",
+        house: this._house,
+        level: this._level,
+      });
+      if (!got || this.underlayRequest !== key) return;
+      const { width, height } = await imageSize(got.image);
+      this._underlay = { level: this._level, image: got.image, width, height, place: got.place ?? { origin: [0, 0], scale: 0.01, rotation: 0 }, opacity: got.opacity ?? 0.5 };
+    } catch {
+      // no image (or an older backend): nothing to show
+    }
+  }
+
+  /** Image pixels → plan metres, and back. */
+  private underlayToPlan(u: Underlay, [px, py]: Vec2): Vec2 {
+    const r = (u.place.rotation * Math.PI) / 180;
+    const x = px * u.place.scale;
+    const y = py * u.place.scale;
+    return [u.place.origin[0] + x * Math.cos(r) - y * Math.sin(r), u.place.origin[1] + x * Math.sin(r) + y * Math.cos(r)];
+  }
+
+  private planToUnderlay(u: Underlay, [x, y]: Vec2): Vec2 {
+    const r = (-u.place.rotation * Math.PI) / 180;
+    const dx = x - u.place.origin[0];
+    const dy = y - u.place.origin[1];
+    return [(dx * Math.cos(r) - dy * Math.sin(r)) / u.place.scale, (dx * Math.sin(r) + dy * Math.cos(r)) / u.place.scale];
+  }
+
+  private saveUnderlay(patch: { place?: Underlay["place"]; opacity?: number }, delay = 0) {
+    const u = this._underlay;
+    if (!u) return;
+    this._underlay = { ...u, ...patch };
+    clearTimeout(this.underlaySaveTimer);
+    const send = () =>
+      this._hass!.callWS({ type: "homeslice/underlay/set", house: this._house, level: u.level, ...patch }).catch((e) => {
+        this._error = this.t("editor.save_failed", { message: String((e as { message?: string }).message ?? e) });
+      });
+    if (delay) this.underlaySaveTimer = window.setTimeout(send, delay);
+    else void send();
+  }
+
+  private async uploadUnderlay(file: File) {
+    const level = this._level;
+    try {
+      const image = await shrinkImage(file, 2400);
+      const { width, height } = await imageSize(image);
+      // start by fitting the image to the house's width
+      const outline = outlineScope(this._model!, level).poly;
+      const { min, max } = outline.length ? bbox(outline) : { min: [0, 0] as Vec2, max: [10, 8] as Vec2 };
+      const scale = Math.max(0.001, (max[0] - min[0]) / width);
+      const place = { origin: [min[0], min[1]] as Vec2, scale, rotation: 0 };
+      await this._hass!.callWS({ type: "homeslice/underlay/set", house: this._house, level, image, place, opacity: 0.5 });
+      this._underlay = { level, image, width, height, place, opacity: 0.5 };
+      this._underlayHidden = false;
+      this._calib = {};
+    } catch (e) {
+      this._error = this.t("editor.underlay_failed", { message: String((e as { message?: string }).message ?? e) });
+    }
+  }
+
+  private rotateUnderlay(by: number) {
+    const u = this._underlay;
+    if (!u) return;
+    // turn around the image's centre
+    const centre = this.underlayToPlan(u, [u.width / 2, u.height / 2]);
+    const rotation = (((u.place.rotation + by) % 360) + 360) % 360;
+    const r = (rotation * Math.PI) / 180;
+    const hx = (u.width / 2) * u.place.scale;
+    const hy = (u.height / 2) * u.place.scale;
+    const origin: Vec2 = [centre[0] - (hx * Math.cos(r) - hy * Math.sin(r)), centre[1] - (hx * Math.sin(r) + hy * Math.cos(r))];
+    this.saveUnderlay({ place: { ...u.place, origin, rotation } });
+  }
+
+  private applyCalibration() {
+    const u = this._underlay;
+    const c = this._calib;
+    const d = parseFloat((c?.distance ?? "").replace(",", "."));
+    if (!u || !c?.a || !c.b || !(d > 0)) return;
+    const px = Math.hypot(c.b[0] - c.a[0], c.b[1] - c.a[1]);
+    if (px < 1) return;
+    // keep the first point where it is on the plan
+    const anchor = this.underlayToPlan(u, c.a);
+    const scale = d / px;
+    const r = (u.place.rotation * Math.PI) / 180;
+    const x = c.a[0] * scale;
+    const y = c.a[1] * scale;
+    const origin: Vec2 = [anchor[0] - (x * Math.cos(r) - y * Math.sin(r)), anchor[1] - (x * Math.sin(r) + y * Math.cos(r))];
+    this.saveUnderlay({ place: { ...u.place, origin, scale } });
+    this._calib = null;
+    this._underlayMove = true;
+  }
+
+  private renderUnderlay() {
+    const u = this._underlay;
+    if (!u || u.level !== this._level || this._underlayHidden) return nothing;
+    const [sx, sy] = this.toScreen(u.place.origin);
+    const k = u.place.scale * this._view.scale;
+    const c = this._calib;
+    const mark = (p: Vec2 | undefined) => {
+      if (!p) return nothing;
+      const [x, y] = this.toScreen(this.underlayToPlan(u, p));
+      return svg`<circle class="calib-point" cx=${x} cy=${y} r="6"></circle>`;
+    };
+    const line =
+      c?.a && c.b
+        ? (() => {
+            const [x1, y1] = this.toScreen(this.underlayToPlan(u, c.a!));
+            const [x2, y2] = this.toScreen(this.underlayToPlan(u, c.b!));
+            return svg`<line class="calib-line" x1=${x1} y1=${y1} x2=${x2} y2=${y2}></line>`;
+          })()
+        : nothing;
+    return svg`<image class="underlay" href=${u.image} x="0" y="0" width=${u.width} height=${u.height} opacity=${u.opacity}
+        transform="translate(${sx} ${sy}) rotate(${u.place.rotation}) scale(${k})" preserveAspectRatio="none"></image>
+      ${line}${mark(c?.a)}${mark(c?.b)}`;
+  }
+
+  private renderUnderlayInspector() {
+    const u = this._underlay?.level === this._level ? this._underlay : null;
+    const c = this._calib;
+    const fileInput = html`<label class="file">
+      <input type="file" accept="image/png,image/jpeg,image/webp" @change=${(e: Event) => {
+        const f = (e.target as HTMLInputElement).files?.[0];
+        if (f) void this.uploadUnderlay(f);
+        (e.target as HTMLInputElement).value = "";
+      }} />
+      <span>${u ? this.t("editor.underlay_replace") : this.t("editor.underlay_upload")}</span>
+    </label>`;
+    if (!u) return html`<h3>${this.t("editor.underlay")}</h3><p class="muted">${this.t("editor.underlay_hint")}</p>${fileInput}`;
+    return html`<h3>${this.t("editor.underlay")}</h3>
+      ${c
+        ? html`<div class="calib">
+            <p>${!c.a ? this.t("editor.calib_first") : !c.b ? this.t("editor.calib_second") : this.t("editor.calib_distance")}</p>
+            ${c.a && c.b
+              ? html`<div class="row">
+                  <label>${this.t("editor.calib_metres")}
+                    <input class="calib-distance" inputmode="decimal" .value=${c.distance ?? ""} @input=${(e: Event) => (this._calib = { ...c, distance: (e.target as HTMLInputElement).value })}
+                      @keydown=${(e: KeyboardEvent) => e.key === "Enter" && this.applyCalibration()} />
+                  </label>
+                </div>
+                <button class="primary" @click=${() => this.applyCalibration()}>${this.t("editor.calib_apply")}</button>`
+              : nothing}
+            <button @click=${() => (this._calib = null)}>${this.t("editor.cancel")}</button>
+          </div>`
+        : html`<div class="row">
+            <button @click=${() => {
+              this._calib = {};
+              this._underlayMove = false;
+            }}>${this.t("editor.underlay_scale")}</button>
+            <button class=${this._underlayMove ? "active" : ""} @click=${() => (this._underlayMove = !this._underlayMove)}>${this.t("editor.underlay_move")}</button>
+            <button title=${this.t("editor.underlay_rotate_left")} aria-label=${this.t("editor.underlay_rotate_left")} @click=${() => this.rotateUnderlay(-90)}>⟲</button>
+            <button title=${this.t("editor.underlay_rotate_right")} aria-label=${this.t("editor.underlay_rotate_right")} @click=${() => this.rotateUnderlay(90)}>⟳</button>
+          </div>`}
+      <label>${this.t("editor.underlay_opacity")}
+        <input type="range" min="0.1" max="1" step="0.05" .value=${String(u.opacity)} @input=${(e: Event) => this.saveUnderlay({ opacity: Number((e.target as HTMLInputElement).value) }, 400)} />
+      </label>
+      <div class="row">
+        <label class="check"><input type="checkbox" .checked=${!this._underlayHidden} @change=${(e: Event) => (this._underlayHidden = !(e.target as HTMLInputElement).checked)} />
+          ${this.t("editor.underlay_show")}</label>
+      </div>
+      <div class="row">
+        ${fileInput}
+        <button class="danger" @click=${async () => {
+          if (!confirm(this.t("editor.underlay_remove_confirm"))) return;
+          await this._hass!.callWS({ type: "homeslice/underlay/delete", house: this._house, level: this._level });
+          this._underlay = null;
+          this._calib = null;
+          this._underlayMove = false;
+        }}>${this.t("editor.underlay_remove")}</button>
+      </div>`;
+  }
 
   private savedView(id = this._view3d.id): ViewInput | undefined {
     return this._model?.views?.find((v) => v.id === id);
@@ -1145,7 +1405,7 @@ export class HomeslicePanel extends LitElement {
           ${this._hint
             ? html`<div class="hint" style="left:${this._hint.x + 16}px;top:${this._hint.y + 16}px">${this._hint.lines.map((l) => html`<div>${l}</div>`)}</div>`
             : nothing}
-          <div class="help">${this.t(this._mode === "views" ? "editor.help_views" : this._mode === "openings" ? "editor.openings_hint" : this._mode === "objects" ? "editor.help_objects" : this._tool === "rect" ? "editor.help_rect" : this._tool === "stairs" ? "editor.help_stairs" : "editor.help_select")}${this._pendingArea && this._tool === "rect" ? html` <b>${this.t("editor.drawing_for", { area: this._hass?.areas?.[this._pendingArea]?.name ?? this._pendingArea })}</b>` : nothing}</div>
+          <div class="help">${this._calib ? html`<b>${this.t(!this._calib.a ? "editor.calib_first" : !this._calib.b ? "editor.calib_second" : "editor.calib_distance")}</b> ` : this._underlayMove ? html`<b>${this.t("editor.underlay_move_hint")}</b> ` : nothing}${this.t(this._mode === "views" ? "editor.help_views" : this._mode === "openings" ? "editor.openings_hint" : this._mode === "objects" ? "editor.help_objects" : this._tool === "rect" ? "editor.help_rect" : this._tool === "stairs" ? "editor.help_stairs" : "editor.help_select")}${this._pendingArea && this._tool === "rect" ? html` <b>${this.t("editor.drawing_for", { area: this._hass?.areas?.[this._pendingArea]?.name ?? this._pendingArea })}</b>` : nothing}</div>
         </section>
         <section class="side">
           <canvas
@@ -1180,7 +1440,7 @@ export class HomeslicePanel extends LitElement {
     const selPoly = this._room === OUTLINE ? outlineScope(m, this._level).poly : selected ? roomPolygon(m, selected) : [];
     const grid = this._view.scale >= 20 ? 1 : 5;
     return html`<svg
-      class="plan tool-${this._tool} mode-${this._mode}"
+      class="plan tool-${this._tool} mode-${this._mode} ${this._underlayMove ? "underlay-move" : ""} ${this._underlay?.level === this._level && !this._underlayHidden ? "has-underlay" : ""}"
       @pointerdown=${this.onPlanDown}
       @pointermove=${this.onPlanMove}
       @pointerup=${this.onPlanUp}
@@ -1197,6 +1457,7 @@ export class HomeslicePanel extends LitElement {
         </pattern>
       </defs>
       <rect width="100%" height="100%" fill="url(#grid)"></rect>
+      ${this.renderUnderlay()}
       ${below ? below.rooms.map((r) => svg`<polygon class="ghost" points=${pts(roomPolygon(m, r))}></polygon>`) : nothing}
       ${l?.rooms.map((r) => {
         const poly = this.inner(r, walls);
@@ -1650,6 +1911,7 @@ export class HomeslicePanel extends LitElement {
               )}
             </ul>`
         : nothing}
+      ${this.renderUnderlayInspector()}
       <div class="row">
         <button @click=${() => this.addLevelAt(index + 1)}>${this.t("editor.add_level_above")}</button>
         <button @click=${() => this.addLevelAt(index)}>${this.t("editor.add_level_below")}</button>
@@ -2090,6 +2352,57 @@ export class HomeslicePanel extends LitElement {
       stroke: #6b747c;
       stroke-dasharray: 3 3;
       pointer-events: none;
+    }
+    .has-underlay .room {
+      fill-opacity: 0.3;
+    }
+    image.underlay {
+      pointer-events: none;
+      filter: grayscale(1);
+    }
+    .tool-select.underlay-move {
+      cursor: move;
+    }
+    .calib-point {
+      fill: #ff6b6b;
+      stroke: #fff;
+      stroke-width: 2;
+      pointer-events: none;
+    }
+    .calib-line {
+      stroke: #ff6b6b;
+      stroke-width: 2;
+      stroke-dasharray: 6 4;
+      pointer-events: none;
+    }
+    .calib {
+      border: 1px solid var(--accent);
+      border-radius: 8px;
+      padding: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .calib p {
+      margin: 0;
+    }
+    label.file {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 6px 12px;
+      border: 1px solid var(--divider-color, #444);
+      border-radius: 8px;
+      cursor: pointer;
+      color: var(--primary-text-color, #eee);
+      font-size: 14px;
+    }
+    label.file input {
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      cursor: pointer;
     }
     canvas.big-preview {
       width: 100%;
