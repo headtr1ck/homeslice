@@ -55,7 +55,15 @@ listed bottom to top. Walls are generated from the rooms: you never draw them.
 schema: 1
 id: home
 outline: { rect: [0, 0, 10, 8] }       # outer face of the exterior walls, shared by all levels
-party_walls: [west]                     # walls shared with a neighbour, drawn cut down
+party_walls: [west]                     # walls shared with a neighbour
+opening_defaults:                       # optional, house-wide per opening type
+  window: { sill: 0, height: 2.2 }      # e.g. floor-to-ceiling windows
+facade_openings:                        # windows stacked on several floors, defined once
+  - side: south
+    at: 1                               # metres from the outline's west (or north) end
+    width: 2.4
+    levels: [ground, first]             # each lands in the room behind it on that floor
+    covers: { ground: cover.living_room, first: cover.bedroom }
 vertical:
   - { id: stairs, rect: [6, 3, 3, 1.2], from: ground, to: first }
 levels:

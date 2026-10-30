@@ -2,7 +2,7 @@
 // defaults and elevations. Problems are collected as issues instead of thrown, so a
 // partly broken file still renders and the user sees every problem at once.
 
-import { normalizeOrientation, rectPolygon, signedArea } from "./geometry";
+import { bbox, edges, normalizeOrientation, outwardNormal, rectPolygon, sideOf, signedArea } from "./geometry";
 import type {
   Coord,
   House,
@@ -128,7 +128,7 @@ export function expandHouse(input: unknown): ExpandResult {
       const type = oi.type ?? "window";
       if (!OPENING_TYPES.includes(type)) return err(op, `type must be one of ${OPENING_TYPES.join(", ")}, got "${type}".`);
       if (!(oi.width > 0)) return err(op, "width must be positive.");
-      const d = DEFAULTS.opening[type];
+      const d = { ...DEFAULTS.opening[type], ...h.opening_defaults?.[type] };
       openings.push({
         id: oi.id ?? `${oi.room}_${oi.side}_${i}`,
         room: oi.room,
@@ -162,6 +162,53 @@ export function expandHouse(input: unknown): ExpandResult {
       openings,
     });
     elevation += height + slab;
+  });
+
+  // façade openings: placed on each listed level in the room behind that stretch of wall
+  (h.facade_openings ?? []).forEach((fi, i) => {
+    const fp = `facade_openings[${fi?.id ?? i}]`;
+    if (!SIDES.includes(fi?.side)) return err(fp, `side must be one of ${SIDES.join(", ")}, got "${fi?.side}".`);
+    if (!(fi.width > 0)) return err(fp, "width must be positive.");
+    const type = fi.type ?? "window";
+    if (!OPENING_TYPES.includes(type)) return err(fp, `type must be one of ${OPENING_TYPES.join(", ")}, got "${type}".`);
+    const d = { ...DEFAULTS.opening[type], ...h.opening_defaults?.[type] };
+    for (const levelId of fi.levels ?? []) {
+      const level = levels.find((l) => l.id === levelId);
+      if (!level) {
+        err(fp, `Unknown level "${levelId}" (levels: ${levels.map((l) => l.id).join(", ")}).`);
+        continue;
+      }
+      const along = fi.side === "north" || fi.side === "south" ? 0 : 1;
+      const across = 1 - along;
+      const ob = bbox(level.outline);
+      const line = fi.side === "north" || fi.side === "west" ? ob.min[across] : ob.max[across];
+      const from = ob.min[along] + fi.at;
+      const mid = from + fi.width / 2;
+      const room = level.rooms.find(
+        (r) =>
+          r.kind === "room" &&
+          edges(r.polygon).some(([a, b]) => {
+            if (sideOf(outwardNormal(a, b)) !== fi.side || Math.abs(a[across] - line) > 0.05) return false;
+            return mid > Math.min(a[along], b[along]) && mid < Math.max(a[along], b[along]);
+          }),
+      );
+      if (!room) {
+        warn(fp, `No room on the ${fi.side} façade of level "${levelId}" at ${fi.at} m.`);
+        continue;
+      }
+      level.openings.push({
+        id: `${fi.id ?? `facade${i}`}_${levelId}`,
+        room: room.id,
+        side: fi.side,
+        at: from - bbox(room.polygon).min[along],
+        width: fi.width,
+        type,
+        sill: fi.sill ?? d.sill,
+        height: fi.height ?? d.height,
+        cover: fi.covers?.[levelId],
+        contact: fi.contacts?.[levelId],
+      });
+    }
   });
 
   const levelIndex = new Map(levels.map((l) => [l.id, l.index]));

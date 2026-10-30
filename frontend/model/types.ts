@@ -54,6 +54,26 @@ export interface LevelInput {
   openings?: OpeningInput[];
 }
 
+/**
+ * A window or door defined once on the house outline and repeated on several levels
+ * (stacked façade windows). On each level it belongs to whichever room lies behind it.
+ */
+export interface FacadeOpeningInput {
+  id?: string;
+  side: Side;
+  /** Metres from the outline's west end (north/south façades) or north end (east/west). */
+  at: number;
+  width: number;
+  levels: string[];
+  type?: OpeningType;
+  sill?: number;
+  height?: number;
+  /** Cover per level id. */
+  covers?: Record<string, string>;
+  /** Contact sensor per level id. */
+  contacts?: Record<string, string>;
+}
+
 export interface VerticalInput extends ShapeInput {
   id: string;
   kind?: "stairs" | "shaft";
@@ -69,6 +89,9 @@ export interface HouseInput {
   grid?: { x?: Record<string, number>; y?: Record<string, number> };
   walls?: Partial<WallThickness>;
   party_walls?: Side[];
+  /** House-wide defaults per opening type, e.g. floor-to-ceiling windows. */
+  opening_defaults?: Partial<Record<OpeningType, { sill?: number; height?: number }>>;
+  facade_openings?: FacadeOpeningInput[];
   vertical?: VerticalInput[];
   /** Bottom to top. */
   levels: LevelInput[];

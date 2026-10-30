@@ -38,6 +38,34 @@ describe("expandHouse", () => {
     expect(house.levels[0].openings[0]).toMatchObject({ type: "window", sill: 0.9, height: 1.3 });
   });
 
+  it("applies house-wide opening defaults, overridable per opening", () => {
+    const input = twoRooms();
+    input.opening_defaults = { window: { sill: 0, height: 2.2 } };
+    input.levels[0].openings!.push({ room: "left", side: "north", at: 1, width: 1, sill: 0.9 });
+    const [floorLength, bath] = expand(input).levels[0].openings;
+    expect(floorLength).toMatchObject({ sill: 0, height: 2.2 });
+    expect(bath).toMatchObject({ sill: 0.9, height: 2.2 });
+  });
+
+  it("repeats façade openings on every level, in the room behind them", () => {
+    const input = twoRooms();
+    input.levels.push({ id: "first", rooms: [{ id: "a", rect: [0, 0, 3, 8] }, { id: "b", rect: [3, 0, 7, 8] }] });
+    input.facade_openings = [
+      { id: "s1", side: "south", at: 6, width: 1.5, levels: ["ground", "first"], covers: { first: "cover.b" } },
+      { id: "x", side: "south", at: 9.5, width: 1, levels: ["nope"] },
+    ];
+    const { house, issues } = expandHouse(input);
+    expect(issues.map((i) => i.message)).toEqual(['Unknown level "nope" (levels: ground, first).']);
+    expect(house).toBeNull();
+    input.facade_openings.pop();
+    const h = expand(input);
+    expect(h.levels[0].openings.at(-1)).toMatchObject({ id: "s1_ground", room: "right", at: 1, cover: undefined });
+    expect(h.levels[1].openings.at(-1)).toMatchObject({ id: "s1_first", room: "b", at: 3, cover: "cover.b" });
+    const walls = deriveWalls(h.levels[1], h.walls);
+    const south = walls.find((w) => w.side === "south" && w.rooms[0] === "b")!;
+    expect(south.openings[0].start).toBeCloseTo(2.5);
+  });
+
   it("resolves grid names and stores polygons positively oriented", () => {
     const input = twoRooms();
     input.grid = { x: { A: 0, B: 5 }, y: { "1": 0, "2": 8 } };
