@@ -1,0 +1,34 @@
+# A small two-storey demo house, used in the docs and by the browser tests.
+schema: 1
+id: demo
+name: Demo house
+outline: { rect: [0, 0, 8, 10] }
+party_walls: [east]
+vertical:
+  - { id: stairs, rect: [5, 4, 3, 2], from: ground, to: first }
+levels:
+  - id: ground
+    floor_id: ground_floor
+    rooms:
+      - { id: hall, area_id: hall, rect: [0, 0, 3, 4], floor: tile }
+      - { id: kitchen, area_id: kitchen, rect: [3, 0, 5, 4], floor: tile }
+      - id: living
+        area_id: living_room
+        polygon: [[0, 4], [5, 4], [5, 6], [8, 6], [8, 10], [0, 10]]
+      - { id: garden, area_id: garden, kind: outdoor, rect: [0, 10, 8, 5] }
+    openings:
+      - { room: hall, side: north, at: 1, width: 1, type: door }
+      - { room: kitchen, side: north, at: 1.5, width: 1.2, cover: cover.kitchen }
+      - { room: living, side: south, at: 1, width: 2.4, cover: cover.living_room }
+      - { room: living, side: south, at: 5, width: 1, type: door }
+      - { room: living, side: west, at: 2, width: 1.5 }
+  - id: first
+    floor_id: first_floor
+    rooms:
+      - { id: bedroom, area_id: bedroom, rect: [0, 0, 5, 6] }
+      - { id: bath, area_id: bathroom, rect: [5, 0, 3, 4], floor: tile }
+      - { id: kids, area_id: kids_room, rect: [0, 6, 8, 4] }
+    openings:
+      - { room: bedroom, side: north, at: 1, width: 2, cover: cover.bedroom }
+      - { room: kids, side: south, at: 1, width: 2, cover: cover.kids }
+      - { room: kids, side: south, at: 5, width: 2, cover: cover.kids }

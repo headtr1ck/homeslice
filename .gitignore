@@ -7,3 +7,5 @@ coverage/
 # private house models stay out of the repository
 /houses/
 .deploy.env
+test-results/
+dev/fixtures/private/

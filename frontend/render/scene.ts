@@ -1,23 +1,68 @@
-// Builds a three.js scene from the expanded model and renders it on demand with a
-// fixed orthographic camera. Plan (x, y) maps to world (x, z) with y up, so south is +z.
+// Builds a three.js scene from the expanded model and renders it on demand. Plan (x, y)
+// maps to world (x, z) with y up, so south is +z. Nothing renders continuously: frames
+// are drawn on request, and during short transitions (focusing a floor) only until the
+// transition ends.
 
 import * as THREE from "three";
 import type { House, Level, Vec2, Vertical } from "../model/types";
-import type { Wall } from "../model/walls";
+import type { Wall, WallOpening } from "../model/walls";
 import { bbox, pointInPolygon } from "../model/geometry";
 
-export interface ViewOptions {
+/** `isometric`: parallel lines stay parallel; `perspective`: walls lean, like a photo. */
+export type Projection = "isometric" | "perspective";
+
+export interface Orientation {
   /** Compass direction the camera looks from: 0 north, 90 east, 180 south, 270 west. */
   azimuth: number;
   /** Degrees above the horizon. */
   elevation: number;
-  /** Extra gap between levels in metres. */
-  explode: number;
-  /** Outer walls facing the camera are cut down to this height so you can look in. */
-  cutHeight: number;
+  projection?: Projection;
 }
 
-export const DEFAULT_VIEW: ViewOptions = { azimuth: 250, elevation: 38, explode: 2.6, cutHeight: 0.4 };
+export interface ViewOptions {
+  azimuth: number;
+  elevation: number;
+  /** Overview projection. */
+  projection: Projection;
+  /** Extra gap between levels in metres. */
+  explode: number;
+  /** Outer walls facing the camera are cut down to this height so you can look in… */
+  cutHeight: number;
+  /** …but only while the camera is lower than this many degrees; steeper views show full walls. */
+  cutBelow: number;
+  /** Camera when a level is focused; by default from the south, steep, with perspective. */
+  focus: Orientation;
+  /** Per-level camera when that level is focused, keyed by level id. */
+  levels: Record<string, Partial<Orientation>>;
+}
+
+export const DEFAULT_VIEW: ViewOptions = {
+  azimuth: 250,
+  elevation: 38,
+  projection: "isometric",
+  explode: 2.6,
+  cutHeight: 0.4,
+  cutBelow: 60,
+  focus: { azimuth: 180, elevation: 65, projection: "perspective" },
+  levels: {},
+};
+
+// One perspective camera does both: "isometric" is a very narrow lens from far away, so
+// switching projections animates as a smooth zoom.
+const FOV: Record<Projection, number> = { isometric: 3, perspective: 40 };
+
+export interface LightLook {
+  rgb: [number, number, number];
+  /** 0..1 */
+  brightness: number;
+}
+
+/** The animated camera state. */
+interface CameraState {
+  azimuth: number;
+  elevation: number;
+  fov: number;
+}
 
 const FLOOR_COLORS: Record<string, string> = {
   wood: "#b07c49",
@@ -28,6 +73,20 @@ const FLOOR_COLORS: Record<string, string> = {
   paving: "#9b9285",
   gravel: "#a39b8f",
 };
+const COLORS = {
+  wall: "#eeeae3",
+  slab: "#6f7275",
+  stairs: "#d8d3ca",
+  glass: "#9cc8ee",
+  glassOpen: "#ffb05c",
+  garageDoor: "#7d858d",
+  shutter: "#5d666f",
+  shutterBox: "#4a5159",
+  stripClosed: "#6b747c",
+  stripOpen: "#7fb0ff",
+};
+const FOCUS_MS = 450;
+const SHUTTER_DEPTH = 0.05;
 
 /** Shape in the XY plane that lands on the XZ plane after rotateX(-90°). */
 function shapeOf(poly: Vec2[], holes: Vec2[][] = []): THREE.Shape {
@@ -41,19 +100,52 @@ function holesFor(level: Level, vertical: Vertical[]): Vec2[][] {
   return vertical.filter((v) => level.index > v.from && level.index <= v.to).map((v) => v.polygon);
 }
 
+interface LevelState {
+  group: THREE.Group;
+  baseY: number;
+  materials: Set<THREE.Material>;
+  /** Animated values: 0..1 opacity and lift in metres. */
+  opacity: number;
+  lift: number;
+}
+
+/**
+ * A cover is drawn twice: as a shutter outside the window, and as a status strip on top
+ * of the cut-down wall. Which one shows depends on the camera.
+ */
+interface CoverView {
+  shutter: { mesh: THREE.Mesh; top: number; height: number } | null;
+  strip: { mesh: THREE.Mesh; material: THREE.MeshLambertMaterial };
+  normal: Vec2;
+  cuttable: boolean;
+  /** 0 open … 1 closed */
+  closed: number;
+}
+
 export class HouseRenderer {
   readonly renderer: THREE.WebGLRenderer;
   private scene = new THREE.Scene();
-  private camera = new THREE.OrthographicCamera();
+  private camera = new THREE.PerspectiveCamera();
   private root = new THREE.Group();
-  private materials = new Map<string, THREE.Material>();
   private sun = new THREE.DirectionalLight(0xffffff, 2.2);
   private view: ViewOptions = DEFAULT_VIEW;
-  private levelGroups = new Map<string, THREE.Group>();
+  private levels: LevelState[] = [];
+  private levelIds: string[] = [];
   /** Room floors keyed by `level/room`, each with its own material so it can glow. */
-  private floors = new Map<string, THREE.MeshLambertMaterial>();
+  private floors = new Map<string, THREE.Mesh<THREE.BufferGeometry, THREE.MeshLambertMaterial>>();
+  private covers = new Map<string, CoverView>();
+  private glasses = new Map<string, THREE.MeshLambertMaterial>();
+  /** Upper parts of outer walls, hidden while they face a low camera. */
+  private cuttables: { mesh: THREE.Mesh; normal: Vec2 }[] = [];
+  private building: Set<THREE.Material> | null = null;
   private size = { width: 1, height: 1 };
-  /** Width / height of the house as seen from the camera. */
+  private focus: number | null = null;
+  private animation = 0;
+  /** Current camera (animated between the overview and focus cameras). */
+  orientation: CameraState = { azimuth: 0, elevation: 0, fov: FOV.isometric };
+  /** What the camera frames (animated, levels at rest). */
+  private box = new THREE.Box3();
+  /** Width / height of the whole house as seen by the overview camera. */
   aspect = 1.6;
 
   constructor(canvas: HTMLCanvasElement) {
@@ -69,63 +161,52 @@ export class HouseRenderer {
     this.scene.add(this.sun, this.sun.target);
   }
 
-  private material(key: string, make: () => THREE.Material): THREE.Material {
-    let m = this.materials.get(key);
-    if (!m) this.materials.set(key, (m = make()));
+  // ----- building -----
+
+  /** A material owned by the level being built (levels fade independently). */
+  private lambert(color: string, extra: THREE.MeshLambertMaterialParameters = {}): THREE.MeshLambertMaterial {
+    const m = new THREE.MeshLambertMaterial({ color, ...extra });
+    this.building?.add(m);
     return m;
   }
 
-  private lambert(color: string, extra: THREE.MeshLambertMaterialParameters = {}) {
-    return this.material(`lambert:${color}:${JSON.stringify(extra)}`, () => new THREE.MeshLambertMaterial({ color, ...extra }));
-  }
-
   setModel(house: House, walls: Map<string, Wall[]>, view: Partial<ViewOptions> = {}) {
-    this.view = { ...DEFAULT_VIEW, ...view };
+    this.view = { ...DEFAULT_VIEW, ...view, focus: { ...DEFAULT_VIEW.focus, ...view.focus }, levels: view.levels ?? {} };
     this.clear();
     for (const level of house.levels) {
-      const g = this.buildLevel(level, walls.get(level.id) ?? [], house.vertical);
-      g.position.y = level.elevation + level.index * this.view.explode;
-      this.root.add(g);
-      this.levelGroups.set(level.id, g);
+      const materials = new Set<THREE.Material>();
+      this.building = materials;
+      const group = this.buildLevel(level, walls.get(level.id) ?? [], house.vertical);
+      this.building = null;
+      const baseY = level.elevation + level.index * this.view.explode;
+      group.position.y = baseY;
+      this.root.add(group);
+      this.levels.push({ group, baseY, materials, opacity: 1, lift: 0 });
+      this.levelIds.push(level.id);
     }
-    this.placeCameraAndSun();
-  }
-
-  /** Lights a room's floor in the light's colour; `null` switches it off. */
-  setRoomLight(levelId: string, roomId: string, light: { rgb: [number, number, number]; brightness: number } | null) {
-    const m = this.floors.get(`${levelId}/${roomId}`);
-    if (!m) return;
-    if (!light) m.emissive.setRGB(0, 0, 0);
-    else {
-      const k = 0.18 + 0.32 * light.brightness;
-      m.emissive.setRGB((light.rgb[0] / 255) * k, (light.rgb[1] / 255) * k, (light.rgb[2] / 255) * k, THREE.SRGBColorSpace);
-    }
-  }
-
-  /** Shows only the levels up to (and including) the given index; null shows all. */
-  showLevelsUpTo(index: number | null) {
-    [...this.levelGroups.values()].forEach((g, i) => (g.visible = index === null || i <= index));
-  }
-
-  /** Screen position (CSS px from the canvas' top left) of a plan point on a level. */
-  project(levelId: string, [x, y]: Vec2, h = 0): { x: number; y: number } | null {
-    const g = this.levelGroups.get(levelId);
-    if (!g) return null;
-    const v = new THREE.Vector3(x, g.position.y + h, y).project(this.camera);
-    return { x: ((v.x + 1) / 2) * this.size.width, y: ((1 - v.y) / 2) * this.size.height };
+    this.focus = null;
+    this.orientation = this.cameraFor(null);
+    this.box = this.boxFor(null);
+    this.aspect = this.extent(this.orientation, this.box);
+    this.placeSun();
   }
 
   private clear() {
+    cancelAnimationFrame(this.animation);
     this.root.traverse((o) => {
       if (o instanceof THREE.Mesh) o.geometry.dispose();
     });
+    for (const l of this.levels) for (const m of l.materials) m.dispose();
     this.root.clear();
-    this.levelGroups.clear();
-    for (const m of this.floors.values()) m.dispose();
+    this.levels = [];
+    this.levelIds = [];
     this.floors.clear();
+    this.covers.clear();
+    this.glasses.clear();
+    this.cuttables = [];
   }
 
-  private mesh(geometry: THREE.BufferGeometry, material: THREE.Material, shadows = true) {
+  private mesh<M extends THREE.Material>(geometry: THREE.BufferGeometry, material: M, shadows = true) {
     const m = new THREE.Mesh(geometry, material);
     m.castShadow = shadows;
     m.receiveShadow = true;
@@ -142,54 +223,88 @@ export class HouseRenderer {
       const slab = new THREE.ExtrudeGeometry(shapeOf(level.outline, holes), { depth: level.slab, bevelEnabled: false });
       slab.rotateX(-Math.PI / 2);
       slab.translate(0, -level.slab, 0);
-      g.add(this.mesh(slab, this.lambert("#6f7275")));
+      g.add(this.mesh(slab, this.lambert(COLORS.slab)));
     }
 
     // room floors
     for (const room of level.rooms) {
       if (room.kind === "void") continue;
       const inside = holes.filter((h) => pointInPolygon(centroid(h), room.polygon));
-      const floor = new THREE.ShapeGeometry(shapeOf(room.polygon, inside));
-      floor.rotateX(-Math.PI / 2);
-      floor.translate(0, room.kind === "outdoor" ? -level.slab + 0.01 : 0.004, 0);
-      const mat = new THREE.MeshLambertMaterial({ color: FLOOR_COLORS[room.floor] ?? FLOOR_COLORS.wood });
-      this.floors.set(`${level.id}/${room.id}`, mat);
-      g.add(this.mesh(floor, mat, false));
+      const geo = new THREE.ShapeGeometry(shapeOf(room.polygon, inside));
+      geo.rotateX(-Math.PI / 2);
+      geo.translate(0, room.kind === "outdoor" ? -level.slab + 0.01 : 0.004, 0);
+      const floor = this.mesh(geo, this.lambert(FLOOR_COLORS[room.floor] ?? FLOOR_COLORS.wood), false);
+      floor.userData.room = `${level.id}/${room.id}`;
+      this.floors.set(`${level.id}/${room.id}`, floor);
+      g.add(floor);
     }
 
     // walls, split around openings
-    const wallMat = this.lambert("#eeeae3");
-    const glass = this.lambert("#9cc8ee", { transparent: true, opacity: 0.45 });
-    const garage = this.lambert("#7d858d");
-    const toCamera = this.cameraPlanDirection();
+    const wallMat = this.lambert(COLORS.wall);
+    const glass = this.lambert(COLORS.glass, { transparent: true, opacity: 0.45 });
+    const garage = this.lambert(COLORS.garageDoor);
     for (const w of walls) {
-      // outer walls whose outside faces the camera are cut down, like a dollhouse
-      const facing = w.type !== "interior" && w.normal[0] * toCamera[0] + w.normal[1] * toCamera[1] > 0.2;
-      const H = facing ? Math.min(this.view.cutHeight, w.height) : w.height;
+      // outer walls are split at the cut height; the upper part hides while it faces a low camera
+      const cuttable = w.type !== "interior";
+      const cutAt = Math.min(this.view.cutHeight, w.height);
+      const H = w.height;
       const box = (s: number, e: number, z0: number, z1: number, mat: THREE.Material, thickness = w.thickness) => {
         if (e - s < 1e-3 || z1 - z0 < 1e-3) return;
-        g.add(this.wallBox(w, s, e, z0, z1, thickness, mat));
+        if (!cuttable || z1 <= cutAt + 1e-3) {
+          g.add(this.wallBox(w, s, e, z0, z1, thickness, mat));
+          return;
+        }
+        if (z0 < cutAt) g.add(this.wallBox(w, s, e, z0, cutAt, thickness, mat));
+        const upper = this.wallBox(w, s, e, Math.max(z0, cutAt), z1, thickness, mat);
+        this.cuttables.push({ mesh: upper, normal: w.normal });
+        g.add(upper);
       };
       let cursor = 0;
       const length = Math.hypot(w.b[0] - w.a[0], w.b[1] - w.a[1]);
       for (const o of w.openings) {
         box(cursor, o.start, 0, H, wallMat);
-        box(o.start, o.end, 0, Math.min(o.sill, H), wallMat);
+        box(o.start, o.end, 0, o.sill, wallMat);
         box(o.start, o.end, o.sill + o.height, H, wallMat);
-        const top = Math.min(o.sill + o.height, H);
-        if (o.type === "window") box(o.start, o.end, o.sill, top, glass, 0.03);
-        if (o.type === "garage_door") box(o.start, o.end, o.sill, top, garage, 0.06);
+        if (o.type === "window") {
+          const mat = o.contact ? this.lambert(COLORS.glass, { transparent: true, opacity: 0.45 }) : glass;
+          if (o.contact) this.glasses.set(o.id, mat);
+          box(o.start, o.end, o.sill, o.sill + o.height, mat, 0.03);
+        }
+        if (o.type === "garage_door") box(o.start, o.end, o.sill, o.sill + o.height, garage, 0.06);
+        if (o.cover) this.addCover(g, w, o, cutAt, cuttable);
         cursor = o.end;
       }
       box(cursor, length, 0, H, wallMat);
     }
 
-    // stairs from this level up to the next
-    for (const v of vertical) if (v.kind === "stairs" && level.index === v.from) g.add(this.stairs(v, level));
+    // one flight of stairs per storey the stairwell passes through
+    for (const v of vertical) if (v.kind === "stairs" && level.index >= v.from && level.index < v.to) g.add(this.stairs(v, level));
     return g;
   }
 
-  private wallBox(w: Wall, s: number, e: number, z0: number, z1: number, thickness: number, mat: THREE.Material) {
+  /** Shutter (with its box) outside the window, plus a status strip for the cut-down wall. */
+  private addCover(g: THREE.Group, w: Wall, o: WallOpening, cutAt: number, cuttable: boolean) {
+    const outside = w.type === "interior" ? 0 : w.thickness / 2 + SHUTTER_DEPTH / 2 + 0.005;
+    const stripMaterial = this.lambert(COLORS.stripClosed);
+    const strip = this.wallBox(w, o.start, o.end, cutAt, cutAt + 0.06, w.thickness + 0.02, stripMaterial);
+    strip.visible = false;
+    g.add(strip);
+    let shutter: CoverView["shutter"] = null;
+    if (o.sill + o.height > cutAt) {
+      const top = o.sill + o.height;
+      const housing = this.wallBox(w, o.start - 0.03, o.end + 0.03, top, top + 0.14, SHUTTER_DEPTH + 0.04, this.lambert(COLORS.shutterBox), outside);
+      g.add(housing);
+      if (cuttable) this.cuttables.push({ mesh: housing, normal: w.normal });
+      // unit height, scaled to the closed part
+      const mesh = this.wallBox(w, o.start, o.end, 0, 1, SHUTTER_DEPTH, this.lambert(COLORS.shutter), outside);
+      mesh.visible = false;
+      g.add(mesh);
+      shutter = { mesh, top, height: o.height };
+    }
+    this.covers.set(o.id, { shutter, strip: { mesh: strip, material: stripMaterial }, normal: w.normal, cuttable, closed: 0 });
+  }
+
+  private wallBox(w: Wall, s: number, e: number, z0: number, z1: number, thickness: number, mat: THREE.Material, offset = 0) {
     const dx = w.b[0] - w.a[0];
     const dy = w.b[1] - w.a[1];
     const length = Math.hypot(dx, dy);
@@ -197,7 +312,7 @@ export class HouseRenderer {
     const uy = dy / length;
     const mid = (s + e) / 2;
     const m = this.mesh(new THREE.BoxGeometry(e - s, z1 - z0, thickness), mat);
-    m.position.set(w.a[0] + ux * mid, (z0 + z1) / 2, w.a[1] + uy * mid);
+    m.position.set(w.a[0] + ux * mid + w.normal[0] * offset, (z0 + z1) / 2, w.a[1] + uy * mid + w.normal[1] * offset);
     m.rotation.y = Math.atan2(-dy, dx);
     return m;
   }
@@ -205,17 +320,17 @@ export class HouseRenderer {
   private stairs(v: Vertical, level: Level): THREE.Group {
     const g = new THREE.Group();
     const { min, max } = bbox(v.polygon);
-    const rise = level.height + level.slab;
+    // up to the ceiling: the real rise to the next floor would poke out above the walls
+    const rise = level.height;
     const n = Math.max(2, Math.round(rise / 0.18));
     const alongX = max[0] - min[0] >= max[1] - min[1];
     const run = alongX ? max[0] - min[0] : max[1] - min[1];
     const width = (alongX ? max[1] - min[1] : max[0] - min[0]) * 0.45;
-    const mat = this.lambert("#d8d3ca");
+    const mat = this.lambert(COLORS.stairs);
     for (let i = 0; i < n; i++) {
       const h = ((i + 1) * rise) / n;
       const depth = run / n;
-      const geo = new THREE.BoxGeometry(alongX ? depth : width, h, alongX ? width : depth);
-      const m = this.mesh(geo, mat);
+      const m = this.mesh(new THREE.BoxGeometry(alongX ? depth : width, h, alongX ? width : depth), mat);
       const along = (alongX ? min[0] : min[1]) + depth * (i + 0.5);
       const across = alongX ? max[1] - width / 2 : max[0] - width / 2;
       m.position.set(alongX ? along : across, h / 2, alongX ? across : along);
@@ -224,46 +339,227 @@ export class HouseRenderer {
     return g;
   }
 
-  /** Horizontal direction from the house towards the camera, in plan coordinates. */
-  private cameraPlanDirection(): Vec2 {
-    const az = THREE.MathUtils.degToRad(this.view.azimuth);
-    return [Math.sin(az), -Math.cos(az)];
+  // ----- live state -----
+
+  /** Lights a room's floor in the light's colour; `null` switches it off. */
+  setRoomLight(levelId: string, roomId: string, light: LightLook | null) {
+    const m = this.floors.get(`${levelId}/${roomId}`)?.material;
+    if (!m) return;
+    if (!light) m.emissive.setRGB(0, 0, 0);
+    else {
+      const k = 0.18 + 0.32 * light.brightness;
+      m.emissive.setRGB((light.rgb[0] / 255) * k, (light.rgb[1] / 255) * k, (light.rgb[2] / 255) * k, THREE.SRGBColorSpace);
+    }
   }
 
-  private viewDirection(): THREE.Vector3 {
-    const az = THREE.MathUtils.degToRad(this.view.azimuth);
-    const el = THREE.MathUtils.degToRad(this.view.elevation);
-    return new THREE.Vector3(Math.sin(az) * Math.cos(el), Math.sin(el), -Math.cos(az) * Math.cos(el));
+  /** Cover position for an opening: 1 fully open, 0 closed, null unknown. */
+  setCover(openingId: string, open: number | null) {
+    const c = this.covers.get(openingId);
+    if (!c) return;
+    c.strip.material.color.copy(new THREE.Color(COLORS.stripClosed).lerp(new THREE.Color(COLORS.stripOpen), open ?? 0));
+    c.closed = open === null ? 0 : Math.min(1, Math.max(0, 1 - open));
+    if (c.shutter) {
+      c.shutter.mesh.scale.y = Math.max(0.001, c.closed * c.shutter.height);
+      c.shutter.mesh.position.y = c.shutter.top - (c.closed * c.shutter.height) / 2;
+    }
+    this.applyCuts();
   }
 
-  private bounds = { left: -1, right: 1, top: 1, bottom: -1 };
+  /** For tests and debugging: how a cover is currently drawn. */
+  coverState(openingId: string) {
+    const c = this.covers.get(openingId);
+    if (!c) return null;
+    return {
+      shutterVisible: !!c.shutter?.mesh.visible,
+      shutterHeight: c.shutter ? c.closed * c.shutter.height : 0,
+      stripVisible: c.strip.mesh.visible,
+      stripColor: c.strip.material.color.getHexString(),
+    };
+  }
 
-  private placeCameraAndSun() {
+  /** Window contact: open windows get orange glass. */
+  setContact(openingId: string, open: boolean) {
+    this.glasses.get(openingId)?.color.set(open ? COLORS.glassOpen : COLORS.glass);
+  }
+
+  /** Hides the upper parts of outer walls facing a low camera; shows strips instead of shutters there. */
+  private applyCuts() {
+    const az = THREE.MathUtils.degToRad(this.orientation.azimuth);
+    const toCamera: Vec2 = [Math.sin(az), -Math.cos(az)];
+    const cutting = this.orientation.elevation < this.view.cutBelow;
+    const facing = (n: Vec2) => cutting && n[0] * toCamera[0] + n[1] * toCamera[1] > 0.2;
+    for (const c of this.cuttables) c.mesh.visible = !facing(c.normal);
+    for (const c of this.covers.values()) {
+      const cut = c.cuttable && facing(c.normal);
+      c.strip.mesh.visible = cut || !c.shutter;
+      if (c.shutter) c.shutter.mesh.visible = !cut && c.closed > 0.01;
+    }
+  }
+
+  /** Room under a canvas position (CSS px), as `level/room`. */
+  pick(x: number, y: number): string | null {
+    const ndc = new THREE.Vector2((x / this.size.width) * 2 - 1, -(y / this.size.height) * 2 + 1);
+    const ray = new THREE.Raycaster();
+    ray.setFromCamera(ndc, this.camera);
+    const candidates = [...this.floors.values()].filter((f) => {
+      const level = this.levels.find((l) => l.group === f.parent);
+      return level && level.group.visible && level.opacity > 0.5;
+    });
+    const hit = ray.intersectObjects(candidates, false)[0];
+    return (hit?.object.userData.room as string | undefined) ?? null;
+  }
+
+  // ----- focus on a level -----
+
+  /**
+   * Shows the house up to `index` (null: everything). Levels above lift away and fade,
+   * and the camera moves to the focused level's camera. Resolves when the transition ends.
+   */
+  setFocus(index: number | null, animate = true): Promise<void> {
+    this.focus = index;
+    const from = {
+      camera: { ...this.orientation },
+      box: this.box.clone(),
+      levels: this.levels.map((l) => ({ opacity: l.opacity, lift: l.lift })),
+    };
+    const to = {
+      camera: this.cameraFor(index),
+      box: this.boxFor(index),
+      levels: this.levels.map((_, i) => (index !== null && i > index ? { opacity: 0, lift: this.view.explode * 1.5 } : { opacity: 1, lift: 0 })),
+    };
+    // turn the short way round
+    if (to.camera.azimuth - from.camera.azimuth > 180) from.camera.azimuth += 360;
+    if (from.camera.azimuth - to.camera.azimuth > 180) from.camera.azimuth -= 360;
+    cancelAnimationFrame(this.animation);
+    const apply = (t: number) => {
+      const e = t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2;
+      const mix = (a: number, b: number) => (t >= 1 ? b : a + (b - a) * e);
+      this.orientation = {
+        azimuth: mix(from.camera.azimuth, to.camera.azimuth),
+        elevation: mix(from.camera.elevation, to.camera.elevation),
+        fov: mix(from.camera.fov, to.camera.fov),
+      };
+      this.box.min.lerpVectors(from.box.min, to.box.min, e);
+      this.box.max.lerpVectors(from.box.max, to.box.max, e);
+      this.levels.forEach((l, i) => {
+        l.opacity = mix(from.levels[i].opacity, to.levels[i].opacity);
+        l.lift = mix(from.levels[i].lift, to.levels[i].lift);
+        this.applyLevel(l);
+      });
+    };
+    if (!animate || matchMedia?.("(prefers-reduced-motion: reduce)").matches) {
+      apply(1);
+      this.draw();
+      return Promise.resolve();
+    }
+    return new Promise((resolve) => {
+      const start = performance.now();
+      const frame = (now: number) => {
+        const t = Math.min(1, (now - start) / FOCUS_MS);
+        apply(t);
+        this.draw();
+        if (t < 1) this.animation = requestAnimationFrame(frame);
+        else resolve();
+      };
+      this.animation = requestAnimationFrame(frame);
+    });
+  }
+
+  get focusedIndex() {
+    return this.focus;
+  }
+
+  isLevelVisible(levelId: string) {
+    const l = this.levels[this.levelIds.indexOf(levelId)];
+    return !!l && l.group.visible && l.opacity > 0.5;
+  }
+
+  private applyLevel(l: LevelState) {
+    l.group.position.y = l.baseY + l.lift;
+    l.group.visible = l.opacity > 0.01;
+    const fading = l.opacity < 0.999;
+    for (const m of l.materials) {
+      const base = (m.userData.baseOpacity ??= m.opacity) as number;
+      const baseTransparent = (m.userData.baseTransparent ??= m.transparent) as boolean;
+      m.transparent = fading || baseTransparent;
+      m.opacity = base * l.opacity;
+      m.depthWrite = !fading;
+    }
+  }
+
+  // ----- camera -----
+
+  /** Overview camera for null, else the focus camera of that level. */
+  private cameraFor(index: number | null): CameraState {
+    const o: Orientation =
+      index === null
+        ? { azimuth: this.view.azimuth, elevation: this.view.elevation, projection: this.view.projection }
+        : { ...this.view.focus, ...this.view.levels[this.levelIds[index]] };
+    return { azimuth: o.azimuth, elevation: o.elevation, fov: FOV[o.projection ?? "perspective"] ?? FOV.perspective };
+  }
+
+  /** Camera axes for an orientation: towards the camera, screen right and screen up. */
+  private axes(c: CameraState) {
+    const az = THREE.MathUtils.degToRad(c.azimuth);
+    const el = THREE.MathUtils.degToRad(Math.min(89.9, Math.max(-89.9, c.elevation)));
+    const toCamera = new THREE.Vector3(Math.sin(az) * Math.cos(el), Math.sin(el), -Math.cos(az) * Math.cos(el));
+    // looking (almost) straight down, "up" on screen is the direction away from the camera
+    const worldUp = c.elevation > 85 ? new THREE.Vector3(-Math.sin(az), 0, Math.cos(az)) : new THREE.Vector3(0, 1, 0);
+    const forward = toCamera.clone().negate();
+    const right = new THREE.Vector3().crossVectors(forward, worldUp).normalize();
+    const up = new THREE.Vector3().crossVectors(right, forward).normalize();
+    return { toCamera, right, up };
+  }
+
+  private corners(box: THREE.Box3) {
+    const out: THREE.Vector3[] = [];
+    for (const x of [box.min.x, box.max.x]) for (const y of [box.min.y, box.max.y]) for (const z of [box.min.z, box.max.z]) out.push(new THREE.Vector3(x, y, z));
+    return out;
+  }
+
+  /** Width / height of a box seen (without perspective) from an orientation. */
+  private extent(c: CameraState, box: THREE.Box3) {
+    const { right, up } = this.axes(c);
+    const xs = this.corners(box).map((p) => p.dot(right));
+    const ys = this.corners(box).map((p) => p.dot(up));
+    return (Math.max(...xs) - Math.min(...xs)) / (Math.max(...ys) - Math.min(...ys) || 1);
+  }
+
+  /** Places the camera so the framed box fills the canvas. */
+  private fitCamera() {
+    const c = this.orientation;
+    const { toCamera, right, up } = this.axes(c);
+    const center = this.box.getCenter(new THREE.Vector3());
+    const pts = this.corners(this.box).map((p) => p.sub(center));
+    const xs = pts.map((p) => p.dot(right));
+    const ys = pts.map((p) => p.dot(up));
+    const cx = (Math.max(...xs) + Math.min(...xs)) / 2;
+    const cy = (Math.max(...ys) + Math.min(...ys)) / 2;
+    const target = center.clone().addScaledVector(right, cx).addScaledVector(up, cy);
+    const margin = 1.04;
+    const tanV = Math.tan(THREE.MathUtils.degToRad(c.fov) / 2) / margin;
+    const tanH = tanV * (this.size.width / this.size.height);
+    let distance = 0;
+    pts.forEach((p, i) => {
+      const depth = p.dot(toCamera);
+      distance = Math.max(distance, depth + Math.abs(xs[i] - cx) / tanH, depth + Math.abs(ys[i] - cy) / tanV);
+    });
+    const radius = this.box.getSize(new THREE.Vector3()).length() / 2;
+    this.camera.fov = c.fov;
+    this.camera.aspect = this.size.width / this.size.height;
+    this.camera.near = Math.max(0.05, distance - radius * 2);
+    this.camera.far = distance + radius * 2;
+    this.camera.position.copy(target).addScaledVector(toCamera, distance);
+    this.camera.up.copy(up);
+    this.camera.lookAt(target);
+    this.camera.updateProjectionMatrix();
+    this.camera.updateMatrixWorld();
+  }
+
+  private placeSun() {
     const box = new THREE.Box3().setFromObject(this.root);
     const center = box.getCenter(new THREE.Vector3());
     const size = box.getSize(new THREE.Vector3()).length();
-    this.camera.position.copy(center).addScaledVector(this.viewDirection(), size * 2);
-    this.camera.up.set(0, 1, 0);
-    this.camera.lookAt(center);
-    this.camera.near = 0.1;
-    this.camera.far = size * 5;
-    this.camera.updateMatrixWorld();
-
-    // extent of the house in camera space
-    const inv = this.camera.matrixWorldInverse;
-    const b = { left: Infinity, right: -Infinity, top: -Infinity, bottom: Infinity };
-    for (const x of [box.min.x, box.max.x])
-      for (const y of [box.min.y, box.max.y])
-        for (const z of [box.min.z, box.max.z]) {
-          const p = new THREE.Vector3(x, y, z).applyMatrix4(inv);
-          b.left = Math.min(b.left, p.x);
-          b.right = Math.max(b.right, p.x);
-          b.bottom = Math.min(b.bottom, p.y);
-          b.top = Math.max(b.top, p.y);
-        }
-    this.bounds = b;
-    this.aspect = (b.right - b.left) / (b.top - b.bottom);
-
     // sun from the south-west, high
     this.sun.position.copy(center).add(new THREE.Vector3(-0.5, 1.2, 0.8).multiplyScalar(size));
     this.sun.target.position.copy(center);
@@ -275,28 +571,48 @@ export class HouseRenderer {
     s.updateProjectionMatrix();
   }
 
-  /** Renders one frame at the given CSS size, letterboxing to keep the house's aspect. */
+  /** World box of the whole house (index null) or of one level, levels at rest. */
+  private boxFor(index: number | null): THREE.Box3 {
+    const box = new THREE.Box3();
+    this.levels.forEach((l, i) => {
+      if (index !== null && i !== index) return;
+      const y = l.group.position.y;
+      l.group.position.y = l.baseY;
+      l.group.updateMatrixWorld(true);
+      box.expandByObject(l.group);
+      l.group.position.y = y;
+      l.group.updateMatrixWorld(true);
+    });
+    return box;
+  }
+
+  // ----- drawing -----
+
+  /** Screen position (CSS px from the canvas' top left) of a plan point on a level. */
+  project(levelId: string, [x, y]: Vec2, h = 0): { x: number; y: number } | null {
+    const l = this.levels[this.levelIds.indexOf(levelId)];
+    if (!l) return null;
+    const v = new THREE.Vector3(x, l.group.position.y + h, y).project(this.camera);
+    return { x: ((v.x + 1) / 2) * this.size.width, y: ((1 - v.y) / 2) * this.size.height };
+  }
+
+  /** Sets the canvas size (CSS px) and draws a frame. */
   render(width: number, height: number) {
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     this.renderer.setSize(width, height, false);
     this.size = { width, height };
-    const margin = 1.04;
-    const b = this.bounds;
-    let w = (b.right - b.left) * margin;
-    let h = (b.top - b.bottom) * margin;
-    const target = width / height;
-    if (w / h < target) w = h * target;
-    else h = w / target;
-    const cx = (b.left + b.right) / 2;
-    const cy = (b.top + b.bottom) / 2;
-    Object.assign(this.camera, { left: cx - w / 2, right: cx + w / 2, top: cy + h / 2, bottom: cy - h / 2 });
-    this.camera.updateProjectionMatrix();
+    this.draw();
+  }
+
+  /** Draws a frame at the current size and camera. */
+  draw() {
+    this.fitCamera();
+    this.applyCuts();
     this.renderer.render(this.scene, this.camera);
   }
 
   dispose() {
     this.clear();
-    for (const m of this.materials.values()) m.dispose();
     this.renderer.dispose();
   }
 }
@@ -305,4 +621,3 @@ function centroid(poly: Vec2[]): Vec2 {
   const s = poly.reduce((acc, p) => [acc[0] + p[0], acc[1] + p[1]] as Vec2, [0, 0] as Vec2);
   return [s[0] / poly.length, s[1] / poly.length];
 }
-

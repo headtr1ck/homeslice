@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Homeslice test harness</title>
+<link rel="icon" href="data:,">
+<style>
+  body { margin: 0; background: #111418; color: #e8eaed; font-family: Roboto, system-ui, sans-serif; }
+  #root { width: 1600px; padding: 16px; box-sizing: border-box; }
+</style>
+<script>
+  // minimal stand-ins for HA's own elements
+  customElements.define("ha-card", class extends HTMLElement {
+    connectedCallback() { this.style.display = "block"; }
+  });
+  customElements.define("ha-icon", class extends HTMLElement {
+    static observedAttributes = ["icon"];
+    attributeChangedCallback() { this.textContent = (this.getAttribute("icon") || "").replace("mdi:", ""); this.style.fontSize = "9px"; }
+  });
+  // stand-in for HA's card helpers: renders entity name and state
+  window.loadCardHelpers = async () => ({
+    createCardElement(config) {
+      const el = document.createElement("div");
+      el.className = "fake-card";
+      el.dataset.type = config.type;
+      el.style.cssText = "border:1px solid #444;border-radius:12px;padding:8px;min-height:40px";
+      Object.defineProperty(el, "hass", {
+        set(h) {
+          const s = h.states[config.entity];
+          el.textContent = `${config.type} ${config.entity ?? ""} ${s ? s.state : ""}`;
+        },
+      });
+      return el;
+    },
+  });
+</script>
+<script type="module" src="/custom_components/homeslice/frontend/homeslice-app.js"></script>
+</head>
+<body>
+<div id="root"></div>
+<script type="module">
+  import { makeHass } from "/dev/fake-hass.js";
+  window.setup = async (fixture, config = {}) => {
+    await customElements.whenDefined("homeslice-card");
+    const card = document.createElement("homeslice-card");
+    card.setConfig({ type: "custom:homeslice-card", ...config });
+    const rendered = new Promise((r) => card.addEventListener("homeslice-rendered", r, { once: true }));
+    document.getElementById("root").append(card);
+    card.hass = makeHass(fixture, (h) => (card.hass = h));
+    window.card = card;
+    await rendered;
+  };
+  window.ready = true;
+</script>
+</body>
+</html>

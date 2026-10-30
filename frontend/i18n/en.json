@@ -9,5 +9,14 @@
   "card.issue_warning": "Warning",
   "card.all_floors": "All floors",
   "card.lights_on": "Turn on the lights in {room}",
-  "card.lights_off": "Turn off the lights in {room}"
+  "card.lights_off": "Turn off the lights in {room}",
+  "popup.lights": "Lights",
+  "popup.covers": "Blinds",
+  "popup.climate": "Climate",
+  "popup.media": "Media",
+  "popup.devices": "Devices",
+  "popup.sensors": "Sensors",
+  "popup.more": "More",
+  "popup.close": "Close",
+  "popup.empty": "Nothing in this room is linked to Home Assistant yet."
 }

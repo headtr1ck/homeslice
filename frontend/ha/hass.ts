@@ -10,7 +10,7 @@ export interface HassEntityState {
 export interface Hass {
   locale?: { language: string };
   states: Record<string, HassEntityState>;
-  areas?: Record<string, { area_id: string; name: string; icon?: string | null; floor_id?: string | null }>;
+  areas?: Record<string, { area_id: string; name: string; icon?: string | null; floor_id?: string | null; temperature_entity_id?: string | null }>;
   floors?: Record<string, { floor_id: string; name: string; level?: number | null }>;
   devices?: Record<string, { id: string; area_id?: string | null }>;
   entities?: Record<string, { entity_id: string; area_id?: string | null; device_id?: string | null; hidden?: boolean; entity_category?: string | null }>;
@@ -61,4 +61,58 @@ export function areaLight(hass: Hass, areaId: string): RoomLight | null {
     brightness = Math.max(brightness, ((s.attributes.brightness as number | undefined) ?? 255) / 255);
   }
   return { rgb, brightness };
+}
+
+/** How far a cover is open, 0..1; null when unknown or unavailable. */
+export function coverOpen(hass: Hass, entityId: string): number | null {
+  const s = hass.states[entityId];
+  if (!s || s.state === "unavailable" || s.state === "unknown") return null;
+  const position = s.attributes.current_position;
+  if (typeof position === "number") return Math.min(1, Math.max(0, position / 100));
+  return s.state === "closed" ? 0 : 1;
+}
+
+/** Whether a door/window contact reports open. */
+export function contactOpen(hass: Hass, entityId: string): boolean {
+  return hass.states[entityId]?.state === "on";
+}
+
+/**
+ * The area's temperature: the sensor chosen in the area settings, otherwise the first
+ * temperature sensor HA assigns to the area.
+ */
+export function areaTemperature(hass: Hass, areaId: string): string | null {
+  const chosen = hass.areas?.[areaId]?.temperature_entity_id;
+  const id = chosen ?? areaEntities(hass, areaId, "sensor").find((e) => hass.states[e]?.attributes.device_class === "temperature");
+  const s = id ? hass.states[id] : undefined;
+  if (!s || isNaN(Number(s.state))) return null;
+  const unit = (s.attributes.unit_of_measurement as string | undefined) ?? "";
+  return `${Number(s.state).toFixed(1)} ${unit}`.trim();
+}
+
+export interface PopupSection {
+  title: "lights" | "covers" | "climate" | "media" | "devices" | "sensors";
+  cards: Record<string, unknown>[];
+}
+
+/** Standard HA cards for everything in an area, grouped like HA's own area views. */
+export function areaPopup(hass: Hass, areaId: string): PopupSection[] {
+  const ids = (domain: string) => areaEntities(hass, areaId, domain);
+  const deviceClass = (id: string) => hass.states[id]?.attributes.device_class as string | undefined;
+  const tile = (entity: string, features?: Record<string, unknown>[]) => ({ type: "tile", entity, ...(features ? { features } : {}) });
+  const sections: PopupSection[] = [
+    { title: "lights", cards: ids("light").map((e) => tile(e, [{ type: "light-brightness" }])) },
+    { title: "covers", cards: ids("cover").map((e) => tile(e, [{ type: "cover-open-close" }])) },
+    { title: "climate", cards: ids("climate").map((entity) => ({ type: "thermostat", entity })) },
+    { title: "media", cards: ids("media_player").map((entity) => ({ type: "media-control", entity })) },
+    { title: "devices", cards: ["switch", "fan", "vacuum", "lawn_mower", "lock"].flatMap(ids).map((e) => tile(e)) },
+    {
+      title: "sensors",
+      cards: [
+        ...ids("sensor").filter((e) => ["temperature", "humidity", "carbon_dioxide", "power"].includes(deviceClass(e) ?? "")),
+        ...ids("binary_sensor").filter((e) => ["door", "window", "motion", "occupancy", "moisture"].includes(deviceClass(e) ?? "")),
+      ].map((e) => tile(e)),
+    },
+  ];
+  return sections.filter((s) => s.cards.length);
 }

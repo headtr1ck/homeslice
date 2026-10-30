@@ -1,5 +1,5 @@
 import { LitElement, css, html, nothing, type PropertyValues } from "lit";
-import { areaEntities, areaLight, type Hass } from "../ha/hass";
+import { areaEntities, areaLight, areaPopup, areaTemperature, contactOpen, coverOpen, type Hass, type PopupSection } from "../ha/hass";
 import { localize, type StringKey } from "../i18n/localize";
 import { expandHouse } from "../model/expand";
 import { labelPoint } from "../model/geometry";
@@ -7,12 +7,20 @@ import type { House, Issue, Room, Vec2 } from "../model/types";
 import { deriveWalls, type Wall } from "../model/walls";
 import { HouseRenderer, type ViewOptions } from "../render/scene";
 
+export interface PopupOverride {
+  /** `extend` (default) adds the cards after the generated ones, `replace` shows only them. */
+  mode?: "extend" | "replace";
+  cards: Record<string, unknown>[];
+}
+
 export interface HomesliceCardConfig {
   type: string;
   house?: string;
   view?: Partial<ViewOptions>;
   /** Fixed height in px; by default the card follows the house's shape. */
   height?: number;
+  /** Popup overrides keyed by room id or area id. */
+  popups?: Record<string, PopupOverride>;
 }
 
 interface PlacedRoom {
@@ -23,14 +31,39 @@ interface PlacedRoom {
   point: Vec2;
 }
 
+interface PlacedOpening {
+  levelId: string;
+  id: string;
+  cover?: string;
+  contact?: string;
+}
+
 interface Label {
   key: string;
   x: number;
   y: number;
   name: string;
+  temperature: string | null;
   areaId?: string;
   hasLights: boolean;
   on: boolean;
+}
+
+interface Popup {
+  key: string;
+  name: string;
+  areaId?: string;
+  sections: { title: string; cards: Record<string, unknown>[] }[];
+}
+
+interface CardHelpers {
+  createCardElement(config: Record<string, unknown>): HTMLElement & { hass?: Hass };
+}
+
+declare global {
+  interface Window {
+    loadCardHelpers?: () => Promise<CardHelpers>;
+  }
 }
 
 export class HomesliceCard extends LitElement {
@@ -41,6 +74,7 @@ export class HomesliceCard extends LitElement {
     _loading: { state: true },
     _labels: { state: true },
     _level: { state: true },
+    _popup: { state: true },
   };
 
   hass?: Hass;
@@ -49,15 +83,22 @@ export class HomesliceCard extends LitElement {
   private _error = "";
   private _loading = true;
   private _labels: Label[] = [];
-  /** Selected level: the levels above it are hidden. */
+  /** Focused level: the levels above it are lifted away. */
   private _level: string | null = null;
+  private _popup: Popup | null = null;
   private house?: House;
   private rooms: PlacedRoom[] = [];
-  private lightSignature = "";
+  private openings: PlacedOpening[] = [];
+  private stateSignature = "";
   private renderer?: HouseRenderer;
   private resizeObserver?: ResizeObserver;
   private loadedFor?: string;
   private frame = 0;
+  private transitioning = false;
+  private popupCards: (HTMLElement & { hass?: Hass })[] = [];
+  private onKey = (e: KeyboardEvent) => {
+    if (e.key === "Escape" && this._popup) this.closePopup();
+  };
 
   setConfig(config: HomesliceCardConfig) {
     this.config = { house: "home", ...config };
@@ -77,8 +118,10 @@ export class HomesliceCard extends LitElement {
   }
 
   protected override updated(changed: PropertyValues) {
+    if (changed.has("_popup")) void this.fillPopup();
     if (!changed.has("hass") || !this.hass) return;
-    // `hass` changes several times a second: load once, then only react to our own lights
+    for (const c of this.popupCards) c.hass = this.hass;
+    // `hass` changes several times a second: load once, then only react to our own entities
     if (this.loadedFor !== this.config.house) {
       this.loadedFor = this.config.house;
       void this.load();
@@ -89,6 +132,7 @@ export class HomesliceCard extends LitElement {
 
   override connectedCallback() {
     super.connectedCallback();
+    window.addEventListener("keydown", this.onKey);
     this.resizeObserver = new ResizeObserver(() => this.scheduleDraw());
     this.updateComplete.then(() => {
       const wrap = this.renderRoot.querySelector(".wrap");
@@ -98,13 +142,16 @@ export class HomesliceCard extends LitElement {
 
   override disconnectedCallback() {
     super.disconnectedCallback();
+    window.removeEventListener("keydown", this.onKey);
     this.resizeObserver?.disconnect();
     cancelAnimationFrame(this.frame);
     this.renderer?.dispose();
     this.renderer = undefined;
     this.loadedFor = undefined;
-    this.lightSignature = "";
+    this.stateSignature = "";
   }
+
+  // ----- loading -----
 
   private async load() {
     this._loading = true;
@@ -141,33 +188,49 @@ export class HomesliceCard extends LitElement {
         .filter((room) => room.kind !== "void")
         .map((room) => ({ key: `${level.id}/${room.id}`, levelId: level.id, levelIndex: level.index, room, point: labelPoint(room.polygon) })),
     );
+    this.openings = [...walls.entries()].flatMap(([levelId, ws]) =>
+      ws.flatMap((w) => w.openings.filter((o) => o.cover || o.contact).map((o) => ({ levelId, id: o.id, cover: o.cover, contact: o.contact }))),
+    );
     this.renderer.setModel(house, walls, this.config.view);
-    this.applyLevel();
-    this.lightSignature = "";
+    this._level = null;
+    this.stateSignature = "";
     this.syncStates();
     this.scheduleDraw();
   }
 
-  /** Applies light states to the rooms; redraws only when something actually changed. */
+  // ----- live state -----
+
+  /** Applies lights, covers and contacts; redraws only when something actually changed. */
   private syncStates() {
     if (!this.hass || !this.renderer || !this.house) return;
-    const lights = this.rooms.map((r) => (r.room.areaId ? areaLight(this.hass!, r.room.areaId) : null));
-    const signature = JSON.stringify(lights);
-    if (signature === this.lightSignature) return;
-    this.lightSignature = signature;
+    const hass = this.hass;
+    const lights = this.rooms.map((r) => (r.room.areaId ? areaLight(hass, r.room.areaId) : null));
+    const covers = this.openings.map((o) => (o.cover ? coverOpen(hass, o.cover) : null));
+    const contacts = this.openings.map((o) => (o.contact ? contactOpen(hass, o.contact) : false));
+    const temperatures = this.rooms.map((r) => (r.room.areaId ? areaTemperature(hass, r.room.areaId) : null));
+    const signature = JSON.stringify([lights, covers, contacts, temperatures]);
+    if (signature === this.stateSignature) return;
+    this.stateSignature = signature;
     this.rooms.forEach((r, i) => this.renderer!.setRoomLight(r.levelId, r.room.id, lights[i]));
+    this.openings.forEach((o, i) => {
+      this.renderer!.setCover(o.id, covers[i]);
+      this.renderer!.setContact(o.id, contacts[i]);
+    });
     this.scheduleDraw();
   }
 
-  private applyLevel() {
-    const index = this._level ? this.house?.levels.find((l) => l.id === this._level)?.index ?? null : null;
-    this.renderer?.showLevelsUpTo(index);
-  }
+  // ----- floors -----
 
-  private selectLevel(id: string | null) {
+  private async selectLevel(id: string | null) {
+    if (!this.renderer || !this.house) return;
     this._level = this._level === id ? null : id;
-    this.applyLevel();
-    this.scheduleDraw();
+    const index = this._level ? this.house.levels.find((l) => l.id === this._level)?.index ?? null : null;
+    this.transitioning = true;
+    this._labels = [];
+    await this.renderer.setFocus(index);
+    this.transitioning = false;
+    this.placeLabels();
+    this.dispatchEvent(new CustomEvent("homeslice-rendered"));
   }
 
   private levelName(levelId: string) {
@@ -181,12 +244,68 @@ export class HomesliceCard extends LitElement {
     void this.hass.callService("light", label.on ? "turn_off" : "turn_on", {}, { area_id: label.areaId });
   }
 
+  // ----- popup -----
+
+  private roomName(r: PlacedRoom) {
+    const areaId = r.room.areaId;
+    return (areaId && this.hass?.areas?.[areaId]?.name) || r.room.name || r.room.id;
+  }
+
+  private openPopup(key: string) {
+    const r = this.rooms.find((x) => x.key === key);
+    if (!r || !this.hass) return;
+    const areaId = r.room.areaId;
+    const override = this.config.popups?.[r.room.id] ?? (areaId ? this.config.popups?.[areaId] : undefined);
+    const generated: { title: string; cards: Record<string, unknown>[] }[] =
+      override?.mode === "replace" || !areaId
+        ? []
+        : areaPopup(this.hass, areaId).map((s: PopupSection) => ({ title: this.t(`popup.${s.title}` as StringKey), cards: s.cards }));
+    const sections = override?.cards.length ? [...generated, { title: generated.length ? this.t("popup.more") : "", cards: override.cards }] : generated;
+    this._popup = { key, name: this.roomName(r), areaId, sections };
+  }
+
+  private closePopup() {
+    this._popup = null;
+    this.popupCards = [];
+  }
+
+  /** Creates HA's own cards inside the popup (they need HA's card helpers). */
+  private async fillPopup() {
+    if (!this._popup || !this.hass) return;
+    const popup = this._popup;
+    const helpers = await window.loadCardHelpers?.();
+    if (!helpers || this._popup !== popup) return;
+    this.popupCards = [];
+    const containers = this.renderRoot.querySelectorAll<HTMLElement>(".popup .cards");
+    popup.sections.forEach((section, i) => {
+      const container = containers[i];
+      if (!container) return;
+      container.replaceChildren(
+        ...section.cards.map((config) => {
+          const el = helpers.createCardElement(config);
+          el.hass = this.hass;
+          this.popupCards.push(el);
+          return el;
+        }),
+      );
+    });
+  }
+
+  private onCanvasClick(e: MouseEvent) {
+    if (!this.renderer || this.transitioning) return;
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const key = this.renderer.pick(e.clientX - rect.left, e.clientY - rect.top);
+    if (key) this.openPopup(key);
+  }
+
+  // ----- drawing -----
+
   /** Renders at most once per animation frame, and only when asked to. */
   private scheduleDraw() {
     cancelAnimationFrame(this.frame);
     this.frame = requestAnimationFrame(() => {
       const wrap = this.renderRoot.querySelector<HTMLElement>(".wrap");
-      if (!wrap || !this.renderer) return;
+      if (!wrap || !this.renderer || this.transitioning) return;
       const width = wrap.clientWidth;
       if (!width) return;
       // follow the house's shape, but never taller than the space left below the card's top
@@ -195,22 +314,25 @@ export class HomesliceCard extends LitElement {
       wrap.style.height = `${height}px`;
       this.renderer.render(width, height);
       this.placeLabels();
+      this.dispatchEvent(new CustomEvent("homeslice-rendered"));
     });
   }
 
   private placeLabels() {
     if (!this.renderer || !this.hass) return;
-    const maxIndex = this._level ? this.house?.levels.find((l) => l.id === this._level)?.index ?? Infinity : Infinity;
     const labels: Label[] = [];
     for (const r of this.rooms) {
-      if (r.levelIndex > maxIndex) continue;
+      if (!this.renderer.isLevelVisible(r.levelId)) continue;
+      // with a level focused, only that level gets labels
+      if (this._level && r.levelId !== this._level) continue;
       const p = this.renderer.project(r.levelId, r.point, 0.05);
       if (!p) continue;
       const areaId = r.room.areaId;
       labels.push({
         key: r.key,
         ...p,
-        name: (areaId && this.hass.areas?.[areaId]?.name) || r.room.name || r.room.id,
+        name: this.roomName(r),
+        temperature: areaId ? areaTemperature(this.hass, areaId) : null,
         areaId,
         hasLights: !!areaId && areaEntities(this.hass, areaId, "light").length > 0,
         on: !!areaId && areaLight(this.hass, areaId) !== null,
@@ -224,7 +346,7 @@ export class HomesliceCard extends LitElement {
     return html`
       <ha-card>
         <div class="wrap">
-          <canvas></canvas>
+          <canvas @click=${this.onCanvasClick}></canvas>
           ${this._labels.map(
             (l) => html`<div class="label" style="left:${l.x}px;top:${l.y}px">
               ${l.hasLights
@@ -236,7 +358,10 @@ export class HomesliceCard extends LitElement {
                     <ha-icon icon=${l.on ? "mdi:lightbulb-on" : "mdi:lightbulb-outline"}></ha-icon>
                   </button>`
                 : nothing}
-              <span>${l.name}</span>
+              <button class="name" @click=${() => this.openPopup(l.key)}>
+                <span class="name">${l.name}</span>
+                ${l.temperature ? html`<span class="temp">${l.temperature}</span>` : nothing}
+              </button>
             </div>`,
           )}
           ${this.house
@@ -254,6 +379,7 @@ export class HomesliceCard extends LitElement {
           ${this._loading ? html`<div class="overlay">${this.t("card.loading")}</div>` : nothing}
           ${this._error ? html`<div class="overlay error">${this._error}</div>` : nothing}
         </div>
+        ${this._popup ? this.renderPopup(this._popup) : nothing}
         ${this._issues.length
           ? html`<details class="issues">
               <summary>${this.t("card.issues", { count: this._issues.length })}</summary>
@@ -272,6 +398,31 @@ export class HomesliceCard extends LitElement {
     `;
   }
 
+  private renderPopup(p: Popup) {
+    const temperature = p.areaId && this.hass ? areaTemperature(this.hass, p.areaId) : null;
+    return html`<div class="backdrop" @click=${() => this.closePopup()}>
+      <div class="popup" role="dialog" aria-modal="true" aria-label=${p.name} @click=${(e: Event) => e.stopPropagation()}>
+        <header>
+          <div>
+            <h2>${p.name}</h2>
+            ${temperature ? html`<span class="temp">${temperature}</span>` : nothing}
+          </div>
+          <button class="close" aria-label=${this.t("popup.close")} @click=${() => this.closePopup()}>
+            <ha-icon icon="mdi:close"></ha-icon>
+          </button>
+        </header>
+        ${p.sections.length
+          ? p.sections.map(
+              (s) => html`<section>
+                ${s.title ? html`<h3>${s.title}</h3>` : nothing}
+                <div class="cards"></div>
+              </section>`,
+            )
+          : html`<p class="empty">${this.t("popup.empty")}</p>`}
+      </div>
+    </div>`;
+  }
+
   static override styles = css`
     ha-card {
       overflow: hidden;
@@ -288,6 +439,7 @@ export class HomesliceCard extends LitElement {
       display: block;
       width: 100%;
       height: 100%;
+      cursor: pointer;
     }
     .label {
       position: absolute;
@@ -298,12 +450,27 @@ export class HomesliceCard extends LitElement {
       gap: 2px;
       pointer-events: none;
     }
-    .label span {
-      font-size: 12px;
-      font-weight: 500;
+    .label button.name {
+      pointer-events: auto;
+      background: none;
+      border: none;
+      padding: 2px 6px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      cursor: pointer;
+      font: inherit;
       color: #fff;
       text-shadow: 0 0 3px #000, 0 0 6px #000;
+    }
+    .label span.name {
+      font-size: 12px;
+      font-weight: 500;
       white-space: nowrap;
+    }
+    .label span.temp {
+      font-size: 11px;
+      opacity: 0.85;
     }
     .lamp {
       pointer-events: auto;
@@ -349,6 +516,84 @@ export class HomesliceCard extends LitElement {
     .levels button.active {
       border-color: var(--primary-color);
       background: rgba(40, 60, 90, 0.9);
+    }
+    .backdrop {
+      position: fixed;
+      inset: 0;
+      z-index: 10;
+      background: rgba(0, 0, 0, 0.55);
+      display: grid;
+      place-items: center;
+      animation: fade 0.18s ease-out;
+    }
+    .popup {
+      width: min(1100px, calc(100vw - 48px));
+      max-height: calc(100vh - 48px);
+      overflow: auto;
+      box-sizing: border-box;
+      padding: 20px 24px 24px;
+      border-radius: var(--ha-card-border-radius, 16px);
+      background: var(--card-background-color, #1c1f24);
+      color: var(--primary-text-color, #eee);
+      box-shadow: 0 16px 48px rgba(0, 0, 0, 0.5);
+      animation: rise 0.22s ease-out;
+    }
+    .popup header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 16px;
+      margin-bottom: 8px;
+    }
+    .popup h2 {
+      margin: 0;
+      font-size: 22px;
+      font-weight: 600;
+    }
+    .popup header .temp {
+      color: var(--secondary-text-color);
+    }
+    .popup h3 {
+      margin: 16px 0 8px;
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--secondary-text-color);
+    }
+    .popup .cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 8px;
+    }
+    .popup .close {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      border: none;
+      background: rgba(127, 127, 127, 0.15);
+      color: inherit;
+      cursor: pointer;
+      display: grid;
+      place-items: center;
+    }
+    .popup .empty {
+      color: var(--secondary-text-color);
+    }
+    @keyframes fade {
+      from {
+        opacity: 0;
+      }
+    }
+    @keyframes rise {
+      from {
+        transform: translateY(16px);
+        opacity: 0;
+      }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .backdrop,
+      .popup {
+        animation: none;
+      }
     }
     .overlay {
       position: absolute;
