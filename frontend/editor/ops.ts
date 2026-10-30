@@ -2,7 +2,7 @@
 // each returns a new model, which keeps undo/redo trivial and makes them easy to test.
 
 import { bbox, dist, normalizeOrientation, project, signedArea } from "../model/geometry";
-import type { Coord, HouseInput, LevelInput, OpeningInput, OpeningSource, RoomInput, ShapeInput, RoofInput, Side, Vec2, VerticalInput } from "../model/types";
+import type { Coord, EnergyInput, HouseInput, LevelInput, OpeningInput, OpeningSource, RoomInput, ShapeInput, RoofInput, Side, Vec2, VerticalInput } from "../model/types";
 
 /** Points closer than this count as the same corner (shared by neighbouring rooms). */
 export const SAME_POINT = 0.01;
@@ -753,5 +753,30 @@ export function setRoof(model: HouseInput, roof: Partial<RoofInput> | null): Hou
     for (const [k, v] of Object.entries(roof)) if (v === undefined) delete (next as Record<string, unknown>)[k];
     m.roof = next;
   }
+  return m;
+}
+
+// ----- energy -----
+
+export function addEnergy(model: HouseInput, item: EnergyInput): { model: HouseInput; index: number } {
+  const m = clone(model);
+  m.energy = [...(m.energy ?? []), item];
+  return { model: m, index: m.energy.length - 1 };
+}
+
+export function updateEnergy(model: HouseInput, index: number, patch: Partial<EnergyInput>): HouseInput {
+  const m = clone(model);
+  const e = m.energy?.[index];
+  if (!e) return m;
+  Object.assign(e, patch);
+  for (const [k, v] of Object.entries(patch)) if (v === undefined || v === "") delete (e as unknown as Record<string, unknown>)[k];
+  if (e.at) e.at = [round(e.at[0]), round(e.at[1])];
+  return m;
+}
+
+export function deleteEnergy(model: HouseInput, index: number): HouseInput {
+  const m = clone(model);
+  m.energy = (m.energy ?? []).filter((_, i) => i !== index);
+  if (!m.energy.length) delete m.energy;
   return m;
 }

@@ -7,15 +7,20 @@ import { areaEntities, type Hass } from "../ha/hass";
 import { localize, type StringKey } from "../i18n/localize";
 import { expandHouse } from "../model/expand";
 import { bbox, labelPoint, pointInPolygon } from "../model/geometry";
-import type { HouseInput, Issue, OpeningInput, OpeningSource, OpeningType, RoomInput, Side, Vec2, Vertical } from "../model/types";
+import type { EnergyInput, HouseInput, Issue, OpeningInput, OpeningSource, OpeningType, RoomInput, Side, Vec2, Vertical } from "../model/types";
 import { deriveWalls, innerPolygon, sideOfRoom, type Wall } from "../model/walls";
 import { HouseRenderer } from "../render/scene";
 import { stairFrame, stairHole } from "../model/stairs";
 import { listedLights, placeLights, type PlacedLight } from "../model/lights";
+import type { EnergyPrefs } from "../ha/energy";
+import { ENERGY_COLORS } from "../render/scene";
 import {
   History,
   addOpening,
   addRoom,
+  addEnergy,
+  deleteEnergy,
+  updateEnergy,
   setRoof,
   placeLight,
   removeLight,
@@ -111,6 +116,7 @@ type Drag =
   | { kind: "rect"; start: Vec2; ctx: SnapContext }
   | { kind: "stair-move"; origin: HouseInput; id: string; rect: [number, number, number, number]; startWorld: Vec2; ctx: SnapContext; moved: boolean }
   | { kind: "stair-resize"; origin: HouseInput; id: string; fixed: Vec2; ctx: SnapContext }
+  | { kind: "energy"; origin: HouseInput; index: number; startWorld: Vec2; at: Vec2; moved: boolean }
   | { kind: "light"; origin: HouseInput; entity: string; room: string; startWorld: Vec2; ctx: SnapContext; moved: boolean }
   | { kind: "wall"; origin: HouseInput; a: Vec2; b: Vec2; startWorld: Vec2; normal: Vec2; thickness: number; faces: number[] }
   | { kind: "opening"; origin: HouseInput; src: OpeningSource; axis: 0 | 1; startWorld: Vec2; at: number; snaps: OpeningSnaps };
@@ -164,6 +170,9 @@ export class HomeslicePanel extends LitElement {
     _create: { state: true },
     _pendingArea: { state: true },
     _stair: { state: true },
+    _energyPlace: { state: true },
+    _energySel: { state: true },
+    _energyPrefs: { state: true },
     _underlay: { state: true },
     _underlayHidden: { state: true },
     _calib: { state: true },
@@ -207,6 +216,10 @@ export class HomeslicePanel extends LitElement {
   private _underlayMove = false;
   private underlayRequest = "";
   private underlaySaveTimer = 0;
+  /** Energy item waiting for a click on the plan to be placed. */
+  private _energyPlace: EnergyInput | null = null;
+  private _energySel: number | null = null;
+  private _energyPrefs: EnergyPrefs | null = null;
   /** Selected stair or shaft (id in `vertical`). */
   private _stair: string | null = null;
   /** Area to link to the next room drawn with the rectangle tool. */
@@ -246,6 +259,9 @@ export class HomeslicePanel extends LitElement {
   // ----- loading and saving -----
 
   private async loadHouses() {
+    this._hass!.callWS<EnergyPrefs>({ type: "energy/get_prefs" })
+      .then((p) => (this._energyPrefs = p))
+      .catch(() => (this._energyPrefs = { energy_sources: [], device_consumption: [] }));
     try {
       this._houses = await this._hass!.callWS<{ id: string; name: string }[]>({ type: "homeslice/houses" });
       if (this._houses.length) await this.openHouse(this._houses[0].id);
@@ -422,6 +438,7 @@ export class HomeslicePanel extends LitElement {
       this._pendingArea = null;
       this._calib = null;
       this._underlayMove = false;
+      this._energyPlace = null;
       this._drag = null;
       this._rectPreview = null;
     } else if (e.key === "r" && !mod) this._tool = "rect";
@@ -546,7 +563,28 @@ export class HomeslicePanel extends LitElement {
       this._drag = { kind: "pan", start: this.eventScreen(e), offset: [this._view.ox, this._view.oy] };
       return;
     }
+    if (this._mode === "objects" && this._energyPlace) {
+      const at = snap(world, { ...this.snapContext(), points: [], align: { x: [], y: [] } }).p;
+      const { model, index } = addEnergy(this._model, { ...this._energyPlace, level: this._level, at });
+      this.commit(model);
+      this._energyPlace = null;
+      this._energySel = index;
+      this._room = null;
+      return;
+    }
+    const hitEnergy = this._mode === "objects" ? (target.closest("[data-energy]") as SVGElement | null) : null;
+    if (hitEnergy) {
+      const index = Number(hitEnergy.dataset.energy);
+      const e = this._model.energy?.[index];
+      if (e?.at) {
+        this._energySel = index;
+        this._room = null;
+        this._drag = { kind: "energy", origin: clone(this._model), index, startWorld: world, at: e.at, moved: false };
+        return;
+      }
+    }
     if (this._mode === "objects") {
+      this._energySel = null;
       const hitLight = target.closest("[data-light]") as SVGElement | null;
       if (hitLight) {
         const { entity, room } = JSON.parse(hitLight.dataset.light!) as { entity: string; room: string };
@@ -652,6 +690,15 @@ export class HomeslicePanel extends LitElement {
       const delta: Vec2 = [drag.normal[0] * snappedAlong, drag.normal[1] * snappedAlong];
       this._model = moveEdge(drag.origin, this._level, drag.a, drag.b, delta);
       this._hint = { x: screen[0], y: screen[1], lines: [this.moveReadout(delta), ...this.roomReadout()] };
+      return;
+    }
+    if (drag.kind === "energy") {
+      const p: Vec2 = [drag.at[0] + world[0] - drag.startWorld[0], drag.at[1] + world[1] - drag.startWorld[1]];
+      if (!drag.moved && Math.hypot(p[0] - drag.at[0], p[1] - drag.at[1]) * this._view.scale < 4) return;
+      drag.moved = true;
+      const s = snapped(p, { ...this.snapContext(), points: [] });
+      this._guides = { x: s.alignX, y: s.alignY };
+      this._model = updateEnergy(drag.origin, drag.index, { at: s.p });
       return;
     }
     if (drag.kind === "light") {
@@ -760,7 +807,7 @@ export class HomeslicePanel extends LitElement {
       this.saveUnderlay({ place: this._underlay.place });
       return;
     }
-    if (drag.kind === "vertex" || drag.kind === "edge" || drag.kind === "opening" || drag.kind === "wall" || drag.kind === "stair-move" || drag.kind === "stair-resize" || drag.kind === "light") {
+    if (drag.kind === "vertex" || drag.kind === "edge" || drag.kind === "opening" || drag.kind === "wall" || drag.kind === "stair-move" || drag.kind === "stair-resize" || drag.kind === "light" || drag.kind === "energy") {
       if (JSON.stringify(drag.origin) !== JSON.stringify(this._model)) this.commit(this._model, drag.origin);
     } else if (drag.kind === "rect" && this._rectPreview && this._tool === "stairs") {
       const [[x0, y0], , [x1, y1]] = this._rectPreview;
@@ -1222,7 +1269,7 @@ export class HomeslicePanel extends LitElement {
           ${this._hint
             ? html`<div class="hint" style="left:${this._hint.x + 16}px;top:${this._hint.y + 16}px">${this._hint.lines.map((l) => html`<div>${l}</div>`)}</div>`
             : nothing}
-          <div class="help">${this._calib ? html`<b>${this.t(!this._calib.a ? "editor.calib_first" : !this._calib.b ? "editor.calib_second" : "editor.calib_distance")}</b> ` : this._underlayMove ? html`<b>${this.t("editor.underlay_move_hint")}</b> ` : nothing}${this.t(this._mode === "openings" ? "editor.openings_hint" : this._mode === "objects" ? "editor.help_objects" : this._tool === "rect" ? "editor.help_rect" : this._tool === "stairs" ? "editor.help_stairs" : "editor.help_select")}${this._pendingArea && this._tool === "rect" ? html` <b>${this.t("editor.drawing_for", { area: this._hass?.areas?.[this._pendingArea]?.name ?? this._pendingArea })}</b>` : nothing}</div>
+          <div class="help">${this._calib ? html`<b>${this.t(!this._calib.a ? "editor.calib_first" : !this._calib.b ? "editor.calib_second" : "editor.calib_distance")}</b> ` : this._underlayMove ? html`<b>${this.t("editor.underlay_move_hint")}</b> ` : this._energyPlace ? html`<b>${this.t("editor.energy_click", { name: this.energyName(this._energyPlace) })}</b> ` : nothing}${this.t(this._mode === "openings" ? "editor.openings_hint" : this._mode === "objects" ? "editor.help_objects" : this._tool === "rect" ? "editor.help_rect" : this._tool === "stairs" ? "editor.help_stairs" : "editor.help_select")}${this._pendingArea && this._tool === "rect" ? html` <b>${this.t("editor.drawing_for", { area: this._hass?.areas?.[this._pendingArea]?.name ?? this._pendingArea })}</b>` : nothing}</div>
         </section>
         <section class="side">
           <canvas
@@ -1306,6 +1353,7 @@ export class HomeslicePanel extends LitElement {
         })}
       ${this._stair && this._mode === "rooms" ? this.renderStairHandles() : nothing}
       ${this._mode === "objects" ? this.renderLamps() : nothing}
+      ${this._mode === "objects" ? this.renderEnergyMarkers() : nothing}
       ${selPoly.length && this._mode === "rooms" ? this.renderHandles(selPoly, selected ? this.inner(selected, walls) : selPoly) : nothing}
       ${this._rectPreview ? svg`<polygon class="rect-preview" points=${pts(this._rectPreview)}></polygon>` : nothing}
       ${this.renderGuides()}
@@ -1345,6 +1393,88 @@ export class HomeslicePanel extends LitElement {
         <title>${this.entityName(l.entity)}${l.auto ? ` (${this.t("editor.light_auto")})` : ""}</title>
       </g>`;
     })}`;
+  }
+
+  private renderEnergyMarkers() {
+    const m = this._model!;
+    return svg`${(m.energy ?? []).map((e, i) => {
+      if (e.kind === "solar" || e.level !== this._level || !e.at) return nothing;
+      const [x, y] = this.toScreen(e.at);
+      const letter = { battery: "B", grid: "G", inverter: "I", device: "⚡" }[e.kind as string] ?? "?";
+      return svg`<g class="energy-marker ${this._energySel === i ? "selected" : ""}" data-energy=${i} style="--energy:${ENERGY_COLORS[e.kind]}">
+        <rect x=${x - 11} y=${y - 11} width="22" height="22" rx="6"></rect>
+        <text x=${x} y=${y + 4} text-anchor="middle">${letter}</text>
+        <title>${this.energyName(e)}</title>
+      </g>`;
+    })}`;
+  }
+
+  private energyName(e: EnergyInput): string {
+    if (e.name) return e.name;
+    if (e.kind === "device") return (e.power && this.entityName(e.power)) || this.t("card.energy_device");
+    return this.t(`card.energy_${e.kind}` as StringKey);
+  }
+
+  /** The energy items to offer: HA's energy settings, then what is already placed. */
+  private renderEnergySection() {
+    const m = this._model!;
+    const prefs = this._energyPrefs;
+    const placed = m.energy ?? [];
+    const hasSource = (type: string) => !!prefs?.energy_sources.some((x) => x.type === type);
+    const offers: EnergyInput[] = [
+      ...(hasSource("solar") ? [{ kind: "solar" as const }] : []),
+      ...(hasSource("battery") ? [{ kind: "battery" as const }] : []),
+      ...(hasSource("grid") ? [{ kind: "grid" as const }] : []),
+      { kind: "inverter" as const },
+      ...(prefs?.device_consumption ?? []).filter((d) => d.stat_rate).map((d) => ({ kind: "device" as const, power: d.stat_rate, name: d.name })),
+    ].filter((o) => !placed.some((p) => p.kind === o.kind && (o.kind !== "device" || p.power === o.power)));
+    const levelName = (id?: string) => {
+      const l = m.levels.find((x) => x.id === id);
+      return l ? this.levelName(l) : "";
+    };
+    const place = (o: EnergyInput) => {
+      if (o.kind === "solar") {
+        this.commit(addEnergy(m, { kind: "solar" }).model);
+        return;
+      }
+      this._energyPlace = o;
+      this._room = null;
+    };
+    return html`<h3>${this.t("editor.energy")}</h3>
+      <p class="muted">${this.t("editor.energy_hint")}</p>
+      ${placed.length
+        ? html`<ul class="lights energy">
+            ${placed.map(
+              (e, i) => html`<li class=${this._energySel === i ? "selected" : ""} style="--energy:${ENERGY_COLORS[e.kind]}">
+                <span class="name">${this.energyName(e)}<small class="muted">${e.kind === "solar" ? this.t("editor.energy_on_roof") : levelName(e.level)}</small></span>
+                ${e.kind === "solar"
+                  ? html`<select aria-label=${this.t("editor.energy_roof_side")} @change=${(ev: Event) => this.commit(updateEnergy(m, i, { roof: (ev.target as HTMLSelectElement).value as Side }))}>
+                      ${(["south", "north", "east", "west"] as Side[]).map((sd) => html`<option value=${sd} ?selected=${(e.roof ?? "south") === sd}>${this.t(`editor.side_${sd}` as StringKey)}</option>`)}
+                    </select>`
+                  : nothing}
+                <button @click=${() => {
+                  this.commit(deleteEnergy(m, i));
+                  this._energySel = null;
+                }}>${this.t("editor.light_remove")}</button>
+              </li>`,
+            )}
+          </ul>`
+        : nothing}
+      ${offers.length
+        ? html`<ul class="lights offers">
+            ${offers.map(
+              (o) => html`<li>
+                <span class="name">${this.energyName(o)}</span>
+                <button class=${this._energyPlace && this._energyPlace.kind === o.kind && this._energyPlace.power === o.power ? "active" : ""} @click=${() => place(o)}>
+                  ${o.kind === "solar" ? this.t("editor.energy_add") : this.t("editor.energy_place")}
+                </button>
+              </li>`,
+            )}
+          </ul>`
+        : nothing}
+      ${this.entitySelect(this.t("editor.energy_other"), "sensor", undefined, undefined, (power) => power && place({ kind: "device", power }), (id) =>
+        this._hass?.states[id]?.attributes.device_class === "power" && !placed.some((p) => p.power === id),
+      )}`;
   }
 
   /** The walking line of a stair, from its first step up (for the arrow on the plan). */
@@ -1767,7 +1897,8 @@ export class HomeslicePanel extends LitElement {
       const auto = lamps.filter((l) => l.auto).length;
       return html`<h2>${this.t("editor.mode_objects")}</h2>
         <p class="muted">${this.t("editor.objects_hint")}</p>
-        <p class="muted">${this.t("editor.lights_count", { count: lamps.length, auto })}</p>`;
+        <p class="muted">${this.t("editor.lights_count", { count: lamps.length, auto })}</p>
+        ${this.renderEnergySection()}`;
     }
     const own = lamps.filter((l) => l.roomId === r.id);
     const hidden = (r.lights ?? []).filter((l) => l.hidden);
@@ -2264,6 +2395,30 @@ export class HomeslicePanel extends LitElement {
     }
     .lamp-marker.on .bulb {
       fill: #ffcf6b;
+    }
+    .energy-marker {
+      cursor: grab;
+    }
+    .energy-marker rect {
+      fill: rgba(20, 24, 28, 0.9);
+      stroke: var(--energy);
+      stroke-width: 2;
+    }
+    .energy-marker.selected rect {
+      stroke-width: 3.5;
+    }
+    .energy-marker text {
+      fill: var(--energy);
+      font-size: 12px;
+      font-weight: 700;
+      pointer-events: none;
+    }
+    ul.energy li {
+      border-left: 3px solid var(--energy);
+      padding-left: 6px;
+    }
+    ul.energy li.selected {
+      background: rgba(255, 255, 255, 0.05);
     }
     ul.lights {
       list-style: none;

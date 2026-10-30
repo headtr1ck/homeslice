@@ -25,6 +25,9 @@ import {
   addLevel,
   deleteLevel,
   newHouse,
+  addEnergy,
+  updateEnergy,
+  deleteEnergy,
   setRoof,
   placeLight,
   setLightHidden,
@@ -314,5 +317,14 @@ describe("lights", () => {
 describe("roof", () => {
   it("sets roof properties", () => {
     expect(setRoof(house(), { pitch: 40 }).roof).toEqual({ pitch: 40 });
+  });
+});
+
+describe("energy", () => {
+  it("adds, moves and removes energy items", () => {
+    let { model, index } = addEnergy(house(), { kind: "battery", level: "g", at: [1.2345, 2] });
+    model = updateEnergy(model, index, { at: [3.14159, 1], name: "" });
+    expect(model.energy).toEqual([{ kind: "battery", level: "g", at: [3.142, 1] }]);
+    expect(deleteEnergy(model, index).energy).toBeUndefined();
   });
 });

@@ -130,6 +130,14 @@
     "light.reading_lamp": {
       "entity_id": "light.reading_lamp",
       "area_id": "living_room"
+    },
+    "sensor.battery_power": {
+      "entity_id": "sensor.battery_power",
+      "device_id": "battery"
+    },
+    "sensor.battery_soc": {
+      "entity_id": "sensor.battery_soc",
+      "device_id": "battery"
     }
   },
   "states": {
@@ -276,6 +284,74 @@
       "attributes": {
         "friendly_name": "Reading lamp"
       }
+    },
+    "sensor.pv_power": {
+      "entity_id": "sensor.pv_power",
+      "state": "2.4",
+      "attributes": {
+        "unit_of_measurement": "kW",
+        "device_class": "power",
+        "friendly_name": "Solar power"
+      }
+    },
+    "sensor.battery_power": {
+      "entity_id": "sensor.battery_power",
+      "state": "-900",
+      "attributes": {
+        "unit_of_measurement": "W",
+        "device_class": "power",
+        "friendly_name": "Battery power"
+      }
+    },
+    "sensor.battery_soc": {
+      "entity_id": "sensor.battery_soc",
+      "state": "64",
+      "attributes": {
+        "unit_of_measurement": "%",
+        "device_class": "battery",
+        "friendly_name": "Battery"
+      }
+    },
+    "sensor.grid_power": {
+      "entity_id": "sensor.grid_power",
+      "state": "-300",
+      "attributes": {
+        "unit_of_measurement": "W",
+        "device_class": "power",
+        "friendly_name": "Grid power"
+      }
+    },
+    "sensor.heat_pump_power": {
+      "entity_id": "sensor.heat_pump_power",
+      "state": "1200",
+      "attributes": {
+        "unit_of_measurement": "W",
+        "device_class": "power",
+        "friendly_name": "Heat pump"
+      }
     }
+  },
+  "energy_prefs": {
+    "energy_sources": [
+      {
+        "type": "solar",
+        "stat_rate": "sensor.pv_power"
+      },
+      {
+        "type": "battery",
+        "stat_rate": "sensor.battery_power"
+      },
+      {
+        "type": "grid",
+        "stat_rate": "sensor.grid_power"
+      }
+    ],
+    "device_consumption": [
+      {
+        "name": "Heat pump",
+        "stat_rate": "sensor.heat_pump_power",
+        "stat_consumption": "sensor.heat_pump_energy"
+      }
+    ]
   }
 }

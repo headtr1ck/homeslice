@@ -298,7 +298,7 @@ console.log("demo house");
     });
     assert(spot, "no visible spot on the ground floor");
     await page.mouse.move(spot.x, spot.y);
-    await page.waitForFunction(() => window.card.renderer.levels[1].hoverOpacity < 0.2, null, { timeout: 10000 });
+    await page.waitForFunction(() => Math.abs(window.card.renderer.levels[1].hoverOpacity - 0.18) < 1e-6, null, { timeout: 10000 });
     const state = await page.evaluate(() => ({
       hover: window.card.renderer.hoveredIndex,
       above: window.card.renderer.levels[1].hoverOpacity,
@@ -842,6 +842,36 @@ console.log("editor");
     assert((await room("kitchen")).lights?.[0]?.hidden === true, "not hidden");
     await page.locator("homeslice-panel .inspector ul.lights li.hidden button").click();
     assert(!(await room("kitchen")).lights, "hidden entry not removed by Show");
+    await page.locator("homeslice-panel .modes button", { hasText: "Rooms" }).click();
+    assert(errors.length === 0, errors.join(" | "));
+  });
+
+  await test("objects mode: place energy items from HA's energy settings", async () => {
+    await page.keyboard.press("Escape");
+    await page.locator("homeslice-panel .modes button", { hasText: "Objects" }).click();
+    const offers = await page.locator("homeslice-panel .inspector ul.offers li .name").allTextContents();
+    assert(["Solar", "Battery", "Grid", "Inverter", "Heat pump"].every((n) => offers.includes(n)), `offers: ${offers}`);
+    await page.locator("homeslice-panel .inspector ul.offers li", { hasText: "Battery" }).locator("button").click();
+    assert((await page.locator("homeslice-panel .help").textContent()).includes("Click where Battery is"), "no placing hint");
+    const plan = await page.locator("homeslice-panel svg.plan").boundingBox();
+    const { scale, ox, oy } = await page.evaluate(() => window.panel._view);
+    await page.mouse.click(plan.x + ox + 1 * scale, plan.y + oy + 1 * scale);
+    let energy = (await model()).energy;
+    assert(energy?.length === 1 && energy[0].kind === "battery" && energy[0].level === "ground" && Math.abs(energy[0].at[0] - 1) < 0.06, `energy: ${JSON.stringify(energy)}`);
+    // drag it 1 m east
+    const marker = await page.locator("homeslice-panel svg.plan g.energy-marker rect").boundingBox();
+    await page.mouse.move(marker.x + 11, marker.y + 11);
+    await page.mouse.down();
+    await page.mouse.move(marker.x + 11 + scale, marker.y + 11, { steps: 5 });
+    await page.mouse.up();
+    energy = (await model()).energy;
+    assert(Math.abs(energy[0].at[0] - 2) < 0.06, `moved: ${JSON.stringify(energy[0].at)}`);
+    await page.locator("homeslice-panel .inspector ul.offers li", { hasText: "Solar" }).locator("button").click();
+    assert((await model()).energy[1].kind === "solar", "solar not added");
+    await shot(page, "editor-energy");
+    await page.locator("homeslice-panel .inspector ul.energy li", { hasText: "Battery" }).locator("button").click();
+    assert((await model()).energy.length === 1, "battery not removed");
+    await page.keyboard.press("Control+z");
     await page.locator("homeslice-panel .modes button", { hasText: "Rooms" }).click();
     assert(errors.length === 0, errors.join(" | "));
   });

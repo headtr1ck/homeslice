@@ -194,5 +194,13 @@
   "card.energy_discharging": "discharging",
   "card.energy_import": "import",
   "card.energy_export": "export",
-  "cardeditor.energy": "Energy overlay (solar, battery, grid and devices with their power; place them in the Homeslice panel)"
+  "cardeditor.energy": "Energy overlay (solar, battery, grid and devices with their power; place them in the Homeslice panel)",
+  "editor.energy": "Energy",
+  "editor.energy_hint": "Place what makes, stores and uses power for the card's energy overlay. Their power sensors come from Home Assistant's energy settings. The lines meet at the inverter (else the battery).",
+  "editor.energy_on_roof": "on the roof",
+  "editor.energy_roof_side": "Roof side",
+  "editor.energy_add": "Add",
+  "editor.energy_place": "Place",
+  "editor.energy_other": "Another power sensor",
+  "editor.energy_click": "Click where {name} is on this level. Esc: cancel."
 }
