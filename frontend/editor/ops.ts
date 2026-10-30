@@ -142,6 +142,64 @@ export function moveLevel(model: HouseInput, levelId: string, toIndex: number): 
   return m;
 }
 
+/**
+ * Moves one piece of wall (e.g. the wall between two rooms) without dragging the rest of
+ * the room sides it lies on: room sides containing the piece get corners at its ends
+ * first, then only the piece moves.
+ */
+export function moveWallPiece(model: HouseInput, levelId: string, a: Vec2, b: Vec2, delta: Vec2): HouseInput {
+  const m = clone(model);
+  const l = level(m, levelId);
+  const onPiece = onSegmentOf(a, b);
+  const moved = (p: Vec2): Vec2 => [round(p[0] + delta[0]), round(p[1] + delta[1])];
+  l.rooms = l.rooms.map((room) => {
+    const poly = roomPolygon(m, room);
+    const out: Vec2[] = [];
+    let changed = false;
+    poly.forEach((p, i) => {
+      const q = poly[(i + 1) % poly.length];
+      if (onPiece(p)) {
+        const prev = poly[(i - 1 + poly.length) % poly.length];
+        const tp = project(p, a, b).t;
+        const len = dist(a, b);
+        const inner = tp > SAME_POINT && tp < len - SAME_POINT;
+        // where a neighbouring side runs along the piece, or past its end
+        const runs = (x: Vec2) => {
+          const pr = project(x, a, b);
+          if (pr.distance > SAME_POINT) return "off";
+          return (tp < SAME_POINT && pr.t < -SAME_POINT) || (tp > len - SAME_POINT && pr.t > len + SAME_POINT) ? "beyond" : "along";
+        };
+        const rp = runs(prev);
+        const rq = runs(q);
+        if (!inner && rp !== "along" && rq !== "along") {
+          // only touches the piece at its end: stays put
+          out.push(p);
+        } else {
+          // a T-junction keeps a corner that stays put on the side running past the end
+          if (rp === "beyond") out.push(p);
+          out.push(moved(p));
+          if (rq === "beyond") out.push(p);
+          changed = true;
+        }
+      } else out.push(p);
+      // where the piece ends in the middle of this side, the side gets a step:
+      // a corner that stays and one that moves with the wall
+      const pa = project(a, p, q);
+      const pb = project(b, p, q);
+      if (pa.distance > SAME_POINT || pb.distance > SAME_POINT) return;
+      const s0 = Math.max(0, Math.min(pa.t, pb.t));
+      const s1 = Math.min(pa.length, Math.max(pa.t, pb.t));
+      if (s1 - s0 < SAME_POINT) return;
+      const at = (t: number): Vec2 => [p[0] + ((q[0] - p[0]) * t) / pa.length, p[1] + ((q[1] - p[1]) * t) / pa.length];
+      if (s0 > SAME_POINT) out.push(at(s0), moved(at(s0)));
+      if (s1 < pa.length - SAME_POINT) out.push(moved(at(s1)), at(s1));
+      changed = true;
+    });
+    return changed ? setRoomPolygon(room, out) : room;
+  });
+  return m;
+}
+
 /** Inserts a corner on an edge of every room that has that edge (keeps neighbours connected). */
 export function splitEdge(model: HouseInput, levelId: string, a: Vec2, b: Vec2, at: Vec2): HouseInput {
   const m = clone(model);

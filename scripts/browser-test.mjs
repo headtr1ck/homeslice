@@ -430,7 +430,7 @@ console.log("editor");
     await page.mouse.move(box.x + 5 + scale * 0.5, box.y + 5, { steps: 6 });
     const hint = await page.locator("homeslice-panel .hint").textContent();
     await page.mouse.up();
-    assert(hint.includes("+0.50 m"), `drag readout: ${hint}`);
+    assert(hint.includes("0.50 m east"), `drag readout: ${hint}`);
     assert(JSON.stringify((await room("kitchen")).rect) === "[3.5,0,4.5,4]", `kitchen: ${JSON.stringify(await room("kitchen"))}`);
     assert(JSON.stringify((await room("hall")).rect) === "[0,0,3.5,4]", `hall: ${JSON.stringify(await room("hall"))}`);
     assert(await page.locator("homeslice-panel button.save.dirty").count(), "not marked as unsaved");
@@ -512,6 +512,37 @@ console.log("editor");
     assert(await page.locator("homeslice-panel svg.plan line.wall.open").count(), "open boundary not drawn dashed");
     await shot(page, "editor-open-wall");
     await page.keyboard.press("Control+z");
+  });
+
+  await test("dragging one wall piece moves only that piece; the longer room side gets a step", async () => {
+    await page.keyboard.press("Escape");
+    // hall | living runs along y = 4 from x 0 to the hall's width; living's side goes on to x 5
+    const hallBefore = await room("hall");
+    const kitchenBefore = await room("kitchen");
+    const hit = await page.evaluate(() => {
+      const l = [...window.panel.shadowRoot.querySelectorAll("svg.plan line.wall-hit[data-wall]")].find((x) => {
+        const w = JSON.parse(x.dataset.wall);
+        return [w.a, w.b].sort().join() === "hall,living";
+      });
+      const r = l.getBoundingClientRect();
+      return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+    });
+    const scale = await page.evaluate(() => window.panel._view.scale);
+    await page.mouse.move(hit.x, hit.y);
+    await page.mouse.down();
+    await page.mouse.move(hit.x, hit.y + scale * 0.5, { steps: 6 });
+    const hint = await page.locator("homeslice-panel .hint").textContent();
+    await page.mouse.up();
+    assert(hint.includes("0.50 m south"), `drag readout: ${hint}`);
+    const [, , hw] = hallBefore.rect;
+    assert(JSON.stringify((await room("hall")).rect) === JSON.stringify([0, 0, hw, 4.5]), `hall: ${JSON.stringify(await room("hall"))}`);
+    assert(JSON.stringify(await room("kitchen")) === JSON.stringify(kitchenBefore), `kitchen moved: ${JSON.stringify(await room("kitchen"))}`);
+    const living = (await room("living")).polygon;
+    assert(JSON.stringify(living) === JSON.stringify([[0, 4.5], [hw, 4.5], [hw, 4], [5, 4], [5, 6], [8, 6], [8, 10], [0, 10]]), `living: ${JSON.stringify(living)}`);
+    assert((await page.locator("homeslice-panel .inspector h2").textContent()) === "Wall", "the dragged wall is not selected");
+    await shot(page, "editor-wall-piece");
+    await page.keyboard.press("Control+z");
+    assert(JSON.stringify(await room("hall")) === JSON.stringify(hallBefore), "undo did not restore the hall");
   });
 
   await test("levels can be reordered by drag and drop", async () => {

@@ -13,6 +13,7 @@ import {
   moveEdge,
   moveLevel,
   moveVertex,
+  moveWallPiece,
   removeVertex,
   openSides,
   roomPolygon,
@@ -132,6 +133,30 @@ describe("editing operations", () => {
     m.levels.push({ id: "f", rooms: [] }, { id: "s", rooms: [] });
     expect(moveLevel(m, "s", 0).levels.map((l) => l.id)).toEqual(["s", "g", "f"]);
     expect(moveLevel(m, "g", 2).levels.map((l) => l.id)).toEqual(["f", "s", "g"]);
+  });
+
+  it("moves one wall piece without dragging the whole room side", () => {
+    const m = house();
+    // left (0–5) spans the full depth; on the right, a small room in the top corner
+    m.levels[0].rooms = [
+      { id: "technical", rect: [0, 0, 5, 8] },
+      { id: "corridor", rect: [5, 5, 5, 3] },
+    ];
+    const out = moveWallPiece(m, "g", [5, 5], [5, 8], [-0.5, 0]);
+    expect(rooms(out).corridor.rect).toEqual([4.5, 5, 5.5, 3]);
+    expect(rooms(out).technical.polygon).toEqual([[0, 0], [5, 0], [5, 5], [4.5, 5], [4.5, 8], [0, 8]]);
+  });
+
+  it("a room meeting the moved piece at a T-junction gets a step instead of a slanted wall", () => {
+    const m = house();
+    m.levels[0].rooms = [
+      { id: "technical", rect: [0, 0, 5, 8] },
+      { id: "store", rect: [5, 0, 5, 5] },
+      { id: "corridor", rect: [5, 5, 5, 3] },
+    ];
+    const out = moveWallPiece(m, "g", [5, 5], [5, 8], [-0.5, 0]);
+    expect(rooms(out).store.rect).toEqual([5, 0, 5, 5]);
+    expect(rooms(out).corridor.rect).toEqual([4.5, 5, 5.5, 3]);
   });
 
   it("splits and removes corners in all rooms sharing the edge", () => {

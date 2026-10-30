@@ -22,6 +22,7 @@ import {
   cornerAngle,
   deleteRoom,
   moveEdge,
+  moveWallPiece,
   moveLevel,
   moveVertex,
   openSides,
@@ -46,6 +47,7 @@ type Drag =
   | { kind: "vertex"; origin: HouseInput; from: Vec2; ctx: SnapContext }
   | { kind: "edge"; origin: HouseInput; a: Vec2; b: Vec2; startWorld: Vec2; normal: Vec2; ctx: SnapContext }
   | { kind: "rect"; start: Vec2; ctx: SnapContext }
+  | { kind: "wall"; origin: HouseInput; a: Vec2; b: Vec2; startWorld: Vec2; normal: Vec2; thickness: number; faces: number[] }
   | { kind: "opening"; origin: HouseInput; src: OpeningSource; axis: 0 | 1; startWorld: Vec2; at: number; snaps: OpeningSnaps };
 
 /** Where a dragged door or window can snap to, as positions along its wall. */
@@ -259,6 +261,27 @@ export class HomeslicePanel extends LitElement {
     return [e.clientX - r.left, e.clientY - r.top];
   }
 
+  /** "0.50 m east": how far a wall moved, with the compass direction (x east, y south). */
+  private moveReadout(delta: Vec2): string {
+    const d = Math.hypot(delta[0], delta[1]);
+    if (d < 0.005) return "0.00 m";
+    const side = Math.abs(delta[0]) >= Math.abs(delta[1]) ? (delta[0] > 0 ? "east" : "west") : delta[1] > 0 ? "south" : "north";
+    return `${d.toFixed(2)} m ${this.t(`editor.side_${side}` as StringKey)}`;
+  }
+
+  /** Faces (and centres) of the walls parallel to `line`, as offsets along `normal`. */
+  private parallelFaces(line: [Vec2, Vec2], normal: Vec2): number[] {
+    const out: number[] = [];
+    for (const w of this.levelWalls()) {
+      if (Math.abs(w.normal[0] * normal[1] - w.normal[1] * normal[0]) > 0.01) continue;
+      const same = [line[0], line[1]].every((p) => [w.line[0], w.line[1]].some((q) => Math.hypot(p[0] - q[0], p[1] - q[1]) < 0.01));
+      if (same) continue;
+      const c = w.a[0] * normal[0] + w.a[1] * normal[1];
+      out.push(c - w.thickness / 2, c, c + w.thickness / 2);
+    }
+    return out;
+  }
+
   /** Corners to snap to: this level's rooms (minus `except`) and the level below. */
   private snapContext(except?: Vec2): SnapContext {
     const m = this._model!;
@@ -349,6 +372,16 @@ export class HomeslicePanel extends LitElement {
     }
     const wallHit = target.closest("[data-wall]") as SVGElement | null;
     this._wall = wallHit ? JSON.parse(wallHit.dataset.wall!) : null;
+    if (wallHit) {
+      // drag just this piece of wall, e.g. to line its face up with another wall
+      const { line, thickness } = JSON.parse(wallHit.dataset.wall!) as { line: [Vec2, Vec2]; thickness: number };
+      const [a, b] = line;
+      const len = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1;
+      const normal: Vec2 = [-(b[1] - a[1]) / len, (b[0] - a[0]) / len];
+      this._room = null;
+      this._drag = { kind: "wall", origin: clone(this._model), a, b, startWorld: world, normal, thickness, faces: this.parallelFaces(line, normal) };
+      return;
+    }
     const roomId = wallHit ? null : target.closest("[data-outline]") ? OUTLINE : (target.closest("[data-room]") as SVGElement | null)?.dataset.room;
     this._room = roomId ?? null;
     this._drag = { kind: "pan", start: this.eventScreen(e), offset: [this._view.ox, this._view.oy] };
@@ -381,7 +414,25 @@ export class HomeslicePanel extends LitElement {
       const snappedAlong = (s.p[0] - drag.a[0]) * drag.normal[0] + (s.p[1] - drag.a[1]) * drag.normal[1];
       const delta: Vec2 = [drag.normal[0] * snappedAlong, drag.normal[1] * snappedAlong];
       this._model = moveEdge(drag.origin, this._level, drag.a, drag.b, delta);
-      this._hint = { x: screen[0], y: screen[1], lines: [`${snappedAlong >= 0 ? "+" : ""}${snappedAlong.toFixed(2)} m`, ...this.roomReadout()] };
+      this._hint = { x: screen[0], y: screen[1], lines: [this.moveReadout(delta), ...this.roomReadout()] };
+      return;
+    }
+    if (drag.kind === "wall") {
+      const raw = (world[0] - drag.startWorld[0]) * drag.normal[0] + (world[1] - drag.startWorld[1]) * drag.normal[1];
+      const base = drag.a[0] * drag.normal[0] + drag.a[1] * drag.normal[1];
+      // line either face (or the centre) up with a face of a parallel wall
+      const tol = free ? 0 : 10 / this._view.scale;
+      const half = drag.thickness / 2;
+      const best = drag.faces
+        .flatMap((f) => [-half, 0, half].map((o) => ({ along: f - base - o, guide: f })))
+        .filter((c) => Math.abs(c.along - raw) < tol)
+        .sort((u, v) => Math.abs(u.along - raw) - Math.abs(v.along - raw))[0];
+      const along = Math.round((best ? best.along : Math.round(raw / 0.05) * 0.05) * 1000) / 1000;
+      const vertical = Math.abs(drag.normal[0]) > 0.999;
+      const horizontal = Math.abs(drag.normal[1]) > 0.999;
+      this._guides = best && vertical ? { x: best.guide * Math.sign(drag.normal[0]) } : best && horizontal ? { y: best.guide * Math.sign(drag.normal[1]) } : null;
+      this._model = Math.abs(along) < 1e-6 ? drag.origin : moveWallPiece(drag.origin, this._level, drag.a, drag.b, [drag.normal[0] * along, drag.normal[1] * along]);
+      this._hint = { x: screen[0], y: screen[1], lines: [this.moveReadout([drag.normal[0] * along, drag.normal[1] * along])] };
       return;
     }
     if (drag.kind === "opening") {
@@ -423,7 +474,7 @@ export class HomeslicePanel extends LitElement {
     this._hint = null;
     this._guides = null;
     if (!drag || !this._model) return;
-    if (drag.kind === "vertex" || drag.kind === "edge" || drag.kind === "opening") {
+    if (drag.kind === "vertex" || drag.kind === "edge" || drag.kind === "opening" || drag.kind === "wall") {
       if (JSON.stringify(drag.origin) !== JSON.stringify(this._model)) this.commit(this._model, drag.origin);
     } else if (drag.kind === "rect" && this._rectPreview) {
       const [[x0, y0], , [x1, y1]] = this._rectPreview;
@@ -780,7 +831,7 @@ export class HomeslicePanel extends LitElement {
       const [a, b] = w.rooms;
       const own = this.levelInputRoomPolygon(a);
       const side = own ? sideOfRoom(own, w.line[0], w.line[1]) : null;
-      if (side) hit = svg`<line class="wall-hit" data-wall=${JSON.stringify({ a, b, side })} x1=${ax} y1=${ay} x2=${bx} y2=${by} stroke-width="14"></line>`;
+      if (side) hit = svg`<line class="wall-hit" data-wall=${JSON.stringify({ a, b, side, line: w.line, thickness: w.thickness })} x1=${ax} y1=${ay} x2=${bx} y2=${by} stroke-width="14"></line>`;
     }
     if (w.type === "open") return svg`<line class="wall open ${selected ? "selected" : ""}" x1=${ax} y1=${ay} x2=${bx} y2=${by}></line>${hit}`;
     const width = Math.max(2, w.thickness * this._view.scale);
