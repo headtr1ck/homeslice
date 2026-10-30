@@ -82,7 +82,7 @@ await step("the editor opens the house (read-only check, nothing is saved)", asy
   await shot("editor");
   const names = await page.locator("homeslice-panel svg.plan text.room-name").allTextContents();
   if (names.length < 3) throw new Error(`only ${names.length} rooms in the editor`);
-  await page.locator("homeslice-panel nav.levels button").first().click();
+  await page.locator("homeslice-panel button.level").first().click();
   await page.waitForTimeout(800);
   await shot("editor-top-level");
 });
