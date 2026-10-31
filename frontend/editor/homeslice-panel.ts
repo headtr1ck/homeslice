@@ -17,6 +17,7 @@ import { misalignedWalls } from "../model/checks";
 import { FURNITURE, FURNITURE_GROUPS, FURNITURE_TYPES, mountOf } from "../model/furniture";
 import { listedLights, placeLights, type PlacedLight } from "../model/lights";
 import { prefsSensors, type EnergyPrefs } from "../ha/energy";
+import { applyAll, checklist, type CheckItem } from "./checklist";
 import { rawPosition, readRobot } from "../ha/robots";
 import { ENERGY_COLORS } from "../render/scene";
 import {
@@ -284,6 +285,7 @@ export class HomeslicePanel extends LitElement {
     _linkEnd: { state: true },
     _robotPlace: { state: true },
     _libraryFilter: { state: true },
+    _checklist: { state: true },
     _robotSel: { state: true },
     _robotCalib: { state: true },
   };
@@ -346,6 +348,9 @@ export class HomeslicePanel extends LitElement {
   private _robotCalib: { index: number; reading: Vec2 } | null = null;
   /** While connecting two energy items: the free end of the line (plan metres). */
   private _linkEnd: Vec2 | null = null;
+  /** The checklist is open in the inspector. */
+  private _checklist = false;
+  private checkCache: { model: HouseInput; states: unknown; items: CheckItem[] } | null = null;
   /** Filter text of the furniture library. */
   private _libraryFilter = "";
   /** Furniture type being dragged from the library onto the plan. */
@@ -1675,6 +1680,14 @@ export class HomeslicePanel extends LitElement {
         <button class="icon" title=${this.t("editor.shortcuts")} aria-label=${this.t("editor.shortcuts")} @click=${() => (this._shortcuts = !this._shortcuts)}>?</button>
         <button class="icon ${this._settings ? "active" : ""}" title=${this.t("editor.house_settings")} aria-label=${this.t("editor.house_settings")}
           @click=${() => (this._settings = this._settings ? null : {})}>⚙</button>
+        ${(() => {
+          const open = this.checks().length;
+          return html`<button class="icon checklist-button ${this._checklist ? "active" : ""}" title=${this.t("editor.checklist")} aria-label=${this.t("editor.checklist")}
+            @click=${() => {
+              this._checklist = !this._checklist;
+              this._settings = null;
+            }}>✓${open ? html`<span class="badge">${open}</span>` : nothing}</button>`;
+        })()}
         <div class="segmented modes" role="tablist">
           ${(["rooms", "openings", "objects"] as Mode[]).map(
             (mode, i) => html`<button role="tab" aria-selected=${this._mode === mode} class=${this._mode === mode ? "active" : ""} @click=${() => {
@@ -2575,6 +2588,7 @@ export class HomeslicePanel extends LitElement {
     const l = this.levelInput;
     if (!l) return nothing;
     if (this._settings) return this.renderHouseSettings();
+    if (this._checklist) return this.renderChecklist();
     if (this._mode === "objects" && this._furn) return this.renderFurnitureInspector(this._furn);
     if (this._mode === "objects" && this._energySel !== null && this._model?.energy?.[this._energySel]) return this.renderEnergyInspector(this._energySel);
     if (this._mode === "objects" && this._robotSel !== null && this._model?.robots?.[this._robotSel]) return this.renderRobotInspector(this._robotSel);
@@ -2798,6 +2812,78 @@ export class HomeslicePanel extends LitElement {
         this.commit(deleteOpening(m, this._level, sel.src));
         this._opening = null;
       }}>${shared.length > 1 ? this.t("editor.opening_delete_here") : this.t("editor.opening_delete")}</button>`;
+  }
+
+  /** The checklist for the current model and HA states (recomputed only when either changes). */
+  private checks(): CheckItem[] {
+    const m = this._model;
+    const hass = this._hass;
+    if (!m || !hass) return [];
+    if (this.checkCache?.model === m && this.checkCache.states === hass.states) return this.checkCache.items;
+    const items = checklist(m, hass, (id) => {
+      const l = m.levels.find((x) => x.id === id);
+      return l ? this.levelAreas(l) : [];
+    });
+    this.checkCache = { model: m, states: hass.states, items };
+    return items;
+  }
+
+  private renderChecklist() {
+    const items = this.checks();
+    const m = this._model!;
+    const levelName = (id?: string) => {
+      const l = m.levels.find((x) => x.id === id);
+      return l ? this.levelName(l) : "";
+    };
+    const roomName = (level?: string, room?: string) => {
+      const r = m.levels.find((x) => x.id === level)?.rooms.find((x) => x.id === room);
+      return r ? this.roomName(r) : room ?? "";
+    };
+    const go = (level?: string, mode: Mode = "rooms", room?: string) => {
+      if (level) this._level = level;
+      this._mode = mode;
+      this._room = room ?? null;
+      this._checklist = false;
+    };
+    const links = items.filter((i) => (i.kind === "cover" || i.kind === "contact") && i.target);
+    const text = (i: CheckItem) => {
+      switch (i.kind) {
+        case "area":
+          return this.t("editor.check_area", { area: i.name, level: levelName(i.level) });
+        case "cover":
+        case "contact":
+          return i.target
+            ? this.t(i.kind === "cover" ? "editor.check_cover_link" : "editor.check_contact_link", {
+                entity: this.entityName(i.entity),
+                room: roomName(i.target.level, i.target.room),
+                side: this.t(`editor.side_${i.target.side}` as StringKey),
+              })
+            : this.t(i.room ? "editor.check_unlinked_room" : "editor.check_unlinked", { entity: this.entityName(i.entity), room: roomName(i.level, i.room) });
+        default:
+          return i.message;
+      }
+    };
+    return html`<h2>${this.t("editor.checklist")}</h2>
+      ${items.length ? html`<p class="muted">${this.t("editor.checklist_hint")}</p>` : html`<p>${this.t("editor.checklist_done")}</p>`}
+      ${links.length > 1 ? html`<button class="primary" @click=${() => this.commit(applyAll(m, items))}>${this.t("editor.check_link_all", { count: links.length })}</button>` : nothing}
+      <ul class="lights checklist">
+        ${items.map(
+          (i) => html`<li>
+            <span class="name">${text(i)}</span>
+            ${i.kind === "area"
+              ? html`<button @click=${() => {
+                  go(i.level);
+                  this._pendingArea = i.area;
+                  this._tool = "rect";
+                }}>${this.t("editor.draw_room")}</button>`
+              : (i.kind === "cover" || i.kind === "contact") && i.fix
+                ? html`<button @click=${() => this.commit(i.fix!)}>${this.t("editor.check_link")}</button>`
+                : i.level
+                  ? html`<button @click=${() => go(i.level, i.kind === "cover" || i.kind === "contact" ? "openings" : "rooms", "room" in i ? i.room : undefined)}>${this.t("editor.check_show")}</button>`
+                  : nothing}
+          </li>`,
+        )}
+      </ul>`;
   }
 
   /** Outside doors and windows: the other floors the same one is on (stacked façade windows). */
@@ -3896,6 +3982,27 @@ export class HomeslicePanel extends LitElement {
       min-height: 0;
       text-align: left;
       cursor: pointer;
+    }
+    .checklist-button {
+      position: relative;
+    }
+    .checklist-button .badge {
+      position: absolute;
+      top: -6px;
+      right: -6px;
+      min-width: 18px;
+      height: 18px;
+      border-radius: 9px;
+      background: var(--accent);
+      color: #fff;
+      font-size: 11px;
+      line-height: 18px;
+      text-align: center;
+      padding: 0 4px;
+      box-sizing: border-box;
+    }
+    ul.checklist li .name {
+      white-space: normal;
     }
     .library-search {
       width: 100%;

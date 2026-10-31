@@ -389,5 +389,16 @@
   "cardeditor.mode_3d": "3D house",
   "cardeditor.mode_plan": "Floor plan (2D, one floor at a time)",
   "editor.opening_floors": "Also on these floors",
-  "editor.opening_floors_hint": "The same window, at the same place on the façade, on other floors (e.g. a column of windows). Size and position change on all of them together; blinds and contacts are set per floor."
+  "editor.opening_floors_hint": "The same window, at the same place on the façade, on other floors (e.g. a column of windows). Size and position change on all of them together; blinds and contacts are set per floor.",
+  "editor.checklist": "Checklist",
+  "editor.checklist_hint": "What is left to do. Suggestions come from the areas and names of your entities; check them before linking.",
+  "editor.checklist_done": "✓ Nothing left: every area has a room, every blind and contact sensor is linked.",
+  "editor.check_area": "{area} ({level}) has no room yet.",
+  "editor.check_cover_link": "{entity} → the {side} window of {room}?",
+  "editor.check_contact_link": "{entity} → the {side} window or door of {room}?",
+  "editor.check_unlinked": "{entity} is linked to no window and is in no area.",
+  "editor.check_unlinked_room": "{entity} is linked to no window; no free one fits in {room}.",
+  "editor.check_link": "Link",
+  "editor.check_link_all": "Link all {count} suggestions",
+  "editor.check_show": "Show"
 }

@@ -909,6 +909,29 @@ console.log("editor");
     await page.keyboard.press("Escape");
   });
 
+  await test("checklist: a new blind is offered for the right window and linked in one click", async () => {
+    await page.evaluate(() => {
+      const h = window.panel.hass;
+      window.panel.hass = {
+        ...h,
+        entities: { ...h.entities, "cover.living_west": { entity_id: "cover.living_west", area_id: "living_room" } },
+        states: { ...h.states, "cover.living_west": { entity_id: "cover.living_west", state: "open", attributes: { device_class: "blind", friendly_name: "Living West" } } },
+      };
+    });
+    await page.waitForTimeout(1200); // the editor follows HA once a second
+    await page.locator("homeslice-panel header button.checklist-button").click();
+    const item = page.locator("homeslice-panel .inspector ul.checklist li", { hasText: "Living West" });
+    assert((await item.textContent()).includes("west window of Living Room"), `item: ${await item.textContent()}`);
+    await shot(page, "editor-checklist");
+    await item.locator("button", { hasText: "Link" }).click();
+    const west = (await model()).levels[0].openings.find((o) => o.room === "living" && o.side === "west");
+    assert(west?.cover === "cover.living_west", `west window: ${JSON.stringify(west)}`);
+    assert(!(await page.locator("homeslice-panel .inspector ul.checklist li", { hasText: "Living West" }).count()), "still listed");
+    await page.keyboard.press("Control+z");
+    await page.locator("homeslice-panel header button.checklist-button").click();
+    await page.keyboard.press("Escape");
+  });
+
   await test("doors & windows: house-wide defaults for sill and height", async () => {
     const sill = page.locator('homeslice-panel .inspector input[aria-label="Window Sill (m)"]');
     await sill.fill("0");
