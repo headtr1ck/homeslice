@@ -2570,6 +2570,13 @@ export class HomeslicePanel extends LitElement {
       const middle = face(at((o.start + o.end) / 2));
       return svg`${leaf(ends[0], middle)}${leaf(ends[1], middle)}`;
     }
+    if (o.style === "triple") {
+      // three sashes: the outer ones hinged at the ends, the middle one like a single window
+      const [t1, t2] = [face(at(o.start + (o.end - o.start) / 3)), face(at(o.end - (o.end - o.start) / 3))];
+      const mids = [t1, t2];
+      const h = o.hinge === "right" ? 1 - leftEnd : leftEnd;
+      return svg`${leaf(ends[0], t1)}${leaf(mids[h], mids[1 - h])}${leaf(ends[1], t2)}`;
+    }
     const hinge = o.hinge === "right" ? 1 - leftEnd : leftEnd;
     return leaf(ends[hinge], ends[1 - hinge]);
   }

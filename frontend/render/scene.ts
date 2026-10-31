@@ -489,6 +489,10 @@ export class HouseRenderer {
           if (o.contact) this.glasses.set(o.id, mat);
           box(o.start, o.end, o.sill, top, mat, 0.03);
           if (o.style === "double" || o.style === "sliding_glass" || o.style === "glass_double") bar();
+          if (o.style === "triple") {
+            const third = (o.end - o.start) / 3;
+            for (const b of [o.start + third, o.end - third]) box(b - 0.03, b + 0.03, o.sill, top, wallMat, 0.07);
+          }
           if (o.style === "split" || o.style === "split_single") {
             // a fixed pane below, a double (or single) window above
             const at = o.sill + o.split;
