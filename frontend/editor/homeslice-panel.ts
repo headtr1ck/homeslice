@@ -362,7 +362,7 @@ export class HomeslicePanel extends LitElement {
   /** Selected opening (doors & windows mode) and the room it belongs to on this level. */
   private _opening: { src: OpeningSource; room: string } | null = null;
   /** Snap feedback drawn on the plan: guide lines and the corner snapped to. */
-  private _guides: { x?: number; y?: number; ring?: Vec2 } | null = null;
+  private _guides: { x?: number; y?: number; ring?: Vec2; rays?: [Vec2, Vec2][] } | null = null;
   /** The "new house" form while it is open. */
   /** `merges`: HA floors whose areas go onto another floor's level (floor → floor). */
   private _create: { name: string; width: number; depth: number; floors: string[]; rooms: boolean; merges: Record<string, string> } | null = null;
@@ -884,6 +884,20 @@ export class HomeslicePanel extends LitElement {
     return out;
   }
 
+  /** The corners joined to `p` by a wall of this level's rooms. */
+  private neighbourCorners(p: Vec2): Vec2[] {
+    const m = this._model!;
+    const near = (q: Vec2) => Math.hypot(q[0] - p[0], q[1] - p[1]) < 0.01;
+    const out: Vec2[] = [];
+    for (const r of this.levelInput?.rooms ?? []) {
+      const poly = roomPolygon(m, r);
+      poly.forEach((q, i) => {
+        if (near(q)) for (const n of [poly[(i - 1 + poly.length) % poly.length], poly[(i + 1) % poly.length]]) if (!near(n) && !out.some((o) => o[0] === n[0] && o[1] === n[1])) out.push(n);
+      });
+    }
+    return out;
+  }
+
   /** Corners to snap to: this level's rooms (minus `except`) and the level below. */
   private snapContext(except?: Vec2): SnapContext {
     const m = this._model!;
@@ -1087,7 +1101,7 @@ export class HomeslicePanel extends LitElement {
     const handle = target.closest("[data-handle]") as SVGElement | null;
     if (handle?.dataset.handle === "vertex") {
       const from: Vec2 = JSON.parse(handle.dataset.at!);
-      this._drag = { kind: "vertex", origin: clone(this._model), from, ctx: this.snapContext(from) };
+      this._drag = { kind: "vertex", origin: clone(this._model), from, ctx: { ...this.snapContext(from), anchors: this.neighbourCorners(from) } };
       return;
     }
     if (handle?.dataset.handle === "edge") {
@@ -1156,7 +1170,7 @@ export class HomeslicePanel extends LitElement {
     }
     if (drag.kind === "vertex") {
       const s = snapped(world, drag.ctx);
-      this._guides = { x: s.alignX, y: s.alignY, ring: s.target };
+      this._guides = { x: s.alignX, y: s.alignY, ring: s.target, rays: s.rays };
       this._model = moveVertex(drag.origin, this._level, drag.from, s.p);
       this._hint = { x: screen[0], y: screen[1], lines: [...this.cornerReadout(s.p), this.t(`editor.snap_${s.kind}` as StringKey)] };
       return;
@@ -1323,12 +1337,10 @@ export class HomeslicePanel extends LitElement {
     }
     if (drag.kind === "freewall" && this._linePreview) {
       const a = this._linePreview[0];
-      const s = snapped(world, drag.ctx);
-      // nearly horizontal or vertical: exactly so
-      let b = s.p;
-      if (!free && Math.abs(b[1] - a[1]) < Math.abs(b[0] - a[0]) * 0.09) b = [b[0], a[1]];
-      else if (!free && Math.abs(b[0] - a[0]) < Math.abs(b[1] - a[1]) * 0.09) b = [a[0], b[1]];
-      this._guides = { x: s.alignX, y: s.alignY, ring: s.target };
+      // straight, or at 45°, from where it starts
+      const s = snapped(world, { ...drag.ctx, anchors: [a] });
+      const b = s.p;
+      this._guides = { x: s.alignX, y: s.alignY, ring: s.target, rays: s.rays };
       this._linePreview = [a, b];
       this._hint = { x: screen[0], y: screen[1], lines: [fmtM(Math.hypot(b[0] - a[0], b[1] - a[1]))] };
       return;
@@ -1336,10 +1348,10 @@ export class HomeslicePanel extends LitElement {
     if (drag.kind === "freewall-end") {
       const w = drag.origin.levels.find((l) => l.id === this._level)?.walls?.[drag.index];
       if (!w?.line) return;
-      const s = snapped(world, drag.ctx);
       const line = (w.line as [Vec2, Vec2]).map((p) => [...p]) as [Vec2, Vec2];
+      const s = snapped(world, { ...drag.ctx, anchors: [line[1 - drag.end]] });
       line[drag.end] = s.p;
-      this._guides = { x: s.alignX, y: s.alignY, ring: s.target };
+      this._guides = { x: s.alignX, y: s.alignY, ring: s.target, rays: s.rays };
       this._model = updateFreeWall(drag.origin, this._level, drag.index, { line });
       this._hint = { x: screen[0], y: screen[1], lines: [fmtM(Math.hypot(line[1][0] - line[0][0], line[1][1] - line[0][1]))] };
       return;
@@ -2466,7 +2478,14 @@ export class HomeslicePanel extends LitElement {
     const ring = g.ring ? this.toScreen(g.ring) : null;
     return svg`${x !== null ? svg`<line class="guide" x1=${x} y1="0" x2=${x} y2="100%"></line>` : nothing}
       ${y !== null ? svg`<line class="guide" x1="0" y1=${y} x2="100%" y2=${y}></line>` : nothing}
-      ${ring ? svg`<circle class="snap-ring" cx=${ring[0]} cy=${ring[1]} r="11"></circle>` : nothing}`;
+      ${ring ? svg`<circle class="snap-ring" cx=${ring[0]} cy=${ring[1]} r="11"></circle>` : nothing}
+      ${(g.rays ?? []).map(([a, b]) => {
+        // the 45° line, a little past both ends
+        const [p, q] = [this.toScreen(a), this.toScreen(b)];
+        const len = Math.hypot(q[0] - p[0], q[1] - p[1]) || 1;
+        const [ux, uy] = [(q[0] - p[0]) / len, (q[1] - p[1]) / len];
+        return svg`<line class="guide" x1=${p[0] - ux * 40} y1=${p[1] - uy * 40} x2=${q[0] + ux * 40} y2=${q[1] + uy * 40}></line>`;
+      })}`;
   }
 
   private renderWall(w: Wall) {

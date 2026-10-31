@@ -234,6 +234,18 @@ describe("editing operations", () => {
     expect(snap([7.04, 3.33], ctx)).toEqual({ p: [7, 3.3], kind: "grid" });
   });
 
+  it("keeps walls straight or at 45° to the corners they join", () => {
+    const ctx = { grid: 0.1, points: [], align: { x: [], y: [] }, tolerance: 0.15, anchors: [[0, 0]] as [number, number][] };
+    // 45°, along the grid
+    expect(snap([3.02, 2.92], ctx)).toEqual({ p: [3, 3], kind: "angle", rays: [[[0, 0], [3, 3]]] });
+    // straight
+    expect(snap([3.04, 0.1], ctx)).toEqual({ p: [3, 0], kind: "align", alignY: 0 });
+    // two walls: where a 45° one crosses a straight one
+    expect(snap([2.06, 1.94], { ...ctx, anchors: [[0, 0], [5, 2]] })).toMatchObject({ p: [2, 2], kind: "angle", alignY: 2 });
+    // too far from either
+    expect(snap([3.04, 1.33], ctx)).toEqual({ p: [3, 1.3], kind: "grid" });
+  });
+
   it("reads areas and corner angles", () => {
     const poly = roomPolygon(house(), house().levels[0].rooms[0]);
     expect(area(poly)).toBe(40);

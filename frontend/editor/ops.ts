@@ -657,17 +657,21 @@ export interface SnapContext {
   align: { x: number[]; y: number[] };
   /** Snap distance in metres (depends on zoom). */
   tolerance: number;
+  /** Corners the snapped point is joined to by a wall: it keeps that wall at 0°, 45°, 90°… */
+  anchors?: Vec2[];
 }
 
 export interface Snapped {
   p: Vec2;
   /** What it snapped to, for the hint next to the cursor. */
-  kind: "point" | "align" | "grid" | "free";
+  kind: "point" | "angle" | "align" | "grid" | "free";
   /** The corner snapped to (kind "point"). */
   target?: Vec2;
   /** Coordinates it lined up with (kind "align"), for guide lines. */
   alignX?: number;
   alignY?: number;
+  /** Diagonal walls it snapped to (kind "angle"), from their corner to the point. */
+  rays?: [Vec2, Vec2][];
 }
 
 /** Snaps a value to the nearest target within tolerance; null if none. */
@@ -688,10 +692,60 @@ export function snap(p: Vec2, ctx: SnapContext): Snapped {
   const ax = snapValue(p[0], ctx.align.x, ctx.tolerance);
   const ay = snapValue(p[1], ctx.align.y, ctx.tolerance);
   const g = (v: number) => (ctx.grid > 0 ? Math.round(v / ctx.grid) * ctx.grid : v);
+  const angled = snapAngle(p, ctx, ax, ay, g);
+  if (angled) return angled;
   if (ax !== null || ay !== null)
     return { p: [round(ax ?? g(p[0])), round(ay ?? g(p[1]))], kind: "align", ...(ax !== null ? { alignX: ax } : {}), ...(ay !== null ? { alignY: ay } : {}) };
   if (ctx.grid > 0) return { p: [round(g(p[0])), round(g(p[1]))], kind: "grid" };
   return { p, kind: "free" };
+}
+
+/**
+ * Keeps the walls to `ctx.anchors` straight or at 45°: the point moves onto the nearest
+ * such line through an anchor when it is close (onto the crossing of two of them, or of
+ * one with an aligned coordinate; else along it on the grid).
+ */
+function snapAngle(p: Vec2, ctx: SnapContext, ax: number | null, ay: number | null, g: (v: number) => number): Snapped | null {
+  const step = Math.PI / 4;
+  const rays: { a: Vec2; u: Vec2 }[] = [];
+  for (const a of ctx.anchors ?? []) {
+    if (dist(p, a) < ctx.tolerance * 2) continue;
+    const angle = Math.round(Math.atan2(p[1] - a[1], p[0] - a[0]) / step) * step;
+    const u: Vec2 = [Math.round(Math.cos(angle) * 1e9) / 1e9, Math.round(Math.sin(angle) * 1e9) / 1e9];
+    const t = (p[0] - a[0]) * u[0] + (p[1] - a[1]) * u[1];
+    if (dist(p, [a[0] + u[0] * t, a[1] + u[1] * t]) < ctx.tolerance) rays.push({ a, u });
+  }
+  if (!rays.length) return null;
+  const result = (q: Vec2, used: typeof rays): Snapped => {
+    const r: Snapped = { p: [round(q[0]), round(q[1])], kind: "align" };
+    for (const { a, u } of used) {
+      if (u[0] === 0) r.alignX = a[0];
+      else if (u[1] === 0) r.alignY = a[1];
+      else (r.rays ??= []).push([a, r.p]), (r.kind = "angle");
+    }
+    if (ax !== null && r.p[0] === round(ax)) r.alignX ??= ax;
+    if (ay !== null && r.p[1] === round(ay)) r.alignY ??= ay;
+    return r;
+  };
+  // two walls: where they cross
+  for (let i = 0; i < rays.length; i++)
+    for (let j = i + 1; j < rays.length; j++) {
+      const [r1, r2] = [rays[i], rays[j]];
+      const den = r1.u[0] * r2.u[1] - r1.u[1] * r2.u[0];
+      if (Math.abs(den) < 1e-9) continue;
+      const t = ((r2.a[0] - r1.a[0]) * r2.u[1] - (r2.a[1] - r1.a[1]) * r2.u[0]) / den;
+      const q: Vec2 = [r1.a[0] + r1.u[0] * t, r1.a[1] + r1.u[1] * t];
+      if (dist(p, q) < ctx.tolerance * 1.5) return result(q, [r1, r2]);
+    }
+  const { a, u } = rays[0];
+  // on the line: at an aligned coordinate, or else on the grid
+  if (u[0] === 0) return result([a[0], ay ?? g(p[1])], [rays[0]]);
+  if (u[1] === 0) return result([ax ?? g(p[0]), a[1]], [rays[0]]);
+  const slope = u[1] / u[0];
+  if (ax !== null) return result([ax, a[1] + (ax - a[0]) * slope], [rays[0]]);
+  if (ay !== null) return result([a[0] + (ay - a[1]) / slope, ay], [rays[0]]);
+  const x = a[0] + g(p[0] - a[0]);
+  return result([x, a[1] + (x - a[0]) * slope], [rays[0]]);
 }
 
 // ----- readouts -----
