@@ -597,7 +597,6 @@
   "finish.pink": "Rosa",
   "finish.concrete": "Beton",
   "finish.marble": "Marmor",
-  "editor.library_modern": "Modern",
   "editor.furniture_finish": "Oberfläche",
   "furniture.group_hall": "Flur",
   "editor.ai": "Mit einem KI-Assistenten",
@@ -650,5 +649,9 @@
   "finish.red": "Rot",
   "finish.silver": "Silber",
   "furniture.group_garden": "Garten & Spielen",
-  "furniture.group_vehicles": "Autos & Räder"
+  "furniture.group_vehicles": "Autos & Räder",
+  "editor.furniture_accent": "Zweitfarbe",
+  "finish.brass": "Messing",
+  "finish.chrome": "Chrom",
+  "editor.library_simple": "Einfache Form"
 }

@@ -26,7 +26,6 @@ import {
   filterGroups,
   humanize,
   kenneyGroups,
-  modernGroups,
   planPicture,
   polyhavenGroups,
   type CustomAsset,
@@ -445,7 +444,8 @@ export class HomeslicePanel extends LitElement {
   /** Furniture type being dragged from the library onto the plan. */
   private libraryDrag: LibraryItem | null = null;
   /** The library's source (remembered in this browser). */
-  private _librarySource: LibrarySource = (LIBRARY_SOURCES as string[]).includes(readPref("homeslice-library") ?? "") ? (readPref("homeslice-library") as LibrarySource) : "kenney";
+  // "modern" was a source of its own before it joined the built-in pieces
+  private _librarySource: LibrarySource = (LIBRARY_SOURCES as string[]).includes(readPref("homeslice-library") ?? "") ? (readPref("homeslice-library") as LibrarySource) : "builtin";
   /** Poly Haven's catalogue: loading (null), loaded, or why it can't be. */
   private _polyhaven: PolyhavenAsset[] | { error: string } | null = null;
   private _customModels: CustomAsset[] | null = null;
@@ -2196,6 +2196,15 @@ export class HomeslicePanel extends LitElement {
             )}
           </div>`
         : nothing}
+      ${f.model?.startsWith("modern:") && MODERN[f.model.slice(7)]?.accents
+        ? html`<div class="finishes" role="radiogroup" aria-label=${this.t("editor.furniture_accent")}>
+            <span class="muted">${this.t("editor.furniture_accent")}</span>
+            ${MODERN[f.model.slice(7)].accents!.map(
+              (x, i) => html`<button role="radio" class="swatch ${(f.accent ?? MODERN[f.model!.slice(7)].accents![0]) === x ? "active" : ""}" aria-checked=${(f.accent ?? MODERN[f.model!.slice(7)].accents![0]) === x}
+                title=${this.t(`finish.${x}` as StringKey)} data-accent=${x} style="--swatch:${FINISHES[x]}" @click=${() => set({ accent: i === 0 ? undefined : x })}></button>`,
+            )}
+          </div>`
+        : nothing}
       <div class="row">
         <label>${this.t("editor.furniture_mount")}
           <select @change=${(e: Event) => this.setMount(r, sel.index, (e.target as HTMLSelectElement).value as FurnitureMount)}>
@@ -3557,8 +3566,7 @@ export class HomeslicePanel extends LitElement {
     const typeName = (t: FurnitureType) => this.t(`furniture.${t}` as StringKey);
     let groups: LibraryGroup[] = [];
     let status: unknown = nothing;
-    if (source === "builtin") groups = builtinGroups();
-    else if (source === "modern") groups = modernGroups().map((g) => ({ ...g, items: g.items.map((i) => ({ ...i, name: this.t(i.nameKey as StringKey) })) }));
+    if (source === "builtin") groups = builtinGroups().map((g) => ({ ...g, items: g.items.map((i) => (i.nameKey ? { ...i, name: this.t(i.nameKey as StringKey) } : i)) }));
     else if (source === "kenney") groups = kenneyGroups();
     else if (source === "polyhaven") {
       const c = this._polyhaven;
@@ -3631,8 +3639,8 @@ export class HomeslicePanel extends LitElement {
   /** Where a piece's model is from and its name, e.g. "Kenney · Lounge design sofa". */
   private modelName(model: string): string {
     const [source, id] = model.includes(":") ? model.split(":", 2) : [model, ""];
-    if (source === "builtin") return this.t("editor.library_builtin");
-    if (source === "modern") return `${this.t("editor.library_modern")} · ${this.t(`modern.${id}` as StringKey)}`;
+    if (source === "builtin") return `${this.t("editor.library_builtin")} · ${this.t("editor.library_simple")}`;
+    if (source === "modern") return `${this.t("editor.library_builtin")} · ${this.t(`modern.${id}` as StringKey)}`;
     const custom = source === "custom" ? this._customModels?.find((m) => m.id === id)?.name : undefined;
     const polyhaven = source === "polyhaven" && this._polyhaven && !("error" in this._polyhaven) ? this._polyhaven.find((a) => a.id === id)?.name : undefined;
     return `${this.t(`editor.library_${source}` as StringKey)} · ${custom ?? polyhaven ?? humanize(id)}`;

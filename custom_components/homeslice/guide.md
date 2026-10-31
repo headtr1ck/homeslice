@@ -112,14 +112,15 @@ default along the longer side), `start` (u_turn: the side the first flight runs 
 ### Furniture
 
 Optional, per room: `furniture: [{type, at, rotation, size, height, mount, model, finish,
-entity}]`.
+accent, entity}]`.
 
 - `type`: one of the furniture types in the catalogue (decides the plan symbol and
   defaults). `at` is the piece's centre (room coordinates). `rotation` in degrees
   clockwise; 0 means the piece's back is to the **north** (a sofa at 0 faces south).
 - `size: [width, depth]` and `height` in metres (default by type or model).
 - `mount`: `floor`, `wall` (back against a wall, `elevation` above the floor) or `ceiling`.
-- `model` picks how it looks: `modern:<kind>` (drawn to its size, with `finish`),
+- `model` picks how it looks: `modern:<kind>` (drawn to its size, with `finish` and,
+  for pieces with a second colour, `accent`: legs, frame, shade),
   `kenney:<name>`, `polyhaven:<id>`, `custom:<id>` or `builtin`. Prefer `modern:` pieces;
   their kinds, sizes and finishes are in the catalogue.
 - `entity`: what the piece is in Home Assistant (a floor lamp's `light.…` glows there).

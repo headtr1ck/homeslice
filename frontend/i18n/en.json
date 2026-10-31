@@ -597,7 +597,6 @@
   "finish.pink": "Pink",
   "finish.concrete": "Concrete",
   "finish.marble": "Marble",
-  "editor.library_modern": "Modern",
   "editor.furniture_finish": "Finish",
   "furniture.group_hall": "Hall",
   "editor.ai": "With an AI assistant",
@@ -650,5 +649,9 @@
   "finish.red": "Red",
   "finish.silver": "Silver",
   "furniture.group_garden": "Garden & play",
-  "furniture.group_vehicles": "Cars & bikes"
+  "furniture.group_vehicles": "Cars & bikes",
+  "editor.furniture_accent": "Second colour",
+  "finish.brass": "Brass",
+  "finish.chrome": "Chrome",
+  "editor.library_simple": "Simple shape"
 }

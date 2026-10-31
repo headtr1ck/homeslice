@@ -286,6 +286,10 @@ def validate(house: Any) -> list[dict[str, str]]:
                 if finish is not MISSING and not isinstance(finish, str):
                     err(fp, "finish must be a name like oak, white or grey.")
                     continue
+                accent = get(fi, "accent")
+                if accent is not MISSING and not isinstance(accent, str):
+                    err(fp, "accent must be a name like black, brass or oak.")
+                    continue
 
         for i, oi in enumerate(items(get(li, "openings"))):
             op = f"{lp}.openings[{i}]"

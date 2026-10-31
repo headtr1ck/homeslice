@@ -111,8 +111,10 @@ export interface FurnitureInput {
    * the piece's size). Default: the card's furniture style.
    */
   model?: string;
-  /** Modern pieces: the finish (e.g. oak, white, grey; see model/modern.ts). */
+  /** Modern pieces: the finish, the main colour or material (e.g. oak, white, grey; see model/modern.ts). */
   finish?: string;
+  /** Modern pieces with a second colour: legs, frame, shade or base (e.g. black, brass, oak). */
+  accent?: string;
   /**
    * The entity this piece is, e.g. a floor lamp's light (it then glows where the piece
    * stands) or a TV's media player (shown in the room's popup).
@@ -374,7 +376,7 @@ export interface Room {
   /** `piece`: the light of a piece of furniture (placed where the piece is). */
   lights: { entity: string; at?: Vec2; hidden: boolean; piece?: boolean }[];
   /** `elevation`: bottom above the floor in metres (ceiling pieces: null, they hang from the ceiling). */
-  furniture: { type: FurnitureType; at: Vec2; rotation: number; size: [number, number]; height: number; mount: FurnitureMount; elevation: number | null; mirror: boolean; entity?: string; model?: string; finish?: string }[];
+  furniture: { type: FurnitureType; at: Vec2; rotation: number; size: [number, number]; height: number; mount: FurnitureMount; elevation: number | null; mirror: boolean; entity?: string; model?: string; finish?: string; accent?: string }[];
 }
 
 /** Where an opening is defined: a level's own list, or a façade entry shared by levels. */

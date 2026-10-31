@@ -1340,7 +1340,7 @@ console.log("editor");
     // the room's inspector offers furniture: the furniture tool's library, for this room
     await page.locator("homeslice-panel .inspector button", { hasText: "Add furniture" }).click();
     await page.locator('homeslice-panel .inspector .library-sources button[data-source="builtin"]').click();
-    await page.locator('homeslice-panel .inspector .library button[data-type="table"]').click();
+    await page.locator('homeslice-panel .inspector .library button[data-key="modern:dining_table"]').click();
     assert((await room("kitchen")).furniture?.[0]?.type === "table", `kitchen: ${JSON.stringify((await room("kitchen")).furniture)}`);
     assert((await page.locator("homeslice-panel .inspector h2").textContent()) === "Table", "new table not selected");
     const piece = await page.locator("homeslice-panel svg.plan g.furniture.selected rect").boundingBox();
@@ -1356,7 +1356,7 @@ console.log("editor");
     // Ctrl+D: a second one right next to it (turned: to the south), selected
     await page.keyboard.press("Control+d");
     const pair = (await room("living")).furniture;
-    assert(pair.length === 2 && pair[1].rotation === 90 && Math.abs(pair[1].at[1] - pair[0].at[1] - 1.6) < 1e-6, `duplicate: ${JSON.stringify(pair)}`);
+    assert(pair.length === 2 && pair[1].rotation === 90 && Math.abs(pair[1].at[1] - pair[0].at[1] - 1.8) < 1e-6, `duplicate: ${JSON.stringify(pair)}`);
     await page.keyboard.press("Delete");
     await page.evaluate(() => (window.panel._furn = { room: "living", index: 0 }));
     await shot(page, "editor-furniture");
@@ -1372,23 +1372,26 @@ console.log("editor");
     await page.locator('homeslice-panel aside.tools button.tool[data-tool="furniture"]').click();
     await page.locator('homeslice-panel .inspector .library-sources button[data-source="builtin"]').click();
     const groups = await page.locator("homeslice-panel .inspector h4").allTextContents();
-    assert(groups[0] === "Living" && groups.includes("Bathroom") && groups.includes("Lighting"), `groups: ${groups.join(", ")}`);
+    assert(groups[0] === "Living" && groups.includes("Bathroom") && groups.includes("Lighting") && groups.includes("Cars & bikes"), `groups: ${groups.join(", ")}`);
     // searching narrows the library down
-    await page.locator("homeslice-panel .inspector input.library-search").fill("tree");
-    const found = await page.locator("homeslice-panel .inspector .library button").evaluateAll((b) => b.map((x) => x.dataset.type));
-    assert(JSON.stringify(found) === '["tree","tree_small"]', `search: ${found}`);
+    await page.locator("homeslice-panel .inspector input.library-search").fill("birch");
+    const found = await page.locator("homeslice-panel .inspector .library button").evaluateAll((b) => b.map((x) => x.dataset.key));
+    assert(JSON.stringify(found) === '["modern:tree_birch"]', `search: ${found}`);
     await page.locator("homeslice-panel .inspector input.library-search").fill("");
-    // every type has its picture
-    await page.locator("homeslice-panel .inspector .library").last().scrollIntoViewIfNeeded();
-    await page.waitForFunction(() => [...window.panel.shadowRoot.querySelectorAll(".library img")].every((i) => i.complete && i.naturalWidth > 0), null, { timeout: 10000 });
+    // the pictures load (lazily, as they scroll into view) and none is missing
+    for (const lib of await page.locator("homeslice-panel .inspector .library").all()) await lib.scrollIntoViewIfNeeded();
+    await page.waitForFunction(() => {
+      const imgs = [...window.panel.shadowRoot.querySelectorAll(".library img")];
+      return imgs.filter((i) => i.complete && i.naturalWidth > 0).length >= 20 && imgs.every((i) => !i.complete || i.naturalWidth > 0);
+    }, null, { timeout: 10000 });
     await page.locator("homeslice-panel .inspector input.library-search").scrollIntoViewIfNeeded();
     await shot(page, "editor-library-panel");
     // HTML drag and drop from the library onto the plan, as the browser does it
-    const dropPiece = (type, x, y) =>
-      page.evaluate(({ type, x, y }) => {
+    const dropPiece = (key, x, y) =>
+      page.evaluate(({ key, x, y }) => {
         const root = window.panel.shadowRoot;
         const dt = new DataTransfer();
-        root.querySelector(`.library button[data-type="${type}"]`).dispatchEvent(new DragEvent("dragstart", { bubbles: true, composed: true, dataTransfer: dt }));
+        root.querySelector(`.library button[data-key="${key}"]`).dispatchEvent(new DragEvent("dragstart", { bubbles: true, composed: true, dataTransfer: dt }));
         const plan = root.querySelector("svg.plan");
         const at = { bubbles: true, composed: true, cancelable: true, dataTransfer: dt, clientX: x, clientY: y };
         const over = new DragEvent("dragover", at);
@@ -1396,9 +1399,9 @@ console.log("editor");
         if (!over.defaultPrevented) return "the plan refused the drop";
         plan.dispatchEvent(new DragEvent("drop", at));
         return "ok";
-      }, { type, x, y });
+      }, { key, x, y });
     const living = await page.locator('homeslice-panel svg.plan g[data-room="living"] polygon').boundingBox();
-    assert((await dropPiece("sofa", living.x + living.width * 0.3, living.y + living.height * 0.75)) === "ok", "drop refused");
+    assert((await dropPiece("modern:sofa", living.x + living.width * 0.3, living.y + living.height * 0.75)) === "ok", "drop refused");
     assert((await room("living")).furniture?.some((f) => f.type === "sofa"), `living: ${JSON.stringify((await room("living")).furniture)}`);
     assert((await page.locator("homeslice-panel .inspector h2").textContent()) === "Sofa", "dropped sofa not selected");
     // dragged close to the south wall, the sofa snaps flush against it (inside face: 10 − 0.36 m)
@@ -1409,13 +1412,13 @@ console.log("editor");
     await page.mouse.move(near.x + 8 - sofaBox.width / 2, near.y + 8 - sofaBox.height / 2, { steps: 8 });
     await page.mouse.up();
     const sofa = (await room("living")).furniture.find((f) => f.type === "sofa");
-    assert(Math.abs(sofa.at[1] + 4 - (9.64 - 0.45)) < 0.011, `sofa not against the wall: ${JSON.stringify(sofa)}`);
+    assert(Math.abs(sofa.at[1] + 4 - (9.64 - 0.475)) < 0.011, `sofa not against the wall: ${JSON.stringify(sofa)}`);
     // a mirror dropped near the hall's west wall hangs on it, facing east
     await page.keyboard.press("Escape");
     const hall = await page.locator('homeslice-panel svg.plan g[data-room="hall"] polygon').boundingBox();
-    await dropPiece("mirror", hall.x + 12, hall.y + hall.height * 0.6);
+    await dropPiece("modern:mirror_round", hall.x + 12, hall.y + hall.height * 0.6);
     const mirror = (await room("hall")).furniture?.find((f) => f.type === "mirror");
-    // the hall's inside face of the west wall is 0.36 m from the room's corner; a 4 cm mirror sits 2 cm in front
+    // the hall's inside face of the west wall is 0.36 m from the room's corner; a 3 cm mirror sits 1.5 cm in front
     assert(mirror && mirror.rotation === 270 && Math.abs(mirror.at[0] - 0.38) < 0.011, `mirror: ${JSON.stringify(mirror)}`);
     assert((await page.locator("homeslice-panel .inspector label", { hasText: "Mounted" }).locator("select").inputValue()) === "wall", "mirror not shown as on a wall");
     // a table can go on the wall too… and back
@@ -1465,7 +1468,7 @@ console.log("editor");
     const source = (s) => page.locator(`homeslice-panel .inspector .library-sources button[data-source="${s}"]`).click();
     const start = await count();
 
-    await source("modern");
+    await source("builtin");
     assert((await page.locator("homeslice-panel .inspector h4").allTextContents()).includes("Hall"), "no hall group");
     await dropKey("modern:wardrobe_sliding", ...spot);
     let w = await last();
@@ -1473,11 +1476,15 @@ console.log("editor");
     await page.locator('homeslice-panel .inspector .finishes button[data-finish="walnut"]').click();
     w = await last();
     assert(w.finish === "walnut", `finish: ${JSON.stringify(w)}`);
+    await page.locator('homeslice-panel .inspector .finishes button[data-accent="brass"]').click();
+    w = await last();
+    assert(w.accent === "brass", `accent: ${JSON.stringify(w)}`);
     // the 3D preview draws it (its module loads with the first Modern piece)
     await page.waitForFunction(() => window.panel.shadowRoot.querySelector("homeslice-card, .preview") !== null);
     await page.waitForTimeout(800);
     await shot(page, "editor-library-modern");
     await page.keyboard.press("Escape");
+    await page.keyboard.press("Control+z");
     await page.keyboard.press("Control+z");
     await page.keyboard.press("Control+z");
 
@@ -1525,7 +1532,7 @@ console.log("editor");
     await page.mouse.click(lb.x + lb.width * 0.85, lb.y + lb.height * 0.9);
     await page.locator("homeslice-panel .inspector button", { hasText: "Add furniture" }).click();
     await page.locator('homeslice-panel .inspector .library-sources button[data-source="builtin"]').click();
-    await page.locator('homeslice-panel .inspector .library button[data-type="floor_lamp"]').click();
+    await page.locator('homeslice-panel .inspector .library button[data-key="modern:floor_lamp_tripod"]').click();
     const lampMarkers = () => page.locator('homeslice-panel svg.plan [data-light*="light.reading_lamp"]').count();
     assert((await lampMarkers()) === 1, "the reading lamp should have its marker before linking");
     await page.locator("homeslice-panel .inspector label", { hasText: "Linked to" }).locator("select").selectOption("light.reading_lamp");

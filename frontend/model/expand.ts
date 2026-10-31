@@ -165,6 +165,7 @@ export function expandHouse(input: unknown): ExpandResult {
         if (fi.model !== undefined && !(typeof fi.model === "string" && MODEL_REF.test(fi.model)))
           return err(fp, `model must be builtin, kenney:<name>, polyhaven:<id>, custom:<id> or modern:<kind>, got ${JSON.stringify(fi.model)}.`);
         if (fi.finish !== undefined && typeof fi.finish !== "string") return err(fp, "finish must be a name like oak, white or grey.");
+        if (fi.accent !== undefined && typeof fi.accent !== "string") return err(fp, "accent must be a name like black, brass or oak.");
         furniture.push({
           type: fi.type,
           at: [min[0] + fi.at[0], min[1] + fi.at[1]],
@@ -177,6 +178,7 @@ export function expandHouse(input: unknown): ExpandResult {
           ...(fi.entity ? { entity: fi.entity } : {}),
           ...(fi.model ? { model: fi.model } : {}),
           ...(fi.finish ? { finish: fi.finish } : {}),
+          ...(fi.accent ? { accent: fi.accent } : {}),
         });
       });
       // a piece's light is where the piece stands (it moves with it)

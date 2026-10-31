@@ -8,8 +8,8 @@ import { MODERN_GROUPS } from "../model/modern";
 import type { FurnitureMount, FurnitureType } from "../model/types";
 import { KENNEY_GROUPS, kenneySize } from "./kenney";
 
-export type LibrarySource = "builtin" | "modern" | "kenney" | "polyhaven" | "custom";
-export const LIBRARY_SOURCES: LibrarySource[] = ["builtin", "modern", "kenney", "polyhaven", "custom"];
+export type LibrarySource = "builtin" | "kenney" | "polyhaven" | "custom";
+export const LIBRARY_SOURCES: LibrarySource[] = ["builtin", "kenney", "polyhaven", "custom"];
 
 export interface LibraryItem {
   /** Unique within the library, e.g. `kenney:loungeSofa`. */
@@ -71,11 +71,21 @@ export function humanize(name: string): string {
   return words.charAt(0).toUpperCase() + words.slice(1);
 }
 
+/**
+ * Homeslice's own pieces: the ones drawn to size (Modern), and the simple shape of every
+ * furniture type no drawn piece covers yet, in its group.
+ */
 export function builtinGroups(): LibraryGroup[] {
-  return FURNITURE_GROUPS.map((g) => ({
-    id: g.id,
-    items: g.types.map((type) => ({ key: `builtin:${type}`, type, model: "builtin", thumb: asset(`thumbs/builtin/${type}.png`) })),
-  }));
+  const groups = modernGroups();
+  const covered = new Set(groups.flatMap((g) => g.items.map((i) => i.type)));
+  for (const g of FURNITURE_GROUPS) {
+    const missing = g.types.filter((t) => !covered.has(t));
+    if (!missing.length) continue;
+    let group = groups.find((x) => x.id === g.id);
+    if (!group) groups.push((group = { id: g.id, items: [] }));
+    group.items.push(...missing.map((type) => ({ key: `builtin:${type}`, type, model: "builtin", thumb: asset(`thumbs/builtin/${type}.png`) })));
+  }
+  return groups;
 }
 
 export function modernGroups(): LibraryGroup[] {

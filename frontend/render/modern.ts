@@ -188,7 +188,7 @@ function foliage(b: Builder, rand: () => number, cx: number, cy: number, cz: num
 
 // ----- the kinds -----
 
-type Build = (b: Builder, w: number, d: number, h: number, finish: THREE.MeshStandardMaterial, color: string) => void;
+type Build = (b: Builder, w: number, d: number, h: number, finish: THREE.MeshStandardMaterial, color: string, accent: THREE.MeshStandardMaterial, accentColor: string) => void;
 
 const back = (d: number) => -d / 2;
 
@@ -202,7 +202,7 @@ function sofaSeats(b: Builder, x0: number, len: number, z0: number, depth: numbe
   }
 }
 
-function sofa(b: Builder, w: number, d: number, fabric: THREE.Material, corner: "none" | "l" | "chaise") {
+function sofa(b: Builder, w: number, d: number, fabric: THREE.Material, corner: "none" | "l" | "chaise", legM: THREE.Material) {
   const arm = 0.18;
   const sd = Math.min(d, 0.95);
   const z0 = back(d) + sd / 2;
@@ -229,8 +229,7 @@ function sofa(b: Builder, w: number, d: number, fabric: THREE.Material, corner: 
     sofaSeats(b, -w / 2 + cw, w - cw - arm, z0, sd, fabric, true);
     if (corner === "chaise") b.box(cw - 0.02, 0.42, 0.2, x, 0.38, back(d) + 0.12, fabric, 0.07);
   } else sofaSeats(b, -w / 2 + arm, w - 2 * arm, z0, sd, fabric, true);
-  // thin black legs
-  const legM = mat(C.black);
+  // thin legs
   for (const x of [-w / 2 + 0.08, w / 2 - 0.08]) for (const z of [back(d) + 0.08, back(d) + sd - 0.08]) b.cyl(0.015, 0.012, 0.06, x, 0, z, legM, 8);
   // throw pillows
   const pillow = mat(C.pillow);
@@ -274,29 +273,29 @@ function shelves(b: Builder, w: number, d: number, h: number, m: THREE.Material,
 const shadeMat = (finish: THREE.Material, color: string) => (["black", "anthracite"].includes(color) ? finish : mat(C.shade, { side: THREE.DoubleSide }));
 
 const BUILDERS: Record<string, Build> = {
-  sofa: (b, w, d, _h, f) => sofa(b, w, d, f, "none"),
-  garden_sofa: (b, w, d, _h, f) => {
+  sofa: (b, w, d, _h, f, _c, a) => sofa(b, w, d, f, "none", a),
+  garden_sofa: (b, w, d, _h, f, _c, a) => {
     // a frame of slats and thick cushions
-    const frame = mat(C.black);
+    const frame = a;
     b.box(w, 0.3, d, 0, 0.05, 0, frame, 0.01);
     b.box(w, 0.35, 0.08, 0, 0.35, back(d) + 0.04, frame, 0.01);
     for (const sx of [-1, 1]) b.box(0.08, 0.3, d, sx * (w / 2 - 0.04), 0.35, 0, frame, 0.01);
     sofaSeats(b, -w / 2 + 0.08, w - 0.16, 0.04, d - 0.08, f, true);
     legs(b, w, d, 0.05, 0.05, 0.02, frame, true);
   },
-  sofa_corner: (b, w, d, _h, f) => sofa(b, w, d, f, "l"),
-  sofa_chaise: (b, w, d, _h, f) => sofa(b, w, d, f, "chaise"),
-  armchair: (b, w, d, _h, f) => {
+  sofa_corner: (b, w, d, _h, f, _c, a) => sofa(b, w, d, f, "l", a),
+  sofa_chaise: (b, w, d, _h, f, _c, a) => sofa(b, w, d, f, "chaise", a),
+  armchair: (b, w, d, _h, f, _c, a) => {
     b.box(w, 0.26, d, 0, 0.12, 0, f, 0.06);
     b.box(w, 0.46, 0.16, 0, 0.3, back(d) + 0.08, f, 0.07);
     for (const sx of [-1, 1]) b.box(0.13, 0.3, d, sx * (w / 2 - 0.065), 0.3, 0, f, 0.06);
     b.box(w - 0.26, 0.14, d - 0.2, 0, 0.36, 0.08, f, 0.05);
-    for (const sx of [-1, 1]) for (const sz of [-1, 1]) b.rod(v(sx * (w / 2 - 0.08), 0.13, sz * (d / 2 - 0.08)), v(sx * (w / 2 - 0.04), 0, sz * (d / 2 - 0.04)), 0.014, mat(C.black));
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) b.rod(v(sx * (w / 2 - 0.08), 0.13, sz * (d / 2 - 0.08)), v(sx * (w / 2 - 0.04), 0, sz * (d / 2 - 0.04)), 0.014, a);
   },
-  coffee_table: (b, w, d, h, f) => {
+  coffee_table: (b, w, d, h, f, _c, a) => {
     b.box(w, 0.035, d, 0, h - 0.035, 0, f, 0.008);
     b.box(w - 0.1, 0.02, d - 0.1, 0, h * 0.3, 0, f, 0.004);
-    legs(b, w, d, h - 0.035, 0.05, 0.016, mat(C.black), true);
+    legs(b, w, d, h - 0.035, 0.05, 0.016, a, true);
   },
   coffee_table_round: (b, w, d, h, f) => {
     const r = Math.min(w, d) / 2;
@@ -306,10 +305,10 @@ const BUILDERS: Record<string, Build> = {
       b.rod(v(Math.cos(a) * r * 0.55, h - 0.03, Math.sin(a) * r * 0.55), v(Math.cos(a) * r * 0.75, 0, Math.sin(a) * r * 0.75), 0.016, f);
     }
   },
-  coffee_tables_nested: (b, w, d, h, f) => {
+  coffee_tables_nested: (b, w, d, h, f, _c, a) => {
     const r1 = Math.min(d / 2, w * 0.33);
     const r2 = r1 * 0.75;
-    const metal = mat(C.black);
+    const metal = a;
     for (const [x, z, r, hh] of [[-w / 2 + r1, 0, r1, h * 0.85], [w / 2 - r2, d / 2 - r2, r2, h]] as const) {
       b.cyl(r, r, 0.025, x, hh - 0.025, z, f, 36);
       b.add(new THREE.TorusGeometry(r * 0.92, 0.008, 6, 36), metal, x, hh * 0.15, z).rotation.x = Math.PI / 2;
@@ -322,16 +321,16 @@ const BUILDERS: Record<string, Build> = {
   coffee_table_block: (b, w, d, h, f) => {
     b.box(w, h, d, 0, 0, 0, f, 0.03);
   },
-  side_table: (b, w, d, h, f) => {
+  side_table: (b, w, d, h, f, _c, a) => {
     const r = Math.min(w, d) / 2;
     b.cyl(r, r, 0.022, 0, h - 0.022, 0, f, 32);
-    b.cyl(0.018, 0.018, h - 0.022, 0, 0, 0, mat(C.black), 12);
-    b.cyl(r * 0.6, r * 0.6, 0.015, 0, 0, 0, mat(C.black), 28);
+    b.cyl(0.018, 0.018, h - 0.022, 0, 0, 0, a, 12);
+    b.cyl(r * 0.6, r * 0.6, 0.015, 0, 0, 0, a, 28);
   },
-  tv_board: (b, w, d, h, f) => {
+  tv_board: (b, w, d, h, f, _c, a) => {
     b.box(w, h - 0.12, d, 0, 0.12, 0, f, 0.006);
     fronts(b, -w / 2, w, 0.13, h - 0.14, d / 2 - 0.018, Math.max(2, Math.round(w / 0.6)), f, 1);
-    legs(b, w, d, 0.12, 0.05, 0.012, mat(C.black));
+    legs(b, w, d, 0.12, 0.05, 0.012, a);
   },
   tv_board_wall: (b, w, d, h, f) => {
     b.box(w, h, d, 0, 0, 0, f, 0.006);
@@ -342,9 +341,9 @@ const BUILDERS: Record<string, Build> = {
     fronts(b, -w / 2, w, 0.16, h - 0.17, d / 2 - 0.018, Math.max(2, Math.round(w / 0.45)), f, 1, "bar");
     legs(b, w, d, 0.15, 0.06, 0.014, f);
   },
-  tv_stand: (b, w, d, h, f) => {
+  tv_stand: (b, w, d, h, f, c, a, ac) => {
     const board = Math.min(0.45, h * 0.35);
-    BUILDERS.tv_board(b, w, d, board, f, "");
+    BUILDERS.tv_board(b, w, d, board, f, c, a, ac);
     const tw = Math.min(w * 0.85, 1.45);
     const th = Math.min(h - board - 0.06, tw * 0.58);
     b.box(0.25, 0.012, 0.16, 0, board, 0, mat(C.black));
@@ -393,35 +392,35 @@ const BUILDERS: Record<string, Build> = {
       }
   },
   bookshelf: (b, w, d, h, f) => shelves(b, w, d, h, f, Math.max(3, Math.round(h / 0.35)), random(Math.round(w * 100 + h * 10))),
-  floor_lamp_arc: (b, w, d, h, f, color) => {
+  floor_lamp_arc: (b, w, d, h, f, color, a) => {
     const base = mat(C.ceramic);
     const x0 = -w / 2 + 0.18;
     b.cyl(0.17, 0.17, 0.05, x0, 0, 0, mat("#e8e6e1"), 32);
     const curve = new THREE.QuadraticBezierCurve3(v(x0, 0.05, 0), v(x0 + 0.1, h + 0.25, 0), v(w / 2 - 0.15, h - 0.12, 0));
-    b.add(new THREE.TubeGeometry(curve, 40, 0.012, 8, false), mat(C.steel, { metalness: 0.6, roughness: 0.3 }));
+    b.add(new THREE.TubeGeometry(curve, 40, 0.012, 8, false), a);
     const dome = b.add(new THREE.SphereGeometry(Math.min(0.2, d / 2), 28, 12, 0, Math.PI * 2, 0, Math.PI / 2), shadeMat(f, color), w / 2 - 0.15, h - 0.22, 0);
     dome.material = (dome.material as THREE.Material).clone();
     (dome.material as THREE.Material).side = THREE.DoubleSide;
     void base;
   },
-  floor_lamp_tripod: (b, w, d, h, f, color) => {
+  floor_lamp_tripod: (b, w, d, h, f, color, a) => {
     const r = Math.min(w, d) / 2;
     const top = v(0, h * 0.62, 0);
     for (let i = 0; i < 3; i++) {
       const a = (i / 3) * Math.PI * 2 + Math.PI / 2;
       b.rod(top, v(Math.cos(a) * r * 0.85, 0, Math.sin(a) * r * 0.85), 0.012, f);
     }
-    b.rod(top, v(0, h - 0.3, 0), 0.008, mat(C.black));
+    b.rod(top, v(0, h - 0.3, 0), 0.008, a);
     b.cyl(r * 0.75, r * 0.8, 0.32, 0, h - 0.32, 0, shadeMat(f, color), 32, true);
   },
-  floor_lamp_globe: (b, w, _d, h, f) => {
-    b.cyl(w * 0.45, w * 0.45, 0.025, 0, 0, 0, f, 28);
-    b.cyl(0.01, 0.01, h - 0.3, 0, 0.025, 0, f, 8);
+  floor_lamp_globe: (b, w, _d, h, _f, _c, a) => {
+    b.cyl(w * 0.45, w * 0.45, 0.025, 0, 0, 0, a, 28);
+    b.cyl(0.01, 0.01, h - 0.3, 0, 0.025, 0, a, 8);
     b.sphere(w * 0.5, 0, h - w * 0.5, 0, mat("#f6f1e6", { transparent: true, opacity: 0.92 }), 1, 1, 1, 24);
   },
-  table_lamp: (b, w, _d, h, f, color) => {
+  table_lamp: (b, w, _d, h, f, color, a) => {
     b.sphere(w * 0.28, 0, h * 0.24, 0, f, 1, 0.9, 1, 20);
-    b.cyl(0.008, 0.008, h * 0.35, 0, h * 0.4, 0, mat(C.black), 8);
+    b.cyl(0.008, 0.008, h * 0.35, 0, h * 0.4, 0, a, 8);
     b.cyl(w * 0.38, w * 0.5, h * 0.32, 0, h * 0.68, 0, shadeMat(f, color), 28, true);
   },
   rug: (b, w, d, h, f, color) => b.box(w, h, d, 0, 0, 0, rugMaterial("border", color, f)),
@@ -455,27 +454,27 @@ const BUILDERS: Record<string, Build> = {
     b.box(w, h, 0.02, 0, 0, back(d) + 0.01, f, 0.005);
     b.box(w - 0.03, h - 0.03, 0.004, 0, 0.015, back(d) + 0.022, mat(C.mirror, { metalness: 0.9, roughness: 0.05 }));
   },
-  dining_table: (b, w, d, h, f) => {
+  dining_table: (b, w, d, h, f, _c, a) => {
     b.box(w, 0.035, d, 0, h - 0.035, 0, f, 0.01);
     // two trestles
     for (const sx of [-1, 1]) {
       const x = sx * (w / 2 - 0.25);
-      b.rod(v(x, h - 0.035, -d / 2 + 0.12), v(x, 0, -d / 2 + 0.06), 0.02, f);
-      b.rod(v(x, h - 0.035, d / 2 - 0.12), v(x, 0, d / 2 - 0.06), 0.02, f);
-      b.box(0.04, 0.04, d - 0.2, x, h - 0.075, 0, f);
+      b.rod(v(x, h - 0.035, -d / 2 + 0.12), v(x, 0, -d / 2 + 0.06), 0.02, a);
+      b.rod(v(x, h - 0.035, d / 2 - 0.12), v(x, 0, d / 2 - 0.06), 0.02, a);
+      b.box(0.04, 0.04, d - 0.2, x, h - 0.075, 0, a);
     }
   },
-  dining_table_round: (b, w, d, h, f) => {
+  dining_table_round: (b, w, d, h, f, _c, a) => {
     const r = Math.min(w, d) / 2;
     b.cyl(r, r, 0.035, 0, h - 0.035, 0, f, 48);
-    b.cyl(0.06, 0.09, h - 0.035, 0, 0, 0, f, 20);
-    b.cyl(r * 0.45, r * 0.5, 0.03, 0, 0, 0, f, 32);
+    b.cyl(0.06, 0.09, h - 0.035, 0, 0, 0, a, 20);
+    b.cyl(r * 0.45, r * 0.5, 0.03, 0, 0, 0, a, 32);
   },
-  garden_table: (b, w, d, h, f) => {
+  garden_table: (b, w, d, h, f, _c, a) => {
     for (let i = 0; i < Math.round(w / 0.1); i++) b.box(w / Math.round(w / 0.1) - 0.012, 0.03, d, -w / 2 + (w / Math.round(w / 0.1)) * (i + 0.5), h - 0.03, 0, f);
-    legs(b, w, d, h - 0.03, 0.06, 0.025, mat(C.black), true);
+    legs(b, w, d, h - 0.03, 0.06, 0.025, a, true);
   },
-  chair_shell: (b, w, d, h, f) => {
+  chair_shell: (b, w, d, h, f, _c, a) => {
     // a moulded seat bowl and back on wooden legs
     const shell = mat((f.color as THREE.Color).getStyle(), { side: THREE.DoubleSide });
     const seat = b.add(new THREE.SphereGeometry(0.5, 28, 10, 0, Math.PI * 2, Math.PI * 0.62, Math.PI * 0.38), shell, 0, 0.53, 0.03);
@@ -483,7 +482,7 @@ const BUILDERS: Record<string, Build> = {
     const backrest = b.add(new THREE.CylinderGeometry(w * 0.48, w * 0.44, h - 0.48, 24, 1, true, Math.PI * 0.7, Math.PI * 0.6), shell, 0, 0.47 + (h - 0.48) / 2, -0.02);
     backrest.scale.set(1, 1, (d * 0.9) / w);
     backrest.rotation.x = -0.12;
-    const wood = mat("#c9a47c");
+    const wood = a;
     for (const sx of [-1, 1]) for (const sz of [-1, 1]) b.rod(v(sx * 0.1, 0.4, sz * 0.1), v(sx * (w / 2 - 0.04), 0, sz * (d / 2 - 0.04)), 0.013, wood);
     for (const sz of [-1, 1]) b.rod(v(-w / 2 + 0.07, 0.15, sz * (d / 2 - 0.07)), v(w / 2 - 0.07, 0.15, sz * (d / 2 - 0.07)), 0.006, mat(C.black), 4);
   },
@@ -493,21 +492,21 @@ const BUILDERS: Record<string, Build> = {
     for (const sx of [-1, 1]) b.rod(v(sx * (w / 2 - 0.03), 0.44, back(d) + 0.04), v(sx * (w / 2 - 0.03), h, back(d) + 0.01), 0.013, f);
     b.box(w - 0.02, 0.1, 0.02, 0, h - 0.13, back(d) + 0.02, f, 0.005);
   },
-  bar_stool: (b, w, _d, h, f) => {
+  bar_stool: (b, w, _d, h, f, _c, acc) => {
     b.cyl(w * 0.45, w * 0.42, 0.05, 0, h - 0.05, 0, f, 28);
     for (let i = 0; i < 4; i++) {
       const a = (i / 4) * Math.PI * 2 + Math.PI / 4;
-      b.rod(v(Math.cos(a) * w * 0.25, h - 0.05, Math.sin(a) * w * 0.25), v(Math.cos(a) * w * 0.45, 0, Math.sin(a) * w * 0.45), 0.012, mat(C.black));
+      b.rod(v(Math.cos(a) * w * 0.25, h - 0.05, Math.sin(a) * w * 0.25), v(Math.cos(a) * w * 0.45, 0, Math.sin(a) * w * 0.45), 0.012, acc);
     }
-    b.add(new THREE.TorusGeometry(w * 0.37, 0.008, 6, 24), mat(C.black), 0, h * 0.32, 0).rotation.x = Math.PI / 2;
+    b.add(new THREE.TorusGeometry(w * 0.37, 0.008, 6, 24), acc, 0, h * 0.32, 0).rotation.x = Math.PI / 2;
   },
-  kitchen: (b, w, d, h, f) => {
+  kitchen: (b, w, d, h, f, _c, a) => {
     const n = Math.max(1, Math.round(w / 0.6));
     const uw = w / n;
     const top = 0.04;
     b.box(w - 0.02, 0.1, d - 0.08, 0, 0, back(d) + (d - 0.08) / 2, mat(C.black));
     b.box(w, h - top - 0.1, d - 0.03, 0, 0.1, back(d) + (d - 0.03) / 2, mat("#e8e6e1"));
-    b.box(w, top, d, 0, h - top, 0, mat("#d9d5ce", { roughness: 0.4 }), 0.004);
+    b.box(w, top, d, 0, h - top, 0, a, 0.004);
     const sink = n > 1 ? Math.floor(n / 3) : -1;
     const hob = n > 2 ? Math.min(n - 1, sink + 2) : -1;
     for (let i = 0; i < n; i++) {
@@ -529,7 +528,7 @@ const BUILDERS: Record<string, Build> = {
       }
     }
   },
-  kitchen_island: (b, w, d, h, f) => {
+  kitchen_island: (b, w, d, h, f, _c, a) => {
     const top = 0.04;
     const over = Math.min(0.3, d * 0.3);
     const bd = d - over;
@@ -538,7 +537,7 @@ const BUILDERS: Record<string, Build> = {
     // fronts towards the kitchen (the back), seats under the overhang
     fronts(b, -w / 2 + 0.04, w - 0.08, 0.1, h - top - 0.1, back(d) - 0.018, Math.max(1, Math.round((w - 0.08) / 0.6)), f, 3);
     // a worktop folding down at both ends
-    const worktop = mat("#e6e3dd", { roughness: 0.35 });
+    const worktop = a;
     b.box(w, top, d, 0, h - top, 0, worktop, 0.004);
     for (const sx of [-1, 1]) b.box(top, h - top, d, sx * (w / 2 - top / 2), 0, 0, worktop, 0.004);
   },
@@ -557,12 +556,12 @@ const BUILDERS: Record<string, Build> = {
     b.box(w - 0.004, 0.6, 0.018, 0, 0.1 + h * 0.55 + 0.004, z + 0.009, mat(C.screen, { roughness: 0.2 }), 0.003);
     b.box(w - 0.004, h - 0.1 - h * 0.55 - 0.61, 0.018, 0, 0.1 + h * 0.55 + 0.608, z + 0.009, f, 0.003);
   },
-  bed: (b, w, d, h, f) => bed(b, w, d, h, f),
-  bed_single: (b, w, d, h, f) => bed(b, w, d, h, f),
-  nightstand: (b, w, d, h, f) => {
+  bed: (b, w, d, h, f, _c, a) => bed(b, w, d, h, f, a),
+  bed_single: (b, w, d, h, f, _c, a) => bed(b, w, d, h, f, a),
+  nightstand: (b, w, d, h, f, _c, a) => {
     b.box(w, h - 0.15, d, 0, 0.15, 0, f, 0.006);
     fronts(b, -w / 2, w, 0.16, h - 0.17, d / 2 - 0.018, 1, f, 2, "knob");
-    legs(b, w, d, 0.15, 0.04, 0.01, mat(C.black));
+    legs(b, w, d, 0.15, 0.04, 0.01, a);
   },
   nightstand_wall: (b, w, d, h, f) => {
     b.box(w, h, d, 0, 0, 0, f, 0.006);
@@ -573,7 +572,7 @@ const BUILDERS: Record<string, Build> = {
     b.box(w - 0.02, 0.08, d - 0.06, 0, 0, back(d) + (d - 0.06) / 2, mat(C.black));
     fronts(b, -w / 2, w, 0.08, h - 0.08, d / 2 - 0.02, Math.max(1, Math.round(w / 0.5)), f, 1, "bar");
   },
-  wardrobe_sliding: (b, w, d, h, f) => {
+  wardrobe_sliding: (b, w, d, h, f, _c, a) => {
     b.box(w, h, d - 0.06, 0, 0, back(d) + (d - 0.06) / 2, f);
     const n = Math.max(2, Math.round(w / 1));
     const pw = w / n + 0.03;
@@ -583,7 +582,7 @@ const BUILDERS: Record<string, Build> = {
       b.box(Math.min(pw, w / n + 0.03), h - 0.04, 0.02, x, 0.02, z, f, 0.004);
       // a mirror on every other panel
       if (i % 2 === 1) b.box(pw - 0.1, h - 0.3, 0.004, x, 0.15, z + 0.012, mat(C.mirror, { metalness: 0.9, roughness: 0.05 }));
-      b.box(0.01, 0.35, 0.012, x + (i % 2 ? -1 : 1) * (pw / 2 - 0.04), h * 0.45, z + 0.014, mat(C.black));
+      b.box(0.01, 0.35, 0.012, x + (i % 2 ? -1 : 1) * (pw / 2 - 0.04), h * 0.45, z + 0.014, a);
     }
   },
   wardrobe_open: (b, w, d, h, f) => {
@@ -607,14 +606,14 @@ const BUILDERS: Record<string, Build> = {
     for (let i = 0; i < Math.floor((w - 0.1) / 0.25); i++) for (const dx of [-0.05, 0.05]) b.box(0.08, 0.08, 0.26, -w / 2 + 0.15 + i * 0.25 + dx, 0.145, 0.02, mat(C.clothes[(i + 2) % C.clothes.length]), 0.03);
     for (let i = 0; i < 3; i++) b.box(0.32, 0.18, d * 0.7, -w / 2 + 0.25 + i * 0.4, h - 0.275, 0, mat(["#d9d4c7", "#c9a47c", "#8d9299"][i]), 0.01);
   },
-  dresser: (b, w, d, h, f) => {
+  dresser: (b, w, d, h, f, _c, a) => {
     b.box(w, h - 0.12, d, 0, 0.12, 0, f, 0.008);
     fronts(b, -w / 2, w, 0.13, h - 0.14, d / 2 - 0.018, Math.max(1, Math.round(w / 0.6)), f, 3, "bar");
-    legs(b, w, d, 0.12, 0.05, 0.012, mat(C.black));
+    legs(b, w, d, 0.12, 0.05, 0.012, a);
   },
-  desk: (b, w, d, h, f) => {
+  desk: (b, w, d, h, f, _c, a) => {
     b.box(w, 0.03, d, 0, h - 0.03, 0, f, 0.006);
-    const metal = mat(C.black);
+    const metal = a;
     for (const sx of [-1, 1]) {
       const x = sx * (w / 2 - 0.06);
       b.box(0.03, h - 0.03, 0.03, x, 0, -d / 2 + 0.05, metal);
@@ -625,8 +624,8 @@ const BUILDERS: Record<string, Build> = {
     b.box(0.6, 0.36, 0.02, 0, h + 0.1, back(d) + 0.12, mat(C.screen, { roughness: 0.3 }), 0.005);
     b.box(0.04, 0.1, 0.04, 0, h, back(d) + 0.12, metal);
   },
-  chair_office: (b, w, d, h, f) => {
-    const metal = mat(C.black);
+  chair_office: (b, w, d, h, f, _c, a) => {
+    const metal = a;
     for (let i = 0; i < 5; i++) {
       const a = (i / 5) * Math.PI * 2;
       b.rod(v(0, 0.08, 0), v(Math.cos(a) * w * 0.45, 0.04, Math.sin(a) * w * 0.45), 0.015, metal);
@@ -662,13 +661,13 @@ const BUILDERS: Record<string, Build> = {
     for (let k = 0; k < Math.floor((w - 0.06) / 0.22); k++) for (const dx of [-0.045, 0.045]) b.box(0.08, 0.08, 0.26, -w / 2 + 0.14 + k * 0.22 + dx, 0.14, 0, mat(C.clothes[k % C.clothes.length]), 0.03);
     b.box(w * 0.4, 0.05, d * 0.8, -w * 0.2, h, 0, mat(C.linen), 0.02);
   },
-  coat_hooks: (b, w, d, h, f) => {
+  coat_hooks: (b, w, d, h, f, _c, a) => {
     b.box(w, 0.08, 0.02, 0, h - 0.08, back(d) + 0.01, f, 0.004);
     const n = Math.max(2, Math.round(w / 0.18));
     const rand = random(n);
     for (let i = 0; i < n; i++) {
       const x = -w / 2 + (w / n) * (i + 0.5);
-      b.rod(v(x, h - 0.05, back(d) + 0.02), v(x, h - 0.02, back(d) + 0.08), 0.008, mat(C.black));
+      b.rod(v(x, h - 0.05, back(d) + 0.02), v(x, h - 0.02, back(d) + 0.08), 0.008, a);
       if (i % 2 === 0) b.box(0.32, h - 0.12, 0.08, x, 0, back(d) + 0.07, mat(C.clothes[Math.floor(rand() * C.clothes.length)], { roughness: 1 }), 0.03);
     }
   },
@@ -690,31 +689,31 @@ const BUILDERS: Record<string, Build> = {
     b.box(0.3, 0.02, 0.2, 0, 0, 0, f);
     letterBox(b, w, d, bh, h - bh, f);
   },
-  toilet_wall: (b, w, d, h, f) => {
+  toilet_wall: (b, w, d, h, f, _c, a) => {
     // a hanging bowl and the flush plate in the wall
     const ceramic = f;
     const bowl = b.add(new THREE.SphereGeometry(0.5, 24, 12), ceramic, 0, 0.33, 0.02);
     bowl.scale.set(w, 0.28, d * 0.95);
     b.box(w * 0.82, 0.2, 0.12, 0, 0.22, back(d) + 0.06, ceramic, 0.04);
     b.box(w * 0.95, 0.025, d * 0.9, 0, 0.4, 0.02, mat(C.ceramic), 0.01);
-    b.box(0.24, 0.16, 0.012, 0, Math.min(h, 1.05) - 0.16, back(d) + 0.006, mat(C.chrome, { metalness: 0.6, roughness: 0.3 }), 0.004);
+    b.box(0.24, 0.16, 0.012, 0, Math.min(h, 1.05) - 0.16, back(d) + 0.006, a, 0.004);
   },
-  bidet: (b, w, d, _h, f) => {
+  bidet: (b, w, d, _h, f, _c, a) => {
     const bowl = b.add(new THREE.SphereGeometry(0.5, 24, 12), f, 0, 0.3, 0.02);
     bowl.scale.set(w, 0.3, d * 0.95);
     b.box(w * 0.82, 0.2, 0.12, 0, 0.2, back(d) + 0.06, f, 0.04);
     b.box(w * 0.92, 0.03, d * 0.88, 0, 0.4, 0.02, f, 0.012);
     b.box(w * 0.7, 0.004, d * 0.62, 0, 0.43, 0.05, mat("#d8d8d4"), 0.01);
-    b.cyl(0.012, 0.012, 0.1, 0, 0.43, back(d) + 0.12, mat(C.chrome, { metalness: 0.8, roughness: 0.2 }), 10);
+    b.cyl(0.012, 0.012, 0.1, 0, 0.43, back(d) + 0.12, a, 10);
   },
-  vanity: (b, w, d, h, f) => vanity(b, w, d, h, f, Math.max(1, Math.round(w / 0.75))),
-  vanity_double: (b, w, d, h, f) => vanity(b, w, d, h, f, Math.max(2, Math.round(w / 0.7))),
-  sink_large: (b, w, d, h, f) => {
+  vanity: (b, w, d, h, f, _c, a) => vanity(b, w, d, h, f, Math.max(1, Math.round(w / 0.75)), a),
+  vanity_double: (b, w, d, h, f, _c, a) => vanity(b, w, d, h, f, Math.max(2, Math.round(w / 0.7)), a),
+  sink_large: (b, w, d, h, f, _c, a) => {
     // a long washbasin on a shelf
     b.box(w, 0.04, d, 0, h - 0.18, 0, mat("#c9a47c"), 0.006);
     b.box(w * 0.9, 0.14, d * 0.85, 0, h - 0.14, 0.02, f, 0.03);
     b.box(w * 0.82, 0.004, d * 0.65, 0, h, 0.04, mat("#d8d8d4"));
-    const tap = mat(C.chrome, { metalness: 0.8, roughness: 0.2 });
+    const tap = a;
     for (const x of w > 0.9 ? [-w / 4, w / 4] : [0]) b.rod(v(x, h + 0.02, back(d) + 0.05), v(x, h + 0.2, back(d) + 0.05), 0.01, tap);
   },
   mirror_cabinet: (b, w, d, h, f) => {
@@ -723,22 +722,22 @@ const BUILDERS: Record<string, Build> = {
     for (let i = 0; i < n; i++) b.box(w / n - 0.006, h - 0.04, 0.008, -w / 2 + (w / n) * (i + 0.5), 0.02, d / 2 - 0.016, mat(C.mirror, { metalness: 0.9, roughness: 0.05 }));
     b.box(w - 0.04, 0.01, 0.02, 0, -0.01, d / 2 - 0.04, mat("#fff6df", { emissive: "#fff2cc", emissiveIntensity: 0.4 }));
   },
-  shower_glass: (b, w, d, h, f) => {
+  shower_glass: (b, w, d, h, f, _c, a) => {
     b.box(w, 0.04, d, 0, 0, 0, mat(C.ceramic), 0.01);
     b.box(w * 0.4, 0.004, 0.06, 0, 0.04, 0, mat("#999"));
     b.box(0.008, h - 0.04, d * 0.9, w / 2 - 0.02, 0.04, 0, glass());
     b.box(0.02, 0.02, d * 0.9, w / 2 - 0.02, h - 0.02, 0, f);
-    const chrome = mat(C.chrome, { metalness: 0.8, roughness: 0.2 });
+    const chrome = a;
     b.cyl(0.012, 0.012, h - 0.2, -w / 2 + 0.35, 0.9, back(d) + 0.03, chrome, 10);
     b.cyl(0.13, 0.13, 0.012, -w / 2 + 0.35, h - 0.12, back(d) + 0.2, chrome, 28);
     b.rod(v(-w / 2 + 0.35, h - 0.1, back(d) + 0.03), v(-w / 2 + 0.35, h - 0.1, back(d) + 0.2), 0.01, chrome);
   },
-  bathtub: (b, w, d, h, f) => {
+  bathtub: (b, w, d, h, f, _c, a) => {
     // freestanding: a rounded tub, white inside
     b.box(w, h, d, 0, 0, 0, f, Math.min(0.2, d * 0.3));
     b.box(w - 0.12, 0.004, d - 0.12, 0, h - 0.004, 0, mat(C.ceramic), 0.004);
     b.box(w - 0.16, 0.004, d - 0.16, 0, h - 0.002, 0, mat("#cfe0e6", { roughness: 0.2 }), 0.004);
-    const chrome = mat(C.chrome, { metalness: 0.8, roughness: 0.2 });
+    const chrome = a;
     b.cyl(0.015, 0.015, h + 0.35, w / 2 + 0.12, 0, 0, chrome, 10);
     b.rod(v(w / 2 + 0.12, h + 0.35, 0), v(w / 2 - 0.05, h + 0.3, 0), 0.012, chrome);
   },
@@ -1000,8 +999,8 @@ const BUILDERS: Record<string, Build> = {
     }
   },
   // ----- garden, more -----
-  deck_chair: (b, w, d, h, f) => {
-    const wood = mat(FINISHES.oak);
+  deck_chair: (b, w, d, h, f, _c, a) => {
+    const wood = a;
     for (const sx of [-1, 1]) {
       const x = sx * (w / 2 - 0.02);
       b.rod(v(x, 0, d / 2), v(x, h, -d / 2 + 0.05), 0.016, wood, 6);
@@ -1017,9 +1016,9 @@ const BUILDERS: Record<string, Build> = {
     const m = b.add(sling, mat((f as THREE.MeshStandardMaterial).color.getStyle(), { side: THREE.DoubleSide, roughness: 1 }), 0, h * 0.55, 0);
     m.rotation.x = -(Math.PI / 2 - Math.atan2(h * 0.9, d * 0.9));
   },
-  hammock: (b, w, d, h, f) => {
+  hammock: (b, w, d, h, f, _c, a) => {
     // a wooden frame (a post pair at each end, a beam on the ground) and a sagging cloth
-    const wood = mat(FINISHES.oak);
+    const wood = a;
     const top = h * 0.92;
     for (const sx of [-1, 1]) {
       const x = sx * (w / 2 - 0.05);
@@ -1040,9 +1039,9 @@ const BUILDERS: Record<string, Build> = {
     m.rotation.x = -Math.PI / 2;
     for (const sx of [-1, 1]) b.rod(v((sx * len) / 2, h * 0.75, 0), v(sx * (w / 2 - 0.07), top - 0.03, 0), 0.008, mat(C.linen), 4);
   },
-  fence_slats: (b, w, d, h, f) => {
+  fence_slats: (b, w, d, h, f, _c, a) => {
     const n = Math.max(1, Math.round(w / 1.8));
-    for (let i = 0; i <= n; i++) b.box(0.07, h, 0.07, -w / 2 + 0.035 + (i * (w - 0.07)) / n, 0, 0, mat(C.black));
+    for (let i = 0; i <= n; i++) b.box(0.07, h, 0.07, -w / 2 + 0.035 + (i * (w - 0.07)) / n, 0, 0, a);
     const rows = Math.max(3, Math.round(h / 0.12));
     for (let r = 0; r < rows; r++) b.box(w - 0.02, (h / rows) * 0.72, Math.min(0.025, d), 0, 0.03 + (r * (h - 0.03)) / rows, 0.045, f);
   },
@@ -1403,7 +1402,7 @@ function letterBox(b: Builder, w: number, d: number, h: number, y: number, f: TH
   b.box(w * 0.3, 0.06, 0.004, 0, y + h * 0.35, d / 2, mat("#d9d5ce"));
 }
 
-function bed(b: Builder, w: number, d: number, h: number, f: THREE.Material) {
+function bed(b: Builder, w: number, d: number, h: number, f: THREE.Material, legM: THREE.Material) {
   // an upholstered frame and headboard, mattress, duvet and pillows
   b.box(w, 0.28, d - 0.08, 0, 0.06, 0.04, f, 0.04);
   b.box(w + 0.04, h, 0.1, 0, 0.06, back(d) + 0.05, f, 0.04);
@@ -1412,15 +1411,14 @@ function bed(b: Builder, w: number, d: number, h: number, f: THREE.Material) {
   b.box(w - 0.02, 0.04, 0.3, 0, 0.53, d / 2 - (d - 0.12) * 0.68 + 0.12, mat(C.linen, { roughness: 1 }), 0.02);
   const n = w > 1.2 ? 2 : 1;
   for (let i = 0; i < n; i++) b.box(w / n - 0.14, 0.13, 0.36, -w / 2 + (w / n) * (i + 0.5), 0.5, back(d) + 0.33, mat(C.pillow), 0.06);
-  legs(b, w, d - 0.08, 0.06, 0.08, 0.02, mat(C.black));
+  legs(b, w, d - 0.08, 0.06, 0.08, 0.02, legM);
 }
 
-function vanity(b: Builder, w: number, d: number, h: number, f: THREE.Material, basins: number) {
+function vanity(b: Builder, w: number, d: number, h: number, f: THREE.Material, basins: number, tap: THREE.Material) {
   // a cabinet on the wall and basins in a ceramic top
   b.box(w, 0.42, d - 0.02, 0, h - 0.47, back(d) + (d - 0.02) / 2, f, 0.006);
   fronts(b, -w / 2, w, h - 0.47, 0.42, d / 2 - 0.02, basins, f, 2, "bar");
   b.box(w + 0.01, 0.05, d, 0, h - 0.05, 0, mat(C.ceramic), 0.01);
-  const tap = mat(C.chrome, { metalness: 0.8, roughness: 0.2 });
   for (let i = 0; i < basins; i++) {
     const x = -w / 2 + (w / basins) * (i + 0.5);
     b.box(Math.min(0.5, w / basins - 0.12), 0.004, d - 0.16, x, h, 0.03, mat("#dcdcd8"), 0.01);
@@ -1525,19 +1523,79 @@ function rugMaterial(pattern: "border" | "rings" | "stripes", color: string, fal
   return m;
 }
 
+// ----- surfaces: wood grain, marble veins, concrete, drawn once per finish -----
+
+const surfaces = new Map<string, THREE.MeshStandardMaterial>();
+/** A finish as a material: textured where the finish is a material (wood, stone), else plain. */
+function surface(color: string, roughness: number): THREE.MeshStandardMaterial {
+  const kind = color === "oak" || color === "walnut" ? "wood" : color === "marble" ? "marble" : color === "concrete" ? "concrete" : null;
+  if (!kind || typeof document === "undefined") return mat(FINISHES[color] ?? color, { roughness });
+  const key = `${color}/${roughness}`;
+  let m = surfaces.get(key);
+  if (m) return m;
+  const c = document.createElement("canvas");
+  c.width = c.height = 256;
+  const ctx = c.getContext("2d")!;
+  const base = new THREE.Color(FINISHES[color]);
+  const shade = (k: number) => base.clone().lerp(new THREE.Color(k > 0 ? "#ffffff" : "#000000"), Math.abs(k)).getStyle();
+  ctx.fillStyle = base.getStyle();
+  ctx.fillRect(0, 0, 256, 256);
+  const rand = random(color.length * 7919);
+  if (kind === "wood") {
+    // long wavy grain lines along u, a few darker ones
+    for (let i = 0; i < 70; i++) {
+      const y = rand() * 256;
+      ctx.strokeStyle = shade(rand() > 0.8 ? -0.32 : rand() > 0.5 ? -0.16 : 0.12);
+      ctx.lineWidth = 0.5 + rand() * 1.8;
+      ctx.beginPath();
+      for (let x = 0; x <= 256; x += 16) ctx.lineTo(x, y + Math.sin(x / 40 + i) * 3 * rand());
+      ctx.stroke();
+    }
+  } else if (kind === "marble") {
+    for (let i = 0; i < 9; i++) {
+      ctx.strokeStyle = shade(-(0.12 + rand() * 0.2));
+      ctx.lineWidth = 0.6 + rand() * 1.5;
+      ctx.beginPath();
+      let x = rand() * 256;
+      let y = 0;
+      ctx.moveTo(x, y);
+      while (y < 256) {
+        x += (rand() - 0.5) * 40;
+        y += 10 + rand() * 25;
+        ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+    }
+  } else {
+    for (let i = 0; i < 2500; i++) {
+      ctx.fillStyle = shade((rand() - 0.5) * 0.25);
+      ctx.fillRect(rand() * 256, rand() * 256, 1 + rand() * 2, 1 + rand() * 2);
+    }
+  }
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  m = new THREE.MeshStandardMaterial({ map: tex, roughness });
+  surfaces.set(key, m);
+  return m;
+}
+
 /**
- * A Modern piece in its own frame, or null for an unknown kind. `finish` names one of
- * FINISHES (default: the kind's first).
+ * A Modern piece in its own frame, or null for an unknown kind. `finish` and `accent`
+ * name FINISHES (default: the kind's first finish and accent).
  */
-export function buildModern(kind: string, size: [number, number], height: number, finish?: string): THREE.Group | null {
+export function buildModern(kind: string, size: [number, number], height: number, finish?: string, accent?: string): THREE.Group | null {
   const def = MODERN[kind];
   const build = BUILDERS[kind];
   if (!def || !build) return null;
   const color = finish && FINISHES[finish] ? finish : def.finishes[0];
+  const accentColor = accent && FINISHES[accent] && def.accents ? accent : (def.accents?.[0] ?? "black");
   const b = new Builder();
   const fabricLike = ["sofa", "armchair", "bed", "rug"].includes(def.type) || kind.startsWith("sofa") || kind === "garden_sofa" || kind === "chair_office";
-  const finishMat = mat(FINISHES[color], { roughness: fabricLike ? 1 : color === "marble" || color === "white" ? 0.5 : 0.75 });
-  build(b, size[0], size[1], height, finishMat, color);
+  const finishMat = surface(color, fabricLike ? 1 : color === "marble" || color === "white" ? 0.5 : 0.75);
+  const metal = ["brass", "chrome", "silver"].includes(accentColor);
+  const accentMat = metal ? mat(FINISHES[accentColor], { metalness: 0.7, roughness: 0.3 }) : surface(accentColor, 0.7);
+  build(b, size[0], size[1], height, finishMat, color, accentMat, accentColor);
   const piece = b.done();
   // never larger than asked for and never below the floor: squeeze and lift what sticks
   // out (taps, leaves, a sofa's fixed seat height in a lower box)

@@ -350,7 +350,8 @@
           2
          ],
          "model": "modern:sofa",
-         "finish": "grey"
+         "finish": "grey",
+         "accent": "oak"
         }
        ]
       },
@@ -585,7 +586,8 @@
           2
          ],
          "model": "modern:sofa",
-         "finish": "grey"
+         "finish": "grey",
+         "accent": "oak"
         }
        ]
       },
@@ -805,7 +807,8 @@
           2
          ],
          "model": "modern:sofa",
-         "finish": "grey"
+         "finish": "grey",
+         "accent": "oak"
         }
        ]
       },
@@ -1232,7 +1235,8 @@
           2
          ],
          "model": "modern:sofa",
-         "finish": "grey"
+         "finish": "grey",
+         "accent": "oak"
         }
        ]
       },
@@ -1468,7 +1472,8 @@
           2
          ],
          "model": "modern:sofa",
-         "finish": "grey"
+         "finish": "grey",
+         "accent": "oak"
         }
        ]
       },
@@ -1695,7 +1700,8 @@
           2
          ],
          "model": "modern:sofa",
-         "finish": "grey"
+         "finish": "grey",
+         "accent": "oak"
         }
        ]
       },
@@ -1927,7 +1933,8 @@
           2
          ],
          "model": "modern:sofa",
-         "finish": "grey"
+         "finish": "grey",
+         "accent": "oak"
         }
        ]
       },
@@ -2151,7 +2158,8 @@
           2
          ],
          "model": "modern:sofa",
-         "finish": "grey"
+         "finish": "grey",
+         "accent": "oak"
         }
        ]
       },
@@ -2365,7 +2373,8 @@
           2
          ],
          "model": "modern:sofa",
-         "finish": "grey"
+         "finish": "grey",
+         "accent": "oak"
         }
        ]
       },
@@ -2585,7 +2594,8 @@
           2
          ],
          "model": "modern:sofa",
-         "finish": "grey"
+         "finish": "grey",
+         "accent": "oak"
         }
        ]
       },
@@ -2805,7 +2815,8 @@
           2
          ],
          "model": "modern:sofa",
-         "finish": "grey"
+         "finish": "grey",
+         "accent": "oak"
         }
        ]
       },
@@ -3013,7 +3024,8 @@
           2
          ],
          "model": "modern:sofa",
-         "finish": "grey"
+         "finish": "grey",
+         "accent": "oak"
         }
        ]
       },
@@ -3281,7 +3293,8 @@
           2
          ],
          "model": "modern:sofa",
-         "finish": "grey"
+         "finish": "grey",
+         "accent": "oak"
         }
        ]
       },
@@ -3493,7 +3506,8 @@
           2
          ],
          "model": "modern:sofa",
-         "finish": "grey"
+         "finish": "grey",
+         "accent": "oak"
         }
        ]
       },
@@ -3709,7 +3723,8 @@
           2
          ],
          "model": "modern:sofa",
-         "finish": "grey"
+         "finish": "grey",
+         "accent": "oak"
         }
        ]
       },
@@ -3926,7 +3941,8 @@
           2
          ],
          "model": "modern:sofa",
-         "finish": "grey"
+         "finish": "grey",
+         "accent": "oak"
         }
        ]
       },
@@ -4140,7 +4156,8 @@
           2
          ],
          "model": "modern:sofa",
-         "finish": "grey"
+         "finish": "grey",
+         "accent": "oak"
         }
        ]
       },
@@ -4359,7 +4376,8 @@
           2
          ],
          "model": "modern:sofa",
-         "finish": "grey"
+         "finish": "grey",
+         "accent": "oak"
         }
        ]
       },
@@ -6030,6 +6048,227 @@
   ]
  },
  {
+  "name": "furniture bad accent",
+  "house": {
+   "schema": 1,
+   "id": "full",
+   "grid": {
+    "x": {
+     "a": 0,
+     "b": 4,
+     "c": 8
+    },
+    "y": {
+     "top": 0,
+     "mid": 5,
+     "bottom": 10
+    }
+   },
+   "outline": {
+    "rect": [
+     "a",
+     "top",
+     8,
+     10
+    ]
+   },
+   "facade_openings": [
+    {
+     "id": "col",
+     "side": "west",
+     "at": 1,
+     "width": 1.2,
+     "levels": [
+      "g",
+      "f"
+     ]
+    }
+   ],
+   "vertical": [
+    {
+     "id": "st",
+     "rect": [
+      5,
+      1,
+      3,
+      1.2
+     ],
+     "from": "g",
+     "to": "f",
+     "shape": "u_turn"
+    }
+   ],
+   "levels": [
+    {
+     "id": "g",
+     "rooms": [
+      {
+       "id": "a",
+       "rect": [
+        "a",
+        "top",
+        4,
+        5
+       ],
+       "lights": [
+        {
+         "entity": "light.a",
+         "at": [
+          1,
+          1
+         ]
+        }
+       ],
+       "furniture": [
+        {
+         "type": "sofa",
+         "at": [
+          1,
+          1
+         ],
+         "accent": [
+          "black"
+         ]
+        }
+       ]
+      },
+      {
+       "id": "b",
+       "polygon": [
+        [
+         "b",
+         "top"
+        ],
+        [
+         "c",
+         "top"
+        ],
+        [
+         "c",
+         "mid"
+        ],
+        [
+         "b",
+         "mid"
+        ]
+       ]
+      },
+      {
+       "id": "c",
+       "rect": [
+        0,
+        5,
+        8,
+        5
+       ]
+      }
+     ],
+     "openings": [
+      {
+       "room": "a",
+       "side": "north",
+       "at": 1,
+       "width": 1,
+       "type": "door",
+       "style": "glass"
+      }
+     ],
+     "walls": [
+      {
+       "between": [
+        "a",
+        "b"
+       ]
+      },
+      {
+       "between": [
+        "a",
+        "c"
+       ],
+       "type": "wall",
+       "thickness": 0.2
+      },
+      {
+       "line": [
+        [
+         1,
+         7
+        ],
+        [
+         3,
+         7
+        ]
+       ]
+      }
+     ]
+    },
+    {
+     "id": "f",
+     "rooms": [
+      {
+       "id": "x",
+       "rect": [
+        0,
+        0,
+        8,
+        10
+       ]
+      }
+     ]
+    }
+   ],
+   "roof": {
+    "ridge": "east_west",
+    "pitch": 30
+   },
+   "energy": [
+    {
+     "kind": "solar",
+     "roof": "south"
+    },
+    {
+     "kind": "battery",
+     "level": "g",
+     "at": [
+      1,
+      1
+     ]
+    },
+    {
+     "kind": "device",
+     "name": "Washer",
+     "level": "g",
+     "at": [
+      2,
+      2
+     ],
+     "power": "sensor.washer_power",
+     "to": "battery"
+    }
+   ],
+   "robots": [
+    {
+     "entity": "vacuum.robo",
+     "level": "g",
+     "dock": [
+      1,
+      1
+     ]
+    }
+   ],
+   "inverted_covers": [
+    "cover.awning"
+   ],
+   "north": 20
+  },
+  "errors": [
+   {
+    "path": "levels.g.rooms.a.furniture.0",
+    "message": "accent must be a name like black, brass or oak."
+   }
+  ]
+ },
+ {
   "name": "furniture bad finish",
   "house": {
    "schema": 1,
@@ -6328,7 +6567,8 @@
           2
          ],
          "model": "modern:sofa",
-         "finish": "grey"
+         "finish": "grey",
+         "accent": "oak"
         }
        ]
       },
@@ -6548,7 +6788,8 @@
           2
          ],
          "model": "modern:sofa",
-         "finish": "grey"
+         "finish": "grey",
+         "accent": "oak"
         }
        ]
       },
@@ -6768,7 +7009,8 @@
           2
          ],
          "model": "modern:sofa",
-         "finish": "grey"
+         "finish": "grey",
+         "accent": "oak"
         }
        ]
       },
@@ -6987,7 +7229,8 @@
           2
          ],
          "model": "modern:sofa",
-         "finish": "grey"
+         "finish": "grey",
+         "accent": "oak"
         }
        ]
       },
@@ -7207,7 +7450,8 @@
           2
          ],
          "model": "modern:sofa",
-         "finish": "grey"
+         "finish": "grey",
+         "accent": "oak"
         }
        ]
       },
@@ -7426,7 +7670,8 @@
           2
          ],
          "model": "modern:sofa",
-         "finish": "grey"
+         "finish": "grey",
+         "accent": "oak"
         }
        ]
       },
@@ -7646,7 +7891,8 @@
           2
          ],
          "model": "modern:sofa",
-         "finish": "grey"
+         "finish": "grey",
+         "accent": "oak"
         }
        ]
       },
@@ -7866,7 +8112,8 @@
           2
          ],
          "model": "modern:sofa",
-         "finish": "grey"
+         "finish": "grey",
+         "accent": "oak"
         }
        ]
       },
@@ -8087,7 +8334,8 @@
           2
          ],
          "model": "modern:sofa",
-         "finish": "grey"
+         "finish": "grey",
+         "accent": "oak"
         }
        ]
       },
@@ -8308,7 +8556,8 @@
           2
          ],
          "model": "modern:sofa",
-         "finish": "grey"
+         "finish": "grey",
+         "accent": "oak"
         }
        ]
       },
@@ -8528,7 +8777,8 @@
           2
          ],
          "model": "modern:sofa",
-         "finish": "grey"
+         "finish": "grey",
+         "accent": "oak"
         }
        ]
       },
@@ -8748,7 +8998,8 @@
           2
          ],
          "model": "modern:sofa",
-         "finish": "grey"
+         "finish": "grey",
+         "accent": "oak"
         }
        ]
       },
@@ -8951,7 +9202,8 @@
           2
          ],
          "model": "modern:sofa",
-         "finish": "grey"
+         "finish": "grey",
+         "accent": "oak"
         }
        ]
       },
@@ -9175,7 +9427,8 @@
           2
          ],
          "model": "modern:sofa",
-         "finish": "grey"
+         "finish": "grey",
+         "accent": "oak"
         }
        ]
       },
@@ -9403,7 +9656,8 @@
           2
          ],
          "model": "modern:sofa",
-         "finish": "grey"
+         "finish": "grey",
+         "accent": "oak"
         }
        ]
       },
@@ -9624,7 +9878,8 @@
           2
          ],
          "model": "modern:sofa",
-         "finish": "grey"
+         "finish": "grey",
+         "accent": "oak"
         }
        ]
       },
@@ -9847,7 +10102,8 @@
           2
          ],
          "model": "modern:sofa",
-         "finish": "grey"
+         "finish": "grey",
+         "accent": "oak"
         }
        ]
       },
@@ -10067,7 +10323,8 @@
           2
          ],
          "model": "modern:sofa",
-         "finish": "grey"
+         "finish": "grey",
+         "accent": "oak"
         }
        ]
       },
@@ -10288,7 +10545,8 @@
           2
          ],
          "model": "modern:sofa",
-         "finish": "grey"
+         "finish": "grey",
+         "accent": "oak"
         }
        ]
       },
@@ -10508,7 +10766,8 @@
           2
          ],
          "model": "modern:sofa",
-         "finish": "grey"
+         "finish": "grey",
+         "accent": "oak"
         }
        ]
       },
@@ -10728,7 +10987,8 @@
           2
          ],
          "model": "modern:sofa",
-         "finish": "grey"
+         "finish": "grey",
+         "accent": "oak"
         }
        ]
       },
@@ -10948,7 +11208,8 @@
           2
          ],
          "model": "modern:sofa",
-         "finish": "grey"
+         "finish": "grey",
+         "accent": "oak"
         }
        ]
       },
@@ -11168,7 +11429,8 @@
           2
          ],
          "model": "modern:sofa",
-         "finish": "grey"
+         "finish": "grey",
+         "accent": "oak"
         }
        ]
       },
@@ -11388,7 +11650,8 @@
           2
          ],
          "model": "modern:sofa",
-         "finish": "grey"
+         "finish": "grey",
+         "accent": "oak"
         }
        ]
       },
@@ -11609,7 +11872,8 @@
           2
          ],
          "model": "modern:sofa",
-         "finish": "grey"
+         "finish": "grey",
+         "accent": "oak"
         }
        ]
       },
@@ -11830,7 +12094,8 @@
           2
          ],
          "model": "modern:sofa",
-         "finish": "grey"
+         "finish": "grey",
+         "accent": "oak"
         }
        ]
       },
@@ -12051,7 +12316,8 @@
           2
          ],
          "model": "modern:sofa",
-         "finish": "grey"
+         "finish": "grey",
+         "accent": "oak"
         }
        ]
       },
@@ -12272,7 +12538,8 @@
           2
          ],
          "model": "modern:sofa",
-         "finish": "grey"
+         "finish": "grey",
+         "accent": "oak"
         }
        ]
       },
@@ -12486,7 +12753,8 @@
           2
          ],
          "model": "modern:sofa",
-         "finish": "grey"
+         "finish": "grey",
+         "accent": "oak"
         }
        ]
       },
@@ -12706,7 +12974,8 @@
           2
          ],
          "model": "modern:sofa",
-         "finish": "grey"
+         "finish": "grey",
+         "accent": "oak"
         }
        ]
       },
@@ -12926,7 +13195,8 @@
           2
          ],
          "model": "modern:sofa",
-         "finish": "grey"
+         "finish": "grey",
+         "accent": "oak"
         }
        ]
       },
@@ -13146,7 +13416,8 @@
           2
          ],
          "model": "modern:sofa",
-         "finish": "grey"
+         "finish": "grey",
+         "accent": "oak"
         }
        ]
       },
@@ -13366,7 +13637,8 @@
           2
          ],
          "model": "modern:sofa",
-         "finish": "grey"
+         "finish": "grey",
+         "accent": "oak"
         }
        ]
       },
@@ -13586,7 +13858,8 @@
           2
          ],
          "model": "modern:sofa",
-         "finish": "grey"
+         "finish": "grey",
+         "accent": "oak"
         }
        ]
       },
@@ -13803,7 +14076,8 @@
           2
          ],
          "model": "modern:sofa",
-         "finish": "grey"
+         "finish": "grey",
+         "accent": "oak"
         }
        ]
       },
@@ -14026,7 +14300,8 @@
           2
          ],
          "model": "modern:sofa",
-         "finish": "grey"
+         "finish": "grey",
+         "accent": "oak"
         }
        ]
       },
@@ -14250,7 +14525,8 @@
           2
          ],
          "model": "modern:sofa",
-         "finish": "grey"
+         "finish": "grey",
+         "accent": "oak"
         }
        ]
       },
@@ -14470,7 +14746,8 @@
           2
          ],
          "model": "modern:sofa",
-         "finish": "grey"
+         "finish": "grey",
+         "accent": "oak"
         }
        ]
       },
@@ -14689,7 +14966,8 @@
           2
          ],
          "model": "modern:sofa",
-         "finish": "grey"
+         "finish": "grey",
+         "accent": "oak"
         }
        ]
       },
@@ -14909,7 +15187,8 @@
           2
          ],
          "model": "modern:sofa",
-         "finish": "grey"
+         "finish": "grey",
+         "accent": "oak"
         }
        ]
       },
@@ -15135,7 +15414,8 @@
           2
          ],
          "model": "modern:sofa",
-         "finish": "grey"
+         "finish": "grey",
+         "accent": "oak"
         }
        ]
       },
@@ -15355,7 +15635,8 @@
           2
          ],
          "model": "modern:sofa",
-         "finish": "grey"
+         "finish": "grey",
+         "accent": "oak"
         }
        ]
       },
@@ -15576,7 +15857,8 @@
           2
          ],
          "model": "modern:sofa",
-         "finish": "grey"
+         "finish": "grey",
+         "accent": "oak"
         }
        ]
       },
@@ -15798,7 +16080,8 @@
           2
          ],
          "model": "modern:sofa",
-         "finish": "grey"
+         "finish": "grey",
+         "accent": "oak"
         }
        ]
       },
@@ -16016,7 +16299,8 @@
           2
          ],
          "model": "modern:sofa",
-         "finish": "grey"
+         "finish": "grey",
+         "accent": "oak"
         }
        ]
       },
@@ -16236,7 +16520,8 @@
           2
          ],
          "model": "modern:sofa",
-         "finish": "grey"
+         "finish": "grey",
+         "accent": "oak"
         }
        ]
       },
@@ -16456,7 +16741,8 @@
           2
          ],
          "model": "modern:sofa",
-         "finish": "grey"
+         "finish": "grey",
+         "accent": "oak"
         }
        ]
       },
@@ -16672,7 +16958,8 @@
           2
          ],
          "model": "modern:sofa",
-         "finish": "grey"
+         "finish": "grey",
+         "accent": "oak"
         }
        ]
       },
@@ -16892,7 +17179,8 @@
           2
          ],
          "model": "modern:sofa",
-         "finish": "grey"
+         "finish": "grey",
+         "accent": "oak"
         }
        ]
       },
@@ -17112,7 +17400,8 @@
           2
          ],
          "model": "modern:sofa",
-         "finish": "grey"
+         "finish": "grey",
+         "accent": "oak"
         }
        ]
       },

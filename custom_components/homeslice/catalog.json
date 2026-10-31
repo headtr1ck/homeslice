@@ -427,6 +427,12 @@
     "blue",
     "terracotta",
     "pink"
+   ],
+   "accents": [
+    "black",
+    "oak",
+    "brass",
+    "chrome"
    ]
   },
   {
@@ -447,6 +453,12 @@
     "blue",
     "terracotta",
     "pink"
+   ],
+   "accents": [
+    "black",
+    "oak",
+    "brass",
+    "chrome"
    ]
   },
   {
@@ -467,6 +479,12 @@
     "blue",
     "terracotta",
     "pink"
+   ],
+   "accents": [
+    "black",
+    "oak",
+    "brass",
+    "chrome"
    ]
   },
   {
@@ -487,6 +505,12 @@
     "blue",
     "terracotta",
     "pink"
+   ],
+   "accents": [
+    "black",
+    "oak",
+    "brass",
+    "chrome"
    ]
   },
   {
@@ -505,6 +529,12 @@
     "walnut",
     "black",
     "anthracite"
+   ],
+   "accents": [
+    "black",
+    "oak",
+    "brass",
+    "white"
    ]
   },
   {
@@ -541,6 +571,11 @@
     "black",
     "white",
     "marble"
+   ],
+   "accents": [
+    "black",
+    "brass",
+    "chrome"
    ]
   },
   {
@@ -576,6 +611,12 @@
     "oak",
     "white",
     "marble"
+   ],
+   "accents": [
+    "black",
+    "brass",
+    "chrome",
+    "white"
    ]
   },
   {
@@ -594,6 +635,11 @@
     "walnut",
     "black",
     "anthracite"
+   ],
+   "accents": [
+    "black",
+    "oak",
+    "brass"
    ]
   },
   {
@@ -857,6 +903,11 @@
     "white",
     "oak",
     "sand"
+   ],
+   "accents": [
+    "chrome",
+    "black",
+    "brass"
    ]
   },
   {
@@ -874,6 +925,11 @@
     "white",
     "oak",
     "sand"
+   ],
+   "accents": [
+    "black",
+    "brass",
+    "chrome"
    ]
   },
   {
@@ -891,6 +947,12 @@
     "white",
     "oak",
     "sand"
+   ],
+   "accents": [
+    "black",
+    "brass",
+    "chrome",
+    "white"
    ]
   },
   {
@@ -908,6 +970,11 @@
     "white",
     "oak",
     "sand"
+   ],
+   "accents": [
+    "black",
+    "brass",
+    "chrome"
    ]
   },
   {
@@ -1054,6 +1121,13 @@
     "walnut",
     "white",
     "black"
+   ],
+   "accents": [
+    "black",
+    "oak",
+    "walnut",
+    "white",
+    "chrome"
    ]
   },
   {
@@ -1071,6 +1145,13 @@
     "walnut",
     "white",
     "black",
+    "marble"
+   ],
+   "accents": [
+    "black",
+    "oak",
+    "walnut",
+    "white",
     "marble"
    ]
   },
@@ -1091,6 +1172,12 @@
     "green",
     "terracotta",
     "sand"
+   ],
+   "accents": [
+    "oak",
+    "black",
+    "chrome",
+    "walnut"
    ]
   },
   {
@@ -1123,6 +1210,11 @@
     "black",
     "oak",
     "white"
+   ],
+   "accents": [
+    "black",
+    "brass",
+    "chrome"
    ]
   },
   {
@@ -1142,6 +1234,14 @@
     "green",
     "blue",
     "black"
+   ],
+   "accents": [
+    "marble",
+    "concrete",
+    "white",
+    "oak",
+    "black",
+    "anthracite"
    ]
   },
   {
@@ -1160,6 +1260,13 @@
     "oak",
     "green",
     "blue",
+    "black"
+   ],
+   "accents": [
+    "marble",
+    "concrete",
+    "white",
+    "oak",
     "black"
    ]
   },
@@ -1221,6 +1328,12 @@
     "blue",
     "pink",
     "oak"
+   ],
+   "accents": [
+    "black",
+    "oak",
+    "brass",
+    "chrome"
    ]
   },
   {
@@ -1241,6 +1354,12 @@
     "blue",
     "pink",
     "oak"
+   ],
+   "accents": [
+    "black",
+    "oak",
+    "brass",
+    "chrome"
    ]
   },
   {
@@ -1259,6 +1378,11 @@
     "walnut",
     "black",
     "anthracite"
+   ],
+   "accents": [
+    "black",
+    "oak",
+    "brass"
    ]
   },
   {
@@ -1316,6 +1440,11 @@
     "black",
     "anthracite",
     "grey"
+   ],
+   "accents": [
+    "black",
+    "chrome",
+    "brass"
    ]
   },
   {
@@ -1350,6 +1479,11 @@
     "walnut",
     "black",
     "anthracite"
+   ],
+   "accents": [
+    "black",
+    "oak",
+    "brass"
    ]
   },
   {
@@ -1367,6 +1501,12 @@
     "white",
     "walnut",
     "black"
+   ],
+   "accents": [
+    "black",
+    "white",
+    "chrome",
+    "oak"
    ]
   },
   {
@@ -1382,6 +1522,11 @@
    "finishes": [
     "black",
     "grey",
+    "white"
+   ],
+   "accents": [
+    "black",
+    "chrome",
     "white"
    ]
   },
@@ -1451,6 +1596,11 @@
     "oak",
     "white"
    ],
+   "accents": [
+    "black",
+    "brass",
+    "chrome"
+   ],
    "mount": "wall",
    "elevation": 1.15
   },
@@ -1519,6 +1669,11 @@
    "finishes": [
     "white",
     "black"
+   ],
+   "accents": [
+    "chrome",
+    "black",
+    "brass"
    ]
   },
   {
@@ -1534,6 +1689,11 @@
    "finishes": [
     "white",
     "black"
+   ],
+   "accents": [
+    "chrome",
+    "black",
+    "brass"
    ]
   },
   {
@@ -1552,6 +1712,11 @@
     "walnut",
     "black",
     "anthracite"
+   ],
+   "accents": [
+    "chrome",
+    "black",
+    "brass"
    ]
   },
   {
@@ -1570,6 +1735,11 @@
     "walnut",
     "black",
     "anthracite"
+   ],
+   "accents": [
+    "chrome",
+    "black",
+    "brass"
    ]
   },
   {
@@ -1587,6 +1757,11 @@
     "concrete",
     "marble",
     "black"
+   ],
+   "accents": [
+    "chrome",
+    "black",
+    "brass"
    ]
   },
   {
@@ -1620,6 +1795,11 @@
    "finishes": [
     "black",
     "white"
+   ],
+   "accents": [
+    "chrome",
+    "black",
+    "brass"
    ]
   },
   {
@@ -1636,6 +1816,11 @@
     "white",
     "black",
     "concrete"
+   ],
+   "accents": [
+    "chrome",
+    "black",
+    "brass"
    ]
   },
   {
@@ -1970,6 +2155,11 @@
     "oak",
     "anthracite",
     "white"
+   ],
+   "accents": [
+    "anthracite",
+    "black",
+    "silver"
    ]
   },
   {
@@ -1986,6 +2176,11 @@
     "anthracite",
     "sand",
     "grey"
+   ],
+   "accents": [
+    "anthracite",
+    "black",
+    "oak"
    ]
   },
   {
@@ -2003,6 +2198,11 @@
     "terracotta",
     "green",
     "beige"
+   ],
+   "accents": [
+    "oak",
+    "walnut",
+    "black"
    ]
   },
   {
@@ -2020,6 +2220,11 @@
     "terracotta",
     "blue",
     "green"
+   ],
+   "accents": [
+    "oak",
+    "walnut",
+    "black"
    ]
   },
   {
@@ -2037,6 +2242,11 @@
     "oak",
     "walnut",
     "grey"
+   ],
+   "accents": [
+    "black",
+    "anthracite",
+    "silver"
    ]
   },
   {
@@ -2494,7 +2704,9 @@
   "concrete",
   "marble",
   "red",
-  "silver"
+  "silver",
+  "brass",
+  "chrome"
  ],
  "kenney": [
   {

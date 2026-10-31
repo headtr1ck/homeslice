@@ -28,7 +28,7 @@ export function catalog() {
       Object.entries(FURNITURE).map(([t, d]) => [t, { name: name(`furniture.${t}`), size: d.size, height: d.height, ...(d.mount ? { mount: d.mount } : {}), ...(d.elevation !== undefined ? { elevation: d.elevation } : {}) }]),
     ),
     modern: MODERN_GROUPS.flatMap((g) =>
-      g.kinds.map((k) => ({ model: `modern:${k.id}`, name: name(`modern.${k.id}`), group: g.id, type: k.type, size: k.size, finishes: k.finishes, ...(k.mount ? { mount: k.mount } : {}), ...(k.elevation !== undefined ? { elevation: k.elevation } : {}) })),
+      g.kinds.map((k) => ({ model: `modern:${k.id}`, name: name(`modern.${k.id}`), group: g.id, type: k.type, size: k.size, finishes: k.finishes, ...(k.accents ? { accents: k.accents } : {}), ...(k.mount ? { mount: k.mount } : {}), ...(k.elevation !== undefined ? { elevation: k.elevation } : {}) })),
     ),
     finishes: Object.keys(FINISHES),
     kenney: KENNEY_ITEMS.map((i) => ({ model: `kenney:${i.file}`, type: i.type })),

@@ -1143,7 +1143,7 @@ export class HouseRenderer {
       if (generation !== this.generation) return;
       let piece: THREE.Group | null;
       if (mod) {
-        piece = mod.buildModern(f.model!.slice(7), f.size, f.height, f.finish);
+        piece = mod.buildModern(f.model!.slice(7), f.size, f.height, f.finish, f.accent);
         piece?.traverse((o) => {
           if (o instanceof THREE.Mesh) o.material = Array.isArray(o.material) ? o.material.map(convert) : convert(o.material);
         });
