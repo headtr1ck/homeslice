@@ -49,6 +49,7 @@ export function makeHass(fixture, onChange) {
       for (const callback of subscribers) callback({ model: structuredClone(model) });
     },
     saved: [],
+    areaUpdates: [],
     async callWS(msg) {
       // several houses: the fixture's model is the first; `houses` holds the rest
       const houses = (fixture.houses ??= fixture.model ? { [fixture.model.id]: fixture.model } : {});
@@ -64,6 +65,12 @@ export function makeHass(fixture, onChange) {
       if (msg.type === "homeslice/underlay/delete") {
         delete underlays[`${msg.house}/${msg.level}`];
         return null;
+      }
+      if (msg.type === "config/area_registry/update") {
+        hass.areaUpdates.push(structuredClone(msg));
+        const { type, id, area_id, ...patch } = msg;
+        Object.assign(fixture.areas[area_id], patch);
+        return structuredClone(fixture.areas[area_id]);
       }
       if (msg.type === "energy/get_prefs") return structuredClone(fixture.energy_prefs ?? { energy_sources: [], device_consumption: [] });
       if (msg.type === "homeslice/model") {

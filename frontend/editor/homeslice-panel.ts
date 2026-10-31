@@ -454,6 +454,21 @@ export class HomeslicePanel extends LitElement {
       this._energyPlace = null;
       this._drag = null;
       this._rectPreview = null;
+    } else if (e.key.startsWith("Arrow") && this._model && (this._stair || this._energySel !== null)) {
+      // nudge the selected stairs or energy item: 5 cm, Shift 50 cm
+      e.preventDefault();
+      const step = e.shiftKey ? 0.5 : 0.05;
+      const d: Vec2 = { ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, -step], ArrowDown: [0, step] }[e.key] as Vec2 ?? [0, 0];
+      if (this._stair && this._mode === "rooms") {
+        const v = this._model.vertical?.find((x) => x.id === this._stair);
+        if (v) {
+          const [x, y, w, h] = stairsRect(this._model, v);
+          this.commit(setStairsRect(this._model, v.id, [x + d[0], y + d[1], w, h]));
+        }
+      } else if (this._energySel !== null && this._mode === "objects") {
+        const en = this._model.energy?.[this._energySel];
+        if (en?.at) this.commit(updateEnergy(this._model, this._energySel, { at: [en.at[0] + d[0], en.at[1] + d[1]] }));
+      }
     } else if (e.key === "r" && !mod) this._tool = "rect";
     else if (e.key === "s" && !mod && this._mode === "rooms") this._tool = "stairs";
     else if (e.key === "v" && !mod) this._tool = "select";
@@ -1634,6 +1649,43 @@ export class HomeslicePanel extends LitElement {
           }
         }} />
       </label>
+      ${r.rect && typeof r.rect[0] === "number" && typeof r.rect[1] === "number"
+        ? (() => {
+            const [x, y, w, d] = r.rect as [number, number, number, number];
+            // moving the east or south wall, like dragging it (neighbours follow)
+            const resize = (axis: 0 | 1, value: number) => {
+              if (!(value > 0.3)) return;
+              const delta = value - (axis === 0 ? w : d);
+              if (Math.abs(delta) < 1e-6) return;
+              const a: Vec2 = axis === 0 ? [x + w, y] : [x, y + d];
+              const b: Vec2 = axis === 0 ? [x + w, y + d] : [x + w, y + d];
+              this.commit(moveEdge(m, this._level, a, b, axis === 0 ? [delta, 0] : [0, delta]));
+            };
+            return html`<div class="row">
+              <label>${this.t("editor.room_width")}
+                <input type="number" min="0.3" step="0.05" .value=${String(w)} @change=${(e: Event) => resize(0, Number((e.target as HTMLInputElement).value))} />
+              </label>
+              <label>${this.t("editor.room_depth")}
+                <input type="number" min="0.3" step="0.05" .value=${String(d)} @change=${(e: Event) => resize(1, Number((e.target as HTMLInputElement).value))} />
+              </label>
+            </div>
+            <p class="muted">${this.t("editor.room_size_hint")}</p>`;
+          })()
+        : nothing}
+      ${r.area_id && this._hass?.areas?.[r.area_id]
+        ? (() => {
+            const areaId = r.area_id!;
+            const current = this._hass!.areas![areaId].temperature_entity_id ?? undefined;
+            return html`${this.entitySelect(this.t("editor.temperature_sensor"), "sensor", areaId, current, async (entity) => {
+                try {
+                  await this._hass!.callWS({ type: "config/area_registry/update", area_id: areaId, temperature_entity_id: entity ?? null });
+                } catch (e) {
+                  this._error = String((e as { message?: string }).message ?? e);
+                }
+              }, (id) => this._hass?.states[id]?.attributes.device_class === "temperature")}
+              <p class="muted">${this.t("editor.temperature_hint")}</p>`;
+          })()
+        : nothing}
       <label>${this.t("editor.kind")}
         <select @change=${(e: Event) => set({ kind: (e.target as HTMLSelectElement).value as RoomInput["kind"] })}>
           ${(["room", "outdoor", "void"] as const).map((k) => html`<option value=${k} ?selected=${(r.kind ?? "room") === k}>${this.t(`editor.kind_${k}` as StringKey)}</option>`)}

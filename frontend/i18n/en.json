@@ -215,5 +215,10 @@
   "editor.paste_invalid": "That is not a house model.",
   "editor.danger": "Delete",
   "editor.delete_house": "Delete house",
-  "editor.delete_house_confirm": "Delete the house “{name}” for good? Its floor plan images go too. This can't be undone."
+  "editor.delete_house_confirm": "Delete the house “{name}” for good? Its floor plan images go too. This can't be undone.",
+  "editor.room_width": "Width west–east (m)",
+  "editor.room_depth": "Depth north–south (m)",
+  "editor.room_size_hint": "Measured on the wall centre lines; changing it moves the east or south wall, and the rooms next to it follow.",
+  "editor.temperature_sensor": "Temperature sensor",
+  "editor.temperature_hint": "Saved in the Home Assistant area, so other dashboards use it too. Empty: the area's first temperature sensor."
 }

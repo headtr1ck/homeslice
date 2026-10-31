@@ -576,6 +576,23 @@ console.log("editor");
     assert((await page.locator("homeslice-panel svg.plan circle.vertex").count()) === 4, "kitchen should have 4 corner handles");
   });
 
+  await test("a rectangular room's size can be typed; the temperature sensor goes to the HA area", async () => {
+    const before = await room("kitchen");
+    const width = page.locator("homeslice-panel .inspector label", { hasText: "Width west–east" }).locator("input");
+    await width.fill(String(before.rect[2] - 0.5));
+    await width.dispatchEvent("change");
+    assert(JSON.stringify((await room("kitchen")).rect) === JSON.stringify([before.rect[0], before.rect[1], before.rect[2] - 0.5, before.rect[3]]), `kitchen: ${JSON.stringify(await room("kitchen"))}`);
+    await width.evaluate((el) => el.blur());
+    await page.keyboard.press("Control+z");
+    assert(JSON.stringify(await room("kitchen")) === JSON.stringify(before), "undo");
+    const temp = page.locator("homeslice-panel .inspector label", { hasText: "Temperature sensor" }).locator("select");
+    const options = await temp.locator("option").allTextContents();
+    assert(options.length >= 2, `temperature options: ${options}`);
+    await temp.selectOption({ index: 1 });
+    const updates = await page.evaluate(() => window.panel.hass.areaUpdates);
+    assert(updates.at(-1)?.area_id === "kitchen" && updates.at(-1).temperature_entity_id, `area update: ${JSON.stringify(updates)}`);
+  });
+
   await test("dragging a shared wall moves both rooms; undo and redo", async () => {
     // the wall between hall (x 0–3) and kitchen (x 3–8)
     const handle = page.locator('homeslice-panel svg.plan rect.edge-handle[data-at="[[3,4],[3,0]]"], homeslice-panel svg.plan rect.edge-handle[data-at="[[3,0],[3,4]]"]');
