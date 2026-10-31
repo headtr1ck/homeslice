@@ -10,15 +10,76 @@
   "outdoor",
   "void"
  ],
- "floors": [
+ "floor_finishes": [
+  "none",
   "wood",
+  "oak_light",
+  "oak_herringbone",
+  "oak_chevron",
+  "walnut",
+  "oak_grey",
+  "parquet_squares",
   "tile",
-  "carpet",
+  "tile_white",
+  "tile_black",
+  "terrazzo",
+  "tile_hex",
+  "tile_checker",
+  "tile_cement",
   "concrete",
+  "concrete_polished",
+  "marble",
+  "slate",
+  "travertine",
+  "stone_flags",
+  "carpet",
+  "carpet_grey",
+  "sisal",
+  "lawn",
   "paving",
   "gravel",
-  "lawn",
-  "none"
+  "decking",
+  "cobbles"
+ ],
+ "wall_finishes": [
+  "tile",
+  "tile_white",
+  "tile_black",
+  "terrazzo",
+  "tile_hex",
+  "tile_cement",
+  "tile_subway",
+  "tile_zellige",
+  "concrete",
+  "marble",
+  "slate",
+  "travertine",
+  "stone_flags",
+  "paint_white",
+  "paint_warm",
+  "paint_grey",
+  "paint_sage",
+  "paint_terracotta",
+  "paint_ochre",
+  "paint_blush",
+  "paint_navy",
+  "paint_green",
+  "paint_charcoal",
+  "limewash",
+  "wallpaper_stripes",
+  "wallpaper_leaves",
+  "acoustic_oak",
+  "acoustic_walnut",
+  "acoustic_black",
+  "veneer_oak",
+  "veneer_walnut",
+  "beadboard",
+  "wood_cladding",
+  "brick_red",
+  "brick_white",
+  "brick_grey",
+  "render_white",
+  "render_grey"
  ],
  "opening_types": [
   "window",
@@ -808,6 +869,7 @@
    ],
    "finishes": [
     "concrete",
+    "terrazzo",
     "oak",
     "white",
     "marble",
@@ -828,7 +890,8 @@
     "black",
     "oak",
     "white",
-    "marble"
+    "marble",
+    "terrazzo"
    ],
    "accents": [
     "black",
@@ -2067,6 +2130,7 @@
    "accents": [
     "marble",
     "concrete",
+    "terrazzo",
     "white",
     "oak",
     "black",
@@ -2094,9 +2158,11 @@
    "accents": [
     "marble",
     "concrete",
+    "terrazzo",
     "white",
     "oak",
-    "black"
+    "black",
+    "anthracite"
    ]
   },
   {
@@ -2161,6 +2227,7 @@
    "accents": [
     "marble",
     "concrete",
+    "terrazzo",
     "white",
     "oak",
     "black",
@@ -2189,6 +2256,7 @@
    "accents": [
     "marble",
     "concrete",
+    "terrazzo",
     "white",
     "oak",
     "black",
@@ -2217,6 +2285,7 @@
    "accents": [
     "marble",
     "concrete",
+    "terrazzo",
     "white",
     "oak",
     "black",
@@ -2245,6 +2314,7 @@
    "accents": [
     "marble",
     "concrete",
+    "terrazzo",
     "white",
     "oak",
     "black",
@@ -2273,6 +2343,7 @@
    "accents": [
     "marble",
     "concrete",
+    "terrazzo",
     "white",
     "oak",
     "black",
@@ -2301,6 +2372,7 @@
    "accents": [
     "marble",
     "concrete",
+    "terrazzo",
     "white",
     "oak",
     "black",
@@ -2329,6 +2401,7 @@
    "accents": [
     "marble",
     "concrete",
+    "terrazzo",
     "white",
     "oak",
     "black",
@@ -2357,6 +2430,7 @@
    "accents": [
     "marble",
     "concrete",
+    "terrazzo",
     "white",
     "oak",
     "black",
@@ -2385,6 +2459,7 @@
    "accents": [
     "marble",
     "concrete",
+    "terrazzo",
     "white",
     "oak",
     "black",
@@ -7033,7 +7108,8 @@
   "silver",
   "brass",
   "chrome",
-  "autumn"
+  "autumn",
+  "terrazzo"
  ],
  "energy_kinds": [
   "solar",

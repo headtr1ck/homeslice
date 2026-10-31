@@ -110,7 +110,8 @@ def catalog_text() -> str:
     lines = [
         "## Catalogue",
         "",
-        f"Floors: {', '.join(c['floors'])}.",
+        f"Floor finishes (room floor): {', '.join(c['floor_finishes'])}.",
+        f"Wall finishes (room wall and wall_sides, house facade): {', '.join(c['wall_finishes'])}.",
         "Opening styles: " + "; ".join(f"{t}: {', '.join(s)}" for t, s in c["opening_styles"].items()) + ".",
         "",
         "Furniture types (default width × depth × height in metres, mount if not the floor):",

@@ -7,11 +7,11 @@ import * as THREE from "three";
 import { simplePiece } from "./simple";
 import { detailFor, fitModel, loadModel, modelColor } from "./models";
 import { nearestCorner, offsetPolygon, perimeterPath } from "../model/route";
-import { floorTexture } from "./textures";
+import { finishLook } from "./finishes";
 import { Line2 } from "three/examples/jsm/lines/Line2.js";
 import { LineGeometry } from "three/examples/jsm/lines/LineGeometry.js";
 import { LineMaterial } from "three/examples/jsm/lines/LineMaterial.js";
-import type { House, Level, Vec2, Vertical } from "../model/types";
+import type { House, Level, Side, Vec2, Vertical } from "../model/types";
 import { innerPolygon, type Wall, type WallOpening } from "../model/walls";
 import { bbox, overlap, pointInPolygon } from "../model/geometry";
 import { stairFrame, stairHole } from "../model/stairs";
@@ -102,15 +102,6 @@ interface CameraState {
   fov: number;
 }
 
-const FLOOR_COLORS: Record<string, string> = {
-  wood: "#b07c49",
-  tile: "#a7acb1",
-  concrete: "#8d8f92",
-  carpet: "#9a8f84",
-  lawn: "#5f8f4c",
-  paving: "#9b9285",
-  gravel: "#a39b8f",
-};
 const COLORS = {
   wall: "#eeeae3",
   slab: "#6f7275",
@@ -301,6 +292,8 @@ export class HouseRenderer {
   /** Upper parts of outer walls, hidden while they face a low camera. */
   private cuttables: { mesh: THREE.Mesh; normal: Vec2 }[] = [];
   private building: Set<THREE.Material> | null = null;
+  /** The house's facade finish (outside faces of exterior walls). */
+  private facade?: string;
   private size = { width: 1, height: 1 };
   private focus: number | null = null;
   private animation = 0;
@@ -339,6 +332,7 @@ export class HouseRenderer {
   setModel(house: House, walls: Map<string, Wall[]>, view: Partial<ViewOptions> = {}) {
     this.view = { ...DEFAULT_VIEW, ...view, focus: { ...DEFAULT_VIEW.focus, ...view.focus }, levels: view.levels ?? {} };
     this.clear();
+    this.facade = house.facade;
     for (const level of house.levels) {
       const materials = new Set<THREE.Material>();
       this.building = materials;
@@ -403,7 +397,7 @@ export class HouseRenderer {
     this.cuttables = [];
   }
 
-  private mesh<M extends THREE.Material>(geometry: THREE.BufferGeometry, material: M, shadows = true) {
+  private mesh<M extends THREE.Material | THREE.Material[]>(geometry: THREE.BufferGeometry, material: M, shadows = true) {
     const m = new THREE.Mesh(geometry, material);
     m.castShadow = shadows;
     m.receiveShadow = true;
@@ -435,9 +429,9 @@ export class HouseRenderer {
       const geo = new THREE.ShapeGeometry(shapeOf(floorPoly, inside));
       geo.rotateX(-Math.PI / 2);
       geo.translate(0, room.kind === "outdoor" ? -level.slab + 0.01 : 0.004, 0);
-      const color = FLOOR_COLORS[room.floor] ?? FLOOR_COLORS.wood;
+      // its finish: a texture in plan metres, or a colour
+      const { map, color } = finishLook(room.floor);
       // outdoor areas reach over the floors below in the exploded view: keep them see-through
-      const map = floorTexture(room.floor);
       const material = room.kind === "outdoor" ? this.lambert(color, { map, transparent: true, opacity: 0.55, depthWrite: false }) : this.lambert(color, { map });
       const floor = this.mesh(geo, material, false);
       floor.userData.room = `${level.id}/${room.id}`;
@@ -450,8 +444,28 @@ export class HouseRenderer {
 
     for (const room of level.rooms) if (room.awning && (room.kind !== "outdoor" || this.view.showOutdoor)) this.awning(g, level, room);
 
-    // walls, split around openings
+    // walls, split around openings; each face in its room's finish (or the facade's)
     const wallMat = this.lambert(COLORS.wall);
+    const finishMats = new Map<string, THREE.MeshLambertMaterial>();
+    const finishMat = (id: string | undefined) => {
+      if (!id) return wallMat;
+      let m = finishMats.get(id);
+      if (!m) {
+        const look = finishLook(id);
+        finishMats.set(id, (m = this.lambert(look.color, { map: look.map })));
+      }
+      return m;
+    };
+    const rooms = level.rooms.filter((r) => r.kind === "room");
+    /** The finish of a wall face looking along n from the wall's middle. */
+    const faceFinish = (w: Wall, n: Vec2): string | undefined => {
+      const mid: Vec2 = [(w.a[0] + w.b[0]) / 2 + n[0] * (w.thickness / 2 + 0.05), (w.a[1] + w.b[1]) / 2 + n[1] * (w.thickness / 2 + 0.05)];
+      const room = rooms.find((r) => pointInPolygon(mid, r.polygon));
+      if (!room) return w.type === "exterior" ? this.facade : undefined;
+      // the room's wall on its north side faces south, and so on
+      const side: Side = Math.abs(n[0]) > Math.abs(n[1]) ? (n[0] > 0 ? "west" : "east") : n[1] > 0 ? "north" : "south";
+      return room.wallSides?.[side] ?? room.wall;
+    };
     const glass = this.lambert(COLORS.glass, { transparent: true, opacity: 0.45 });
     const garage = this.lambert(COLORS.garageDoor);
     const doorLeaf = this.lambert(COLORS.door);
@@ -459,12 +473,16 @@ export class HouseRenderer {
     const frosted = this.lambert(COLORS.frosted, { transparent: true, opacity: 0.85 });
     for (const w of walls) {
       if (w.type === "open") continue; // rooms open to each other: no wall
+      const finishes: [THREE.Material, THREE.Material] = [finishMat(faceFinish(w, w.normal)), finishMat(faceFinish(w, [-w.normal[0], -w.normal[1]]))];
+      const painted = finishes[0] !== wallMat || finishes[1] !== wallMat;
       // outer walls are split at the cut height; the upper part hides while it faces a low camera
       const cuttable = w.type !== "interior";
       const cutAt = Math.min(this.view.cutHeight, w.height);
       const H = w.height;
-      const box = (s: number, e: number, z0: number, z1: number, mat: THREE.Material, thickness = w.thickness) => {
+      const box = (s: number, e: number, z0: number, z1: number, plain: THREE.Material, thickness = w.thickness) => {
         if (e - s < 1e-3 || z1 - z0 < 1e-3) return;
+        // wall pieces carry their faces' finishes (frames and leaves stay as they are)
+        const mat: THREE.Material | THREE.Material[] = plain === wallMat && painted ? this.wallFaces(w, wallMat, finishes) : plain;
         if (!cuttable || z1 <= cutAt + 1e-3) {
           g.add(this.wallBox(w, s, e, z0, z1, thickness, mat));
           return;
@@ -562,14 +580,38 @@ export class HouseRenderer {
     this.covers.set(o.id, { shutter, strip: { mesh: strip, material: stripMaterial }, normal: w.normal, cuttable, closed: 0 });
   }
 
-  private wallBox(w: Wall, s: number, e: number, z0: number, z1: number, thickness: number, mat: THREE.Material, offset = 0) {
+  /**
+   * The six materials of a wall box: its two long faces in their finishes (+z local is
+   * the side of the wall's normal or the other), the rest plain.
+   */
+  private wallFaces(w: Wall, plain: THREE.Material, finishes: [THREE.Material, THREE.Material]): THREE.Material[] {
+    const length = Math.hypot(w.b[0] - w.a[0], w.b[1] - w.a[1]);
+    const ux = (w.b[0] - w.a[0]) / length;
+    const uy = (w.b[1] - w.a[1]) / length;
+    const plusZIsNormal = -uy * w.normal[0] + ux * w.normal[1] > 0;
+    const [pz, nz] = plusZIsNormal ? finishes : [finishes[1], finishes[0]];
+    return [plain, plain, plain, plain, pz, nz];
+  }
+
+  private wallBox(w: Wall, s: number, e: number, z0: number, z1: number, thickness: number, mat: THREE.Material | THREE.Material[], offset = 0) {
     const dx = w.b[0] - w.a[0];
     const dy = w.b[1] - w.a[1];
     const length = Math.hypot(dx, dy);
     const ux = dx / length;
     const uy = dy / length;
     const mid = (s + e) / 2;
-    const m = this.mesh(new THREE.BoxGeometry(e - s, z1 - z0, thickness), mat);
+    const geo = new THREE.BoxGeometry(e - s, z1 - z0, thickness);
+    if (Array.isArray(mat)) {
+      // texture coordinates in metres along the wall and up, so patterns run on across pieces
+      const pos = geo.attributes.position;
+      const uv = geo.attributes.uv;
+      for (const group of geo.groups.slice(4))
+        for (let i = 0; i < group.count; i++) {
+          const k = geo.index!.getX(group.start + i);
+          uv.setXY(k, (pos.getZ(k) > 0 ? 1 : -1) * (mid + pos.getX(k)), (z0 + z1) / 2 + pos.getY(k));
+        }
+    }
+    const m = this.mesh(geo, mat);
     m.position.set(w.a[0] + ux * mid + w.normal[0] * offset, (z0 + z1) / 2, w.a[1] + uy * mid + w.normal[1] * offset);
     m.rotation.y = Math.atan2(-dy, dx);
     return m;

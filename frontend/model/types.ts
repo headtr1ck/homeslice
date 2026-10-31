@@ -27,7 +27,12 @@ export interface RoomInput extends ShapeInput {
   area_id?: string;
   name?: string;
   kind?: RoomKind;
+  /** The floor's finish: wood, oak_herringbone, tile_white, concrete… or polyhaven:<texture> (see model/finishes.ts). */
   floor?: string;
+  /** The finish of the room's inside walls: paint_white, acoustic_oak, brick_red… (default plain white). */
+  wall?: string;
+  /** One side's wall in another finish (an accent wall), e.g. {north: acoustic_oak}. */
+  wall_sides?: Partial<Record<Side, string>>;
   /** Cover entity of an awning over this (outdoor) area, mounted on the house wall. */
   awning?: string;
   /**
@@ -305,6 +310,8 @@ export interface HouseInput {
   grid?: { x?: Record<string, number>; y?: Record<string, number> };
   walls?: Partial<WallThickness>;
   party_walls?: Side[];
+  /** The outside of the exterior walls: render_white, brick_red, wood_cladding… (default plain). */
+  facade?: string;
   /**
    * Covers that report their position the other way round (open when a blind is down,
    * or when an awning is rolled up). Without them: blinds are open when rolled up,
@@ -373,6 +380,8 @@ export interface Room {
   /** Positive shoelace area in plan coordinates (see geometry.signedArea). */
   polygon: Vec2[];
   awning?: string;
+  wall?: string;
+  wallSides?: Partial<Record<Side, string>>;
   /** As in the input, with `at` in plan coordinates. */
   /** `piece`: the light of a piece of furniture (placed where the piece is). */
   lights: { entity: string; at?: Vec2; hidden: boolean; piece?: boolean }[];
@@ -443,6 +452,7 @@ export interface House {
   roof: Required<RoofInput>;
   energy: Energy[];
   invertedCovers: string[];
+  facade?: string;
   robots: Robot[];
   north: number;
 }

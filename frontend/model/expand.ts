@@ -4,6 +4,7 @@
 
 import { bbox, edges, normalizeOrientation, outwardNormal, rectPolygon, sideOf, signedArea } from "./geometry";
 import { FURNITURE } from "./furniture";
+import { FLOOR_FINISHES, WALL_FINISHES } from "./finishes";
 
 /** A furniture model reference (see FurnitureInput.model). */
 // kenney:<name> was a bundled model; such pieces now show their type's built-in piece
@@ -42,6 +43,11 @@ export const DEFAULTS = {
 };
 
 const SIDES = ["north", "south", "east", "west"];
+const TEXTURE_REF = /^polyhaven:[A-Za-z0-9_-]+$/;
+/** A built-in finish of the list, or a Poly Haven texture. */
+const finishOk = (v: unknown, list: string[]) => typeof v === "string" && (list.includes(v) || TEXTURE_REF.test(v));
+const FLOOR_HINT = "a floor finish like wood, oak_herringbone or tile_white (see the catalogue) or polyhaven:<texture>";
+const WALL_HINT = "a wall finish like paint_white, acoustic_oak or brick_red (see the catalogue) or polyhaven:<texture>";
 const OPENING_TYPES = Object.keys(DEFAULTS.opening);
 
 export interface ExpandResult {
@@ -120,6 +126,7 @@ export function expandHouse(input: unknown): ExpandResult {
 
   const walls: WallThickness = { ...DEFAULTS.walls, ...(h.walls ?? {}) };
   const houseOutline = shape(h.outline, "outline");
+  if (h.facade !== undefined && !finishOk(h.facade, WALL_FINISHES)) err("facade", `facade must be ${WALL_HINT}, got ${JSON.stringify(h.facade)}.`);
 
   const ids = new Set<string>();
   const levels: Level[] = [];
@@ -141,6 +148,18 @@ export function expandHouse(input: unknown): ExpandResult {
       if (!polygon) {
         if (!ri.rect && !ri.polygon) err(rp, "A room needs rect: [x, y, width, depth] or polygon: [[x, y], …].");
         return;
+      }
+      if (ri.floor !== undefined && !finishOk(ri.floor, FLOOR_FINISHES)) err(`${rp}.floor`, `floor must be ${FLOOR_HINT}, got ${JSON.stringify(ri.floor)}.`);
+      if (ri.wall !== undefined && !finishOk(ri.wall, WALL_FINISHES)) err(`${rp}.wall`, `wall must be ${WALL_HINT}, got ${JSON.stringify(ri.wall)}.`);
+      const wallSides: Partial<Record<Side, string>> = {};
+      if (ri.wall_sides !== undefined) {
+        if (!ri.wall_sides || typeof ri.wall_sides !== "object" || Array.isArray(ri.wall_sides)) err(`${rp}.wall_sides`, "wall_sides must map sides to finishes, e.g. {north: acoustic_oak}.");
+        else
+          for (const [side, v] of Object.entries(ri.wall_sides)) {
+            if (!SIDES.includes(side)) err(`${rp}.wall_sides`, `Unknown side "${side}" (north, south, east or west).`);
+            else if (!finishOk(v, WALL_FINISHES)) err(`${rp}.wall_sides.${side}`, `A wall side must be ${WALL_HINT}, got ${JSON.stringify(v)}.`);
+            else wallSides[side as Side] = v as string;
+          }
       }
       const kind = ri.kind ?? "room";
       const { min } = bbox(polygon);
@@ -191,6 +210,8 @@ export function expandHouse(input: unknown): ExpandResult {
       }
       const room: Room = { id: ri.id, areaId: ri.area_id, name: ri.name, kind, floor: ri.floor ?? DEFAULTS.floor[kind], polygon, lights, furniture };
       if (ri.awning) room.awning = ri.awning;
+      if (ri.wall) room.wall = ri.wall;
+      if (Object.keys(wallSides).length) room.wallSides = wallSides;
       rooms.push(room);
     });
 
@@ -424,5 +445,5 @@ export function expandHouse(input: unknown): ExpandResult {
   });
   if (h.north !== undefined && typeof h.north !== "number") err("north", `north must be degrees (a number), got ${JSON.stringify(h.north)}.`);
   const north = typeof h.north === "number" ? h.north : 0;
-  return { house: { id: h.id, name: h.name ?? h.id, walls, levels, vertical, roof, energy, invertedCovers, robots, north }, issues };
+  return { house: { id: h.id, name: h.name ?? h.id, walls, levels, vertical, roof, energy, invertedCovers, robots, north, ...(h.facade ? { facade: h.facade } : {}) }, issues };
 }

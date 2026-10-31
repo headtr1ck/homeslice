@@ -74,6 +74,12 @@ vertical:
 - `lights` are optional: the area's lights are placed automatically. List one only to
   place it (`at`), hide it (`hidden: true`) or add a light from another area.
 - `awning: cover.…` on an outdoor room: an awning on the house wall over it.
+- Finishes: `floor` (wood, oak_herringbone, tile_white, terrazzo, concrete, carpet…;
+  outdoor: lawn, paving, gravel, decking), `wall` for the room's inside walls (paint_white,
+  paint_sage, acoustic_oak, brick_red, tile_subway…) and `wall_sides: {north: acoustic_oak}`
+  for one side in another finish. `facade` on the house is the outside of the exterior
+  walls (render_white, brick_red, wood_cladding…). All finishes are in the catalogue; a
+  Poly Haven texture is `polyhaven:<texture id>`.
 
 ### Openings (doors and windows)
 

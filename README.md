@@ -61,6 +61,8 @@ repository itself doesn't contain the built frontend; build it with `npm run bui
      inspector), set its scale with two points of a known length, and draw rooms over
      it (`R`). Walls appear by themselves; a wall between two rooms can be dragged on its
      own or switched to *open* (e.g. an open kitchen). Stairs: `S`.
+     Select a room to give its floor and walls a finish (wood, tiles, stone, paint,
+     acoustic panels, brick…), one wall a different one, and the outline for the facade.
    - **2. Doors & windows:** click a wall to add a window, link its blind and contact.
    - **3. Objects & entities:** lights are placed automatically and can be dragged;
      drag furniture from the library (wall pieces go against a wall; `R` to turn); place solar, battery, grid and power-measured
@@ -184,6 +186,7 @@ vertical:
     shape: straight                     # or u_turn (two flights joined by winders)
     up: east                            # direction the first flight climbs
     entry: 0                            # floor before the first step (stairs that start further in)
+facade: brick_red                       # optional: the outside of the exterior walls
 energy:                                 # optional, for the card's energy overlay
   - { kind: solar, roof: south }        # sensors default to HA's energy settings
   - { kind: battery, level: ground, at: [8.5, 1] }
@@ -198,6 +201,9 @@ levels:
       - id: living
         area_id: living_room            # Home Assistant area
         rect: [0, 0, 6, 8]              # x, y, width, depth (or polygon: [[x, y], …])
+        floor: oak_herringbone          # optional finishes: floor, inside walls, one side
+        wall: paint_sage
+        wall_sides: { north: acoustic_oak }
         lights:                         # optional: the area's lights are placed automatically
           - { entity: light.reading_lamp, at: [1, 2] }   # metres from the room's north-west corner
         furniture:                      # optional; the editor's library shows every type
@@ -208,7 +214,7 @@ levels:
           - { type: sofa, at: [3, 4], model: polyhaven:Sofa_01, size: [1.57, 0.66], height: 0.8 }
           - { type: wardrobe, at: [5, 0.4], model: modern:wardrobe_sliding, finish: walnut, accent: black, size: [2, 0.65], height: 2.2 }
           # model: modern:<kind> | polyhaven:<id> | custom:<id> | builtin (default: the card's style)
-      - { id: kitchen, area_id: kitchen, rect: [6, 0, 4, 8], floor: tile }
+      - { id: kitchen, area_id: kitchen, rect: [6, 0, 4, 8], floor: terrazzo, wall: tile_subway }
       - { id: garden, area_id: garden, kind: outdoor, rect: [0, 8, 10, 6], awning: cover.awning }
     walls:
       - { between: [living, kitchen] }  # no wall here (open plan); side: north opens one side only

@@ -21,6 +21,8 @@ import { misalignedWalls } from "../model/checks";
 import { FURNITURE, FURNITURE_TYPES, mountOf } from "../model/furniture";
 import { loadModel } from "../render/models";
 import { FINISHES, MODERN } from "../model/modern";
+import { FINISHES_BY_ID, FINISH_GROUPS, FINISH_LIST, type Surface } from "../model/finishes";
+import { finishPreview } from "../render/finishes";
 import {
   LIBRARY_SOURCES,
   builtinGroups,
@@ -297,15 +299,13 @@ interface OpeningSnaps {
   centres: number[];
 }
 
-const PLAN_COLORS: Record<string, string> = {
-  wood: "#e3c49f",
-  tile: "#d3d7db",
-  concrete: "#c9cbce",
-  carpet: "#d6cec6",
-  lawn: "#b9d7a8",
-  paving: "#ddd6cb",
-  gravel: "#d9d2c7",
-};
+/** A floor's colour on the plan: its finish's, lightened so lines and labels stay readable. */
+function planColor(floor: string): string {
+  const c = FINISHES_BY_ID[floor]?.color ?? FINISHES_BY_ID.wood.color;
+  const [r, g, b] = [1, 3, 5].map((i) => parseInt(c.slice(i, i + 2), 16));
+  const mix = (v: number) => Math.round(v + (255 - v) * 0.55);
+  return `rgb(${mix(r)},${mix(g)},${mix(b)})`;
+}
 
 /** Selection id for the level's outline (its outside walls). */
 const OUTLINE = "__outline__";
@@ -2001,7 +2001,7 @@ export class HomeslicePanel extends LitElement {
       ${l?.rooms.map((r) => {
         const poly = this.inner(r, walls);
         return svg`<g data-room=${r.id}>
-          <polygon class="room ${r.kind ?? "room"} ${r.id === this._room ? "selected" : ""}" points=${pts(poly)} fill=${PLAN_COLORS[r.floor ?? (r.kind === "outdoor" ? "lawn" : "wood")] ?? PLAN_COLORS.wood}></polygon>
+          <polygon class="room ${r.kind ?? "room"} ${r.id === this._room ? "selected" : ""}" points=${pts(poly)} fill=${planColor(r.floor ?? (r.kind === "outdoor" ? "lawn" : "wood"))}></polygon>
         </g>`;
       })}
       ${[...walls]
@@ -3008,12 +3008,8 @@ export class HomeslicePanel extends LitElement {
           ${(["room", "outdoor", "void"] as const).map((k) => html`<option value=${k} ?selected=${(r.kind ?? "room") === k}>${this.t(`editor.kind_${k}` as StringKey)}</option>`)}
         </select>
       </label>
-      <label>${this.t("editor.floor")}
-        <select @change=${(e: Event) => set({ floor: (e.target as HTMLSelectElement).value || undefined })}>
-          <option value="">${this.t("editor.default")}</option>
-          ${Object.keys(PLAN_COLORS).map((k) => html`<option value=${k} ?selected=${r.floor === k}>${k}</option>`)}
-        </select>
-      </label>
+      ${(r.kind ?? "room") !== "void" ? html`<h4>${this.t("editor.surface_floor")}</h4>${this.renderFinishPicker("floor", r.floor, (floor) => set({ floor }), this.t("editor.default"))}` : nothing}
+      ${(r.kind ?? "room") === "room" ? this.renderWallFinishes(r, set) : nothing}
       ${(r.kind ?? "room") === "outdoor"
         ? html`${this.entitySelect(this.t("editor.awning"), "cover", r.area_id, r.awning, (awning) => set({ awning }))}
             ${r.awning ? this.invertedToggle(r.awning, "editor.awning_inverted") : nothing}
@@ -3024,6 +3020,69 @@ export class HomeslicePanel extends LitElement {
         this.commit(deleteRoom(m, this._level, r.id));
         this._room = null;
       }}>${this.t("editor.delete_room")}</button>`;
+  }
+
+  /**
+   * A finish picker: the current one (its picture and name), opening to every finish for
+   * that surface in groups. `fallback` names what no finish means (the default).
+   */
+  private renderFinishPicker(surface: Surface, current: string | undefined, pick: (id: string | undefined) => void, fallback: string) {
+    const name = (id: string) => this.t(`surface.${id}` as StringKey);
+    const list = FINISH_LIST.filter((f) => f.on.includes(surface));
+    const choose = (e: Event, id: string | undefined) => {
+      (e.currentTarget as HTMLElement).closest("details")?.removeAttribute("open");
+      pick(id);
+    };
+    return html`<details class="finish-picker" data-surface=${surface}>
+      <summary>${this.finishSwatch(current)}<span>${current ? name(current) : fallback}</span></summary>
+      <button class="finish ${current ? "" : "active"}" data-finish="" @click=${(e: Event) => choose(e, undefined)}>${this.finishSwatch(undefined)}<span>${fallback}</span></button>
+      ${FINISH_GROUPS.map((g) => {
+        const items = list.filter((f) => f.group === g);
+        return items.length
+          ? html`<h5>${this.t(`surface_group.${g}` as StringKey)}</h5>
+              <div class="finish-grid">
+                ${items.map((f) => html`<button class="finish ${current === f.id ? "active" : ""}" data-finish=${f.id} title=${name(f.id)} @click=${(e: Event) => choose(e, f.id)}>${this.finishSwatch(f.id)}<span>${name(f.id)}</span></button>`)}
+              </div>`
+          : nothing;
+      })}
+    </details>`;
+  }
+
+  private finishSwatch(id: string | undefined) {
+    const url = id ? finishPreview(id) : null;
+    const color = id ? (FINISHES_BY_ID[id]?.color ?? "#ccc") : "#eeeae3";
+    return html`<span class="finish-swatch" style=${url ? `background-image:url(${url})` : `background:${color}`}></span>`;
+  }
+
+  /** A room's walls: one finish for all, and sides in another (accent walls). */
+  private renderWallFinishes(r: RoomInput, set: (patch: Partial<RoomInput>) => void) {
+    const sides = r.wall_sides ?? {};
+    const setSide = (side: Side, id: string | undefined) => {
+      const next = { ...sides, [side]: id };
+      if (!id) delete next[side];
+      set({ wall_sides: Object.keys(next).length ? next : undefined });
+    };
+    const free = (["north", "east", "south", "west"] as Side[]).filter((s) => !sides[s]);
+    return html`<h4>${this.t("editor.surface_wall")}</h4>
+      ${this.renderFinishPicker("wall", r.wall, (wall) => set({ wall }), this.t("editor.surface_plain"))}
+      ${(Object.keys(sides) as Side[]).map(
+        (side) => html`<div class="wall-side" data-side=${side}>
+          <span class="muted">${this.t(`editor.side_${side}` as StringKey)}</span>
+          ${this.renderFinishPicker("wall", sides[side], (id) => setSide(side, id), this.t("editor.surface_same"))}
+        </div>`,
+      )}
+      ${free.length
+        ? html`<label>${this.t("editor.surface_sides")}
+            <select class="add-wall-side" .value=${""} @change=${(e: Event) => {
+              const side = (e.target as HTMLSelectElement).value as Side;
+              (e.target as HTMLSelectElement).value = "";
+              if (side) setSide(side, r.wall === "acoustic_oak" ? "paint_white" : "acoustic_oak");
+            }}>
+              <option value="">…</option>
+              ${free.map((s) => html`<option value=${s}>${this.t(`editor.side_${s}` as StringKey)}</option>`)}
+            </select>
+          </label>`
+        : nothing}`;
   }
 
   // ----- level list: pointer-based sorting (works with mouse and touch) -----
@@ -4051,6 +4110,13 @@ export class HomeslicePanel extends LitElement {
       <button @click=${() => this.commit(setOwnOutline(m, this._level, scope.owner === "house"))}>
         ${scope.owner === "house" ? this.t("editor.outline_make_own") : this.t("editor.outline_use_house")}
       </button>
+      <h3>${this.t("editor.surface_facade")}</h3>
+      <p class="muted">${this.t("editor.surface_facade_hint")}</p>
+      ${this.renderFinishPicker("wall", m.facade, (facade) => {
+        const next = { ...m, facade };
+        if (!facade) delete next.facade;
+        this.commit(next);
+      }, this.t("editor.surface_plain"))}
       <h3>${this.t("editor.roof")}</h3>
       <p class="muted">${this.t("editor.roof_hint")}</p>
       <div class="row">
@@ -4737,6 +4803,59 @@ export class HomeslicePanel extends LitElement {
       align-items: center;
       gap: 6px;
       margin: 6px 0;
+    }
+    .finish-picker {
+      margin: 4px 0 8px;
+    }
+    .finish-picker summary {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+      padding: 4px;
+      border-radius: 8px;
+      border: 1px solid var(--divider-color, #444);
+    }
+    .finish-picker h5 {
+      margin: 8px 0 4px;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--secondary-text-color, #999);
+    }
+    .finish-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
+      gap: 4px;
+    }
+    button.finish {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+      padding: 4px;
+      font-size: 10px;
+      line-height: 1.15;
+      min-width: 0;
+      text-align: center;
+    }
+    button.finish.active {
+      outline: 2px solid var(--accent);
+    }
+    .finish-swatch {
+      display: inline-block;
+      flex: none;
+      width: 32px;
+      height: 32px;
+      border-radius: 6px;
+      background-size: cover;
+      border: 1px solid var(--divider-color, #555);
+    }
+    .wall-side {
+      display: grid;
+      grid-template-columns: 52px 1fr;
+      align-items: start;
+      gap: 6px;
     }
     .swatch {
       width: 26px;

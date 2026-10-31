@@ -19,6 +19,9 @@ from typing import Any
 MISSING: Any = object()
 """A key that isn't there (JavaScript's undefined), unlike an explicit null."""
 
+TEXTURE_REF = re.compile(r"^polyhaven:[A-Za-z0-9_-]+$")
+FLOOR_HINT = "a floor finish like wood, oak_herringbone or tile_white (see the catalogue) or polyhaven:<texture>"
+WALL_HINT = "a wall finish like paint_white, acoustic_oak or brick_red (see the catalogue) or polyhaven:<texture>"
 MODEL_REF = re.compile(r"^(builtin|(kenney|polyhaven|custom|modern):[A-Za-z0-9_-]+)$")
 SIDES = ["north", "south", "east", "west"]
 ENERGY_KINDS = ["solar", "battery", "grid", "inverter", "device"]
@@ -218,6 +221,15 @@ def validate(house: Any) -> list[dict[str, str]]:
     furniture_types = catalog()["furniture_types"]
     opening_types = catalog()["opening_types"]
     house_outline = shape(get(h, "outline"), "outline")
+    floor_finishes = catalog()["floor_finishes"]
+    wall_finishes = catalog()["wall_finishes"]
+
+    def finish_ok(v: Any, allowed: list[str]) -> bool:
+        return isinstance(v, str) and (v in allowed or bool(TEXTURE_REF.match(v)))
+
+    facade = get(h, "facade")
+    if facade is not MISSING and not finish_ok(facade, wall_finishes):
+        err("facade", f"facade must be {WALL_HINT}, got {stringify(facade)}.")
 
     level_ids: set[Any] = set()
     levels: list[dict[str, Any]] = []
@@ -247,6 +259,23 @@ def validate(house: Any) -> list[dict[str, str]]:
                 if not truthy(get(ri, "rect")) and not truthy(get(ri, "polygon")):
                     err(rp, "A room needs rect: [x, y, width, depth] or polygon: [[x, y], …].")
                 continue
+            floor = get(ri, "floor")
+            if floor is not MISSING and not finish_ok(floor, floor_finishes):
+                err(f"{rp}.floor", f"floor must be {FLOOR_HINT}, got {stringify(floor)}.")
+            wall = get(ri, "wall")
+            if wall is not MISSING and not finish_ok(wall, wall_finishes):
+                err(f"{rp}.wall", f"wall must be {WALL_HINT}, got {stringify(wall)}.")
+            wall_sides = get(ri, "wall_sides")
+            if wall_sides is not MISSING:
+                if not isinstance(wall_sides, dict) or not wall_sides:
+                    if not isinstance(wall_sides, dict):
+                        err(f"{rp}.wall_sides", "wall_sides must map sides to finishes, e.g. {north: acoustic_oak}.")
+                else:
+                    for side, v in wall_sides.items():
+                        if side not in SIDES:
+                            err(f"{rp}.wall_sides", f'Unknown side "{text(side)}" (north, south, east or west).')
+                        elif not finish_ok(v, wall_finishes):
+                            err(f"{rp}.wall_sides.{text(side)}", f"A wall side must be {WALL_HINT}, got {stringify(v)}.")
             for j, light in enumerate(items(get(ri, "lights"))):
                 entity = get(light, "entity")
                 if not isinstance(entity, str) or not entity.startswith("light."):

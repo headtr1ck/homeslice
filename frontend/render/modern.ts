@@ -7,6 +7,7 @@ import * as THREE from "three";
 import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { FINISHES, MODERN } from "../model/modern";
+import { finishLook } from "./finishes";
 
 // ----- materials (shared, so a card converts each once) -----
 
@@ -4053,60 +4054,21 @@ function rugMaterial(pattern: "border" | "rings" | "stripes" | "persian" | "berb
   return m;
 }
 
-// ----- surfaces: wood grain, marble veins, concrete, drawn once per finish -----
+// ----- surfaces: the shared finishes (render/finishes.ts) for wood, stone and concrete -----
 
+/** Furniture finishes that are surface finishes too (the same texture on a floor or a sideboard). */
+const SHARED: Record<string, string> = { oak: "veneer_oak", walnut: "veneer_walnut", marble: "marble", concrete: "concrete", terrazzo: "terrazzo" };
 const surfaces = new Map<string, THREE.MeshStandardMaterial>();
-/** A finish as a material: textured where the finish is a material (wood, stone), else plain. */
+/** A finish as a material: textured where it is a material (wood, stone), else plain. */
 function surface(color: string, roughness: number): THREE.MeshStandardMaterial {
-  const kind = color === "oak" || color === "walnut" ? "wood" : color === "marble" ? "marble" : color === "concrete" ? "concrete" : null;
-  if (!kind || typeof document === "undefined") return mat(FINISHES[color] ?? color, { roughness });
+  const shared = SHARED[color];
+  if (!shared || typeof document === "undefined") return mat(FINISHES[color] ?? color, { roughness });
   const key = `${color}/${roughness}`;
   let m = surfaces.get(key);
-  if (m) return m;
-  const c = document.createElement("canvas");
-  c.width = c.height = 256;
-  const ctx = c.getContext("2d")!;
-  const base = new THREE.Color(FINISHES[color]);
-  const shade = (k: number) => base.clone().lerp(new THREE.Color(k > 0 ? "#ffffff" : "#000000"), Math.abs(k)).getStyle();
-  ctx.fillStyle = base.getStyle();
-  ctx.fillRect(0, 0, 256, 256);
-  const rand = random(color.length * 7919);
-  if (kind === "wood") {
-    // long wavy grain lines along u, a few darker ones
-    for (let i = 0; i < 70; i++) {
-      const y = rand() * 256;
-      ctx.strokeStyle = shade(rand() > 0.8 ? -0.32 : rand() > 0.5 ? -0.16 : 0.12);
-      ctx.lineWidth = 0.5 + rand() * 1.8;
-      ctx.beginPath();
-      for (let x = 0; x <= 256; x += 16) ctx.lineTo(x, y + Math.sin(x / 40 + i) * 3 * rand());
-      ctx.stroke();
-    }
-  } else if (kind === "marble") {
-    for (let i = 0; i < 9; i++) {
-      ctx.strokeStyle = shade(-(0.12 + rand() * 0.2));
-      ctx.lineWidth = 0.6 + rand() * 1.5;
-      ctx.beginPath();
-      let x = rand() * 256;
-      let y = 0;
-      ctx.moveTo(x, y);
-      while (y < 256) {
-        x += (rand() - 0.5) * 40;
-        y += 10 + rand() * 25;
-        ctx.lineTo(x, y);
-      }
-      ctx.stroke();
-    }
-  } else {
-    for (let i = 0; i < 2500; i++) {
-      ctx.fillStyle = shade((rand() - 0.5) * 0.25);
-      ctx.fillRect(rand() * 256, rand() * 256, 1 + rand() * 2, 1 + rand() * 2);
-    }
+  if (!m) {
+    const look = finishLook(shared);
+    surfaces.set(key, (m = look.map ? new THREE.MeshStandardMaterial({ map: look.map, roughness }) : mat(FINISHES[color], { roughness })));
   }
-  const tex = new THREE.CanvasTexture(c);
-  tex.colorSpace = THREE.SRGBColorSpace;
-  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
-  m = new THREE.MeshStandardMaterial({ map: tex, roughness });
-  surfaces.set(key, m);
   return m;
 }
 

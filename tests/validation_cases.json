@@ -383,7 +383,12 @@
         5,
         8,
         5
-       ]
+       ],
+       "floor": "oak_herringbone",
+       "wall": "paint_sage",
+       "wall_sides": {
+        "north": "acoustic_oak"
+       }
       }
      ],
      "openings": [
@@ -482,7 +487,8 @@
    "inverted_covers": [
     "cover.awning"
    ],
-   "north": 20
+   "north": 20,
+   "facade": "brick_red"
   },
   "errors": []
  },
@@ -619,7 +625,12 @@
         5,
         8,
         5
-       ]
+       ],
+       "floor": "oak_herringbone",
+       "wall": "paint_sage",
+       "wall_sides": {
+        "north": "acoustic_oak"
+       }
       }
      ],
      "openings": [
@@ -718,7 +729,8 @@
    "inverted_covers": [
     "cover.awning"
    ],
-   "north": 20
+   "north": 20,
+   "facade": "brick_red"
   },
   "errors": [
    {
@@ -840,7 +852,12 @@
         5,
         8,
         5
-       ]
+       ],
+       "floor": "oak_herringbone",
+       "wall": "paint_sage",
+       "wall_sides": {
+        "north": "acoustic_oak"
+       }
       }
      ],
      "openings": [
@@ -939,7 +956,8 @@
    "inverted_covers": [
     "cover.awning"
    ],
-   "north": 20
+   "north": 20,
+   "facade": "brick_red"
   },
   "errors": [
    {
@@ -1042,7 +1060,8 @@
    "inverted_covers": [
     "cover.awning"
    ],
-   "north": 20
+   "north": 20,
+   "facade": "brick_red"
   },
   "errors": [
    {
@@ -1147,7 +1166,8 @@
    "inverted_covers": [
     "cover.awning"
    ],
-   "north": 20
+   "north": 20,
+   "facade": "brick_red"
   },
   "errors": [
    {
@@ -1268,7 +1288,12 @@
         5,
         8,
         5
-       ]
+       ],
+       "floor": "oak_herringbone",
+       "wall": "paint_sage",
+       "wall_sides": {
+        "north": "acoustic_oak"
+       }
       }
      ],
      "openings": [
@@ -1367,7 +1392,8 @@
    "inverted_covers": [
     "cover.awning"
    ],
-   "north": 20
+   "north": 20,
+   "facade": "brick_red"
   },
   "errors": [
    {
@@ -1505,7 +1531,12 @@
         5,
         8,
         5
-       ]
+       ],
+       "floor": "oak_herringbone",
+       "wall": "paint_sage",
+       "wall_sides": {
+        "north": "acoustic_oak"
+       }
       }
      ],
      "openings": [
@@ -1604,7 +1635,8 @@
    "inverted_covers": [
     "cover.awning"
    ],
-   "north": 20
+   "north": 20,
+   "facade": "brick_red"
   },
   "errors": [
    {
@@ -1733,7 +1765,12 @@
         5,
         8,
         5
-       ]
+       ],
+       "floor": "oak_herringbone",
+       "wall": "paint_sage",
+       "wall_sides": {
+        "north": "acoustic_oak"
+       }
       }
      ],
      "openings": [
@@ -1832,7 +1869,8 @@
    "inverted_covers": [
     "cover.awning"
    ],
-   "north": 20
+   "north": 20,
+   "facade": "brick_red"
   },
   "errors": [
    {
@@ -1966,7 +2004,12 @@
         5,
         8,
         5
-       ]
+       ],
+       "floor": "oak_herringbone",
+       "wall": "paint_sage",
+       "wall_sides": {
+        "north": "acoustic_oak"
+       }
       }
      ],
      "openings": [
@@ -2065,7 +2108,8 @@
    "inverted_covers": [
     "cover.awning"
    ],
-   "north": 20
+   "north": 20,
+   "facade": "brick_red"
   },
   "errors": [
    {
@@ -2185,7 +2229,12 @@
        ]
       },
       {
-       "id": "c"
+       "id": "c",
+       "floor": "oak_herringbone",
+       "wall": "paint_sage",
+       "wall_sides": {
+        "north": "acoustic_oak"
+       }
       }
      ],
      "openings": [
@@ -2284,7 +2333,8 @@
    "inverted_covers": [
     "cover.awning"
    ],
-   "north": 20
+   "north": 20,
+   "facade": "brick_red"
   },
   "errors": [
    {
@@ -2406,7 +2456,12 @@
         5,
         0,
         5
-       ]
+       ],
+       "floor": "oak_herringbone",
+       "wall": "paint_sage",
+       "wall_sides": {
+        "north": "acoustic_oak"
+       }
       }
      ],
      "openings": [
@@ -2505,7 +2560,8 @@
    "inverted_covers": [
     "cover.awning"
    ],
-   "north": 20
+   "north": 20,
+   "facade": "brick_red"
   },
   "errors": [
    {
@@ -2627,7 +2683,12 @@
         5,
         "wide",
         5
-       ]
+       ],
+       "floor": "oak_herringbone",
+       "wall": "paint_sage",
+       "wall_sides": {
+        "north": "acoustic_oak"
+       }
       }
      ],
      "openings": [
@@ -2726,7 +2787,8 @@
    "inverted_covers": [
     "cover.awning"
    ],
-   "north": 20
+   "north": 20,
+   "facade": "brick_red"
   },
   "errors": [
    {
@@ -2848,7 +2910,12 @@
         5,
         8,
         5
-       ]
+       ],
+       "floor": "oak_herringbone",
+       "wall": "paint_sage",
+       "wall_sides": {
+        "north": "acoustic_oak"
+       }
       }
      ],
      "openings": [
@@ -2947,7 +3014,8 @@
    "inverted_covers": [
     "cover.awning"
    ],
-   "north": 20
+   "north": 20,
+   "facade": "brick_red"
   },
   "errors": [
    {
@@ -3057,7 +3125,12 @@
         5,
         8,
         5
-       ]
+       ],
+       "floor": "oak_herringbone",
+       "wall": "paint_sage",
+       "wall_sides": {
+        "north": "acoustic_oak"
+       }
       }
      ],
      "openings": [
@@ -3156,7 +3229,8 @@
    "inverted_covers": [
     "cover.awning"
    ],
-   "north": 20
+   "north": 20,
+   "facade": "brick_red"
   },
   "errors": [
    {
@@ -3318,7 +3392,12 @@
         5,
         8,
         5
-       ]
+       ],
+       "floor": "oak_herringbone",
+       "wall": "paint_sage",
+       "wall_sides": {
+        "north": "acoustic_oak"
+       }
       }
      ],
      "openings": [
@@ -3417,7 +3496,8 @@
    "inverted_covers": [
     "cover.awning"
    ],
-   "north": 20
+   "north": 20,
+   "facade": "brick_red"
   },
   "errors": [
    {
@@ -3535,7 +3615,12 @@
         5,
         8,
         5
-       ]
+       ],
+       "floor": "oak_herringbone",
+       "wall": "paint_sage",
+       "wall_sides": {
+        "north": "acoustic_oak"
+       }
       }
      ],
      "openings": [
@@ -3634,7 +3719,8 @@
    "inverted_covers": [
     "cover.awning"
    ],
-   "north": 20
+   "north": 20,
+   "facade": "brick_red"
   },
   "errors": [
    {
@@ -3762,6 +3848,1363 @@
         5,
         8,
         5
+       ],
+       "floor": "oak_herringbone",
+       "wall": "paint_sage",
+       "wall_sides": {
+        "north": "acoustic_oak"
+       }
+      }
+     ],
+     "openings": [
+      {
+       "room": "a",
+       "side": "north",
+       "at": 1,
+       "width": 1,
+       "type": "door",
+       "style": "glass"
+      }
+     ],
+     "walls": [
+      {
+       "between": [
+        "a",
+        "b"
+       ]
+      },
+      {
+       "between": [
+        "a",
+        "c"
+       ],
+       "type": "wall",
+       "thickness": 0.2
+      },
+      {
+       "line": [
+        [
+         1,
+         7
+        ],
+        [
+         3,
+         7
+        ]
+       ]
+      }
+     ]
+    },
+    {
+     "id": "f",
+     "rooms": [
+      {
+       "id": "x",
+       "rect": [
+        0,
+        0,
+        8,
+        10
+       ]
+      }
+     ]
+    }
+   ],
+   "roof": {
+    "ridge": "east_west",
+    "pitch": 30
+   },
+   "energy": [
+    {
+     "kind": "solar",
+     "roof": "south"
+    },
+    {
+     "kind": "battery",
+     "level": "g",
+     "at": [
+      1,
+      1
+     ]
+    },
+    {
+     "kind": "device",
+     "name": "Washer",
+     "level": "g",
+     "at": [
+      2,
+      2
+     ],
+     "power": "sensor.washer_power",
+     "to": "battery"
+    }
+   ],
+   "robots": [
+    {
+     "entity": "vacuum.robo",
+     "level": "g",
+     "dock": [
+      1,
+      1
+     ]
+    }
+   ],
+   "inverted_covers": [
+    "cover.awning"
+   ],
+   "north": 20,
+   "facade": "brick_red"
+  },
+  "errors": []
+ },
+ {
+  "name": "unknown floor",
+  "house": {
+   "schema": 1,
+   "id": "full",
+   "grid": {
+    "x": {
+     "a": 0,
+     "b": 4,
+     "c": 8
+    },
+    "y": {
+     "top": 0,
+     "mid": 5,
+     "bottom": 10
+    }
+   },
+   "outline": {
+    "rect": [
+     "a",
+     "top",
+     8,
+     10
+    ]
+   },
+   "facade_openings": [
+    {
+     "id": "col",
+     "side": "west",
+     "at": 1,
+     "width": 1.2,
+     "levels": [
+      "g",
+      "f"
+     ]
+    }
+   ],
+   "vertical": [
+    {
+     "id": "st",
+     "rect": [
+      5,
+      1,
+      3,
+      1.2
+     ],
+     "from": "g",
+     "to": "f",
+     "shape": "u_turn"
+    }
+   ],
+   "levels": [
+    {
+     "id": "g",
+     "rooms": [
+      {
+       "id": "a",
+       "rect": [
+        "a",
+        "top",
+        4,
+        5
+       ],
+       "lights": [
+        {
+         "entity": "light.a",
+         "at": [
+          1,
+          1
+         ]
+        }
+       ],
+       "furniture": [
+        {
+         "type": "sofa",
+         "at": [
+          2,
+          2
+         ],
+         "model": "modern:sofa",
+         "finish": "grey",
+         "accent": "oak"
+        }
+       ]
+      },
+      {
+       "id": "b",
+       "polygon": [
+        [
+         "b",
+         "top"
+        ],
+        [
+         "c",
+         "top"
+        ],
+        [
+         "c",
+         "mid"
+        ],
+        [
+         "b",
+         "mid"
+        ]
+       ]
+      },
+      {
+       "id": "c",
+       "rect": [
+        0,
+        5,
+        8,
+        5
+       ],
+       "floor": "lava",
+       "wall": "paint_sage",
+       "wall_sides": {
+        "north": "acoustic_oak"
+       }
+      }
+     ],
+     "openings": [
+      {
+       "room": "a",
+       "side": "north",
+       "at": 1,
+       "width": 1,
+       "type": "door",
+       "style": "glass"
+      }
+     ],
+     "walls": [
+      {
+       "between": [
+        "a",
+        "b"
+       ]
+      },
+      {
+       "between": [
+        "a",
+        "c"
+       ],
+       "type": "wall",
+       "thickness": 0.2
+      },
+      {
+       "line": [
+        [
+         1,
+         7
+        ],
+        [
+         3,
+         7
+        ]
+       ]
+      }
+     ]
+    },
+    {
+     "id": "f",
+     "rooms": [
+      {
+       "id": "x",
+       "rect": [
+        0,
+        0,
+        8,
+        10
+       ]
+      }
+     ]
+    }
+   ],
+   "roof": {
+    "ridge": "east_west",
+    "pitch": 30
+   },
+   "energy": [
+    {
+     "kind": "solar",
+     "roof": "south"
+    },
+    {
+     "kind": "battery",
+     "level": "g",
+     "at": [
+      1,
+      1
+     ]
+    },
+    {
+     "kind": "device",
+     "name": "Washer",
+     "level": "g",
+     "at": [
+      2,
+      2
+     ],
+     "power": "sensor.washer_power",
+     "to": "battery"
+    }
+   ],
+   "robots": [
+    {
+     "entity": "vacuum.robo",
+     "level": "g",
+     "dock": [
+      1,
+      1
+     ]
+    }
+   ],
+   "inverted_covers": [
+    "cover.awning"
+   ],
+   "north": 20,
+   "facade": "brick_red"
+  },
+  "errors": [
+   {
+    "path": "levels.g.rooms.c.floor",
+    "message": "floor must be a floor finish like wood, oak_herringbone or tile_white (see the catalogue) or polyhaven:<texture>, got \"lava\"."
+   }
+  ]
+ },
+ {
+  "name": "floor a number",
+  "house": {
+   "schema": 1,
+   "id": "full",
+   "grid": {
+    "x": {
+     "a": 0,
+     "b": 4,
+     "c": 8
+    },
+    "y": {
+     "top": 0,
+     "mid": 5,
+     "bottom": 10
+    }
+   },
+   "outline": {
+    "rect": [
+     "a",
+     "top",
+     8,
+     10
+    ]
+   },
+   "facade_openings": [
+    {
+     "id": "col",
+     "side": "west",
+     "at": 1,
+     "width": 1.2,
+     "levels": [
+      "g",
+      "f"
+     ]
+    }
+   ],
+   "vertical": [
+    {
+     "id": "st",
+     "rect": [
+      5,
+      1,
+      3,
+      1.2
+     ],
+     "from": "g",
+     "to": "f",
+     "shape": "u_turn"
+    }
+   ],
+   "levels": [
+    {
+     "id": "g",
+     "rooms": [
+      {
+       "id": "a",
+       "rect": [
+        "a",
+        "top",
+        4,
+        5
+       ],
+       "lights": [
+        {
+         "entity": "light.a",
+         "at": [
+          1,
+          1
+         ]
+        }
+       ],
+       "furniture": [
+        {
+         "type": "sofa",
+         "at": [
+          2,
+          2
+         ],
+         "model": "modern:sofa",
+         "finish": "grey",
+         "accent": "oak"
+        }
+       ]
+      },
+      {
+       "id": "b",
+       "polygon": [
+        [
+         "b",
+         "top"
+        ],
+        [
+         "c",
+         "top"
+        ],
+        [
+         "c",
+         "mid"
+        ],
+        [
+         "b",
+         "mid"
+        ]
+       ]
+      },
+      {
+       "id": "c",
+       "rect": [
+        0,
+        5,
+        8,
+        5
+       ],
+       "floor": 3,
+       "wall": "paint_sage",
+       "wall_sides": {
+        "north": "acoustic_oak"
+       }
+      }
+     ],
+     "openings": [
+      {
+       "room": "a",
+       "side": "north",
+       "at": 1,
+       "width": 1,
+       "type": "door",
+       "style": "glass"
+      }
+     ],
+     "walls": [
+      {
+       "between": [
+        "a",
+        "b"
+       ]
+      },
+      {
+       "between": [
+        "a",
+        "c"
+       ],
+       "type": "wall",
+       "thickness": 0.2
+      },
+      {
+       "line": [
+        [
+         1,
+         7
+        ],
+        [
+         3,
+         7
+        ]
+       ]
+      }
+     ]
+    },
+    {
+     "id": "f",
+     "rooms": [
+      {
+       "id": "x",
+       "rect": [
+        0,
+        0,
+        8,
+        10
+       ]
+      }
+     ]
+    }
+   ],
+   "roof": {
+    "ridge": "east_west",
+    "pitch": 30
+   },
+   "energy": [
+    {
+     "kind": "solar",
+     "roof": "south"
+    },
+    {
+     "kind": "battery",
+     "level": "g",
+     "at": [
+      1,
+      1
+     ]
+    },
+    {
+     "kind": "device",
+     "name": "Washer",
+     "level": "g",
+     "at": [
+      2,
+      2
+     ],
+     "power": "sensor.washer_power",
+     "to": "battery"
+    }
+   ],
+   "robots": [
+    {
+     "entity": "vacuum.robo",
+     "level": "g",
+     "dock": [
+      1,
+      1
+     ]
+    }
+   ],
+   "inverted_covers": [
+    "cover.awning"
+   ],
+   "north": 20,
+   "facade": "brick_red"
+  },
+  "errors": [
+   {
+    "path": "levels.g.rooms.c.floor",
+    "message": "floor must be a floor finish like wood, oak_herringbone or tile_white (see the catalogue) or polyhaven:<texture>, got 3."
+   }
+  ]
+ },
+ {
+  "name": "valid: floor texture",
+  "house": {
+   "schema": 1,
+   "id": "full",
+   "grid": {
+    "x": {
+     "a": 0,
+     "b": 4,
+     "c": 8
+    },
+    "y": {
+     "top": 0,
+     "mid": 5,
+     "bottom": 10
+    }
+   },
+   "outline": {
+    "rect": [
+     "a",
+     "top",
+     8,
+     10
+    ]
+   },
+   "facade_openings": [
+    {
+     "id": "col",
+     "side": "west",
+     "at": 1,
+     "width": 1.2,
+     "levels": [
+      "g",
+      "f"
+     ]
+    }
+   ],
+   "vertical": [
+    {
+     "id": "st",
+     "rect": [
+      5,
+      1,
+      3,
+      1.2
+     ],
+     "from": "g",
+     "to": "f",
+     "shape": "u_turn"
+    }
+   ],
+   "levels": [
+    {
+     "id": "g",
+     "rooms": [
+      {
+       "id": "a",
+       "rect": [
+        "a",
+        "top",
+        4,
+        5
+       ],
+       "lights": [
+        {
+         "entity": "light.a",
+         "at": [
+          1,
+          1
+         ]
+        }
+       ],
+       "furniture": [
+        {
+         "type": "sofa",
+         "at": [
+          2,
+          2
+         ],
+         "model": "modern:sofa",
+         "finish": "grey",
+         "accent": "oak"
+        }
+       ]
+      },
+      {
+       "id": "b",
+       "polygon": [
+        [
+         "b",
+         "top"
+        ],
+        [
+         "c",
+         "top"
+        ],
+        [
+         "c",
+         "mid"
+        ],
+        [
+         "b",
+         "mid"
+        ]
+       ]
+      },
+      {
+       "id": "c",
+       "rect": [
+        0,
+        5,
+        8,
+        5
+       ],
+       "floor": "polyhaven:wood_floor",
+       "wall": "paint_sage",
+       "wall_sides": {
+        "north": "acoustic_oak"
+       }
+      }
+     ],
+     "openings": [
+      {
+       "room": "a",
+       "side": "north",
+       "at": 1,
+       "width": 1,
+       "type": "door",
+       "style": "glass"
+      }
+     ],
+     "walls": [
+      {
+       "between": [
+        "a",
+        "b"
+       ]
+      },
+      {
+       "between": [
+        "a",
+        "c"
+       ],
+       "type": "wall",
+       "thickness": 0.2
+      },
+      {
+       "line": [
+        [
+         1,
+         7
+        ],
+        [
+         3,
+         7
+        ]
+       ]
+      }
+     ]
+    },
+    {
+     "id": "f",
+     "rooms": [
+      {
+       "id": "x",
+       "rect": [
+        0,
+        0,
+        8,
+        10
+       ]
+      }
+     ]
+    }
+   ],
+   "roof": {
+    "ridge": "east_west",
+    "pitch": 30
+   },
+   "energy": [
+    {
+     "kind": "solar",
+     "roof": "south"
+    },
+    {
+     "kind": "battery",
+     "level": "g",
+     "at": [
+      1,
+      1
+     ]
+    },
+    {
+     "kind": "device",
+     "name": "Washer",
+     "level": "g",
+     "at": [
+      2,
+      2
+     ],
+     "power": "sensor.washer_power",
+     "to": "battery"
+    }
+   ],
+   "robots": [
+    {
+     "entity": "vacuum.robo",
+     "level": "g",
+     "dock": [
+      1,
+      1
+     ]
+    }
+   ],
+   "inverted_covers": [
+    "cover.awning"
+   ],
+   "north": 20,
+   "facade": "brick_red"
+  },
+  "errors": []
+ },
+ {
+  "name": "wall finish on a floor",
+  "house": {
+   "schema": 1,
+   "id": "full",
+   "grid": {
+    "x": {
+     "a": 0,
+     "b": 4,
+     "c": 8
+    },
+    "y": {
+     "top": 0,
+     "mid": 5,
+     "bottom": 10
+    }
+   },
+   "outline": {
+    "rect": [
+     "a",
+     "top",
+     8,
+     10
+    ]
+   },
+   "facade_openings": [
+    {
+     "id": "col",
+     "side": "west",
+     "at": 1,
+     "width": 1.2,
+     "levels": [
+      "g",
+      "f"
+     ]
+    }
+   ],
+   "vertical": [
+    {
+     "id": "st",
+     "rect": [
+      5,
+      1,
+      3,
+      1.2
+     ],
+     "from": "g",
+     "to": "f",
+     "shape": "u_turn"
+    }
+   ],
+   "levels": [
+    {
+     "id": "g",
+     "rooms": [
+      {
+       "id": "a",
+       "rect": [
+        "a",
+        "top",
+        4,
+        5
+       ],
+       "lights": [
+        {
+         "entity": "light.a",
+         "at": [
+          1,
+          1
+         ]
+        }
+       ],
+       "furniture": [
+        {
+         "type": "sofa",
+         "at": [
+          2,
+          2
+         ],
+         "model": "modern:sofa",
+         "finish": "grey",
+         "accent": "oak"
+        }
+       ]
+      },
+      {
+       "id": "b",
+       "polygon": [
+        [
+         "b",
+         "top"
+        ],
+        [
+         "c",
+         "top"
+        ],
+        [
+         "c",
+         "mid"
+        ],
+        [
+         "b",
+         "mid"
+        ]
+       ]
+      },
+      {
+       "id": "c",
+       "rect": [
+        0,
+        5,
+        8,
+        5
+       ],
+       "floor": "paint_sage",
+       "wall": "paint_sage",
+       "wall_sides": {
+        "north": "acoustic_oak"
+       }
+      }
+     ],
+     "openings": [
+      {
+       "room": "a",
+       "side": "north",
+       "at": 1,
+       "width": 1,
+       "type": "door",
+       "style": "glass"
+      }
+     ],
+     "walls": [
+      {
+       "between": [
+        "a",
+        "b"
+       ]
+      },
+      {
+       "between": [
+        "a",
+        "c"
+       ],
+       "type": "wall",
+       "thickness": 0.2
+      },
+      {
+       "line": [
+        [
+         1,
+         7
+        ],
+        [
+         3,
+         7
+        ]
+       ]
+      }
+     ]
+    },
+    {
+     "id": "f",
+     "rooms": [
+      {
+       "id": "x",
+       "rect": [
+        0,
+        0,
+        8,
+        10
+       ]
+      }
+     ]
+    }
+   ],
+   "roof": {
+    "ridge": "east_west",
+    "pitch": 30
+   },
+   "energy": [
+    {
+     "kind": "solar",
+     "roof": "south"
+    },
+    {
+     "kind": "battery",
+     "level": "g",
+     "at": [
+      1,
+      1
+     ]
+    },
+    {
+     "kind": "device",
+     "name": "Washer",
+     "level": "g",
+     "at": [
+      2,
+      2
+     ],
+     "power": "sensor.washer_power",
+     "to": "battery"
+    }
+   ],
+   "robots": [
+    {
+     "entity": "vacuum.robo",
+     "level": "g",
+     "dock": [
+      1,
+      1
+     ]
+    }
+   ],
+   "inverted_covers": [
+    "cover.awning"
+   ],
+   "north": 20,
+   "facade": "brick_red"
+  },
+  "errors": [
+   {
+    "path": "levels.g.rooms.c.floor",
+    "message": "floor must be a floor finish like wood, oak_herringbone or tile_white (see the catalogue) or polyhaven:<texture>, got \"paint_sage\"."
+   }
+  ]
+ },
+ {
+  "name": "unknown wall",
+  "house": {
+   "schema": 1,
+   "id": "full",
+   "grid": {
+    "x": {
+     "a": 0,
+     "b": 4,
+     "c": 8
+    },
+    "y": {
+     "top": 0,
+     "mid": 5,
+     "bottom": 10
+    }
+   },
+   "outline": {
+    "rect": [
+     "a",
+     "top",
+     8,
+     10
+    ]
+   },
+   "facade_openings": [
+    {
+     "id": "col",
+     "side": "west",
+     "at": 1,
+     "width": 1.2,
+     "levels": [
+      "g",
+      "f"
+     ]
+    }
+   ],
+   "vertical": [
+    {
+     "id": "st",
+     "rect": [
+      5,
+      1,
+      3,
+      1.2
+     ],
+     "from": "g",
+     "to": "f",
+     "shape": "u_turn"
+    }
+   ],
+   "levels": [
+    {
+     "id": "g",
+     "rooms": [
+      {
+       "id": "a",
+       "rect": [
+        "a",
+        "top",
+        4,
+        5
+       ],
+       "lights": [
+        {
+         "entity": "light.a",
+         "at": [
+          1,
+          1
+         ]
+        }
+       ],
+       "furniture": [
+        {
+         "type": "sofa",
+         "at": [
+          2,
+          2
+         ],
+         "model": "modern:sofa",
+         "finish": "grey",
+         "accent": "oak"
+        }
+       ]
+      },
+      {
+       "id": "b",
+       "polygon": [
+        [
+         "b",
+         "top"
+        ],
+        [
+         "c",
+         "top"
+        ],
+        [
+         "c",
+         "mid"
+        ],
+        [
+         "b",
+         "mid"
+        ]
+       ]
+      },
+      {
+       "id": "c",
+       "rect": [
+        0,
+        5,
+        8,
+        5
+       ],
+       "floor": "oak_herringbone",
+       "wall": "glitter",
+       "wall_sides": {
+        "north": "acoustic_oak"
+       }
+      }
+     ],
+     "openings": [
+      {
+       "room": "a",
+       "side": "north",
+       "at": 1,
+       "width": 1,
+       "type": "door",
+       "style": "glass"
+      }
+     ],
+     "walls": [
+      {
+       "between": [
+        "a",
+        "b"
+       ]
+      },
+      {
+       "between": [
+        "a",
+        "c"
+       ],
+       "type": "wall",
+       "thickness": 0.2
+      },
+      {
+       "line": [
+        [
+         1,
+         7
+        ],
+        [
+         3,
+         7
+        ]
+       ]
+      }
+     ]
+    },
+    {
+     "id": "f",
+     "rooms": [
+      {
+       "id": "x",
+       "rect": [
+        0,
+        0,
+        8,
+        10
+       ]
+      }
+     ]
+    }
+   ],
+   "roof": {
+    "ridge": "east_west",
+    "pitch": 30
+   },
+   "energy": [
+    {
+     "kind": "solar",
+     "roof": "south"
+    },
+    {
+     "kind": "battery",
+     "level": "g",
+     "at": [
+      1,
+      1
+     ]
+    },
+    {
+     "kind": "device",
+     "name": "Washer",
+     "level": "g",
+     "at": [
+      2,
+      2
+     ],
+     "power": "sensor.washer_power",
+     "to": "battery"
+    }
+   ],
+   "robots": [
+    {
+     "entity": "vacuum.robo",
+     "level": "g",
+     "dock": [
+      1,
+      1
+     ]
+    }
+   ],
+   "inverted_covers": [
+    "cover.awning"
+   ],
+   "north": 20,
+   "facade": "brick_red"
+  },
+  "errors": [
+   {
+    "path": "levels.g.rooms.c.wall",
+    "message": "wall must be a wall finish like paint_white, acoustic_oak or brick_red (see the catalogue) or polyhaven:<texture>, got \"glitter\"."
+   }
+  ]
+ },
+ {
+  "name": "wall_sides a list",
+  "house": {
+   "schema": 1,
+   "id": "full",
+   "grid": {
+    "x": {
+     "a": 0,
+     "b": 4,
+     "c": 8
+    },
+    "y": {
+     "top": 0,
+     "mid": 5,
+     "bottom": 10
+    }
+   },
+   "outline": {
+    "rect": [
+     "a",
+     "top",
+     8,
+     10
+    ]
+   },
+   "facade_openings": [
+    {
+     "id": "col",
+     "side": "west",
+     "at": 1,
+     "width": 1.2,
+     "levels": [
+      "g",
+      "f"
+     ]
+    }
+   ],
+   "vertical": [
+    {
+     "id": "st",
+     "rect": [
+      5,
+      1,
+      3,
+      1.2
+     ],
+     "from": "g",
+     "to": "f",
+     "shape": "u_turn"
+    }
+   ],
+   "levels": [
+    {
+     "id": "g",
+     "rooms": [
+      {
+       "id": "a",
+       "rect": [
+        "a",
+        "top",
+        4,
+        5
+       ],
+       "lights": [
+        {
+         "entity": "light.a",
+         "at": [
+          1,
+          1
+         ]
+        }
+       ],
+       "furniture": [
+        {
+         "type": "sofa",
+         "at": [
+          2,
+          2
+         ],
+         "model": "modern:sofa",
+         "finish": "grey",
+         "accent": "oak"
+        }
+       ]
+      },
+      {
+       "id": "b",
+       "polygon": [
+        [
+         "b",
+         "top"
+        ],
+        [
+         "c",
+         "top"
+        ],
+        [
+         "c",
+         "mid"
+        ],
+        [
+         "b",
+         "mid"
+        ]
+       ]
+      },
+      {
+       "id": "c",
+       "rect": [
+        0,
+        5,
+        8,
+        5
+       ],
+       "floor": "oak_herringbone",
+       "wall": "paint_sage",
+       "wall_sides": [
+        "north"
        ]
       }
      ],
@@ -3861,9 +5304,696 @@
    "inverted_covers": [
     "cover.awning"
    ],
-   "north": 20
+   "north": 20,
+   "facade": "brick_red"
   },
-  "errors": []
+  "errors": [
+   {
+    "path": "levels.g.rooms.c.wall_sides",
+    "message": "wall_sides must map sides to finishes, e.g. {north: acoustic_oak}."
+   }
+  ]
+ },
+ {
+  "name": "wall_sides bad side",
+  "house": {
+   "schema": 1,
+   "id": "full",
+   "grid": {
+    "x": {
+     "a": 0,
+     "b": 4,
+     "c": 8
+    },
+    "y": {
+     "top": 0,
+     "mid": 5,
+     "bottom": 10
+    }
+   },
+   "outline": {
+    "rect": [
+     "a",
+     "top",
+     8,
+     10
+    ]
+   },
+   "facade_openings": [
+    {
+     "id": "col",
+     "side": "west",
+     "at": 1,
+     "width": 1.2,
+     "levels": [
+      "g",
+      "f"
+     ]
+    }
+   ],
+   "vertical": [
+    {
+     "id": "st",
+     "rect": [
+      5,
+      1,
+      3,
+      1.2
+     ],
+     "from": "g",
+     "to": "f",
+     "shape": "u_turn"
+    }
+   ],
+   "levels": [
+    {
+     "id": "g",
+     "rooms": [
+      {
+       "id": "a",
+       "rect": [
+        "a",
+        "top",
+        4,
+        5
+       ],
+       "lights": [
+        {
+         "entity": "light.a",
+         "at": [
+          1,
+          1
+         ]
+        }
+       ],
+       "furniture": [
+        {
+         "type": "sofa",
+         "at": [
+          2,
+          2
+         ],
+         "model": "modern:sofa",
+         "finish": "grey",
+         "accent": "oak"
+        }
+       ]
+      },
+      {
+       "id": "b",
+       "polygon": [
+        [
+         "b",
+         "top"
+        ],
+        [
+         "c",
+         "top"
+        ],
+        [
+         "c",
+         "mid"
+        ],
+        [
+         "b",
+         "mid"
+        ]
+       ]
+      },
+      {
+       "id": "c",
+       "rect": [
+        0,
+        5,
+        8,
+        5
+       ],
+       "floor": "oak_herringbone",
+       "wall": "paint_sage",
+       "wall_sides": {
+        "up": "paint_white"
+       }
+      }
+     ],
+     "openings": [
+      {
+       "room": "a",
+       "side": "north",
+       "at": 1,
+       "width": 1,
+       "type": "door",
+       "style": "glass"
+      }
+     ],
+     "walls": [
+      {
+       "between": [
+        "a",
+        "b"
+       ]
+      },
+      {
+       "between": [
+        "a",
+        "c"
+       ],
+       "type": "wall",
+       "thickness": 0.2
+      },
+      {
+       "line": [
+        [
+         1,
+         7
+        ],
+        [
+         3,
+         7
+        ]
+       ]
+      }
+     ]
+    },
+    {
+     "id": "f",
+     "rooms": [
+      {
+       "id": "x",
+       "rect": [
+        0,
+        0,
+        8,
+        10
+       ]
+      }
+     ]
+    }
+   ],
+   "roof": {
+    "ridge": "east_west",
+    "pitch": 30
+   },
+   "energy": [
+    {
+     "kind": "solar",
+     "roof": "south"
+    },
+    {
+     "kind": "battery",
+     "level": "g",
+     "at": [
+      1,
+      1
+     ]
+    },
+    {
+     "kind": "device",
+     "name": "Washer",
+     "level": "g",
+     "at": [
+      2,
+      2
+     ],
+     "power": "sensor.washer_power",
+     "to": "battery"
+    }
+   ],
+   "robots": [
+    {
+     "entity": "vacuum.robo",
+     "level": "g",
+     "dock": [
+      1,
+      1
+     ]
+    }
+   ],
+   "inverted_covers": [
+    "cover.awning"
+   ],
+   "north": 20,
+   "facade": "brick_red"
+  },
+  "errors": [
+   {
+    "path": "levels.g.rooms.c.wall_sides",
+    "message": "Unknown side \"up\" (north, south, east or west)."
+   }
+  ]
+ },
+ {
+  "name": "wall_sides bad finish",
+  "house": {
+   "schema": 1,
+   "id": "full",
+   "grid": {
+    "x": {
+     "a": 0,
+     "b": 4,
+     "c": 8
+    },
+    "y": {
+     "top": 0,
+     "mid": 5,
+     "bottom": 10
+    }
+   },
+   "outline": {
+    "rect": [
+     "a",
+     "top",
+     8,
+     10
+    ]
+   },
+   "facade_openings": [
+    {
+     "id": "col",
+     "side": "west",
+     "at": 1,
+     "width": 1.2,
+     "levels": [
+      "g",
+      "f"
+     ]
+    }
+   ],
+   "vertical": [
+    {
+     "id": "st",
+     "rect": [
+      5,
+      1,
+      3,
+      1.2
+     ],
+     "from": "g",
+     "to": "f",
+     "shape": "u_turn"
+    }
+   ],
+   "levels": [
+    {
+     "id": "g",
+     "rooms": [
+      {
+       "id": "a",
+       "rect": [
+        "a",
+        "top",
+        4,
+        5
+       ],
+       "lights": [
+        {
+         "entity": "light.a",
+         "at": [
+          1,
+          1
+         ]
+        }
+       ],
+       "furniture": [
+        {
+         "type": "sofa",
+         "at": [
+          2,
+          2
+         ],
+         "model": "modern:sofa",
+         "finish": "grey",
+         "accent": "oak"
+        }
+       ]
+      },
+      {
+       "id": "b",
+       "polygon": [
+        [
+         "b",
+         "top"
+        ],
+        [
+         "c",
+         "top"
+        ],
+        [
+         "c",
+         "mid"
+        ],
+        [
+         "b",
+         "mid"
+        ]
+       ]
+      },
+      {
+       "id": "c",
+       "rect": [
+        0,
+        5,
+        8,
+        5
+       ],
+       "floor": "oak_herringbone",
+       "wall": "paint_sage",
+       "wall_sides": {
+        "north": "oak_herringbone"
+       }
+      }
+     ],
+     "openings": [
+      {
+       "room": "a",
+       "side": "north",
+       "at": 1,
+       "width": 1,
+       "type": "door",
+       "style": "glass"
+      }
+     ],
+     "walls": [
+      {
+       "between": [
+        "a",
+        "b"
+       ]
+      },
+      {
+       "between": [
+        "a",
+        "c"
+       ],
+       "type": "wall",
+       "thickness": 0.2
+      },
+      {
+       "line": [
+        [
+         1,
+         7
+        ],
+        [
+         3,
+         7
+        ]
+       ]
+      }
+     ]
+    },
+    {
+     "id": "f",
+     "rooms": [
+      {
+       "id": "x",
+       "rect": [
+        0,
+        0,
+        8,
+        10
+       ]
+      }
+     ]
+    }
+   ],
+   "roof": {
+    "ridge": "east_west",
+    "pitch": 30
+   },
+   "energy": [
+    {
+     "kind": "solar",
+     "roof": "south"
+    },
+    {
+     "kind": "battery",
+     "level": "g",
+     "at": [
+      1,
+      1
+     ]
+    },
+    {
+     "kind": "device",
+     "name": "Washer",
+     "level": "g",
+     "at": [
+      2,
+      2
+     ],
+     "power": "sensor.washer_power",
+     "to": "battery"
+    }
+   ],
+   "robots": [
+    {
+     "entity": "vacuum.robo",
+     "level": "g",
+     "dock": [
+      1,
+      1
+     ]
+    }
+   ],
+   "inverted_covers": [
+    "cover.awning"
+   ],
+   "north": 20,
+   "facade": "brick_red"
+  },
+  "errors": [
+   {
+    "path": "levels.g.rooms.c.wall_sides.north",
+    "message": "A wall side must be a wall finish like paint_white, acoustic_oak or brick_red (see the catalogue) or polyhaven:<texture>, got \"oak_herringbone\"."
+   }
+  ]
+ },
+ {
+  "name": "bad facade",
+  "house": {
+   "schema": 1,
+   "id": "full",
+   "grid": {
+    "x": {
+     "a": 0,
+     "b": 4,
+     "c": 8
+    },
+    "y": {
+     "top": 0,
+     "mid": 5,
+     "bottom": 10
+    }
+   },
+   "outline": {
+    "rect": [
+     "a",
+     "top",
+     8,
+     10
+    ]
+   },
+   "facade_openings": [
+    {
+     "id": "col",
+     "side": "west",
+     "at": 1,
+     "width": 1.2,
+     "levels": [
+      "g",
+      "f"
+     ]
+    }
+   ],
+   "vertical": [
+    {
+     "id": "st",
+     "rect": [
+      5,
+      1,
+      3,
+      1.2
+     ],
+     "from": "g",
+     "to": "f",
+     "shape": "u_turn"
+    }
+   ],
+   "levels": [
+    {
+     "id": "g",
+     "rooms": [
+      {
+       "id": "a",
+       "rect": [
+        "a",
+        "top",
+        4,
+        5
+       ],
+       "lights": [
+        {
+         "entity": "light.a",
+         "at": [
+          1,
+          1
+         ]
+        }
+       ],
+       "furniture": [
+        {
+         "type": "sofa",
+         "at": [
+          2,
+          2
+         ],
+         "model": "modern:sofa",
+         "finish": "grey",
+         "accent": "oak"
+        }
+       ]
+      },
+      {
+       "id": "b",
+       "polygon": [
+        [
+         "b",
+         "top"
+        ],
+        [
+         "c",
+         "top"
+        ],
+        [
+         "c",
+         "mid"
+        ],
+        [
+         "b",
+         "mid"
+        ]
+       ]
+      },
+      {
+       "id": "c",
+       "rect": [
+        0,
+        5,
+        8,
+        5
+       ],
+       "floor": "oak_herringbone",
+       "wall": "paint_sage",
+       "wall_sides": {
+        "north": "acoustic_oak"
+       }
+      }
+     ],
+     "openings": [
+      {
+       "room": "a",
+       "side": "north",
+       "at": 1,
+       "width": 1,
+       "type": "door",
+       "style": "glass"
+      }
+     ],
+     "walls": [
+      {
+       "between": [
+        "a",
+        "b"
+       ]
+      },
+      {
+       "between": [
+        "a",
+        "c"
+       ],
+       "type": "wall",
+       "thickness": 0.2
+      },
+      {
+       "line": [
+        [
+         1,
+         7
+        ],
+        [
+         3,
+         7
+        ]
+       ]
+      }
+     ]
+    },
+    {
+     "id": "f",
+     "rooms": [
+      {
+       "id": "x",
+       "rect": [
+        0,
+        0,
+        8,
+        10
+       ]
+      }
+     ]
+    }
+   ],
+   "roof": {
+    "ridge": "east_west",
+    "pitch": 30
+   },
+   "energy": [
+    {
+     "kind": "solar",
+     "roof": "south"
+    },
+    {
+     "kind": "battery",
+     "level": "g",
+     "at": [
+      1,
+      1
+     ]
+    },
+    {
+     "kind": "device",
+     "name": "Washer",
+     "level": "g",
+     "at": [
+      2,
+      2
+     ],
+     "power": "sensor.washer_power",
+     "to": "battery"
+    }
+   ],
+   "robots": [
+    {
+     "entity": "vacuum.robo",
+     "level": "g",
+     "dock": [
+      1,
+      1
+     ]
+    }
+   ],
+   "inverted_covers": [
+    "cover.awning"
+   ],
+   "north": 20,
+   "facade": "gold"
+  },
+  "errors": [
+   {
+    "path": "facade",
+    "message": "facade must be a wall finish like paint_white, acoustic_oak or brick_red (see the catalogue) or polyhaven:<texture>, got \"gold\"."
+   }
+  ]
  },
  {
   "name": "light not a light",
@@ -3974,7 +6104,12 @@
         5,
         8,
         5
-       ]
+       ],
+       "floor": "oak_herringbone",
+       "wall": "paint_sage",
+       "wall_sides": {
+        "north": "acoustic_oak"
+       }
       }
      ],
      "openings": [
@@ -4073,7 +6208,8 @@
    "inverted_covers": [
     "cover.awning"
    ],
-   "north": 20
+   "north": 20,
+   "facade": "brick_red"
   },
   "errors": [
    {
@@ -4189,7 +6325,12 @@
         5,
         8,
         5
-       ]
+       ],
+       "floor": "oak_herringbone",
+       "wall": "paint_sage",
+       "wall_sides": {
+        "north": "acoustic_oak"
+       }
       }
      ],
      "openings": [
@@ -4288,7 +6429,8 @@
    "inverted_covers": [
     "cover.awning"
    ],
-   "north": 20
+   "north": 20,
+   "facade": "brick_red"
   },
   "errors": [
    {
@@ -4409,7 +6551,12 @@
         5,
         8,
         5
-       ]
+       ],
+       "floor": "oak_herringbone",
+       "wall": "paint_sage",
+       "wall_sides": {
+        "north": "acoustic_oak"
+       }
       }
      ],
      "openings": [
@@ -4508,7 +6655,8 @@
    "inverted_covers": [
     "cover.awning"
    ],
-   "north": 20
+   "north": 20,
+   "facade": "brick_red"
   },
   "errors": [
    {
@@ -4627,7 +6775,12 @@
         5,
         8,
         5
-       ]
+       ],
+       "floor": "oak_herringbone",
+       "wall": "paint_sage",
+       "wall_sides": {
+        "north": "acoustic_oak"
+       }
       }
      ],
      "openings": [
@@ -4726,7 +6879,8 @@
    "inverted_covers": [
     "cover.awning"
    ],
-   "north": 20
+   "north": 20,
+   "facade": "brick_red"
   },
   "errors": [
    {
@@ -4841,7 +6995,12 @@
         5,
         8,
         5
-       ]
+       ],
+       "floor": "oak_herringbone",
+       "wall": "paint_sage",
+       "wall_sides": {
+        "north": "acoustic_oak"
+       }
       }
      ],
      "openings": [
@@ -4940,7 +7099,8 @@
    "inverted_covers": [
     "cover.awning"
    ],
-   "north": 20
+   "north": 20,
+   "facade": "brick_red"
   },
   "errors": [
    {
@@ -5063,7 +7223,12 @@
         5,
         8,
         5
-       ]
+       ],
+       "floor": "oak_herringbone",
+       "wall": "paint_sage",
+       "wall_sides": {
+        "north": "acoustic_oak"
+       }
       }
      ],
      "openings": [
@@ -5162,7 +7327,8 @@
    "inverted_covers": [
     "cover.awning"
    ],
-   "north": 20
+   "north": 20,
+   "facade": "brick_red"
   },
   "errors": [
    {
@@ -5282,7 +7448,12 @@
         5,
         8,
         5
-       ]
+       ],
+       "floor": "oak_herringbone",
+       "wall": "paint_sage",
+       "wall_sides": {
+        "north": "acoustic_oak"
+       }
       }
      ],
      "openings": [
@@ -5381,7 +7552,8 @@
    "inverted_covers": [
     "cover.awning"
    ],
-   "north": 20
+   "north": 20,
+   "facade": "brick_red"
   },
   "errors": [
    {
@@ -5501,7 +7673,12 @@
         5,
         8,
         5
-       ]
+       ],
+       "floor": "oak_herringbone",
+       "wall": "paint_sage",
+       "wall_sides": {
+        "north": "acoustic_oak"
+       }
       }
      ],
      "openings": [
@@ -5600,7 +7777,8 @@
    "inverted_covers": [
     "cover.awning"
    ],
-   "north": 20
+   "north": 20,
+   "facade": "brick_red"
   },
   "errors": [
    {
@@ -5720,7 +7898,12 @@
         5,
         8,
         5
-       ]
+       ],
+       "floor": "oak_herringbone",
+       "wall": "paint_sage",
+       "wall_sides": {
+        "north": "acoustic_oak"
+       }
       }
      ],
      "openings": [
@@ -5819,7 +8002,8 @@
    "inverted_covers": [
     "cover.awning"
    ],
-   "north": 20
+   "north": 20,
+   "facade": "brick_red"
   },
   "errors": [
    {
@@ -5939,7 +8123,12 @@
         5,
         8,
         5
-       ]
+       ],
+       "floor": "oak_herringbone",
+       "wall": "paint_sage",
+       "wall_sides": {
+        "north": "acoustic_oak"
+       }
       }
      ],
      "openings": [
@@ -6038,7 +8227,8 @@
    "inverted_covers": [
     "cover.awning"
    ],
-   "north": 20
+   "north": 20,
+   "facade": "brick_red"
   },
   "errors": [
    {
@@ -6160,7 +8350,12 @@
         5,
         8,
         5
-       ]
+       ],
+       "floor": "oak_herringbone",
+       "wall": "paint_sage",
+       "wall_sides": {
+        "north": "acoustic_oak"
+       }
       }
      ],
      "openings": [
@@ -6259,7 +8454,8 @@
    "inverted_covers": [
     "cover.awning"
    ],
-   "north": 20
+   "north": 20,
+   "facade": "brick_red"
   },
   "errors": [
    {
@@ -6379,7 +8575,12 @@
         5,
         8,
         5
-       ]
+       ],
+       "floor": "oak_herringbone",
+       "wall": "paint_sage",
+       "wall_sides": {
+        "north": "acoustic_oak"
+       }
       }
      ],
      "openings": [
@@ -6478,7 +8679,8 @@
    "inverted_covers": [
     "cover.awning"
    ],
-   "north": 20
+   "north": 20,
+   "facade": "brick_red"
   },
   "errors": [
    {
@@ -6600,7 +8802,12 @@
         5,
         8,
         5
-       ]
+       ],
+       "floor": "oak_herringbone",
+       "wall": "paint_sage",
+       "wall_sides": {
+        "north": "acoustic_oak"
+       }
       }
      ],
      "openings": [
@@ -6699,7 +8906,8 @@
    "inverted_covers": [
     "cover.awning"
    ],
-   "north": 20
+   "north": 20,
+   "facade": "brick_red"
   },
   "errors": [
    {
@@ -6821,7 +9029,12 @@
         5,
         8,
         5
-       ]
+       ],
+       "floor": "oak_herringbone",
+       "wall": "paint_sage",
+       "wall_sides": {
+        "north": "acoustic_oak"
+       }
       }
      ],
      "openings": [
@@ -6920,7 +9133,8 @@
    "inverted_covers": [
     "cover.awning"
    ],
-   "north": 20
+   "north": 20,
+   "facade": "brick_red"
   },
   "errors": [
    {
@@ -7042,7 +9256,12 @@
         5,
         8,
         5
-       ]
+       ],
+       "floor": "oak_herringbone",
+       "wall": "paint_sage",
+       "wall_sides": {
+        "north": "acoustic_oak"
+       }
       }
      ],
      "openings": [
@@ -7140,7 +9359,8 @@
    "inverted_covers": [
     "cover.awning"
    ],
-   "north": 20
+   "north": 20,
+   "facade": "brick_red"
   },
   "errors": [
    {
@@ -7262,7 +9482,12 @@
         5,
         8,
         5
-       ]
+       ],
+       "floor": "oak_herringbone",
+       "wall": "paint_sage",
+       "wall_sides": {
+        "north": "acoustic_oak"
+       }
       }
      ],
      "openings": [
@@ -7361,7 +9586,8 @@
    "inverted_covers": [
     "cover.awning"
    ],
-   "north": 20
+   "north": 20,
+   "facade": "brick_red"
   },
   "errors": [
    {
@@ -7483,7 +9709,12 @@
         5,
         8,
         5
-       ]
+       ],
+       "floor": "oak_herringbone",
+       "wall": "paint_sage",
+       "wall_sides": {
+        "north": "acoustic_oak"
+       }
       }
      ],
      "openings": [
@@ -7581,7 +9812,8 @@
    "inverted_covers": [
     "cover.awning"
    ],
-   "north": 20
+   "north": 20,
+   "facade": "brick_red"
   },
   "errors": [
    {
@@ -7703,7 +9935,12 @@
         5,
         8,
         5
-       ]
+       ],
+       "floor": "oak_herringbone",
+       "wall": "paint_sage",
+       "wall_sides": {
+        "north": "acoustic_oak"
+       }
       }
      ],
      "openings": [
@@ -7802,7 +10039,8 @@
    "inverted_covers": [
     "cover.awning"
    ],
-   "north": 20
+   "north": 20,
+   "facade": "brick_red"
   },
   "errors": [
    {
@@ -7924,7 +10162,12 @@
         5,
         8,
         5
-       ]
+       ],
+       "floor": "oak_herringbone",
+       "wall": "paint_sage",
+       "wall_sides": {
+        "north": "acoustic_oak"
+       }
       }
      ],
      "openings": [
@@ -8023,7 +10266,8 @@
    "inverted_covers": [
     "cover.awning"
    ],
-   "north": 20
+   "north": 20,
+   "facade": "brick_red"
   },
   "errors": [
    {
@@ -8145,7 +10389,12 @@
         5,
         8,
         5
-       ]
+       ],
+       "floor": "oak_herringbone",
+       "wall": "paint_sage",
+       "wall_sides": {
+        "north": "acoustic_oak"
+       }
       }
      ],
      "openings": [
@@ -8245,7 +10494,8 @@
    "inverted_covers": [
     "cover.awning"
    ],
-   "north": 20
+   "north": 20,
+   "facade": "brick_red"
   },
   "errors": [
    {
@@ -8367,7 +10617,12 @@
         5,
         8,
         5
-       ]
+       ],
+       "floor": "oak_herringbone",
+       "wall": "paint_sage",
+       "wall_sides": {
+        "north": "acoustic_oak"
+       }
       }
      ],
      "openings": [
@@ -8467,7 +10722,8 @@
    "inverted_covers": [
     "cover.awning"
    ],
-   "north": 20
+   "north": 20,
+   "facade": "brick_red"
   },
   "errors": [
    {
@@ -8589,7 +10845,12 @@
         5,
         8,
         5
-       ]
+       ],
+       "floor": "oak_herringbone",
+       "wall": "paint_sage",
+       "wall_sides": {
+        "north": "acoustic_oak"
+       }
       }
      ],
      "openings": [
@@ -8688,7 +10949,8 @@
    "inverted_covers": [
     "cover.awning"
    ],
-   "north": 20
+   "north": 20,
+   "facade": "brick_red"
   },
   "errors": [
    {
@@ -8810,7 +11072,12 @@
         5,
         8,
         5
-       ]
+       ],
+       "floor": "oak_herringbone",
+       "wall": "paint_sage",
+       "wall_sides": {
+        "north": "acoustic_oak"
+       }
       }
      ],
      "openings": [
@@ -8909,7 +11176,8 @@
    "inverted_covers": [
     "cover.awning"
    ],
-   "north": 20
+   "north": 20,
+   "facade": "brick_red"
   },
   "errors": [
    {
@@ -9031,7 +11299,12 @@
         5,
         8,
         5
-       ]
+       ],
+       "floor": "oak_herringbone",
+       "wall": "paint_sage",
+       "wall_sides": {
+        "north": "acoustic_oak"
+       }
       }
      ],
      "openings": [
@@ -9121,7 +11394,8 @@
    "inverted_covers": [
     "cover.awning"
    ],
-   "north": 20
+   "north": 20,
+   "facade": "brick_red"
   },
   "errors": [
    {
@@ -9235,7 +11509,12 @@
         5,
         8,
         5
-       ]
+       ],
+       "floor": "oak_herringbone",
+       "wall": "paint_sage",
+       "wall_sides": {
+        "north": "acoustic_oak"
+       }
       }
      ],
      "openings": [
@@ -9334,7 +11613,8 @@
    "inverted_covers": [
     "cover.awning"
    ],
-   "north": 20
+   "north": 20,
+   "facade": "brick_red"
   },
   "errors": [
    {
@@ -9460,7 +11740,12 @@
         5,
         8,
         5
-       ]
+       ],
+       "floor": "oak_herringbone",
+       "wall": "paint_sage",
+       "wall_sides": {
+        "north": "acoustic_oak"
+       }
       }
      ],
      "openings": [
@@ -9567,7 +11852,8 @@
    "inverted_covers": [
     "cover.awning"
    ],
-   "north": 20
+   "north": 20,
+   "facade": "brick_red"
   },
   "errors": [
    {
@@ -9689,7 +11975,12 @@
         5,
         8,
         5
-       ]
+       ],
+       "floor": "oak_herringbone",
+       "wall": "paint_sage",
+       "wall_sides": {
+        "north": "acoustic_oak"
+       }
       }
      ],
      "openings": [
@@ -9789,7 +12080,8 @@
    "inverted_covers": [
     "cover.awning"
    ],
-   "north": 20
+   "north": 20,
+   "facade": "brick_red"
   },
   "errors": [
    {
@@ -9911,7 +12203,12 @@
         5,
         8,
         5
-       ]
+       ],
+       "floor": "oak_herringbone",
+       "wall": "paint_sage",
+       "wall_sides": {
+        "north": "acoustic_oak"
+       }
       }
      ],
      "openings": [
@@ -10013,7 +12310,8 @@
    "inverted_covers": [
     "cover.awning"
    ],
-   "north": 20
+   "north": 20,
+   "facade": "brick_red"
   },
   "errors": [
    {
@@ -10135,7 +12433,12 @@
         5,
         8,
         5
-       ]
+       ],
+       "floor": "oak_herringbone",
+       "wall": "paint_sage",
+       "wall_sides": {
+        "north": "acoustic_oak"
+       }
       }
      ],
      "openings": [
@@ -10234,7 +12537,8 @@
    "inverted_covers": [
     "cover.awning"
    ],
-   "north": 20
+   "north": 20,
+   "facade": "brick_red"
   },
   "errors": [
    {
@@ -10356,7 +12660,12 @@
         5,
         8,
         5
-       ]
+       ],
+       "floor": "oak_herringbone",
+       "wall": "paint_sage",
+       "wall_sides": {
+        "north": "acoustic_oak"
+       }
       }
      ],
      "openings": [
@@ -10455,7 +12764,8 @@
    "inverted_covers": [
     "cover.awning"
    ],
-   "north": 20
+   "north": 20,
+   "facade": "brick_red"
   },
   "errors": [
    {
@@ -10578,7 +12888,12 @@
         5,
         8,
         5
-       ]
+       ],
+       "floor": "oak_herringbone",
+       "wall": "paint_sage",
+       "wall_sides": {
+        "north": "acoustic_oak"
+       }
       }
      ],
      "openings": [
@@ -10677,7 +12992,8 @@
    "inverted_covers": [
     "cover.awning"
    ],
-   "north": 20
+   "north": 20,
+   "facade": "brick_red"
   },
   "errors": [
    {
@@ -10799,7 +13115,12 @@
         5,
         8,
         5
-       ]
+       ],
+       "floor": "oak_herringbone",
+       "wall": "paint_sage",
+       "wall_sides": {
+        "north": "acoustic_oak"
+       }
       }
      ],
      "openings": [
@@ -10898,7 +13219,8 @@
    "inverted_covers": [
     "cover.awning"
    ],
-   "north": 20
+   "north": 20,
+   "facade": "brick_red"
   },
   "errors": [
    {
@@ -11020,7 +13342,12 @@
         5,
         8,
         5
-       ]
+       ],
+       "floor": "oak_herringbone",
+       "wall": "paint_sage",
+       "wall_sides": {
+        "north": "acoustic_oak"
+       }
       }
      ],
      "openings": [
@@ -11119,7 +13446,8 @@
    "inverted_covers": [
     "cover.awning"
    ],
-   "north": 20
+   "north": 20,
+   "facade": "brick_red"
   },
   "errors": [
    {
@@ -11241,7 +13569,12 @@
         5,
         8,
         5
-       ]
+       ],
+       "floor": "oak_herringbone",
+       "wall": "paint_sage",
+       "wall_sides": {
+        "north": "acoustic_oak"
+       }
       }
      ],
      "openings": [
@@ -11340,7 +13673,8 @@
    "inverted_covers": [
     "cover.awning"
    ],
-   "north": 20
+   "north": 20,
+   "facade": "brick_red"
   },
   "errors": [
    {
@@ -11462,7 +13796,12 @@
         5,
         8,
         5
-       ]
+       ],
+       "floor": "oak_herringbone",
+       "wall": "paint_sage",
+       "wall_sides": {
+        "north": "acoustic_oak"
+       }
       }
      ],
      "openings": [
@@ -11561,7 +13900,8 @@
    "inverted_covers": [
     "cover.awning"
    ],
-   "north": 20
+   "north": 20,
+   "facade": "brick_red"
   },
   "errors": [
    {
@@ -11683,7 +14023,12 @@
         5,
         8,
         5
-       ]
+       ],
+       "floor": "oak_herringbone",
+       "wall": "paint_sage",
+       "wall_sides": {
+        "north": "acoustic_oak"
+       }
       }
      ],
      "openings": [
@@ -11782,7 +14127,8 @@
    "inverted_covers": [
     "cover.awning"
    ],
-   "north": 20
+   "north": 20,
+   "facade": "brick_red"
   },
   "errors": [
    {
@@ -11905,7 +14251,12 @@
         5,
         8,
         5
-       ]
+       ],
+       "floor": "oak_herringbone",
+       "wall": "paint_sage",
+       "wall_sides": {
+        "north": "acoustic_oak"
+       }
       }
      ],
      "openings": [
@@ -12004,7 +14355,8 @@
    "inverted_covers": [
     "cover.awning"
    ],
-   "north": 20
+   "north": 20,
+   "facade": "brick_red"
   },
   "errors": [
    {
@@ -12127,7 +14479,12 @@
         5,
         8,
         5
-       ]
+       ],
+       "floor": "oak_herringbone",
+       "wall": "paint_sage",
+       "wall_sides": {
+        "north": "acoustic_oak"
+       }
       }
      ],
      "openings": [
@@ -12226,7 +14583,8 @@
    "inverted_covers": [
     "cover.awning"
    ],
-   "north": 20
+   "north": 20,
+   "facade": "brick_red"
   },
   "errors": [
    {
@@ -12349,7 +14707,12 @@
         5,
         8,
         5
-       ]
+       ],
+       "floor": "oak_herringbone",
+       "wall": "paint_sage",
+       "wall_sides": {
+        "north": "acoustic_oak"
+       }
       }
      ],
      "openings": [
@@ -12448,7 +14811,8 @@
    "inverted_covers": [
     "cover.awning"
    ],
-   "north": 20
+   "north": 20,
+   "facade": "brick_red"
   },
   "errors": [
    {
@@ -12571,7 +14935,12 @@
         5,
         8,
         5
-       ]
+       ],
+       "floor": "oak_herringbone",
+       "wall": "paint_sage",
+       "wall_sides": {
+        "north": "acoustic_oak"
+       }
       }
      ],
      "openings": [
@@ -12670,7 +15039,8 @@
    "inverted_covers": [
     "cover.awning"
    ],
-   "north": 20
+   "north": 20,
+   "facade": "brick_red"
   },
   "errors": [
    {
@@ -12786,7 +15156,12 @@
         5,
         8,
         5
-       ]
+       ],
+       "floor": "oak_herringbone",
+       "wall": "paint_sage",
+       "wall_sides": {
+        "north": "acoustic_oak"
+       }
       }
      ],
      "openings": [
@@ -12885,7 +15260,8 @@
    "inverted_covers": [
     "cover.awning"
    ],
-   "north": 20
+   "north": 20,
+   "facade": "brick_red"
   },
   "errors": [
    {
@@ -13007,7 +15383,12 @@
         5,
         8,
         5
-       ]
+       ],
+       "floor": "oak_herringbone",
+       "wall": "paint_sage",
+       "wall_sides": {
+        "north": "acoustic_oak"
+       }
       }
      ],
      "openings": [
@@ -13106,7 +15487,8 @@
    "inverted_covers": [
     "cover.awning"
    ],
-   "north": 20
+   "north": 20,
+   "facade": "brick_red"
   },
   "errors": [
    {
@@ -13228,7 +15610,12 @@
         5,
         8,
         5
-       ]
+       ],
+       "floor": "oak_herringbone",
+       "wall": "paint_sage",
+       "wall_sides": {
+        "north": "acoustic_oak"
+       }
       }
      ],
      "openings": [
@@ -13327,7 +15714,8 @@
    "inverted_covers": [
     "cover.awning"
    ],
-   "north": 20
+   "north": 20,
+   "facade": "brick_red"
   },
   "errors": [
    {
@@ -13449,7 +15837,12 @@
         5,
         8,
         5
-       ]
+       ],
+       "floor": "oak_herringbone",
+       "wall": "paint_sage",
+       "wall_sides": {
+        "north": "acoustic_oak"
+       }
       }
      ],
      "openings": [
@@ -13548,7 +15941,8 @@
    "inverted_covers": [
     "cover.awning"
    ],
-   "north": 20
+   "north": 20,
+   "facade": "brick_red"
   },
   "errors": [
    {
@@ -13670,7 +16064,12 @@
         5,
         8,
         5
-       ]
+       ],
+       "floor": "oak_herringbone",
+       "wall": "paint_sage",
+       "wall_sides": {
+        "north": "acoustic_oak"
+       }
       }
      ],
      "openings": [
@@ -13769,7 +16168,8 @@
    "inverted_covers": [
     "cover.awning"
    ],
-   "north": 20
+   "north": 20,
+   "facade": "brick_red"
   },
   "errors": [
    {
@@ -13891,7 +16291,12 @@
         5,
         8,
         5
-       ]
+       ],
+       "floor": "oak_herringbone",
+       "wall": "paint_sage",
+       "wall_sides": {
+        "north": "acoustic_oak"
+       }
       }
      ],
      "openings": [
@@ -13987,7 +16392,8 @@
    "inverted_covers": [
     "cover.awning"
    ],
-   "north": 20
+   "north": 20,
+   "facade": "brick_red"
   },
   "errors": [
    {
@@ -14109,7 +16515,12 @@
         5,
         8,
         5
-       ]
+       ],
+       "floor": "oak_herringbone",
+       "wall": "paint_sage",
+       "wall_sides": {
+        "north": "acoustic_oak"
+       }
       }
      ],
      "openings": [
@@ -14207,7 +16618,8 @@
    "inverted_covers": [
     "cover.awning"
    ],
-   "north": 20
+   "north": 20,
+   "facade": "brick_red"
   },
   "errors": [
    {
@@ -14333,7 +16745,12 @@
         5,
         8,
         5
-       ]
+       ],
+       "floor": "oak_herringbone",
+       "wall": "paint_sage",
+       "wall_sides": {
+        "north": "acoustic_oak"
+       }
       }
      ],
      "openings": [
@@ -14432,7 +16849,8 @@
    "inverted_covers": [
     "cover.awning"
    ],
-   "north": 20
+   "north": 20,
+   "facade": "brick_red"
   },
   "errors": [
    {
@@ -14558,7 +16976,12 @@
         5,
         8,
         5
-       ]
+       ],
+       "floor": "oak_herringbone",
+       "wall": "paint_sage",
+       "wall_sides": {
+        "north": "acoustic_oak"
+       }
       }
      ],
      "openings": [
@@ -14653,7 +17076,8 @@
    "inverted_covers": [
     "cover.awning"
    ],
-   "north": 20
+   "north": 20,
+   "facade": "brick_red"
   },
   "errors": [
    {
@@ -14779,7 +17203,12 @@
         5,
         8,
         5
-       ]
+       ],
+       "floor": "oak_herringbone",
+       "wall": "paint_sage",
+       "wall_sides": {
+        "north": "acoustic_oak"
+       }
       }
      ],
      "openings": [
@@ -14877,7 +17306,8 @@
    "inverted_covers": [
     "cover.awning"
    ],
-   "north": 20
+   "north": 20,
+   "facade": "brick_red"
   },
   "errors": [
    {
@@ -14999,7 +17429,12 @@
         5,
         8,
         5
-       ]
+       ],
+       "floor": "oak_herringbone",
+       "wall": "paint_sage",
+       "wall_sides": {
+        "north": "acoustic_oak"
+       }
       }
      ],
      "openings": [
@@ -15098,7 +17533,8 @@
    "inverted_covers": [
     "cover.awning"
    ],
-   "north": 20
+   "north": 20,
+   "facade": "brick_red"
   },
   "errors": [
    {
@@ -15220,7 +17656,12 @@
         5,
         8,
         5
-       ]
+       ],
+       "floor": "oak_herringbone",
+       "wall": "paint_sage",
+       "wall_sides": {
+        "north": "acoustic_oak"
+       }
       }
      ],
      "openings": [
@@ -15321,7 +17762,8 @@
    "inverted_covers": [
     "cover.awning"
    ],
-   "north": 20
+   "north": 20,
+   "facade": "brick_red"
   },
   "errors": [
    {
@@ -15447,7 +17889,12 @@
         5,
         8,
         5
-       ]
+       ],
+       "floor": "oak_herringbone",
+       "wall": "paint_sage",
+       "wall_sides": {
+        "north": "acoustic_oak"
+       }
       }
      ],
      "openings": [
@@ -15546,7 +17993,8 @@
    "inverted_covers": [
     "cover.awning"
    ],
-   "north": 20
+   "north": 20,
+   "facade": "brick_red"
   },
   "errors": [
    {
@@ -15668,7 +18116,12 @@
         5,
         8,
         5
-       ]
+       ],
+       "floor": "oak_herringbone",
+       "wall": "paint_sage",
+       "wall_sides": {
+        "north": "acoustic_oak"
+       }
       }
      ],
      "openings": [
@@ -15768,7 +18221,8 @@
    "inverted_covers": [
     "cover.awning"
    ],
-   "north": 20
+   "north": 20,
+   "facade": "brick_red"
   },
   "errors": [
    {
@@ -15890,7 +18344,12 @@
         5,
         8,
         5
-       ]
+       ],
+       "floor": "oak_herringbone",
+       "wall": "paint_sage",
+       "wall_sides": {
+        "north": "acoustic_oak"
+       }
       }
      ],
      "openings": [
@@ -15991,7 +18450,8 @@
    "inverted_covers": [
     "cover.awning"
    ],
-   "north": 20
+   "north": 20,
+   "facade": "brick_red"
   },
   "errors": [
    {
@@ -16113,7 +18573,12 @@
         5,
         8,
         5
-       ]
+       ],
+       "floor": "oak_herringbone",
+       "wall": "paint_sage",
+       "wall_sides": {
+        "north": "acoustic_oak"
+       }
       }
      ],
      "openings": [
@@ -16210,7 +18675,8 @@
     }
    ],
    "inverted_covers": "cover.awning",
-   "north": 20
+   "north": 20,
+   "facade": "brick_red"
   },
   "errors": [
    {
@@ -16332,7 +18798,12 @@
         5,
         8,
         5
-       ]
+       ],
+       "floor": "oak_herringbone",
+       "wall": "paint_sage",
+       "wall_sides": {
+        "north": "acoustic_oak"
+       }
       }
      ],
      "openings": [
@@ -16431,7 +18902,8 @@
    "inverted_covers": [
     "cover.awning"
    ],
-   "north": 20
+   "north": 20,
+   "facade": "brick_red"
   },
   "errors": [
    {
@@ -16553,7 +19025,12 @@
         5,
         8,
         5
-       ]
+       ],
+       "floor": "oak_herringbone",
+       "wall": "paint_sage",
+       "wall_sides": {
+        "north": "acoustic_oak"
+       }
       }
      ],
      "openings": [
@@ -16652,7 +19129,8 @@
    "inverted_covers": [
     "cover.awning"
    ],
-   "north": 20
+   "north": 20,
+   "facade": "brick_red"
   },
   "errors": [
    {
@@ -16774,7 +19252,12 @@
         5,
         8,
         5
-       ]
+       ],
+       "floor": "oak_herringbone",
+       "wall": "paint_sage",
+       "wall_sides": {
+        "north": "acoustic_oak"
+       }
       }
      ],
      "openings": [
@@ -16869,7 +19352,8 @@
    "inverted_covers": [
     "cover.awning"
    ],
-   "north": 20
+   "north": 20,
+   "facade": "brick_red"
   },
   "errors": [
    {
@@ -16991,7 +19475,12 @@
         5,
         8,
         5
-       ]
+       ],
+       "floor": "oak_herringbone",
+       "wall": "paint_sage",
+       "wall_sides": {
+        "north": "acoustic_oak"
+       }
       }
      ],
      "openings": [
@@ -17090,7 +19579,8 @@
    "inverted_covers": [
     "cover.awning"
    ],
-   "north": "NNE"
+   "north": "NNE",
+   "facade": "brick_red"
   },
   "errors": [
    {
@@ -17212,7 +19702,12 @@
         5,
         8,
         5
-       ]
+       ],
+       "floor": "oak_herringbone",
+       "wall": "paint_sage",
+       "wall_sides": {
+        "north": "acoustic_oak"
+       }
       }
      ],
      "openings": [
@@ -17311,7 +19806,8 @@
    "inverted_covers": [
     "cover.awning"
    ],
-   "north": "NNE"
+   "north": "NNE",
+   "facade": "brick_red"
   },
   "errors": [
    {
@@ -17433,7 +19929,12 @@
         5,
         8,
         5
-       ]
+       ],
+       "floor": "oak_herringbone",
+       "wall": "paint_sage",
+       "wall_sides": {
+        "north": "acoustic_oak"
+       }
       }
      ],
      "openings": [
@@ -17532,7 +20033,8 @@
    "inverted_covers": [
     "cover.awning"
    ],
-   "north": 20
+   "north": 20,
+   "facade": "brick_red"
   },
   "errors": [
    {

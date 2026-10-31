@@ -25,7 +25,7 @@ const full = {
       rooms: [
         { id: "a", rect: ["a", "top", 4, 5], lights: [{ entity: "light.a", at: [1, 1] }], furniture: [{ type: "sofa", at: [2, 2], model: "modern:sofa", finish: "grey", accent: "oak" }] },
         { id: "b", polygon: [["b", "top"], ["c", "top"], ["c", "mid"], ["b", "mid"]] },
-        { id: "c", rect: [0, 5, 8, 5] },
+        { id: "c", rect: [0, 5, 8, 5], floor: "oak_herringbone", wall: "paint_sage", wall_sides: { north: "acoustic_oak" } },
       ],
       openings: [{ room: "a", side: "north", at: 1, width: 1, type: "door", style: "glass" }],
       walls: [{ between: ["a", "b"] }, { between: ["a", "c"], type: "wall", thickness: 0.2 }, { line: [[1, 7], [3, 7]] }],
@@ -41,6 +41,7 @@ const full = {
   robots: [{ entity: "vacuum.robo", level: "g", dock: [1, 1] }],
   inverted_covers: ["cover.awning"],
   north: 20,
+  facade: "brick_red",
 };
 
 type House = Record<string, any>;
@@ -67,6 +68,15 @@ const MUTATIONS: [string, (h: House) => unknown][] = [
   ["polygon too short", (h) => ((L(h).rooms[1].polygon = [[0, 0], [1, 1]]), h)],
   ["polygon on a line", (h) => ((L(h).rooms[1].polygon = [[0, 0], [1, 1], [2, 2]]), h)],
   ["rect and polygon (only a warning)", (h) => ((L(h).rooms[1].rect = [4, 0, 4, 5]), h)],
+  ["unknown floor", (h) => ((L(h).rooms[2].floor = "lava"), h)],
+  ["floor a number", (h) => ((L(h).rooms[2].floor = 3), h)],
+  ["valid: floor texture", (h) => ((L(h).rooms[2].floor = "polyhaven:wood_floor"), h)],
+  ["wall finish on a floor", (h) => ((L(h).rooms[2].floor = "paint_sage"), h)],
+  ["unknown wall", (h) => ((L(h).rooms[2].wall = "glitter"), h)],
+  ["wall_sides a list", (h) => ((L(h).rooms[2].wall_sides = ["north"]), h)],
+  ["wall_sides bad side", (h) => ((L(h).rooms[2].wall_sides = { up: "paint_white" }), h)],
+  ["wall_sides bad finish", (h) => ((L(h).rooms[2].wall_sides = { north: "oak_herringbone" }), h)],
+  ["bad facade", (h) => ((h.facade = "gold"), h)],
   ["light not a light", (h) => ((L(h).rooms[0].lights = [{ entity: "switch.a" }]), h)],
   ["light without entity", (h) => ((L(h).rooms[0].lights = [{}]), h)],
   ["light at wrong", (h) => ((L(h).rooms[0].lights = [{ entity: "light.a", at: [1] }]), h)],
@@ -148,7 +158,7 @@ describe("the integration's copy of the rules", () => {
     const c = cases();
     expect(c[0].errors).toEqual([]);
     expect(c[1].errors).toEqual([]);
-    for (const x of c.slice(2)) if (!x.name.includes("only a warning")) expect(x.errors.length, x.name).toBeGreaterThan(0);
+    for (const x of c.slice(2)) if (!x.name.includes("only a warning") && !x.name.startsWith("valid")) expect(x.errors.length, x.name).toBeGreaterThan(0);
   });
 
   it("tests/validation_cases.json is up to date (UPDATE_CASES=1 to rewrite)", () => {

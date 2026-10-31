@@ -38,6 +38,7 @@ export const FINISHES: Record<string, string> = {
   brass: "#b5955a",
   chrome: "#c9cdd1",
   autumn: "#c98a3a",
+  terrazzo: "#dcd7cf",
 };
 
 const WOOD = ["oak", "white", "walnut", "black", "anthracite"];
@@ -45,7 +46,7 @@ const FABRIC = ["grey", "beige", "anthracite", "green", "blue", "terracotta", "p
 const LAMP = ["black", "white", "oak", "sand"];
 const POT = ["white", "terracotta", "anthracite", "concrete", "sand", "green", "pink", "black"];
 const FRONTS = ["white", "anthracite", "oak", "green", "blue", "black", "walnut"];
-const WORKTOP = ["marble", "concrete", "white", "oak", "black", "anthracite"];
+const WORKTOP = ["marble", "concrete", "terrazzo", "white", "oak", "black", "anthracite"];
 const TAPS = ["chrome", "black", "brass"];
 const HANDLES = ["black", "chrome", "brass", "oak"];
 const PAINT = ["silver", "white", "black", "anthracite", "blue", "red", "green"];
@@ -73,8 +74,8 @@ export const MODERN_GROUPS: { id: string; kinds: ModernKind[] }[] = [
       k("coffee_table", "coffee_table", [1.2, 0.6, 0.4], WOOD, { accents: ["black", "oak", "brass", "white"] }),
       k("coffee_table_round", "coffee_table", [0.8, 0.8, 0.38], WOOD),
       k("coffee_tables_nested", "coffee_table", [1.0, 0.65, 0.45], ["oak", "walnut", "black", "white", "marble"], { accents: ["black", "brass", "chrome"] }),
-      k("coffee_table_block", "coffee_table", [1.1, 0.7, 0.32], ["concrete", "oak", "white", "marble", "black"]),
-      k("side_table", "side_table", [0.45, 0.45, 0.52], ["black", "oak", "white", "marble"], { accents: ["black", "brass", "chrome", "white"] }),
+      k("coffee_table_block", "coffee_table", [1.1, 0.7, 0.32], ["concrete", "terrazzo", "oak", "white", "marble", "black"]),
+      k("side_table", "side_table", [0.45, 0.45, 0.52], ["black", "oak", "white", "marble", "terrazzo"], { accents: ["black", "brass", "chrome", "white"] }),
       k("tv_board", "shelf", [1.8, 0.4, 0.45], WOOD, { accents: ["black", "oak", "brass"] }),
       k("tv_board_wall", "shelf", [1.8, 0.38, 0.32], WOOD, { mount: "wall", elevation: 0.35 }),
       k("sideboard", "shelf", [1.6, 0.45, 0.8], WOOD),
@@ -145,8 +146,8 @@ export const MODERN_GROUPS: { id: string; kinds: ModernKind[] }[] = [
   {
     id: "kitchen",
     kinds: [
-      k("kitchen", "kitchen", [3.0, 0.62, 0.91], ["white", "anthracite", "oak", "green", "blue", "black"], { accents: ["marble", "concrete", "white", "oak", "black", "anthracite"] }),
-      k("kitchen_island", "kitchen", [2.4, 1.0, 0.92], ["white", "anthracite", "oak", "green", "blue", "black"], { accents: ["marble", "concrete", "white", "oak", "black"] }),
+      k("kitchen", "kitchen", [3.0, 0.62, 0.91], ["white", "anthracite", "oak", "green", "blue", "black"], { accents: WORKTOP }),
+      k("kitchen_island", "kitchen", [2.4, 1.0, 0.92], ["white", "anthracite", "oak", "green", "blue", "black"], { accents: WORKTOP }),
       k("kitchen_upper", "kitchen_upper", [2.4, 0.35, 0.72], ["white", "anthracite", "oak", "green", "blue", "black"], { mount: "wall", elevation: 1.45 }),
       k("kitchen_tall", "fridge", [0.6, 0.62, 2.2], ["white", "anthracite", "oak", "green", "blue", "black"]),
       k("kitchen_base", "kitchen", [0.6, 0.62, 0.91], FRONTS, { accents: WORKTOP }),
