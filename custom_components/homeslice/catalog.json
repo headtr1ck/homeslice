@@ -6736,6 +6736,272 @@
    ]
   },
   {
+   "model": "modern:vase_flowers",
+   "name": "Vase with flowers",
+   "group": "decor",
+   "type": "item",
+   "size": [
+    0.3,
+    0.3,
+    0.55
+   ],
+   "finishes": [
+    "white",
+    "terracotta",
+    "black",
+    "green",
+    "blue",
+    "sand"
+   ]
+  },
+  {
+   "model": "modern:vase_branches",
+   "name": "Vase with branches",
+   "group": "decor",
+   "type": "item",
+   "size": [
+    0.45,
+    0.45,
+    0.9
+   ],
+   "finishes": [
+    "white",
+    "terracotta",
+    "black",
+    "green",
+    "blue",
+    "sand"
+   ]
+  },
+  {
+   "model": "modern:fruit_bowl",
+   "name": "Fruit bowl",
+   "group": "decor",
+   "type": "item",
+   "size": [
+    0.3,
+    0.3,
+    0.12
+   ],
+   "finishes": [
+    "oak",
+    "white",
+    "black",
+    "terracotta"
+   ]
+  },
+  {
+   "model": "modern:candles",
+   "name": "Candles on a tray",
+   "group": "decor",
+   "type": "item",
+   "size": [
+    0.3,
+    0.12,
+    0.25
+   ],
+   "finishes": [
+    "white",
+    "sand",
+    "terracotta"
+   ],
+   "accents": [
+    "brass",
+    "black",
+    "marble"
+   ]
+  },
+  {
+   "model": "modern:tray_decor",
+   "name": "Tray with books and a vase",
+   "group": "decor",
+   "type": "item",
+   "size": [
+    0.4,
+    0.28,
+    0.15
+   ],
+   "finishes": [
+    "oak",
+    "black",
+    "brass",
+    "marble"
+   ]
+  },
+  {
+   "model": "modern:bowl_decor",
+   "name": "Bowl",
+   "group": "decor",
+   "type": "item",
+   "size": [
+    0.35,
+    0.35,
+    0.12
+   ],
+   "finishes": [
+    "white",
+    "terracotta",
+    "black",
+    "green",
+    "blue",
+    "sand"
+   ]
+  },
+  {
+   "model": "modern:globe",
+   "name": "Globe",
+   "group": "decor",
+   "type": "item",
+   "size": [
+    0.3,
+    0.3,
+    0.45
+   ],
+   "finishes": [
+    "blue"
+   ],
+   "accents": [
+    "brass",
+    "black",
+    "oak"
+   ]
+  },
+  {
+   "model": "modern:magazine_rack",
+   "name": "Magazine rack",
+   "group": "decor",
+   "type": "item",
+   "size": [
+    0.4,
+    0.3,
+    0.4
+   ],
+   "finishes": [
+    "oak",
+    "black",
+    "white",
+    "brass"
+   ]
+  },
+  {
+   "model": "modern:terrarium",
+   "name": "Terrarium",
+   "group": "decor",
+   "type": "plant",
+   "size": [
+    0.25,
+    0.25,
+    0.32
+   ],
+   "finishes": [
+    "brass",
+    "black"
+   ]
+  },
+  {
+   "model": "modern:photo_frames",
+   "name": "Photo frames",
+   "group": "decor",
+   "type": "item",
+   "size": [
+    0.5,
+    0.15,
+    0.2
+   ],
+   "finishes": [
+    "black",
+    "oak",
+    "white",
+    "brass"
+   ]
+  },
+  {
+   "model": "modern:stand_mixer",
+   "name": "Stand mixer",
+   "group": "decor",
+   "type": "item",
+   "size": [
+    0.35,
+    0.3,
+    0.36
+   ],
+   "finishes": [
+    "red",
+    "white",
+    "black",
+    "silver",
+    "green",
+    "blue"
+   ]
+  },
+  {
+   "model": "modern:knife_block",
+   "name": "Knife block",
+   "group": "decor",
+   "type": "item",
+   "size": [
+    0.15,
+    0.12,
+    0.33
+   ],
+   "finishes": [
+    "oak",
+    "walnut",
+    "black"
+   ]
+  },
+  {
+   "model": "modern:bread_bin",
+   "name": "Bread bin",
+   "group": "decor",
+   "type": "item",
+   "size": [
+    0.4,
+    0.25,
+    0.22
+   ],
+   "finishes": [
+    "white",
+    "black",
+    "oak",
+    "red",
+    "green"
+   ]
+  },
+  {
+   "model": "modern:pots_pans",
+   "name": "Pot and pan",
+   "group": "decor",
+   "type": "item",
+   "size": [
+    0.55,
+    0.4,
+    0.22
+   ],
+   "finishes": [
+    "silver",
+    "red",
+    "black",
+    "blue"
+   ]
+  },
+  {
+   "model": "modern:dish_rack",
+   "name": "Dish rack",
+   "group": "decor",
+   "type": "item",
+   "size": [
+    0.45,
+    0.32,
+    0.25
+   ],
+   "finishes": [
+    "white",
+    "black",
+    "oak"
+   ]
+  },
+  {
    "model": "modern:treadmill",
    "name": "Treadmill",
    "group": "hobby",

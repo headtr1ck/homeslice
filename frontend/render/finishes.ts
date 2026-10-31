@@ -655,3 +655,35 @@ export function finishPreview(id: string): string | null {
   previews.set(id, url);
   return url;
 }
+
+const fabrics = new Map<string, THREE.Texture | null>();
+/** A woven fabric in a colour (upholstery): fine threads both ways, a little slub. */
+export function fabricTexture(color: string): THREE.Texture | null {
+  if (fabrics.has(color)) return fabrics.get(color)!;
+  let map: THREE.Texture | null = null;
+  if (typeof document !== "undefined") {
+    const c = document.createElement("canvas");
+    c.width = c.height = 128;
+    const ctx = c.getContext("2d")!;
+    const base = new THREE.Color(color);
+    ctx.fillStyle = base.getStyle();
+    ctx.fillRect(0, 0, 128, 128);
+    const rnd = random(color.length * 131 + color.charCodeAt(1));
+    for (let i = 0; i < 128; i += 2) {
+      ctx.fillStyle = tone(base, (rnd() - 0.5) * 0.14);
+      ctx.fillRect(0, i, 128, 1);
+      ctx.fillStyle = tone(base, (rnd() - 0.5) * 0.14);
+      ctx.fillRect(i, 0, 1, 128);
+    }
+    for (let i = 0; i < 300; i++) {
+      ctx.fillStyle = tone(base, (rnd() - 0.5) * 0.25);
+      ctx.fillRect(rnd() * 128, rnd() * 128, 2 + rnd() * 5, 1);
+    }
+    map = new THREE.CanvasTexture(c);
+    map.wrapS = map.wrapT = THREE.RepeatWrapping;
+    map.repeat.set(4, 4);
+    map.colorSpace = THREE.SRGBColorSpace;
+  }
+  fabrics.set(color, map);
+  return map;
+}

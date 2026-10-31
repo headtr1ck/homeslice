@@ -42,7 +42,7 @@ export const FINISHES: Record<string, string> = {
 };
 
 const WOOD = ["oak", "white", "walnut", "black", "anthracite"];
-const FABRIC = ["grey", "beige", "anthracite", "green", "blue", "terracotta", "pink"];
+export const FABRIC = ["grey", "beige", "anthracite", "green", "blue", "terracotta", "pink"];
 const LAMP = ["black", "white", "oak", "sand"];
 const POT = ["white", "terracotta", "anthracite", "concrete", "sand", "green", "pink", "black"];
 const FRONTS = ["white", "anthracite", "oak", "green", "blue", "black", "walnut"];
@@ -421,6 +421,26 @@ export const MODERN_GROUPS: { id: string; kinds: ModernKind[] }[] = [
       k("freezer_chest", "fridge", [1.0, 0.65, 0.85], ["white", "silver", "anthracite"]),
       k("shelving_metal", "shelf", [1.2, 0.45, 1.8], ["anthracite", "silver", "black"]),
       k("workbench", "desk", [1.6, 0.7, 0.9], ["oak", "anthracite", "blue"], { accents: ["anthracite", "blue", "red", "silver"] }),
+    ],
+  },
+  {
+    id: "decor",
+    kinds: [
+      k("vase_flowers", "item", [0.3, 0.3, 0.55], ["white", "terracotta", "black", "green", "blue", "sand"]),
+      k("vase_branches", "item", [0.45, 0.45, 0.9], ["white", "terracotta", "black", "green", "blue", "sand"]),
+      k("fruit_bowl", "item", [0.3, 0.3, 0.12], ["oak", "white", "black", "terracotta"]),
+      k("candles", "item", [0.3, 0.12, 0.25], ["white", "sand", "terracotta"], { accents: ["brass", "black", "marble"] }),
+      k("tray_decor", "item", [0.4, 0.28, 0.15], ["oak", "black", "brass", "marble"]),
+      k("bowl_decor", "item", [0.35, 0.35, 0.12], ["white", "terracotta", "black", "green", "blue", "sand"]),
+      k("globe", "item", [0.3, 0.3, 0.45], ["blue"], { accents: ["brass", "black", "oak"] }),
+      k("magazine_rack", "item", [0.4, 0.3, 0.4], ["oak", "black", "white", "brass"]),
+      k("terrarium", "plant", [0.25, 0.25, 0.32], ["brass", "black"]),
+      k("photo_frames", "item", [0.5, 0.15, 0.2], ["black", "oak", "white", "brass"]),
+      k("stand_mixer", "item", [0.35, 0.3, 0.36], ["red", "white", "black", "silver", "green", "blue"]),
+      k("knife_block", "item", [0.15, 0.12, 0.33], ["oak", "walnut", "black"]),
+      k("bread_bin", "item", [0.4, 0.25, 0.22], ["white", "black", "oak", "red", "green"]),
+      k("pots_pans", "item", [0.55, 0.4, 0.22], ["silver", "red", "black", "blue"]),
+      k("dish_rack", "item", [0.45, 0.32, 0.25], ["white", "black", "oak"]),
     ],
   },
   {
