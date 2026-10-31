@@ -1732,7 +1732,8 @@ console.log("editor, unsaved changes");
       m.levels[0].rooms[0].name = "Draft name";
       p.commit(m);
     });
-    await page.waitForTimeout(700);
+    // the draft is stored a moment after the change (slower machines take longer)
+    await page.waitForFunction(() => localStorage.getItem("homeslice-draft:demo")?.includes("Draft name"), null, { timeout: 15000 });
     await page.reload();
     await page.waitForFunction(() => window.ready);
     await page.evaluate((f) => window.setupPanel(f), loadFixture("dev/fixtures/demo-hass.json"));
@@ -1741,7 +1742,7 @@ console.log("editor, unsaved changes");
     assert((await page.evaluate(() => window.panel._model.levels[0].rooms[0].name)) === "Draft name", "draft not restored");
     assert(await page.locator("homeslice-panel button.save.dirty").count(), "restored draft should be unsaved");
     await page.locator("homeslice-panel button.save").click();
-    await page.waitForTimeout(700);
+    await page.waitForFunction(() => localStorage.getItem("homeslice-draft:demo") === null, null, { timeout: 15000 }).catch(() => {});
     assert((await page.evaluate(() => localStorage.getItem("homeslice-draft:demo"))) === null, "draft kept after saving");
     assert(errors.length === 0, errors.join(" | "));
   });
