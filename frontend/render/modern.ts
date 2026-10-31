@@ -165,7 +165,7 @@ function smallLeaf(size: number): THREE.BufferGeometry {
 
 /** A pot with soil (lathe profile), `r` its top radius. */
 function pot(b: Builder, r: number, h: number, m: THREE.Material, y = 0) {
-  const pts = [v(0, 0, 0), v(r * 0.72, 0, 0), v(r * 0.78, h * 0.08, 0), v(r, h * 0.92, 0), v(r * 0.96, h, 0), v(r * 0.9, h, 0), v(r * 0.86, h * 0.9, 0)].map((p) => new THREE.Vector2(p.x, p.y));
+  const pts = [v(0, 0, 0), v(r * 0.72, 0, 0), v(r * 0.78, h * 0.08, 0), v(r, h * 0.92, 0), v(r * 0.96, h, 0), v(r * 0.9, h, 0), v(r * 0.86, h * 0.9, 0), v(0, h * 0.86, 0)].map((p) => new THREE.Vector2(p.x, p.y));
   b.add(new THREE.LatheGeometry(pts, 28), m, 0, y, 0);
   b.cyl(r * 0.88, r * 0.88, 0.01, 0, y + h * 0.86, 0, mat(C.soil), 24);
 }
@@ -270,7 +270,7 @@ function shelves(b: Builder, w: number, d: number, h: number, m: THREE.Material,
 }
 
 /** Lamp shades: open cones and domes, light inside. */
-const shadeMat = (finish: THREE.Material, color: string) => (["black", "anthracite"].includes(color) ? finish : mat(C.shade, { side: THREE.DoubleSide }));
+const shadeMat = (_finish: THREE.Material, color: string) => mat(["black", "anthracite"].includes(color) ? FINISHES[color] : C.shade, { side: THREE.DoubleSide });
 
 const BUILDERS: Record<string, Build> = {
   sofa: (b, w, d, _h, f, _c, a) => sofa(b, w, d, f, "none", a),
@@ -1047,8 +1047,8 @@ const BUILDERS: Record<string, Build> = {
   bbq_kettle: (b, w, d, h, f) => {
     const r = Math.min(w, d) / 2 - 0.02;
     const y = h - r * 0.9;
-    b.add(new THREE.SphereGeometry(r, 24, 8, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2), f, 0, y, 0);
-    b.add(new THREE.SphereGeometry(r * 0.98, 24, 8, 0, Math.PI * 2, 0, Math.PI / 2), f, 0, y + 0.01, 0).scale.y = 0.85;
+    b.sphere(r, 0, y, 0, f, 1, 0.92, 1, 24);
+    b.add(new THREE.TorusGeometry(r * 0.995, 0.006, 4, 32), mat(C.steel), 0, y, 0).rotation.x = Math.PI / 2;
     b.cyl(0.03, 0.03, 0.04, 0, y + r * 0.85, 0, mat(C.black), 10);
     for (let i = 0; i < 3; i++) {
       const a = (i / 3) * Math.PI * 2 + 0.3;
@@ -1191,7 +1191,7 @@ const BUILDERS: Record<string, Build> = {
       seat.rotation.x = Math.PI / 2;
       seat.rotation.z = sx === -1 ? 0 : Math.PI;
     }
-    b.cyl(0.07, 0.055, 0.12, w * 0.15, h * 0.6, 0, mat("#e04a3a"), 12, true);
+    b.cyl(0.07, 0.055, 0.12, w * 0.15, h * 0.6, 0, mat("#e04a3a"), 12);
     b.cyl(0.03, 0.03, 0.02, -w * 0.2, h * 0.6, d * 0.1, mat("#3a7de0"), 10);
   },
   rain_barrel: (b, w, d, h, f) => {
@@ -1875,7 +1875,9 @@ function bowlShape(b: Builder, w: number, d: number, zBack: number, f: THREE.Mat
     : style.square
       ? [[0.001, 0], [0.4, 0], [0.45, 0.25], [0.49, 0.65], [0.5, 1]]
       : [[0.001, 0], [0.3, 0], [0.38, 0.2], [0.45, 0.55], [0.49, 0.85], [0.5, 1]];
-  const profile = shape.map(([r, y]) => new THREE.Vector2(r, y));
+  // closed: up the outside, over the rim, down the inside, so no light gets through
+  const inside = (style.square ? [[0.43, 1], [0.4, 0.75], [0.3, 0.5], [0.001, 0.45]] : [[0.42, 1], [0.36, 0.75], [0.22, 0.5], [0.001, 0.45]]) as number[][];
+  const profile = [...shape, ...inside].map(([r, y]) => new THREE.Vector2(r, y));
   const bowl = style.square ? new THREE.LatheGeometry(profile, 4, Math.PI / 4) : new THREE.LatheGeometry(profile, 32);
   const k = style.square ? Math.SQRT2 : 1;
   bowl.scale(w * k, 0.4 - y0, L * k);
@@ -1893,17 +1895,13 @@ function bowlShape(b: Builder, w: number, d: number, zBack: number, f: THREE.Mat
 /** An open bidet: its bowl (no seat), the rim and a tap. */
 function bidet(b: Builder, w: number, d: number, f: THREE.Material, tap: THREE.Material, style: BowlStyle) {
   const bowl = bowlShape(b, w, d, back(d), f, style);
-  flat(b, w * 0.72, bowl.L * 0.7, 0.402, bowl.z, mat("#d6d6d2", { roughness: 0.3 }), !!style.square);
   if (style.square) {
-    const ring = new THREE.ExtrudeGeometry(roundedRect(w, bowl.L, 0.06), { depth: 0.02, bevelEnabled: false });
+    const outline = roundedRect(w, bowl.L, 0.06);
+    outline.holes.push(roundedRect(w * 0.8, bowl.L * 0.78, 0.05));
+    const ring = new THREE.ExtrudeGeometry(outline, { depth: 0.02, bevelEnabled: false });
     ring.translate(0, 0, -0.02);
     ring.rotateX(Math.PI / 2);
     b.add(ring, f, 0, 0.4, bowl.z);
-    flat(b, w * 0.72, bowl.L * 0.7, 0.402, bowl.z, mat("#d6d6d2", { roughness: 0.3 }), true);
-  } else {
-    const rim = new THREE.RingGeometry(0.36, 0.5, 32);
-    rim.scale(w, bowl.L, 1);
-    b.add(rim, f, 0, 0.4, bowl.z).rotation.x = -Math.PI / 2;
   }
   tapBasin(b, 0, 0.4, bowl.z0 + 0.04, tap, 0.1);
 }

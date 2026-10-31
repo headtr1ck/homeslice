@@ -66,7 +66,9 @@ UPDATE_CASES=1 npx vitest run frontend/model/validation.test.ts   # after changi
 **A built-in (Modern) furniture piece.** Add the kind to `MODERN_GROUPS` in
 `frontend/model/modern.ts` (type, default size, finishes, `accents` for a second colour, mount), its builder to
 `BUILDERS` in `frontend/render/modern.ts` (build to the given `w`, `d`, `h` with the finish `f` and accent `a`; centred, back
-at −z, on y = 0), names `modern.<kind>` in both `i18n` files. Then
+at −z, on y = 0), names `modern.<kind>` in both `i18n` files. Build closed shapes: a
+bowl goes up the outside, over the rim and down the inside (no single walls light shines
+through); thin open things (shades, cloth, glass) get a double-sided material. Then
 `node scripts/thumbnails.mjs`, `node scripts/catalog.mjs`, `npm test` (the asset checks
 build it at several sizes, check its box, triangles and pictures).
 
