@@ -34,6 +34,7 @@ import {
   wallSnap,
   connectEnergy,
   setCoverInverted,
+  setOpeningLevels,
   addRobot,
   updateRobot,
   deleteRobot,
@@ -2771,10 +2772,33 @@ export class HomeslicePanel extends LitElement {
       ${this.entitySelect(this.t("editor.opening_contact"), "binary_sensor", areaId, o.contact, (contact) => set({ contact }), (id) =>
         ["door", "window", "opening", "garage_door"].includes(String(states[id]?.attributes.device_class)),
       )}
+      ${this.renderOpeningFloors(sel, shared)}
       <button class="danger" @click=${() => {
         this.commit(deleteOpening(m, this._level, sel.src));
         this._opening = null;
       }}>${shared.length > 1 ? this.t("editor.opening_delete_here") : this.t("editor.opening_delete")}</button>`;
+  }
+
+  /** Outside doors and windows: the other floors the same one is on (stacked façade windows). */
+  private renderOpeningFloors(sel: { src: OpeningSource; room: string }, shared: string[]) {
+    const m = this._model!;
+    const key = JSON.stringify(sel.src);
+    const wall = this.levelWalls().find((w) => w.openings.some((x) => JSON.stringify(x.source) === key));
+    if (!wall || (wall.type !== "exterior" && wall.type !== "party") || m.levels.length < 2) return nothing;
+    const others = shared.filter((id) => id !== this._level);
+    const toggle = (id: string, on: boolean) => {
+      const next = on ? [...others, id] : others.filter((x) => x !== id);
+      const { model, source } = setOpeningLevels(m, this._level, sel.src, next);
+      this.commit(model);
+      this._opening = { src: source, room: sel.room };
+    };
+    return html`<h3>${this.t("editor.opening_floors")}</h3>
+      <div class="checks">
+        ${m.levels
+          .filter((l) => l.id !== this._level)
+          .map((l) => html`<label class="check"><input type="checkbox" .checked=${others.includes(l.id)} @change=${(e: Event) => toggle(l.id, (e.target as HTMLInputElement).checked)} />${this.levelName(l)}</label>`)}
+      </div>
+      <p class="muted">${this.t("editor.opening_floors_hint")}</p>`;
   }
 
   /** Pieces of the boundary between two rooms, with their side as seen from `a`. */

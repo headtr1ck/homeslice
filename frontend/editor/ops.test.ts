@@ -66,6 +66,7 @@ import {
   addRobotPoint,
   clearRobotPoints,
   deleteRobot,
+  setOpeningLevels,
 } from "./ops";
 import { expandHouse } from "../model/expand";
 import { deriveWalls } from "../model/walls";
@@ -534,5 +535,30 @@ describe("robots in the editor", () => {
     expect(setRobotPosition(model, index, { entity: "camera.map", attribute: "vacuum_position" }).robots![0].position).toEqual({ entity: "camera.map", attribute: "vacuum_position" });
     expect(clearRobotPoints(model, index).robots![0].position).toEqual({ attribute: "vacuum_position" });
     expect(deleteRobot(model, index).robots).toBeUndefined();
+  });
+});
+
+describe("stacked windows", () => {
+  it("repeats a level's window on the floor above, at the same place on the façade", () => {
+    const two: HouseInput = {
+      schema: 1,
+      id: "t",
+      outline: { rect: [0, 0, 10, 8] },
+      levels: [
+        { id: "g", rooms: [{ id: "left", rect: [0, 0, 5, 8] }, { id: "right", rect: [5, 0, 5, 8] }], openings: [{ room: "right", side: "south", at: 1, width: 1.2, cover: "cover.r" }] },
+        { id: "f", rooms: [{ id: "all", rect: [0, 0, 10, 8] }] },
+      ],
+    };
+    const { model, source } = setOpeningLevels(two, "g", { kind: "level", index: 0 }, ["f"]);
+    expect(source).toEqual({ kind: "facade", index: 0 });
+    expect(model.levels[0].openings).toBeUndefined();
+    expect(model.facade_openings).toEqual([{ side: "south", at: 6, width: 1.2, levels: ["g", "f"], covers: { g: "cover.r" } }]);
+    const { house } = expandHouse(model);
+    const ground = house!.levels[0].openings[0];
+    const first = house!.levels[1].openings[0];
+    expect([ground.room, ground.at, first.room, first.at]).toEqual(["right", 1, "all", 6]);
+    // and off again: only this level keeps it, without the other level's blind
+    const back = setOpeningLevels(model, "g", source, []).model;
+    expect(back.facade_openings![0].levels).toEqual(["g"]);
   });
 });

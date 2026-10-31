@@ -3,7 +3,7 @@
 
 import { bbox, dist, normalizeOrientation, project, signedArea } from "../model/geometry";
 import { expandHouse } from "../model/expand";
-import type { Coord, EnergyInput, FurnitureInput, HouseInput, LevelInput, OpeningInput, OpeningSource, OpeningType, RoomInput, ShapeInput, RobotInput, RoofInput, Side, Vec2, VerticalInput, WallInput, WallThickness } from "../model/types";
+import type { Coord, EnergyInput, FacadeOpeningInput, FurnitureInput, HouseInput, LevelInput, OpeningInput, OpeningSource, OpeningType, RoomInput, ShapeInput, RobotInput, RoofInput, Side, Vec2, VerticalInput, WallInput, WallThickness } from "../model/types";
 
 /** Points closer than this count as the same corner (shared by neighbouring rooms). */
 export const SAME_POINT = 0.01;
@@ -582,6 +582,50 @@ export function deleteOpening(model: HouseInput, levelId: string, src: OpeningSo
   if (!f.levels.length) m.facade_openings!.splice(src.index, 1);
   if (!m.facade_openings!.length) delete m.facade_openings;
   return m;
+}
+
+/**
+ * Puts an outside door or window on these levels: a level's own opening becomes a
+ * stacked façade opening (its position then counts from the house outline's corner);
+ * a façade opening just changes its levels. Blinds and contacts stay per level.
+ */
+export function setOpeningLevels(model: HouseInput, levelId: string, src: OpeningSource, levels: string[]): { model: HouseInput; source: OpeningSource } {
+  const m = clone(model);
+  const order = (ids: string[]) => m.levels.map((l) => l.id).filter((id) => ids.includes(id) || id === levelId);
+  if (src.kind === "facade") {
+    const f = m.facade_openings?.[src.index];
+    if (!f) return { model: m, source: src };
+    f.levels = order(levels);
+    for (const key of ["covers", "contacts"] as const) {
+      const map = f[key];
+      if (!map) continue;
+      for (const id of Object.keys(map)) if (!f.levels.includes(id)) delete map[id];
+      if (!Object.keys(map).length) delete f[key];
+    }
+    return { model: m, source: src };
+  }
+  const l = level(m, levelId);
+  const o = l.openings?.[src.index];
+  const room = o && l.rooms.find((r) => r.id === o.room);
+  if (!o || !room) return { model: m, source: src };
+  const along = o.side === "north" || o.side === "south" ? 0 : 1;
+  const house = shapePolygon(m, m.outline);
+  const base = bbox(house.length ? house : outlineScope(m, levelId).poly).min[along];
+  const f: FacadeOpeningInput = {
+    side: o.side,
+    at: round(bbox(roomPolygon(m, room)).min[along] + o.at - base),
+    width: o.width,
+    levels: order(levels),
+    ...(o.type ? { type: o.type } : {}),
+    ...(o.sill !== undefined ? { sill: o.sill } : {}),
+    ...(o.height !== undefined ? { height: o.height } : {}),
+    ...(o.cover ? { covers: { [levelId]: o.cover } } : {}),
+    ...(o.contact ? { contacts: { [levelId]: o.contact } } : {}),
+  };
+  l.openings = l.openings!.filter((_, i) => i !== src.index);
+  if (!l.openings.length) delete l.openings;
+  m.facade_openings = [...(m.facade_openings ?? []), f];
+  return { model: m, source: { kind: "facade", index: m.facade_openings.length - 1 } };
 }
 
 // ----- snapping -----

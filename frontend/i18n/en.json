@@ -387,5 +387,7 @@
   "editor.key_duplicate": "Duplicate the selected furniture",
   "cardeditor.mode": "Look",
   "cardeditor.mode_3d": "3D house",
-  "cardeditor.mode_plan": "Floor plan (2D, one floor at a time)"
+  "cardeditor.mode_plan": "Floor plan (2D, one floor at a time)",
+  "editor.opening_floors": "Also on these floors",
+  "editor.opening_floors_hint": "The same window, at the same place on the façade, on other floors (e.g. a column of windows). Size and position change on all of them together; blinds and contacts are set per floor."
 }

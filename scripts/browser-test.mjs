@@ -884,6 +884,28 @@ console.log("editor");
     await page.keyboard.press("Escape");
   });
 
+  await test("doors & windows: an outside window can be repeated on the floor above", async () => {
+    const hit = await page.evaluate(() => {
+      const l = [...window.panel.shadowRoot.querySelectorAll("svg.plan line.opening-hit")].find((x) => {
+        const o = JSON.parse(x.dataset.opening);
+        return o.room === "kitchen";
+      });
+      const r = l.getBoundingClientRect();
+      return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+    });
+    await page.mouse.click(hit.x, hit.y);
+    await page.locator("homeslice-panel .inspector label.check", { hasText: "First Floor" }).locator("input").check();
+    const m = await model();
+    // the kitchen's north window at 1.5 m from its west end, counted from the house's corner now
+    const at = (await room("kitchen")).rect[0] + 1.5;
+    assert(m.facade_openings?.some((f) => f.side === "north" && f.at === at && JSON.stringify(f.levels) === '["ground","first"]' && f.covers?.ground === "cover.kitchen"), `facade: ${JSON.stringify(m.facade_openings)}`);
+    assert((await page.locator("homeslice-panel .inspector").textContent()).includes("Stacked on several levels"), "not shown as stacked");
+    await page.evaluate(() => window.panel.shadowRoot.activeElement?.blur());
+    await page.keyboard.press("Control+z");
+    assert(!(await model()).facade_openings?.some((f) => f.at === at), "undo did not restore it");
+    await page.keyboard.press("Escape");
+  });
+
   await test("doors & windows: house-wide defaults for sill and height", async () => {
     const sill = page.locator('homeslice-panel .inspector input[aria-label="Window Sill (m)"]');
     await sill.fill("0");
