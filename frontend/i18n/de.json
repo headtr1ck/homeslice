@@ -424,5 +424,6 @@
   "editor.show_furniture": "Möbel anzeigen",
   "editor.show_lights": "Lampen anzeigen",
   "editor.show_devices": "Energie und Roboter anzeigen",
-  "editor.show_below": "Etage darunter anzeigen"
+  "editor.show_below": "Etage darunter anzeigen",
+  "editor.furniture_mirror": "Spiegeln"
 }

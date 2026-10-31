@@ -148,7 +148,7 @@ export function expandHouse(input: unknown): ExpandResult {
         const mount = fi.mount ?? def.mount ?? "floor";
         if (!["floor", "wall", "ceiling"].includes(mount)) return err(fp, `mount must be floor, wall or ceiling, got ${JSON.stringify(fi.mount)}.`);
         const elevation = mount === "ceiling" ? null : mount === "wall" ? (fi.elevation ?? def.elevation ?? 1.2) : 0;
-        furniture.push({ type: fi.type, at: [min[0] + fi.at[0], min[1] + fi.at[1]], rotation: (((fi.rotation ?? 0) % 360) + 360) % 360, size: [size[0], size[1]], height: def.height, mount, elevation });
+        furniture.push({ type: fi.type, at: [min[0] + fi.at[0], min[1] + fi.at[1]], rotation: (((fi.rotation ?? 0) % 360) + 360) % 360, size: [size[0], size[1]], height: def.height, mount, elevation, mirror: !!fi.mirror });
       });
       const room: Room = { id: ri.id, areaId: ri.area_id, name: ri.name, kind, floor: ri.floor ?? DEFAULTS.floor[kind], polygon, lights, furniture };
       if (ri.awning) room.awning = ri.awning;

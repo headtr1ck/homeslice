@@ -6,7 +6,11 @@ import { buildPiece, loadModel, modelColor, modelFiles } from "../frontend/rende
 
 const SIZE = 160;
 
-async function render(): Promise<Record<string, string>> {
+/** Pixels per metre of the top-down pictures the editor's plan draws pieces with. */
+const PLAN_PX = 64;
+
+async function render(): Promise<{ thumbs: Record<string, string>; plans: Record<string, string> }> {
+  const plans: Record<string, string> = {};
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
   renderer.setSize(SIZE, SIZE);
   renderer.setClearColor(0x000000, 0);
@@ -40,10 +44,22 @@ async function render(): Promise<Record<string, string>> {
     const dir = new THREE.Vector3(0.55, 0.6, 1).normalize();
     camera.position.copy(centre).addScaledVector(dir, (radius / Math.sin((15 * Math.PI) / 180)) * 1.02);
     camera.lookAt(centre);
+    renderer.setSize(SIZE, SIZE);
     renderer.render(scene, camera);
     out[type] = renderer.domElement.toDataURL("image/png");
+
+    // straight from above, framed on the footprint: north (the back) at the top
+    const [w, d] = def.size;
+    const top = new THREE.OrthographicCamera(-w / 2, w / 2, d / 2, -d / 2, 0.01, 50);
+    top.position.set(0, 20, 0);
+    top.up.set(0, 0, -1);
+    top.lookAt(0, 0, 0);
+    sun.position.set(1, 6, 2);
+    renderer.setSize(Math.max(8, Math.round(w * PLAN_PX)), Math.max(8, Math.round(d * PLAN_PX)));
+    renderer.render(scene, top);
+    plans[type] = renderer.domElement.toDataURL("image/png");
   }
-  return out;
+  return { thumbs: out, plans };
 }
 
-(window as unknown as { thumbnails: Promise<Record<string, string>> }).thumbnails = render();
+(window as unknown as { thumbnails: Promise<unknown> }).thumbnails = render();

@@ -94,6 +94,8 @@ export interface FurnitureInput {
   mount?: FurnitureMount;
   /** Wall pieces: metres from the floor to the piece's bottom (default by type). */
   elevation?: number;
+  /** Flipped left to right, e.g. a corner sofa with its long side on the other end. */
+  mirror?: boolean;
 }
 
 export interface LightInput {
@@ -317,7 +319,7 @@ export interface Room {
   /** As in the input, with `at` in plan coordinates. */
   lights: { entity: string; at?: Vec2; hidden: boolean }[];
   /** `elevation`: bottom above the floor in metres (ceiling pieces: null, they hang from the ceiling). */
-  furniture: { type: FurnitureType; at: Vec2; rotation: number; size: [number, number]; height: number; mount: FurnitureMount; elevation: number | null }[];
+  furniture: { type: FurnitureType; at: Vec2; rotation: number; size: [number, number]; height: number; mount: FurnitureMount; elevation: number | null; mirror: boolean }[];
 }
 
 /** Where an opening is defined: a level's own list, or a façade entry shared by levels. */

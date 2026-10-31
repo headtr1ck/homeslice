@@ -1,5 +1,6 @@
 #!/usr/bin/env node
-// Renders assets/thumbs/<type>.png, the pictures in the editor's furniture library.
+// Renders assets/thumbs/<type>.png (the editor's furniture library) and assets/plan/<type>.png
+// (the pieces seen from above, drawn on the plan at their size).
 // Run after adding a furniture type or changing its model: node scripts/thumbnails.mjs
 import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync, existsSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
@@ -37,7 +38,10 @@ const images = await page.evaluate(() => window.thumbnails);
 await browser.close();
 rmSync(out, { recursive: true });
 
-const target = join(root, "assets/thumbs");
-mkdirSync(target, { recursive: true });
-for (const [type, url] of Object.entries(images)) writeFileSync(join(target, `${type}.png`), Buffer.from(url.split(",")[1], "base64"));
-console.log(`${Object.keys(images).length} pictures in assets/thumbs/`);
+// library pictures, and top-down pictures for the editor's plan
+for (const [folder, set] of [["thumbs", images.thumbs], ["plan", images.plans]]) {
+  const target = join(root, "assets", folder);
+  mkdirSync(target, { recursive: true });
+  for (const [type, url] of Object.entries(set)) writeFileSync(join(target, `${type}.png`), Buffer.from(url.split(",")[1], "base64"));
+  console.log(`${Object.keys(set).length} pictures in assets/${folder}/`);
+}

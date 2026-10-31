@@ -239,6 +239,9 @@ export function wrapWords(text: string, chars: number): string[] {
   return lines.length ? lines : [text];
 }
 
+/** A furniture type seen from straight above, framed on its footprint (assets/plan). */
+const planPicture = (type: FurnitureType) => new URL(/* @vite-ignore */ `plan/${type}.png`, import.meta.url).href;
+
 /** Picture of a furniture type for the library (assets/thumbs, next to the bundle). */
 const thumb = (type: FurnitureType) => new URL(/* @vite-ignore */ `thumbs/${type}.png`, import.meta.url).href;
 
@@ -1992,9 +1995,9 @@ export class HomeslicePanel extends LitElement {
   }
 
   /** Furniture on the plan: outlines with a mark at the front; draggable in objects mode. */
+  /** Furniture on the plan: the piece seen from above at its size, its name and size when selected. */
   private renderFurniture() {
     const m = this._model!;
-    const objects = true;
     return svg`${(this.levelInput?.rooms ?? []).flatMap((r) => {
       const { min } = bbox(roomPolygon(m, r));
       return (r.furniture ?? []).map((f, i) => {
@@ -2002,12 +2005,14 @@ export class HomeslicePanel extends LitElement {
         const [cx, cy] = this.toScreen([min[0] + f.at[0], min[1] + f.at[1]]);
         const k = this._view.scale;
         const sel = this._furn?.room === r.id && this._furn.index === i;
-        return svg`<g class="furniture mount-${mountOf(f)} ${objects ? "editable" : ""} ${sel ? "selected" : ""}" data-furniture=${JSON.stringify({ room: r.id, index: i })}
+        const label = `${this.t(`furniture.${f.type}` as StringKey)} · ${w.toFixed(2)} × ${d.toFixed(2)} m`;
+        return svg`<g class="furniture mount-${mountOf(f)} editable ${sel ? "selected" : ""}" data-furniture=${JSON.stringify({ room: r.id, index: i })}
             transform="translate(${cx} ${cy}) rotate(${f.rotation ?? 0})">
-          <rect x=${(-w * k) / 2} y=${(-d * k) / 2} width=${w * k} height=${d * k} rx="2"></rect>
-          <line class="front" x1=${(-w * k) / 2 + 3} y1=${(d * k) / 2 - 3} x2=${(w * k) / 2 - 3} y2=${(d * k) / 2 - 3}></line>
-          ${objects && Math.min(w, d) * k > 26 ? svg`<text y="4" text-anchor="middle">${this.t(`furniture.${f.type}` as StringKey)}</text>` : nothing}
-        </g>`;
+          <image href=${planPicture(f.type)} x=${(-w * k) / 2} y=${(-d * k) / 2} width=${w * k} height=${d * k} preserveAspectRatio="none"
+            transform=${f.mirror ? "scale(-1 1)" : ""}></image>
+          <rect x=${(-w * k) / 2} y=${(-d * k) / 2} width=${w * k} height=${d * k} rx="2"><title>${label}</title></rect>
+        </g>
+        ${sel ? svg`<text class="furniture-label" x=${cx} y=${cy + (Math.max(w, d) * k) / 2 + 16} text-anchor="middle">${label}</text>` : nothing}`;
       });
     })}`;
   }
@@ -2057,6 +2062,7 @@ export class HomeslicePanel extends LitElement {
         <button title=${this.t("editor.turn_left")} @click=${() => this.rotateFurniture(-90)}>⟲ 90°</button>
         <button title=${this.t("editor.turn_right")} @click=${() => this.rotateFurniture(90)}>⟳ 90°</button>
       </div>
+      <button class=${f.mirror ? "active" : ""} aria-pressed=${!!f.mirror} @click=${() => set({ mirror: f.mirror ? undefined : true })}>⇋ ${this.t("editor.furniture_mirror")}</button>
       <button @click=${() => this.duplicateFurniture()}>${this.t("editor.furniture_duplicate")}</button>
       <button class="danger" @click=${() => {
         this.commit(deleteFurniture(m, this._level, r.id, sel.index));
@@ -3939,9 +3945,21 @@ export class HomeslicePanel extends LitElement {
       stroke-linejoin: round;
     }
     .furniture rect {
-      fill: rgba(60, 64, 70, 0.18);
-      stroke: rgba(60, 64, 70, 0.55);
+      fill: transparent;
+      stroke: rgba(60, 64, 70, 0.6);
       stroke-width: 1;
+    }
+    .furniture image {
+      opacity: 0.9;
+    }
+    .furniture-label {
+      font-size: 11px;
+      font-weight: 600;
+      fill: #222;
+      paint-order: stroke;
+      stroke: rgba(255, 255, 255, 0.85);
+      stroke-width: 3px;
+      pointer-events: none;
     }
     .furniture {
       pointer-events: none;
@@ -3951,7 +3969,7 @@ export class HomeslicePanel extends LitElement {
       cursor: grab;
     }
     .furniture.editable rect {
-      fill: rgba(60, 64, 70, 0.35);
+      fill: transparent;
     }
     .furniture.selected rect {
       stroke: var(--accent);

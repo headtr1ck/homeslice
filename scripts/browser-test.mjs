@@ -1330,6 +1330,12 @@ console.log("editor");
     assert((await room("living")).furniture[sofaIndex].mount === "ceiling", "mount not set");
     await page.locator("homeslice-panel .inspector label", { hasText: "Mounted" }).locator("select").selectOption("floor");
     assert((await room("living")).furniture[sofaIndex].mount === undefined, "floor is the default and not written");
+    // mirrored, and back
+    await page.locator("homeslice-panel .inspector button", { hasText: "Mirror" }).click();
+    assert((await room("living")).furniture[sofaIndex].mirror === true, "not mirrored");
+    assert((await page.locator("homeslice-panel svg.plan g.furniture.selected image").getAttribute("transform")) === "scale(-1 1)", "plan picture not flipped");
+    await page.locator("homeslice-panel .inspector button", { hasText: "Mirror" }).click();
+    assert((await room("living")).furniture[sofaIndex].mirror === undefined, "mirror not removed");
     await shot(page, "editor-library");
     await page.keyboard.press("Control+z");
     await page.keyboard.press("Control+z");

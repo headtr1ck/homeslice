@@ -1221,6 +1221,8 @@ export class HouseRenderer {
     // wall pieces hang at their height; ceiling pieces hang from the ceiling of their level
     g.position.set(f.at[0], f.elevation ?? Math.max(0, ceiling - f.height), f.at[1]);
     g.rotation.y = -(f.rotation * Math.PI) / 180;
+    // mirrored in its own frame, before turning
+    if (f.mirror) g.scale.x = -1;
     g.traverse((o) => (o.userData.outdoor = true)); // not a tap target: taps go to the room
     if (this.view.furniture === "detailed" && partsFor(f.type, f.mount)) this.detail(g, f);
     return g;

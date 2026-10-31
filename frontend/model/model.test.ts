@@ -398,3 +398,10 @@ describe("energy connections", () => {
     expect(issues[0].message).toContain("to must be the id of another energy item");
   });
 });
+
+describe("furniture", () => {
+  it("can be mirrored", () => {
+    const { house } = expandHouse({ schema: 1, id: "m", outline: { rect: [0, 0, 5, 5] }, levels: [{ id: "g", rooms: [{ id: "r", rect: [0, 0, 5, 5], furniture: [{ type: "sofa_corner", at: [2, 2], mirror: true }, { type: "sofa", at: [1, 1] }] }] }] });
+    expect(house!.levels[0].rooms[0].furniture.map((f) => f.mirror)).toEqual([true, false]);
+  });
+});

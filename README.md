@@ -167,6 +167,7 @@ levels:
           - { type: sofa, at: [3, 6.5] }
           - { type: table, at: [3, 2], rotation: 90 }
           - { type: tv, at: [3, 7.8], rotation: 180, mount: wall, elevation: 1 }  # wall, ceiling
+          - { type: sofa_corner, at: [2, 3], mirror: true }                    # flipped left to right
       - { id: kitchen, area_id: kitchen, rect: [6, 0, 4, 8], floor: tile }
       - { id: garden, area_id: garden, kind: outdoor, rect: [0, 8, 10, 6], awning: cover.awning }
     walls:
