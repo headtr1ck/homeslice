@@ -1,0 +1,64 @@
+# Posts the "Library preview" pictures on the pull request. Runs from the default
+# branch with write rights, so it never runs the pull request's code: it only checks
+# and publishes the artifact's pictures (scripts/library-comment.mjs, from main).
+name: Library preview comment
+
+on:
+  workflow_run:
+    workflows: ["Library preview"]
+    types: [completed]
+
+permissions:
+  contents: write
+  pull-requests: write
+  actions: read
+
+jobs:
+  comment:
+    if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: library-preview
+          path: preview
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ github.token }}
+      - name: Find the pull request
+        id: pr
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          # the artifact names it; trust it only if that pull request's head is this run's commit
+          pr=$(jq -r '.pr' preview/summary.json)
+          [[ "$pr" =~ ^[0-9]+$ ]] || { echo "bad PR number"; exit 1; }
+          sha=$(gh api "repos/${{ github.repository }}/pulls/$pr" --jq .head.sha)
+          [ "$sha" = "$HEAD_SHA" ] || { echo "PR $pr is not at $HEAD_SHA"; exit 1; }
+          echo "number=$pr" >> "$GITHUB_OUTPUT"
+      - name: Publish the pictures and comment
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ steps.pr.outputs.number }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          dir="pr-$PR/$HEAD_SHA"
+          url="https://raw.githubusercontent.com/${{ github.repository }}/library-previews/$dir"
+          git fetch origin library-previews || true
+          git worktree add --detach previews 2>/dev/null || true
+          cd previews
+          if git rev-parse --verify origin/library-previews >/dev/null 2>&1; then git checkout -B library-previews origin/library-previews; else git checkout --orphan library-previews && git rm -rf . -q; fi
+          cd ..
+          node scripts/library-comment.mjs preview "previews/$dir" "$url" > comment.md
+          cd previews
+          if [ -n "$(git status --porcelain)" ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add -A && git commit -qm "Library preview for #$PR ($HEAD_SHA)" && git push -q origin library-previews
+          fi
+          cd ..
+          # one comment per pull request, updated on every push
+          id=$(gh api "repos/${{ github.repository }}/issues/$PR/comments" --paginate --jq '.[] | select(.body | startswith("<!-- homeslice-library-preview -->")) | .id' | head -1)
+          if [ -n "$id" ]; then gh api -X PATCH "repos/${{ github.repository }}/issues/comments/$id" -F body=@comment.md >/dev/null
+          else gh pr comment "$PR" --body-file comment.md; fi

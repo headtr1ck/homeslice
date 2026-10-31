@@ -1,0 +1,55 @@
+# Renders the furniture library's pictures for a pull request and for its base, and
+# keeps what was added, changed or removed (the "Library preview comment" workflow
+# posts them). Runs with read-only rights, also for pull requests from forks.
+name: Library preview
+
+on:
+  pull_request:
+    paths:
+      - "assets/models/**"
+      - "frontend/model/modern.ts"
+      - "frontend/model/furniture.ts"
+      - "frontend/render/modern.ts"
+      - "frontend/render/models.ts"
+      - "frontend/render/simple.ts"
+      - "frontend/editor/kenney.ts"
+      - "dev/thumbnails.ts"
+      - "scripts/thumbnails.mjs"
+
+permissions:
+  contents: read
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: head
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          path: base
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Install
+        run: |
+          (cd head && npm ci)
+          (cd base && npm ci)
+          (cd head && npx playwright-core install --with-deps chromium)
+      - name: Render the library of both
+        run: |
+          (cd base && node scripts/thumbnails.mjs)
+          (cd head && node scripts/thumbnails.mjs && node scripts/library-sheet.mjs)
+      - name: Compare
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          node head/scripts/library-diff.mjs base head preview
+          cp head/test-results/library.html preview/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: library-preview
+          path: preview/
