@@ -27,12 +27,13 @@ describe("door & window library", () => {
 describe("kinds", () => {
   it("names an opening's kind, wide ones double by default", async () => {
     const { kindOf } = await import("./openings");
-    expect([kindOf({ width: 1 }), kindOf({ width: 2.4 }), kindOf({ width: 1, style: "fixed" }), kindOf({ type: "door", width: 2.4, style: "sliding" }), kindOf({ type: "opening", width: 1, style: "arch" })]).toEqual([
+    expect([kindOf({ width: 1 }), kindOf({ width: 2.4 }), kindOf({ width: 1, style: "fixed" }), kindOf({ type: "door", width: 2.4, style: "sliding" }), kindOf({ type: "opening", width: 1, style: "arch" }), kindOf({ type: "door", width: 1.6, style: "glass_double" })]).toEqual([
       "window",
       "window_double",
       "window_fixed",
       "door_sliding",
       "opening_arch",
+      "door_glass_double",
     ]);
   });
 });

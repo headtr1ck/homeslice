@@ -10,7 +10,7 @@ export type Coord = number | string;
 export type Side = "north" | "south" | "east" | "west";
 export type RoomKind = "room" | "outdoor" | "void";
 export type OpeningType = "window" | "door" | "garage_door" | "opening";
-export type OpeningStyle = "single" | "double" | "fixed" | "sliding" | "square" | "arch";
+export type OpeningStyle = "single" | "double" | "fixed" | "sliding" | "glass" | "glass_double" | "square" | "arch";
 /** `open`: a boundary between two rooms that are open to each other (no wall is built). */
 export type WallType = "exterior" | "party" | "interior" | "open";
 
@@ -144,7 +144,8 @@ export interface OpeningInput {
   sill?: number;
   height?: number;
   /**
-   * The kind: windows single, double or fixed; doors single, double or sliding (default:
+   * The kind: windows single, double or fixed; doors single, double, sliding, glass or
+   * glass_double (terrace doors) (default:
    * double when wider than 1.3 m for windows, 1.4 m for doors, else single); openings
    * square (default) or arch.
    */
@@ -193,7 +194,8 @@ export interface FacadeOpeningInput {
   sill?: number;
   height?: number;
   /**
-   * The kind: windows single, double or fixed; doors single, double or sliding (default:
+   * The kind: windows single, double or fixed; doors single, double, sliding, glass or
+   * glass_double (terrace doors) (default:
    * double when wider than 1.3 m for windows, 1.4 m for doors, else single); openings
    * square (default) or arch.
    */

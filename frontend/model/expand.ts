@@ -49,7 +49,7 @@ export interface ExpandResult {
 function look(o: { style?: OpeningStyle; hinge?: "left" | "right"; swing?: "in" | "out"; width: number }, type: OpeningType): Pick<Opening, "style" | "hinge" | "swing"> {
   // wide windows and doors have two leaves unless they say otherwise
   const fallback: OpeningStyle = type === "opening" ? "square" : (type === "window" && o.width > 1.3) || (type === "door" && o.width > 1.4) ? "double" : "single";
-  const styles: OpeningStyle[] = ["single", "double", "fixed", "sliding", "square", "arch"];
+  const styles: OpeningStyle[] = ["single", "double", "fixed", "sliding", "glass", "glass_double", "square", "arch"];
   return { style: o.style && styles.includes(o.style) ? o.style : fallback, hinge: o.hinge === "right" ? "right" : "left", swing: o.swing === "out" ? "out" : "in" };
 }
 

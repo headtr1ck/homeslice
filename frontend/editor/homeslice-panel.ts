@@ -2515,7 +2515,7 @@ export class HomeslicePanel extends LitElement {
       return svg`<line class="${cls} leaf" x1=${h[0]} y1=${h[1]} x2=${e[0]} y2=${e[1]}></line><polyline class=${cls} points=${arc.map((p) => p.join(",")).join(" ")}></polyline>`;
     };
     const ends = [face(s0), face(s1)];
-    if (o.style === "double") {
+    if (o.style === "double" || o.style === "glass_double") {
       const middle = face(at((o.start + o.end) / 2));
       return svg`${leaf(ends[0], middle)}${leaf(ends[1], middle)}`;
     }

@@ -28,6 +28,8 @@ export const OPENING_PRESETS: OpeningPreset[] = [
   { id: "window_floor", type: "window", style: "double", width: 1.4, sill: 0, height: 2.2, icon: `${floor}${frame(16, 6, 32, 54)}${glass(19, 9, 12, 48)}${glass(33, 9, 12, 48)}` },
   { id: "door", type: "door", width: 0.9, icon: `${floor}${frame(22, 8, 20, 52)}${leaf(24, 10, 16, 50)}${knob(37, 36)}` },
   { id: "door_double", type: "door", style: "double", width: 1.6, icon: `${floor}${frame(12, 8, 40, 52)}${leaf(14, 10, 17.5, 50)}${leaf(32.5, 10, 17.5, 50)}${knob(29, 36)}${knob(35, 36)}` },
+  { id: "door_glass", type: "door", style: "glass", width: 1.0, icon: `${floor}${frame(20, 6, 24, 54)}${glass(23, 9, 18, 48)}${knob(38, 34)}` },
+  { id: "door_glass_double", type: "door", style: "glass_double", width: 1.6, icon: `${floor}${frame(12, 6, 40, 54)}${glass(15, 9, 16, 48)}${glass(33, 9, 16, 48)}${knob(29, 34)}${knob(35, 34)}` },
   { id: "door_sliding", type: "door", style: "sliding", width: 2.4, icon: `${floor}${frame(4, 6, 56, 54)}${glass(7, 9, 24, 48)}${glass(33, 9, 24, 48)}<path d="M14 33h10M50 33h-10" class="handle"/>` },
   { id: "garage_door", type: "garage_door", width: 2.5, icon: `${floor}${frame(4, 14, 56, 46)}${[0, 1, 2, 3, 4].map((i) => leaf(6, 16 + i * 8.8, 52, 7.6)).join("")}` },
   { id: "opening", type: "opening", width: 1.0, icon: `${floor}${frame(20, 10, 24, 50)}` },
