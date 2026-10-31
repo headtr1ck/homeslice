@@ -5730,6 +5730,187 @@
    ]
   },
   {
+   "model": "modern:carport",
+   "name": "Carport",
+   "group": "outside",
+   "type": "item",
+   "size": [
+    3.2,
+    5.5,
+    2.5
+   ],
+   "finishes": [
+    "oak",
+    "anthracite",
+    "white",
+    "walnut"
+   ],
+   "accents": [
+    "anthracite",
+    "silver",
+    "white"
+   ]
+  },
+  {
+   "model": "modern:bin_store",
+   "name": "Bin store",
+   "group": "outside",
+   "type": "item",
+   "size": [
+    1.5,
+    0.85,
+    1.25
+   ],
+   "finishes": [
+    "oak",
+    "anthracite",
+    "grey",
+    "green"
+   ]
+  },
+  {
+   "model": "modern:firewood_shelter",
+   "name": "Firewood shelter",
+   "group": "outside",
+   "type": "item",
+   "size": [
+    1.4,
+    0.6,
+    1.6
+   ],
+   "finishes": [
+    "oak",
+    "anthracite",
+    "walnut"
+   ]
+  },
+  {
+   "model": "modern:pizza_oven",
+   "name": "Pizza oven",
+   "group": "outside",
+   "type": "item",
+   "size": [
+    1,
+    1,
+    1.6
+   ],
+   "finishes": [
+    "concrete",
+    "white",
+    "anthracite",
+    "terracotta"
+   ]
+  },
+  {
+   "model": "modern:adirondack_chair",
+   "name": "Adirondack chair",
+   "group": "outside",
+   "type": "chair",
+   "size": [
+    0.75,
+    0.9,
+    0.95
+   ],
+   "finishes": [
+    "white",
+    "oak",
+    "green",
+    "blue",
+    "red"
+   ]
+  },
+  {
+   "model": "modern:parasol_cantilever",
+   "name": "Cantilever parasol",
+   "group": "outside",
+   "type": "item",
+   "size": [
+    3,
+    3,
+    2.6
+   ],
+   "finishes": [
+    "sand",
+    "anthracite",
+    "white",
+    "terracotta"
+   ],
+   "accents": [
+    "anthracite",
+    "silver",
+    "white"
+   ]
+  },
+  {
+   "model": "modern:swing_bench",
+   "name": "Swing bench",
+   "group": "outside",
+   "type": "bench",
+   "size": [
+    2.3,
+    1.4,
+    2
+   ],
+   "finishes": [
+    "oak",
+    "white",
+    "anthracite"
+   ]
+  },
+  {
+   "model": "modern:outdoor_rug",
+   "name": "Outdoor rug",
+   "group": "outside",
+   "type": "rug",
+   "size": [
+    2.4,
+    1.7,
+    0.01
+   ],
+   "finishes": [
+    "blue",
+    "green",
+    "terracotta",
+    "anthracite",
+    "beige"
+   ]
+  },
+  {
+   "model": "modern:planter_tall",
+   "name": "Tall planter with grasses",
+   "group": "outside",
+   "type": "plant",
+   "size": [
+    0.5,
+    0.5,
+    1.4
+   ],
+   "finishes": [
+    "anthracite",
+    "white",
+    "terracotta",
+    "concrete",
+    "oak"
+   ]
+  },
+  {
+   "model": "modern:sun_sail",
+   "name": "Shade sail",
+   "group": "outside",
+   "type": "item",
+   "size": [
+    4,
+    3.5,
+    2.8
+   ],
+   "finishes": [
+    "white",
+    "sand",
+    "anthracite",
+    "terracotta"
+   ]
+  },
+  {
    "model": "modern:deck_chair",
    "name": "Deck chair",
    "group": "outside",

@@ -3436,9 +3436,16 @@ const BUILDERS: Record<string, Build> = {
   dartboard: (b, w, d, h) => {
     const r = Math.min(w, h) / 2;
     b.add(new THREE.CylinderGeometry(r, r, d, 40).rotateX(Math.PI / 2), mat("#1c1c1c"), 0, r, 0);
-    const rings: [number, string][] = [[0.82, "#e8dcc0"], [0.62, "#2b2b2b"], [0.5, "#e8dcc0"], [0.3, "#2b2b2b"], [0.12, "#2f7a45"], [0.05, "#c8382c"]];
-    for (const [k, c] of rings) b.add(new THREE.CircleGeometry(r * k, 40), mat(c), 0, r, d / 2 + 0.001 + k * 0.0001);
-    for (let i = 0; i < 20; i += 2) b.add(new THREE.CircleGeometry(r * 0.82, 2, (i / 20) * Math.PI * 2, Math.PI / 10), mat(i % 4 ? "#2b2b2b" : "#c8382c"), 0, r, d / 2 + 0.0008);
+    // twenty segments, light and dark, with the red and green double and treble rings
+    for (let i = 0; i < 20; i++) {
+      const a0 = (i / 20) * Math.PI * 2;
+      const seg = (r0: number, r1: number, c: string, z: number) => b.add(new THREE.RingGeometry(r * r0, r * r1, 2, 1, a0, Math.PI / 10), mat(c), 0, r, d / 2 + z);
+      seg(0.08, 0.78, i % 2 ? "#e8dcc0" : "#2b2b2b", 0.001);
+      seg(0.45, 0.5, i % 2 ? "#2f7a45" : "#c8382c", 0.0015);
+      seg(0.73, 0.78, i % 2 ? "#2f7a45" : "#c8382c", 0.0015);
+    }
+    b.add(new THREE.CircleGeometry(r * 0.08, 20), mat("#2f7a45"), 0, r, d / 2 + 0.001);
+    b.add(new THREE.CircleGeometry(r * 0.035, 16), mat("#c8382c"), 0, r, d / 2 + 0.0015);
   },
   projector_screen: (b, w, d, h, f) => {
     b.box(w + 0.1, 0.08, d, 0, h - 0.08, 0, f, 0.02);
@@ -3715,6 +3722,106 @@ const BUILDERS: Record<string, Build> = {
     for (const sx of [-1, 1]) for (const sz of [-1, 1]) b.rod(v(sx * (w / 2 - 0.02), 0.015, sz * (d / 2 - 0.02)), v(sx * (w / 2 - 0.02), h * 0.5, sz * (d / 2 - 0.02)), 0.004, steel, 4);
     for (let i = 0; i < 6; i++) b.add(new THREE.CylinderGeometry(0.11, 0.11, 0.012, 20).rotateX(Math.PI / 2 - 0.15), mat(C.ceramic), -w * 0.3 + i * 0.045, 0.12, 0);
     for (let i = 0; i < 3; i++) b.cyl(0.035, 0.03, 0.1, w * 0.3, 0.015, -d * 0.25 + i * 0.08, glass(), 12);
+  },
+  // ----- outside, more -----
+  carport: (b, w, d, h, f, _c, a) => {
+    // four posts, beams, a flat roof sloping a little to the back
+    const post = 0.12;
+    for (const sx of [-1, 1]) for (const z of [-d / 2 + 0.2, 0, d / 2 - 0.2]) b.box(post, h - 0.2, post, sx * (w / 2 - post / 2), 0, z, f);
+    for (const sx of [-1, 1]) b.box(post, 0.2, d, sx * (w / 2 - post / 2), h - 0.25, 0, f);
+    for (let i = 0; i < Math.round(d / 0.6); i++) b.box(w, 0.12, 0.06, 0, h - 0.18, -d / 2 + 0.1 + (i * (d - 0.2)) / (Math.round(d / 0.6) - 1), f);
+    b.box(w + 0.2, 0.05, d + 0.2, 0, h - 0.05, 0, a, 0.006);
+  },
+  bin_store: (b, w, d, h, f) => {
+    // slatted boxes for the bins, lids on top
+    const n = Math.max(1, Math.round(w / 0.75));
+    const bw = w / n;
+    for (let i = 0; i < n; i++) {
+      const x = -w / 2 + bw * (i + 0.5);
+      for (let r = 0; r < Math.round(h / 0.11); r++) b.box(bw - 0.04, 0.08, 0.02, x, r * 0.11, d / 2 - 0.01, f);
+      b.box(bw - 0.01, 0.03, d, x, h - 0.03, 0, f, 0.006);
+      b.box(0.03, h, d, x - bw / 2 + 0.015, 0, 0, f);
+    }
+    b.box(0.03, h, d, w / 2 - 0.015, 0, 0, f);
+    b.box(w, h, 0.02, 0, 0, -d / 2 + 0.01, f);
+  },
+  firewood_shelter: (b, w, d, h, f) => {
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) b.box(0.07, h - 0.1, 0.07, sx * (w / 2 - 0.04), 0, sz * (d / 2 - 0.04), f);
+    const roof = b.box(w + 0.15, 0.03, d + 0.2, 0, h - 0.08, 0, mat(C.black), 0.006);
+    roof?.rotation.set(0.15, 0, 0);
+    b.box(w - 0.06, 0.04, d - 0.06, 0, 0.08, 0, f);
+    const logs = new Builder();
+    BUILDERS.log_stack(logs, w - 0.12, d - 0.12, h * 0.7, f, "oak", f, "oak");
+    const g = logs.done();
+    g.position.y = 0.12;
+    b.g.add(g);
+  },
+  pizza_oven: (b, w, d, h, f) => {
+    // a domed oven on a stand, a flue, an arched mouth
+    const base = h * 0.55;
+    b.box(w, base, d, 0, 0, 0, f, 0.01);
+    b.box(w + 0.04, 0.06, d + 0.04, 0, base, 0, mat("#3b3b3d"), 0.006);
+    const r = Math.min(w, d) * 0.45;
+    b.add(new THREE.SphereGeometry(r, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2), mat("#b5683f", { roughness: 1 }), 0, base + 0.06, 0).scale.y = (h - base - 0.06) / r * 0.75;
+    b.cyl(0.05, 0.05, h * 0.25, -r * 0.3, base + (h - base) * 0.6, -r * 0.3, mat(C.black), 12);
+    const mouth = new THREE.Shape();
+    mouth.moveTo(-0.15, 0);
+    mouth.lineTo(0.15, 0);
+    mouth.absarc(0, 0, 0.15, 0, Math.PI, false);
+    b.add(new THREE.ShapeGeometry(mouth, 10), mat("#1a1210"), 0, base + 0.06, r * 0.98);
+    b.add(new THREE.CircleGeometry(0.06, 10), mat("#ff8a3a", { emissive: "#ff5a1a", emissiveIntensity: 0.8 }), 0, base + 0.1, r * 0.95);
+  },
+  adirondack_chair: (b, w, d, h, f) => {
+    // slanted slatted back, deep seat, wide arms
+    for (const sx of [-1, 1]) {
+      b.box(0.04, 0.4, 0.06, sx * (w / 2 - 0.08), 0, d / 2 - 0.12, f);
+      b.rod(v(sx * (w / 2 - 0.08), 0.05, -d / 2 + 0.15), v(sx * (w / 2 - 0.08), 0.4, d / 2 - 0.12), 0.025, f, 6);
+      b.box(0.13, 0.025, d * 0.6, sx * (w / 2 - 0.065), 0.6, d * 0.12, f, 0.006);
+    }
+    for (let i = 0; i < 5; i++) b.box(w - 0.18, 0.02, 0.07, 0, 0.32 - i * 0.03, d / 2 - 0.15 - i * 0.09, f, 0.004)?.rotation.set(0.3, 0, 0);
+    const n = 6;
+    for (let i = 0; i < n; i++) {
+      const slat = b.box(0.07, h * 0.75, 0.02, 0, 0, 0, f, 0.006);
+      slat?.position.set(-w * 0.3 + (i * w * 0.6) / (n - 1), 0.25 + h * 0.37, -d / 2 + 0.22);
+      slat?.rotation.set(-0.45, 0, 0);
+    }
+  },
+  parasol_cantilever: (b, w, d, h, f, _c, a) => {
+    // a hanging parasol: the pole at one side, the arm over the middle
+    const base = 0.8;
+    b.box(base, 0.1, base, -w / 2 + base / 2, 0, 0, mat("#5a5d61"), 0.02);
+    b.cyl(0.04, 0.04, h - 0.1, -w / 2 + base / 2, 0.1, 0, a, 12);
+    b.rod(v(-w / 2 + base / 2, h - 0.1, 0), v(0, h - 0.25, 0), 0.03, a, 8);
+    const r = Math.min(w, d) / 2;
+    b.add(new THREE.ConeGeometry(r, 0.35, 8, 1, true), mat((f as THREE.MeshStandardMaterial).color.getStyle(), { side: THREE.DoubleSide, roughness: 1 }), 0, h - 0.45, 0);
+    b.rod(v(0, h - 0.25, 0), v(0, h - 0.65, 0), 0.015, a, 6);
+  },
+  swing_bench: (b, w, d, h, f) => {
+    // a two-seat bench hanging in an A-frame
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) b.rod(v(sx * (w / 2 - 0.05), 0, sz * (d / 2 - 0.05)), v(sx * (w / 2 - 0.05), h - 0.05, 0), 0.045, f, 8);
+    b.box(w, 0.1, 0.1, 0, h - 0.1, 0, f);
+    const seatW = w - 0.5;
+    for (const sx of [-1, 1]) b.rod(v(sx * (seatW / 2 - 0.05), h - 0.1, 0), v(sx * (seatW / 2 - 0.05), 0.75, 0), 0.008, mat(C.steel), 4);
+    b.box(seatW, 0.05, 0.55, 0, 0.42, 0.05, f, 0.01);
+    b.box(seatW, 0.45, 0.04, 0, 0.45, -0.2, f, 0.01)?.rotation.set(-0.2, 0, 0);
+    b.box(seatW - 0.06, 0.08, 0.5, 0, 0.47, 0.06, mat(C.linen, { roughness: 1 }), 0.03);
+    for (const sx of [-1, 1]) b.box(0.05, 0.25, 0.5, sx * seatW / 2, 0.47, 0.05, f, 0.01);
+  },
+  outdoor_rug: (b, w, d, h, _f, color) => b.box(w, h, d, 0, 0, 0, rugMaterial("stripes", color, mat(FINISHES[color] ?? FINISHES.blue))),
+  planter_tall: (b, w, d, h, f) => {
+    const ph = h * 0.5;
+    b.box(w, ph, d, 0, 0, 0, f, 0.01);
+    b.box(w - 0.04, 0.01, d - 0.04, 0, ph - 0.03, 0, mat(C.soil));
+    grass(b, random(397), w * 0.7, d * 0.7, h - ph, ph - 0.03, 120, ["#6f8f48", "#8aa35a", "#5b7a3c"], true);
+  },
+  sun_sail: (b, w, d, h, f) => {
+    // a triangular shade sail on three posts
+    const pts = [v(-w / 2, h, -d / 2), v(w / 2, h * 0.75, -d / 2 + 0.2), v(-w / 2 + 0.3, h * 0.8, d / 2)];
+    for (const p of pts) b.rod(v(p.x, 0, p.z), v(p.x, p.y + 0.15, p.z), 0.04, mat(C.steel), 8);
+    const geo = new THREE.BufferGeometry().setFromPoints(pts);
+    geo.setIndex([0, 1, 2]);
+    geo.computeVertexNormals();
+    b.add(geo, mat((f as THREE.MeshStandardMaterial).color.getStyle(), { side: THREE.DoubleSide, roughness: 1 }));
   },
   // ----- vehicles -----
   car_hatchback: (b, w, d, h, _f, color) => car(b, w, d, h, color, "hatchback"),
