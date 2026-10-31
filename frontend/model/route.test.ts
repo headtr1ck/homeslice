@@ -21,5 +21,7 @@ describe("energy line routes", () => {
   });
   it("finds the nearest corner", () => {
     expect(nearestCorner(square, [9, 1])).toEqual([10, 0]);
+    // seen from the south-west: the north-east corner is at the back, take one in front
+    expect(nearestCorner(square, [9, 1], [-0.7, 0.7])).toEqual([0, 0]);
   });
 });

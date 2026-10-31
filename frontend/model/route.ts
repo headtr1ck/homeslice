@@ -69,7 +69,14 @@ export function perimeterPath(poly: Vec2[], from: Vec2, to: Vec2): Vec2[] {
   return length(forward) <= length(backward) ? forward : backward;
 }
 
-/** The polygon corner nearest a point. */
-export function nearestCorner(poly: Vec2[], p: Vec2): Vec2 {
-  return poly.reduce((best, c) => (Math.hypot(c[0] - p[0], c[1] - p[1]) < Math.hypot(best[0] - p[0], best[1] - p[1]) ? c : best), poly[0]);
+/**
+ * The polygon corner nearest a point; with `facing` (a plan direction towards the
+ * viewer), only corners on that side count, so a line down the corner stays in sight.
+ */
+export function nearestCorner(poly: Vec2[], p: Vec2, facing?: Vec2): Vec2 {
+  const cx = poly.reduce((s, q) => s + q[0], 0) / poly.length;
+  const cy = poly.reduce((s, q) => s + q[1], 0) / poly.length;
+  const seen = facing ? poly.filter((c) => (c[0] - cx) * facing[0] + (c[1] - cy) * facing[1] > 0) : poly;
+  const candidates = seen.length ? seen : poly;
+  return candidates.reduce((best, c) => (Math.hypot(c[0] - p[0], c[1] - p[1]) < Math.hypot(best[0] - p[0], best[1] - p[1]) ? c : best), candidates[0]);
 }

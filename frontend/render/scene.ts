@@ -6,6 +6,9 @@
 import * as THREE from "three";
 import { buildPiece, loadModel, modelFiles, partsFor } from "./models";
 import { nearestCorner, offsetPolygon, perimeterPath } from "../model/route";
+import { Line2 } from "three/examples/jsm/lines/Line2.js";
+import { LineGeometry } from "three/examples/jsm/lines/LineGeometry.js";
+import { LineMaterial } from "three/examples/jsm/lines/LineMaterial.js";
 import type { House, Level, Vec2, Vertical } from "../model/types";
 import { innerPolygon, type Wall, type WallOpening } from "../model/walls";
 import { bbox, pointInPolygon } from "../model/geometry";
@@ -74,9 +77,7 @@ export function viewOptions(
   };
 }
 
-/** Dots per flow line, and the least power that moves them. */
-const FLOW_DOTS = 6;
-const MAX_FLOW_DOTS = 24;
+/** The least power that moves the pulses on a flow line. */
 const MIN_FLOW_WATTS = 10;
 
 // One perspective camera does both: "isometric" is a very narrow lens from far away, so
@@ -150,13 +151,31 @@ interface RoutePoint {
   local: THREE.Vector3;
 }
 
+/** The solar field on its roof side, for starting its line at the field's edge. */
+interface SolarField {
+  /** Where the field starts and ends along the ridge. */
+  ends: [number, number];
+  /** A point on the roof: `r` along the ridge, `k` from the eave (0) to the ridge (1). */
+  at: (r: number, k: number) => THREE.Vector3;
+  /** How far along the ridge a plan point is. */
+  rOf: (p: Vec2) => number;
+}
+
+type EnergyPoint = { levelIndex: number; local: THREE.Vector3; onRoof?: boolean; field?: SolarField };
+
 interface Flow {
   key: string;
   to: string;
   /** From the item along the walls and down a corner of the house to `to`. */
   route: RoutePoint[];
-  line: THREE.Line<THREE.BufferGeometry, THREE.LineBasicMaterial>;
-  dots: THREE.Points<THREE.BufferGeometry, THREE.PointsMaterial>;
+  /** The cable, always shown; `dots`: the coloured pulses moving along it (and their glow). */
+  line: Line2;
+  dots: THREE.Group;
+  pulse: LineMaterial;
+  glow: LineMaterial;
+  geometry: LineGeometry;
+  /** The world positions last given to the geometry (it is rebuilt only when they change). */
+  placed: string;
   /** Watts towards `to` (negative: away from it). */
   watts: number;
 }
@@ -256,7 +275,7 @@ export class HouseRenderer {
   private roofInfo: { level: Level; shape: RoofShape } | null = null;
   private energyObjects: THREE.Object3D[] = [];
   /** Where each energy item is, in its level group's coordinates (solar: on the roof). */
-  private energyPoints = new Map<string, { levelIndex: number; local: THREE.Vector3; onRoof?: boolean }>();
+  private energyPoints = new Map<string, EnergyPoint>();
   private flows: Flow[] = [];
   /** Each level's outline and storey height, for routing the energy lines along the house. */
   private levelOutlines: Vec2[][] = [];
@@ -727,7 +746,7 @@ export class HouseRenderer {
         const panels = this.solarPanels(item.roof);
         if (!panels) continue;
         this.energyObjects.push(panels.group);
-        this.energyPoints.set(item.key, { levelIndex: this.levels.length - 1, local: panels.centre, onRoof: true });
+        this.energyPoints.set(item.key, { levelIndex: this.levels.length - 1, local: panels.centre, onRoof: true, field: panels.field });
       } else if (item.levelIndex !== null && item.at && this.levels[item.levelIndex]) {
         const level = this.levels[item.levelIndex];
         const marker = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 0.5, 20), new THREE.MeshLambertMaterial({ color }));
@@ -748,18 +767,21 @@ export class HouseRenderer {
       const route = this.route(this.energyPoints.get(item.key)!, this.energyPoints.get(item.to)!, lane);
       if (route.length > 2) lane++;
       const color = new THREE.Color(ENERGY_COLORS[item.kind] ?? ENERGY_COLORS.device);
-      const line = new THREE.Line(
-        new THREE.BufferGeometry().setFromPoints(route.map(() => new THREE.Vector3())),
-        new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0.75, depthWrite: false }),
-      );
-      const dots = new THREE.Points(
-        new THREE.BufferGeometry().setAttribute("position", new THREE.BufferAttribute(new Float32Array(3 * MAX_FLOW_DOTS), 3)),
-        new THREE.PointsMaterial({ color, size: 7, sizeAttenuation: false, depthWrite: false, transparent: true }),
-      );
-      line.renderOrder = dots.renderOrder = 10;
+      // a light cable, and coloured pulses with a soft glow running along it
+      const geometry = new LineGeometry();
+      geometry.setPositions(new Array(route.length * 3).fill(0));
+      const cable = new LineMaterial({ color: 0xd9dde2, linewidth: 3.5, transparent: true, opacity: 0.85, depthWrite: false });
+      const pulse = new LineMaterial({ color, linewidth: 4.5, dashed: true, dashSize: 0.45, gapSize: 1.35, transparent: true, depthWrite: false });
+      const glow = new LineMaterial({ color, linewidth: 11, dashed: true, dashSize: 0.45, gapSize: 1.35, transparent: true, opacity: 0.28, depthWrite: false });
+      for (const m of [cable, pulse, glow]) m.resolution.set(this.size.width, this.size.height);
+      const line = new Line2(geometry, cable);
+      const dots = new THREE.Group();
+      dots.add(new Line2(geometry, glow), new Line2(geometry, pulse));
+      line.renderOrder = 10;
+      dots.children.forEach((c, i) => (c.renderOrder = 11 + i));
       this.root.add(line, dots);
       this.energyObjects.push(line, dots);
-      this.flows.push({ key: item.key, to: item.to, route, line, dots, watts: 0 });
+      this.flows.push({ key: item.key, to: item.to, route, line, dots, pulse, glow, geometry, placed: "", watts: 0 });
     }
   }
 
@@ -768,7 +790,9 @@ export class HouseRenderer {
    * of the walls to the house corner nearest the far end, up or down that corner (the
    * roof's eave for solar), and along the walls again. `lane` keeps lines apart.
    */
-  private route(from: { levelIndex: number; local: THREE.Vector3; onRoof?: boolean }, to: { levelIndex: number; local: THREE.Vector3; onRoof?: boolean }, lane: number): RoutePoint[] {
+  private route(from: EnergyPoint, to: EnergyPoint, lane: number): RoutePoint[] {
+    // a line towards the roof is the reverse of one from it
+    if (to.onRoof && !from.onRoof) return this.route(to, from, lane).reverse();
     const start = { levelIndex: from.levelIndex, local: from.local.clone() };
     const end = { levelIndex: to.levelIndex, local: to.local.clone() };
     const plan = (p: { local: THREE.Vector3 }): Vec2 => [p.local.x, p.local.z];
@@ -782,10 +806,20 @@ export class HouseRenderer {
     const at = (levelIndex: number, [x, z]: Vec2, y: number): RoutePoint => ({ levelIndex, local: new THREE.Vector3(x, y, z) });
     // the same floor, different rooms: out to the wall, along the outside, and back in
     if (sameFloor) return [start, ...perimeterPath(outer, plan(from), plan(to)).map((q) => at(from.levelIndex, q, from.local.y)), end];
-    const corner = nearestCorner(outer, plan(base));
+    // a corner on the side the overview camera looks from (azimuth: where it stands)
+    const az = (this.view.azimuth * Math.PI) / 180;
+    const corner = nearestCorner(outer, plan(base), [Math.sin(az), -Math.cos(az)]);
     const points: RoutePoint[] = [start];
-    // leave: along the walls to the corner, or from the panels to the eave above it
-    if (from.onRoof) points.push(at(from.levelIndex, corner, this.levelHeights[from.levelIndex]));
+    if (from.onRoof && from.field) {
+      // from the field's lower corner nearest the house corner: down the roof, along the eave
+      const f = from.field;
+      const rc = f.rOf(corner);
+      const r = Math.abs(f.ends[0] - rc) < Math.abs(f.ends[1] - rc) ? f.ends[0] : f.ends[1];
+      const eave = f.at(rc, 0);
+      points.splice(0, 1, { levelIndex: from.levelIndex, local: f.at(r, 0.1) }, { levelIndex: from.levelIndex, local: f.at(r, 0) }, { levelIndex: from.levelIndex, local: eave });
+      points.push(at(from.levelIndex, corner, eave.y));
+    } else if (from.onRoof) points.push(at(from.levelIndex, corner, this.levelHeights[from.levelIndex]));
+    // leave along the walls to the corner
     else points.push(...perimeterPath(outer, plan(from), corner).map((q) => at(from.levelIndex, q, from.local.y)));
     // arrive the same way round
     if (to.onRoof) points.push(at(to.levelIndex, corner, this.levelHeights[to.levelIndex]));
@@ -818,39 +852,19 @@ export class HouseRenderer {
       f.line.visible = shown;
       f.dots.visible = shown && Math.abs(f.watts) >= MIN_FLOW_WATTS;
       if (!shown || !hub || !from) continue;
-      // the route follows its levels as they lift and fade
-      const world = f.route.map((p) => this.levels[p.levelIndex].group.localToWorld(p.local.clone()));
-      const pos = f.line.geometry.attributes.position as THREE.BufferAttribute;
-      world.forEach((w, i) => pos.setXYZ(i, w.x, w.y, w.z));
-      pos.needsUpdate = true;
-      f.line.geometry.computeBoundingSphere();
-      if (!f.dots.visible) continue;
-      // towards `to` when positive; faster with more power
-      const path = f.watts > 0 ? world : [...world].reverse();
-      const ends: number[] = [0];
-      for (let i = 1; i < path.length; i++) ends.push(ends[i - 1] + path[i - 1].distanceTo(path[i]));
-      const length = ends[ends.length - 1] || 1;
-      const speed = Math.min(4, 0.6 + Math.abs(f.watts) / 800); // m/s
-      // one dot every 1.5 m or so, at least the usual few
-      const spacing = length / Math.max(FLOW_DOTS, Math.min(MAX_FLOW_DOTS, Math.round(length / 1.5)));
-      const offset = ((now / 1000) * speed) % spacing;
-      const dots = f.dots.geometry.attributes.position as THREE.BufferAttribute;
-      for (let i = 0; i < MAX_FLOW_DOTS; i++) {
-        const d = offset + i * spacing;
-        if (d > length) {
-          // unused dots sit at the end, hidden under the marker
-          dots.setXYZ(i, path[path.length - 1].x, path[path.length - 1].y, path[path.length - 1].z);
-          continue;
-        }
-        let s = 1;
-        while (s < ends.length - 1 && ends[s] < d) s++;
-        const t = (d - ends[s - 1]) / (ends[s] - ends[s - 1] || 1);
-        const a = path[s - 1];
-        const b = path[s];
-        dots.setXYZ(i, a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t, a.z + (b.z - a.z) * t);
+      // the route follows its levels as they lift and fade (rebuilt only when it moved)
+      const world = f.route.flatMap((p) => this.levels[p.levelIndex].group.localToWorld(p.local.clone()).toArray());
+      const placed = world.map((v) => v.toFixed(3)).join(",");
+      if (placed !== f.placed) {
+        f.placed = placed;
+        f.geometry.setPositions(world);
+        f.line.computeLineDistances();
       }
-      dots.needsUpdate = true;
-      f.dots.geometry.computeBoundingSphere();
+      if (!f.dots.visible) continue;
+      // pulses run towards `to` when positive; faster with more power
+      const speed = Math.min(4, 0.6 + Math.abs(f.watts) / 800); // m/s
+      const offset = (((now / 1000) * speed) % 1.8) * (f.watts > 0 ? -1 : 1);
+      f.pulse.dashOffset = f.glow.dashOffset = offset;
     }
   }
 
@@ -862,7 +876,7 @@ export class HouseRenderer {
   }
 
   /** Solar panels on one side of the roof: dark panels in rows, with a light frame. */
-  private solarPanels(side: string): { group: THREE.Group; centre: THREE.Vector3 } | null {
+  private solarPanels(side: string): { group: THREE.Group; centre: THREE.Vector3; field: SolarField } | null {
     const info = this.roofInfo;
     if (!info || !this.roof) return null;
     const { level, shape } = info;
@@ -913,7 +927,15 @@ export class HouseRenderer {
     group.traverse((x) => (x.userData.outdoor = true));
     // the panels show and hide with the roof
     this.roof.add(group);
-    return { group, centre: point(r0 + along / 2, 0.5) };
+    return {
+      group,
+      centre: point(r0 + along / 2, 0.5),
+      field: {
+        ends: [r(0), r(cols - 1) + 1],
+        at: (rr: number, k: number) => point(Math.max(r0 - o, Math.min(r1 + o, rr)), k),
+        rOf: ([x, y]: Vec2) => (eastWest ? x : y),
+      },
+    };
   }
 
   /**
@@ -1518,6 +1540,8 @@ export class HouseRenderer {
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     this.renderer.setSize(width, height, false);
     this.size = { width, height };
+    // wide lines are sized in pixels
+    for (const f of this.flows) for (const m of [f.line.material, f.pulse, f.glow]) m.resolution.set(width, height);
     this.draw();
   }
 
