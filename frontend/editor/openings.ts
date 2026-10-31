@@ -26,6 +26,7 @@ export const OPENING_PRESETS: OpeningPreset[] = [
   { id: "window_fixed", type: "window", style: "fixed", width: 1.2, icon: `${floor}${frame(16, 16, 32, 26)}${glass(19, 19, 26, 20)}` },
   { id: "window_small", type: "window", width: 0.6, sill: 1.5, height: 0.6, icon: `${floor}${frame(24, 12, 16, 14)}${glass(27, 15, 10, 8)}` },
   { id: "window_split", type: "window", style: "split", width: 1.6, sill: 0, height: 2.2, icon: `${floor}${frame(10, 6, 44, 54)}${glass(13, 9, 18, 22)}${glass(33, 9, 18, 22)}${glass(13, 33, 38, 24)}${knob(29, 20)}${knob(35, 20)}` },
+  { id: "window_split_single", type: "window", style: "split_single", width: 0.9, sill: 0, height: 2.2, icon: `${floor}${frame(18, 6, 28, 54)}${glass(21, 9, 22, 22)}${glass(21, 33, 22, 24)}${knob(38, 20)}` },
   { id: "window_floor", type: "window", style: "double", width: 1.4, sill: 0, height: 2.2, icon: `${floor}${frame(16, 6, 32, 54)}${glass(19, 9, 12, 48)}${glass(33, 9, 12, 48)}` },
   { id: "door", type: "door", width: 0.9, icon: `${floor}${frame(22, 8, 20, 52)}${leaf(24, 10, 16, 50)}${knob(37, 36)}` },
   { id: "door_double", type: "door", style: "double", width: 1.6, icon: `${floor}${frame(12, 8, 40, 52)}${leaf(14, 10, 17.5, 50)}${leaf(32.5, 10, 17.5, 50)}${knob(29, 36)}${knob(35, 36)}` },

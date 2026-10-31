@@ -484,11 +484,11 @@ export class HouseRenderer {
           if (o.contact) this.glasses.set(o.id, mat);
           box(o.start, o.end, o.sill, top, mat, 0.03);
           if (o.style === "double" || o.style === "sliding_glass" || o.style === "glass_double") bar();
-          if (o.style === "split") {
-            // a fixed pane below, a double window above
+          if (o.style === "split" || o.style === "split_single") {
+            // a fixed pane below, a double (or single) window above
             const at = o.sill + o.split;
             box(o.start, o.end, at - 0.03, at + 0.03, wallMat, 0.07);
-            box(mid - 0.03, mid + 0.03, at, top, wallMat, 0.07);
+            if (o.style === "split") box(mid - 0.03, mid + 0.03, at, top, wallMat, 0.07);
           }
         } else if (o.type === "door") {
           // closed leaves: one, or two meeting in the middle

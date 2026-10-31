@@ -2969,7 +2969,7 @@ export class HomeslicePanel extends LitElement {
             })}
           </div>`,
       )}
-      ${o.style === "split"
+      ${o.style === "split" || o.style === "split_single"
         ? html`<label>${this.t("editor.opening_split")}
             <input type="number" min="0.1" step="0.05" placeholder=${String(((o.height ?? 1.3) / 2).toFixed(2))} .value=${o.split === undefined ? "" : String(o.split)}
               @change=${(e: Event) => {

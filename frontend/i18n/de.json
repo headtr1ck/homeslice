@@ -454,5 +454,6 @@
   "editor.opening_door_sliding_glass": "Glas-Schiebetür",
   "editor.opening_split": "Höhe der Festverglasung (m)",
   "editor.opening_group_openings": "Durchgänge",
-  "editor.opening_group_other": "Sonstiges"
+  "editor.opening_group_other": "Sonstiges",
+  "editor.opening_window_split_single": "Fenster über Festverglasung"
 }
