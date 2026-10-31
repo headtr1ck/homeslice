@@ -230,5 +230,20 @@
   "editor.draft": "There are unsaved changes from {time} in this browser.",
   "editor.draft_stale": "There are unsaved changes from {time} in this browser, made before the house was last saved (restoring them replaces the newer version).",
   "editor.draft_restore": "Restore",
-  "editor.draft_discard": "Discard"
+  "editor.draft_discard": "Discard",
+  "editor.shortcuts": "Keyboard shortcuts",
+  "editor.key_select": "Select and drag",
+  "editor.key_room": "Draw a room",
+  "editor.key_stairs": "Draw stairs",
+  "editor.key_delete": "Delete what is selected",
+  "editor.key_escape": "Cancel, deselect",
+  "editor.key_undo": "Undo / redo",
+  "editor.key_save": "Save",
+  "editor.key_alt": "Hold while dragging: no snapping",
+  "editor.key_nudge": "Nudge stairs or energy items (Shift: 50 cm)",
+  "editor.key_double_click": "Double-click",
+  "editor.key_corner": "On a wall: add a corner; on a corner: remove it",
+  "editor.key_wheel": "Wheel / drag the background",
+  "editor.key_zoom": "Zoom / pan the plan",
+  "editor.key_help": "This overview"
 }

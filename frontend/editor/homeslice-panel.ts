@@ -203,6 +203,7 @@ export class HomeslicePanel extends LitElement {
     _create: { state: true },
     _pendingArea: { state: true },
     _stair: { state: true },
+    _shortcuts: { state: true },
     _draft: { state: true },
     _settings: { state: true },
     _energyPlace: { state: true },
@@ -251,6 +252,7 @@ export class HomeslicePanel extends LitElement {
   private _underlayMove = false;
   private underlayRequest = "";
   private underlaySaveTimer = 0;
+  private _shortcuts = false;
   /** Unsaved changes found from an earlier visit, offered for restoring. */
   private _draft: { model: HouseInput; time: number; stale: boolean } | null = null;
   private draftTimer = 0;
@@ -494,6 +496,9 @@ export class HomeslicePanel extends LitElement {
     } else if ((e.key === "Delete" || e.key === "Backspace") && this._opening && this._model) {
       this.commit(deleteOpening(this._model, this._level, this._opening.src));
       this._opening = null;
+    } else if ((e.key === "Delete" || e.key === "Backspace") && this._energySel !== null && this._model && this._mode === "objects") {
+      this.commit(deleteEnergy(this._model, this._energySel));
+      this._energySel = null;
     } else if ((e.key === "Delete" || e.key === "Backspace") && this._stair && this._model && this._mode === "rooms") {
       this.commit(deleteStairs(this._model, this._stair));
       this._stair = null;
@@ -511,6 +516,7 @@ export class HomeslicePanel extends LitElement {
       this._underlayMove = false;
       this._energyPlace = null;
       this._settings = null;
+      this._shortcuts = false;
       this._drag = null;
       this._rectPreview = null;
     } else if (e.key.startsWith("Arrow") && this._model && (this._stair || this._energySel !== null)) {
@@ -528,6 +534,8 @@ export class HomeslicePanel extends LitElement {
         const en = this._model.energy?.[this._energySel];
         if (en?.at) this.commit(updateEnergy(this._model, this._energySel, { at: [en.at[0] + d[0], en.at[1] + d[1]] }));
       }
+    } else if (e.key === "?") {
+      this._shortcuts = !this._shortcuts;
     } else if (e.key === "r" && !mod) this._tool = "rect";
     else if (e.key === "s" && !mod && this._mode === "rooms") this._tool = "stairs";
     else if (e.key === "v" && !mod) this._tool = "select";
@@ -1294,6 +1302,7 @@ export class HomeslicePanel extends LitElement {
           ${this._houses.map((h) => html`<option value=${h.id} ?selected=${h.id === this._house}>${h.name}</option>`)}
           <option value="__new__">${this.t("editor.new_house")}…</option>
         </select>
+        <button class="icon" title=${this.t("editor.shortcuts")} aria-label=${this.t("editor.shortcuts")} @click=${() => (this._shortcuts = !this._shortcuts)}>?</button>
         <button class="icon ${this._settings ? "active" : ""}" title=${this.t("editor.house_settings")} aria-label=${this.t("editor.house_settings")}
           @click=${() => (this._settings = this._settings ? null : {})}>⚙</button>
         <div class="segmented modes" role="tablist">
@@ -1315,6 +1324,7 @@ export class HomeslicePanel extends LitElement {
         </button>
       </header>
       ${this._error ? html`<div class="error">${this._error}</div>` : nothing}
+      ${this._shortcuts ? this.renderShortcuts() : nothing}
       ${this._draft
         ? html`<div class="draft">
             <span>${this.t(this._draft.stale ? "editor.draft_stale" : "editor.draft", { time: new Date(this._draft.time).toLocaleString(this._hass?.locale?.language) })}</span>
@@ -2108,6 +2118,29 @@ export class HomeslicePanel extends LitElement {
     }
   }
 
+  private renderShortcuts() {
+    const keys: [string, StringKey][] = [
+      ["V", "editor.key_select"],
+      ["R", "editor.key_room"],
+      ["S", "editor.key_stairs"],
+      ["Del", "editor.key_delete"],
+      ["Esc", "editor.key_escape"],
+      ["Ctrl+Z / Ctrl+Shift+Z", "editor.key_undo"],
+      ["Ctrl+S", "editor.key_save"],
+      ["Alt", "editor.key_alt"],
+      ["← ↑ → ↓", "editor.key_nudge"],
+      [this.t("editor.key_double_click"), "editor.key_corner"],
+      [this.t("editor.key_wheel"), "editor.key_zoom"],
+      ["?", "editor.key_help"],
+    ];
+    return html`<div class="shortcuts" role="dialog" aria-label=${this.t("editor.shortcuts")} @click=${() => (this._shortcuts = false)}>
+      <div @click=${(e: Event) => e.stopPropagation()}>
+        <h2>${this.t("editor.shortcuts")}</h2>
+        <dl>${keys.map(([k, what]) => html`<dt><kbd>${k}</kbd></dt><dd>${this.t(what)}</dd>`)}</dl>
+      </div>
+    </div>`;
+  }
+
   private renderHouseSettings() {
     const m = this._model!;
     const st = this._settings!;
@@ -2685,6 +2718,39 @@ export class HomeslicePanel extends LitElement {
       border-radius: 8px;
       padding: 8px;
       resize: vertical;
+    }
+    .shortcuts {
+      position: fixed;
+      inset: 0;
+      z-index: 20;
+      background: rgba(0, 0, 0, 0.5);
+      display: grid;
+      place-items: center;
+    }
+    .shortcuts > div {
+      background: var(--card-background-color, #1c1c1c);
+      border-radius: 12px;
+      padding: 16px 24px;
+      min-width: 360px;
+    }
+    .shortcuts h2 {
+      margin: 0 0 8px;
+    }
+    .shortcuts dl {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 6px 16px;
+      margin: 0;
+    }
+    .shortcuts dd {
+      margin: 0;
+    }
+    kbd {
+      font-family: inherit;
+      font-size: 12px;
+      padding: 2px 6px;
+      border-radius: 4px;
+      border: 1px solid var(--divider-color, #555);
     }
     .draft {
       display: flex;
