@@ -51,6 +51,8 @@ type: custom:homeslice-card
 house: home                    # the house id
 interactive: false             # true: drag to turn, scroll/pinch to zoom, double-click to reset
 energy: false                  # true: energy overlay (shows the roof unless view.roof: false)
+mode: 3d                       # or plan: a flat floor plan from above, one floor at a time
+level: ground                  # optional: the floor shown first (plan: default the entrance floor)
 view:                          # all optional
   azimuth: 250                 # overview camera: 0 north, 90 east, 180 south, 270 west
   elevation: 38                # degrees above the horizon

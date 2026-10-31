@@ -47,6 +47,8 @@ export interface ViewOptions {
   roof: boolean;
   /** Furniture from simple shapes, or detailed models (loaded when first needed). */
   furniture: "simple" | "detailed";
+  /** A floor plan: no shadows (they read as dirt from above), gardens framed with the floor. */
+  plan: boolean;
 }
 
 export const DEFAULT_VIEW: ViewOptions = {
@@ -61,6 +63,7 @@ export const DEFAULT_VIEW: ViewOptions = {
   showOutdoor: true,
   roof: false,
   furniture: "detailed",
+  plan: false,
 };
 
 /** View options from a card config or a saved view (which use snake_case keys). */
@@ -352,6 +355,7 @@ export class HouseRenderer {
       const l = this.levels[this.levels.length - 1];
       l.group.add(this.roof);
     }
+    this.sun.castShadow = !this.view.plan;
     this.focus = null;
     this.hover = null;
     this.orientation = this.cameraFor(null);
@@ -1612,7 +1616,7 @@ export class HouseRenderer {
       l.group.position.y = l.baseY;
       l.group.updateMatrixWorld(true);
       if (index === null) box.expandByObject(l.group);
-      else for (const child of l.group.children) if (!child.userData.outdoor) box.expandByObject(child);
+      else for (const child of l.group.children) if (this.view.plan || !child.userData.outdoor) box.expandByObject(child);
       l.group.position.y = y;
       l.group.updateMatrixWorld(true);
     });

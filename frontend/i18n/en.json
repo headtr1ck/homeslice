@@ -384,5 +384,8 @@
   "editor.library_search": "Search furniture",
   "editor.library_none": "Nothing found.",
   "editor.furniture_duplicate": "Duplicate (Ctrl+D)",
-  "editor.key_duplicate": "Duplicate the selected furniture"
+  "editor.key_duplicate": "Duplicate the selected furniture",
+  "cardeditor.mode": "Look",
+  "cardeditor.mode_3d": "3D house",
+  "cardeditor.mode_plan": "Floor plan (2D, one floor at a time)"
 }

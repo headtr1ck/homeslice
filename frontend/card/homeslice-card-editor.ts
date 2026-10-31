@@ -154,6 +154,15 @@ export class HomesliceCardEditor extends LitElement {
             </select>
           </label>`
         : nothing}
+      <label
+        >${this.t("cardeditor.mode")}
+        <select @change=${(e: Event) => this.change({ mode: (e.target as HTMLSelectElement).value === "plan" ? "plan" : undefined })}>
+          <option value="3d" ?selected=${this._config.mode !== "plan"}>${this.t("cardeditor.mode_3d")}</option>
+          <option value="plan" ?selected=${this._config.mode === "plan"}>${this.t("cardeditor.mode_plan")}</option>
+        </select>
+      </label>
+      <!-- a plan has no camera angle, floor gap or roof (kept in the page: the preview needs its canvas) -->
+      <div class="three-d" ?hidden=${this._config.mode === "plan"}>
       <div class="preview">
         <canvas @pointerdown=${this.onDown} @pointermove=${this.onMove} @pointerup=${this.onUp} @pointercancel=${this.onUp}></canvas>
         <div class="readout">
@@ -184,11 +193,12 @@ export class HomesliceCardEditor extends LitElement {
           />
         </label>
       </div>
+      </div>
       <label class="check"
         ><input type="checkbox" .checked=${v.show_outdoor !== false} @change=${(e: Event) => this.change({}, { show_outdoor: (e.target as HTMLInputElement).checked ? undefined : false })} />
         ${this.t("cardeditor.outdoor")}</label
       >
-      <label class="check"
+      <label class="check" ?hidden=${this._config.mode === "plan"}
         ><input type="checkbox" .checked=${!!v.roof} @change=${(e: Event) => this.change({}, { roof: (e.target as HTMLInputElement).checked || undefined })} />
         ${this.t("cardeditor.roof")}</label
       >
@@ -210,6 +220,14 @@ export class HomesliceCardEditor extends LitElement {
 
   static override styles = css`
     :host {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    [hidden] {
+      display: none !important;
+    }
+    .three-d {
       display: flex;
       flex-direction: column;
       gap: 12px;

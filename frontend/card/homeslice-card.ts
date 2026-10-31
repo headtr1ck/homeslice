@@ -29,6 +29,10 @@ export interface HomesliceCardConfig {
   interactive?: boolean;
   /** Show the energy overlay: solar on the roof, battery, grid and devices with their power flows. */
   energy?: boolean;
+  /** `plan`: a flat floor plan seen from straight above, one floor at a time (default `3d`). */
+  mode?: "3d" | "plan";
+  /** The floor shown first (level id); default: the whole house, or in plan mode the entrance floor. */
+  level?: string;
 }
 
 interface PlacedRoom {
@@ -231,6 +235,13 @@ export class HomesliceCard extends LitElement {
     this.view = viewOptions(config.view);
     // the overlay puts solar panels on the roof, so it shows the roof unless told not to
     if (config.energy && config.view?.roof === undefined) this.view.roof = true;
+    if (config.mode === "plan") {
+      // a floor plan: straight from above, north up, no perspective; no roof over it
+      this.view.focus = { azimuth: 180, elevation: 90, projection: "isometric" };
+      this.view.levels = {};
+      this.view.roof = false;
+      this.view.plan = true;
+    }
     this.loadedFor = undefined;
   }
 
@@ -379,7 +390,8 @@ export class HomesliceCard extends LitElement {
       if (!this.energyPrefs) void this.loadEnergyPrefs();
     }
     this.renderer.setRobots(house.robots.map((r) => ({ key: `robot-${r.index}`, kind: r.kind, levelIndex: r.levelIndex, dock: r.dock })));
-    // keep the focused floor across model updates, if it still exists
+    // keep the focused floor across model updates, if it still exists; a plan always shows one
+    if (!this._level && (this.plan || this.config.level)) this._level = this.startLevel(house);
     const focused = this._level ? house.levels.find((l) => l.id === this._level) : undefined;
     this._level = focused?.id ?? null;
     this._hover = null;
@@ -507,8 +519,21 @@ export class HomesliceCard extends LitElement {
 
   // ----- floors -----
 
+  private get plan() {
+    return this.config?.mode === "plan";
+  }
+
+  /** The floor shown first: the configured one, else the entrance floor (HA floor level 0), else the lowest. */
+  private startLevel(house: House): string | null {
+    if (this.config.level && house.levels.some((l) => l.id === this.config.level)) return this.config.level;
+    const entrance = house.levels.find((l) => l.floorId && this.hass?.floors?.[l.floorId]?.level === 0);
+    return (entrance ?? house.levels.find((l) => l.rooms.some((r) => r.kind === "outdoor")) ?? house.levels[0])?.id ?? null;
+  }
+
   private async selectLevel(id: string | null) {
     if (!this.renderer || !this.house) return;
+    // a plan shows one floor all the time
+    if (this.plan && (id === null || id === this._level)) return;
     this._level = this._level === id ? null : id;
     const index = this._level ? this.house.levels.find((l) => l.id === this._level)?.index ?? null : null;
     this._hover = null;
@@ -623,7 +648,7 @@ export class HomesliceCard extends LitElement {
   }
 
   private hoverLevel(index: number | null) {
-    if (!this.renderer || this.transitioning || index === this._hover) return;
+    if (!this.renderer || this.transitioning || index === this._hover || this.plan) return;
     this._hover = index;
     void this.renderer.setHover(index);
   }
@@ -814,9 +839,11 @@ export class HomesliceCard extends LitElement {
                   ${this.levelName(l.id)}
                 </button>`,
               )}
-              <button class=${this._level === null ? "active" : ""} @click=${() => this.selectLevel(null)}>
-                ${this.t("card.all_floors")}
-              </button>
+              ${this.plan
+                ? nothing
+                : html`<button class=${this._level === null ? "active" : ""} @click=${() => this.selectLevel(null)}>
+                    ${this.t("card.all_floors")}
+                  </button>`}
             </nav>`
           : nothing}
         <div class="wrap">
