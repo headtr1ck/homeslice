@@ -1,0 +1,37 @@
+name: Release
+
+# On a published GitHub release: build the frontend, stamp the release's version into the
+# integration and attach homeslice.zip, which HACS installs (hacs.json: zip_release).
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  zip:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Version from the tag (v1.2.3 → 1.2.3)
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          jq --arg v "$version" '.version = $v' custom_components/homeslice/manifest.json > manifest.tmp
+          mv manifest.tmp custom_components/homeslice/manifest.json
+          npm version "$version" --no-git-tag-version --allow-same-version
+      - run: npm run build
+      - name: Zip the integration
+        run: |
+          cd custom_components/homeslice
+          rm -rf __pycache__
+          zip -r "$GITHUB_WORKSPACE/homeslice.zip" . -x "*.map"
+      - name: Attach to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "$GITHUB_REF_NAME" homeslice.zip --clobber

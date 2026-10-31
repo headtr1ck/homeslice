@@ -1,5 +1,10 @@
 # Homeslice
 
+[![HACS Custom](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://hacs.xyz/docs/faq/custom_repositories)
+[![GitHub release](https://img.shields.io/github/v/release/headtr1ck/homeslice)](https://github.com/headtr1ck/homeslice/releases)
+[![CI](https://github.com/headtr1ck/homeslice/actions/workflows/ci.yml/badge.svg)](https://github.com/headtr1ck/homeslice/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 > **Early development — the format may still change.**
 
 Model your house once — floors, rooms, walls, windows, devices — linked to Home Assistant's
@@ -19,10 +24,32 @@ Card and editor work; the format may still change before a first release.
   doors and windows with their blinds, stairs, lights and energy devices; undo/redo;
   the whole house as YAML in and out.
 
+## Installation
+
+### HACS (recommended)
+
+[![Open your Home Assistant instance and open this repository in HACS.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=headtr1ck&repository=homeslice&category=integration)
+
+1. Click the button above, or in HACS: *⋮ → Custom repositories*, add
+   `https://github.com/headtr1ck/homeslice` with the type *Integration*.
+2. Download **Homeslice** and restart Home Assistant.
+3. Add the integration:
+
+   [![Open your Home Assistant instance and start setting up Homeslice.](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start/?domain=homeslice)
+
+New versions show up under *Settings → Updates* like any other update; after updating,
+restart Home Assistant and reload the browser. The card needs no extra dashboard resource:
+the integration serves it.
+
+### Manually
+
+Download `homeslice.zip` from the [latest release](https://github.com/headtr1ck/homeslice/releases/latest),
+unpack it into `<config>/custom_components/homeslice/` and restart Home Assistant. (The
+repository itself doesn't contain the built frontend; build it with `npm run build`.)
+
 ## Getting started
 
-1. Copy `custom_components/homeslice` into your Home Assistant configuration (or use
-   `scripts/deploy.sh`, see below) and restart Home Assistant.
+1. Install Homeslice (above).
 2. Add the **Homeslice** integration under *Settings → Devices & services*.
 3. Open **Homeslice** in the sidebar and create a house: pick its floors, give rough outside
    dimensions, and each floor starts with a placeholder room per area.
@@ -159,6 +186,10 @@ npm run typecheck
 npm run build        # bundles → custom_components/homeslice/frontend/ (card and editor)
 npm run deploy       # build and copy to Home Assistant over SSH (settings in .deploy.env)
 ```
+
+Releasing: publish a GitHub release with a tag like `v0.1.0`. The *Release* workflow builds
+the frontend, sets that version in `manifest.json` and attaches `homeslice.zip`, which HACS
+installs and offers as an update.
 
 Private house files go into `houses/` (ignored by git); `npm test` validates them too.
 
