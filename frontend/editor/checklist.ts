@@ -23,6 +23,8 @@ const SIDE_WORDS: Record<Side, RegExp> = {
 };
 
 const BLINDS = ["blind", "shutter", "curtain", "shade", "awning"];
+/** Door sensors of appliances aren't doors of the house. */
+const APPLIANCES = /fridge|refrigerator|freezer|k(ü|ue)hl|gefrier|dishwasher|sp(ü|ue)l|oven|ofen|washer|wasch|dryer|trockner|mailbox|briefkasten|car\b|auto\b/i;
 const CONTACTS = ["window", "door", "opening", "garage_door"];
 
 /**
@@ -57,8 +59,10 @@ export function checklist(model: HouseInput, hass: Hass, levelAreas: (levelId: s
         // door sensors on doors, window sensors on windows
         (kind === "cover" || deviceClass === "opening" || (deviceClass === "window" ? x.o.type === "window" : x.o.type !== "window")),
     );
+    // a name that says a side ("Studio north") only fits a window on that side
+    const named = (Object.keys(SIDE_WORDS) as Side[]).some((side) => SIDE_WORDS[side].test(name));
     const bySide = free.filter((x) => SIDE_WORDS[x.o.side].test(name));
-    const pick = bySide.length === 1 ? bySide[0] : free.length === 1 ? free[0] : null;
+    const pick = bySide.length === 1 ? bySide[0] : !named && free.length === 1 ? free[0] : null;
     const room = areaId ? house.levels.flatMap((l) => l.rooms.map((r) => ({ level: l.id, r }))).find((x) => x.r.areaId === areaId) : undefined;
     if (!pick) {
       items.push({ kind, entity, level: room?.level, room: room?.r.id });
@@ -71,7 +75,13 @@ export function checklist(model: HouseInput, hass: Hass, levelAreas: (levelId: s
   for (const s of states)
     if (s.entity_id.startsWith("cover.") && BLINDS.includes(String(s.attributes.device_class)) && !usedCovers.has(s.entity_id)) link("cover", s.entity_id);
   for (const s of states)
-    if (s.entity_id.startsWith("binary_sensor.") && CONTACTS.includes(String(s.attributes.device_class)) && !usedContacts.has(s.entity_id)) link("contact", s.entity_id);
+    if (
+      s.entity_id.startsWith("binary_sensor.") &&
+      CONTACTS.includes(String(s.attributes.device_class)) &&
+      !usedContacts.has(s.entity_id) &&
+      !APPLIANCES.test(`${s.entity_id} ${s.attributes.friendly_name ?? ""}`)
+    )
+      link("contact", s.entity_id);
 
   // 3. walls that almost line up with the wall below, and the model's own warnings
   const walls = new Map(house.levels.map((l) => [l.id, deriveWalls(l, house.walls, [])]));

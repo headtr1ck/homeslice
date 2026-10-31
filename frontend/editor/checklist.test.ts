@@ -29,12 +29,16 @@ const hass = {
     "cover.living_south": { entity_id: "cover.living_south", area_id: "living" },
     "binary_sensor.front_door": { entity_id: "binary_sensor.front_door", area_id: "living" },
     "cover.loose": { entity_id: "cover.loose", area_id: null },
+    "binary_sensor.fridge_door": { entity_id: "binary_sensor.fridge_door", area_id: "living" },
+    "cover.living_east": { entity_id: "cover.living_east", area_id: "living" },
   },
   states: {
     "cover.living_west": state("cover.living_west", "blind", "Living West"),
     "cover.living_south": state("cover.living_south", "shutter", "Living Süd"),
     "binary_sensor.front_door": state("binary_sensor.front_door", "door", "Front door"),
     "cover.loose": state("cover.loose", "blind", "Somewhere"),
+    "binary_sensor.fridge_door": state("binary_sensor.fridge_door", "door", "Fridge door"),
+    "cover.living_east": state("cover.living_east", "blind", "Living East"),
   },
 } as unknown as Hass;
 
@@ -52,6 +56,9 @@ describe("checklist", () => {
     expect(west && "target" in west && west.target?.side).toBe("west");
     expect(south && "target" in south && south.target?.side).toBe("south");
     expect(door && "target" in door && door.target?.side).toBe("north");
+    // appliances' doors aren't listed; a blind named for a side without a free window there gets no guess
+    expect(items.some((i) => "entity" in i && i.entity === "binary_sensor.fridge_door")).toBe(false);
+    expect(items.find((i) => "entity" in i && i.entity === "cover.living_east")).not.toHaveProperty("target");
     // a blind in no area: listed, but nothing to suggest
     expect(items.find((i) => i.kind === "cover" && i.entity === "cover.loose")).toMatchObject({ kind: "cover", entity: "cover.loose" });
     const fixed = applyAll(model(), items);
@@ -61,6 +68,6 @@ describe("checklist", () => {
       [undefined, "binary_sensor.front_door"],
     ]);
     // once linked, they are off the list
-    expect(checklist(fixed, hass, areas).filter((i) => i.kind === "cover" || i.kind === "contact").map((i) => "entity" in i && i.entity)).toEqual(["cover.loose"]);
+    expect(checklist(fixed, hass, areas).filter((i) => i.kind === "cover" || i.kind === "contact").map((i) => "entity" in i && i.entity)).toEqual(["cover.loose", "cover.living_east"]);
   });
 });
