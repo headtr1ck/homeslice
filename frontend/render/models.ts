@@ -74,8 +74,13 @@ export const WALL_MODELS: Partial<Record<FurnitureType, Part[]>> = {
   tv: [{ files: ["televisionModern"], height: 0.55 }],
 };
 
-/** The parts of a piece as mounted. */
-export function partsFor(type: FurnitureType, mount: string): Part[] | undefined {
+/**
+ * The parts of a piece as mounted: its own model if it names one (none for `builtin`),
+ * else its type's.
+ */
+export function partsFor(type: FurnitureType, mount: string, model?: string): Part[] | undefined {
+  if (model === "builtin") return undefined;
+  if (model) return [{ files: [model] }];
   return (mount === "wall" ? WALL_MODELS[type] : undefined) ?? MODELS[type];
 }
 
@@ -127,6 +132,16 @@ export function modelColor(source: THREE.Material): THREE.Color {
 
 /** Where the models are: next to the bundle (Home Assistant serves the whole folder). */
 const BASE = new URL(/* @vite-ignore */ "models/", import.meta.url);
+/** Poly Haven's and uploaded models, served by the integration. */
+const ASSETS = "/homeslice_assets";
+
+/** The URL of a model: a bundled file's name, or a reference like `polyhaven:Sofa_01`. */
+export function modelUrl(key: string): string {
+  const [source, id] = key.includes(":") ? key.split(":", 2) : ["kenney", key];
+  if (source === "polyhaven") return new URL(`${ASSETS}/polyhaven/${id}/${id}_1k.gltf`, location.origin).href;
+  if (source === "custom") return new URL(`${ASSETS}/custom/${id}.glb`, location.origin).href;
+  return new URL(`${id}.glb`, BASE).href;
+}
 
 const cache = new Map<string, Promise<THREE.Object3D | null>>();
 
@@ -136,7 +151,7 @@ export function loadModel(file: string): Promise<THREE.Object3D | null> {
   if (!p) {
     // the loader is only fetched by cards that show detailed furniture
     p = import("three/examples/jsm/loaders/GLTFLoader.js")
-      .then(({ GLTFLoader }) => new GLTFLoader().loadAsync(new URL(`${file}.glb`, BASE).href))
+      .then(({ GLTFLoader }) => new GLTFLoader().loadAsync(modelUrl(file)))
       .then((gltf) => {
         gltf.scene.traverse((o) => (o.userData.shared = true));
         return gltf.scene;
@@ -148,8 +163,8 @@ export function loadModel(file: string): Promise<THREE.Object3D | null> {
 }
 
 /** The files a piece needs. */
-export function modelFiles(type: FurnitureType, mount = "floor"): string[] {
-  return [...new Set((partsFor(type, mount) ?? []).flatMap((p) => p.files))];
+export function modelFiles(type: FurnitureType, mount = "floor", model?: string): string[] {
+  return [...new Set((partsFor(type, mount, model) ?? []).flatMap((p) => p.files))];
 }
 
 /** Most a model is stretched more along one side than the other. */
@@ -167,10 +182,11 @@ export function buildPiece(
   height: number,
   models: Map<string, THREE.Object3D | null>,
   material: (source: THREE.Material) => THREE.Material,
+  model?: string,
 ): THREE.Group | null {
-  const build = PROCEDURAL[type];
+  const build = model ? undefined : PROCEDURAL[type];
   if (build) return build(size, height, material(LEAVES));
-  const parts = partsFor(type, mount);
+  const parts = partsFor(type, mount, model);
   if (!parts) return null;
   const g = new THREE.Group();
   const [w, d] = size;

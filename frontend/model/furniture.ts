@@ -51,14 +51,18 @@ export const FURNITURE: Record<FurnitureType, FurnitureDefaults> = {
   garden_path: { size: [3, 0.8], height: 0.05 },
   bench: { size: [1.5, 0.5], height: 0.45 },
   car: { size: [1.85, 4.6], height: 1.5 },
+  side_table: { size: [0.5, 0.5], height: 0.55 },
+  table_lamp: { size: [0.3, 0.3], height: 0.5 },
+  stool: { size: [0.4, 0.4], height: 0.65 },
+  item: { size: [0.6, 0.6], height: 0.8 },
 };
 
 export const FURNITURE_TYPES = Object.keys(FURNITURE) as FurnitureType[];
 
 /** The editor's library: groups in the order a home is usually furnished. */
 export const FURNITURE_GROUPS: { id: string; types: FurnitureType[] }[] = [
-  { id: "living", types: ["sofa", "sofa_corner", "armchair", "coffee_table", "tv", "shelf", "rug", "floor_lamp", "plant"] },
-  { id: "dining", types: ["table", "chair"] },
+  { id: "living", types: ["sofa", "sofa_corner", "armchair", "coffee_table", "side_table", "tv", "shelf", "rug", "floor_lamp", "table_lamp", "plant"] },
+  { id: "dining", types: ["table", "chair", "stool"] },
   { id: "kitchen", types: ["kitchen", "kitchen_upper", "fridge"] },
   { id: "bedroom", types: ["bed", "bed_single", "nightstand", "wardrobe", "desk"] },
   { id: "bathroom", types: ["bathtub", "shower", "toilet", "sink", "mirror"] },

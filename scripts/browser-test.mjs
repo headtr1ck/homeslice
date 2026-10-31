@@ -1339,6 +1339,7 @@ console.log("editor");
     await page.mouse.click(kb.x + kb.width * 0.8, kb.y + kb.height * 0.85);
     // the room's inspector offers furniture: the furniture tool's library, for this room
     await page.locator("homeslice-panel .inspector button", { hasText: "Add furniture" }).click();
+    await page.locator('homeslice-panel .inspector .library-sources button[data-source="builtin"]').click();
     await page.locator('homeslice-panel .inspector .library button[data-type="table"]').click();
     assert((await room("kitchen")).furniture?.[0]?.type === "table", `kitchen: ${JSON.stringify((await room("kitchen")).furniture)}`);
     assert((await page.locator("homeslice-panel .inspector h2").textContent()) === "Table", "new table not selected");
@@ -1369,6 +1370,7 @@ console.log("editor");
   await test("furniture library: grouped with pictures; drag pieces onto rooms, wall pieces go against a wall", async () => {
     await page.keyboard.press("Escape");
     await page.locator('homeslice-panel aside.tools button.tool[data-tool="furniture"]').click();
+    await page.locator('homeslice-panel .inspector .library-sources button[data-source="builtin"]').click();
     const groups = await page.locator("homeslice-panel .inspector h4").allTextContents();
     assert(groups[0] === "Living" && groups.includes("Bathroom") && groups.includes("Lighting"), `groups: ${groups.join(", ")}`);
     // searching narrows the library down
@@ -1440,12 +1442,73 @@ console.log("editor");
     assert(errors.length === 0, errors.join(" | "));
   });
 
+  await test("library sources: Kenney's models at their size, Poly Haven's fetched into HA, uploaded models", async () => {
+    await page.keyboard.press("Escape");
+    await page.keyboard.press("Escape");
+    // Home Assistant serves downloaded and uploaded models; here any model is a chair
+    await page.route("**/homeslice_assets/**", (route) => route.fulfill({ contentType: "model/gltf-binary", body: readFileSync(join(root, "assets/models/chair.glb")) }));
+    await page.locator('homeslice-panel aside.tools button.tool[data-tool="furniture"]').click();
+    const dropKey = (key, x, y) =>
+      page.evaluate(({ key, x, y }) => {
+        const root = window.panel.shadowRoot;
+        const dt = new DataTransfer();
+        root.querySelector(`.library button[data-key="${key}"]`).dispatchEvent(new DragEvent("dragstart", { bubbles: true, composed: true, dataTransfer: dt }));
+        const plan = root.querySelector("svg.plan");
+        const at = { bubbles: true, composed: true, cancelable: true, dataTransfer: dt, clientX: x, clientY: y };
+        plan.dispatchEvent(new DragEvent("dragover", at));
+        plan.dispatchEvent(new DragEvent("drop", at));
+      }, { key, x, y });
+    const living = await page.locator('homeslice-panel svg.plan g[data-room="living"] polygon').boundingBox();
+    const spot = [living.x + living.width * 0.5, living.y + living.height * 0.4];
+    const count = async () => (await room("living")).furniture?.length ?? 0;
+    const last = async () => (await room("living")).furniture.at(-1);
+    const source = (s) => page.locator(`homeslice-panel .inspector .library-sources button[data-source="${s}"]`).click();
+    const start = await count();
+
+    await source("kenney");
+    await dropKey("kenney:loungeDesignSofa", ...spot);
+    const sizes = JSON.parse(readFileSync(join(root, "frontend/editor/kenney-sizes.json"), "utf8")).loungeDesignSofa;
+    let f = await last();
+    assert(f.model === "kenney:loungeDesignSofa" && f.type === "sofa" && JSON.stringify(f.size) === JSON.stringify(sizes.slice(0, 2)) && f.height === sizes[2], `kenney: ${JSON.stringify(f)}`);
+    assert((await page.locator("homeslice-panel .inspector p", { hasText: "Model:" }).textContent()).includes("Kenney · Lounge design sofa"), "model not named");
+    await page.keyboard.press("Escape");
+
+    await source("polyhaven");
+    await page.locator('homeslice-panel .inspector .library button[data-key="polyhaven:Sofa_01"]').waitFor();
+    assert((await page.locator("homeslice-panel .inspector .credit").textContent()).includes("Poly Haven"), "no credit for Poly Haven");
+    const groups = await page.locator("homeslice-panel .inspector h4").allTextContents();
+    assert(JSON.stringify(groups) === '["Seating","Lighting","Plants"]', `groups: ${groups}`);
+    await shot(page, "editor-library-polyhaven");
+    await dropKey("polyhaven:Sofa_01", ...spot);
+    await page.waitForFunction((n) => window.panel._model.levels[0].rooms.find((r) => r.id === "living").furniture?.length === n, start + 2);
+    f = await last();
+    assert(f.model === "polyhaven:Sofa_01" && f.type === "sofa" && JSON.stringify(f.size) === "[1.571,0.658]" && f.height === 0.796, `polyhaven: ${JSON.stringify(f)}`);
+    assert(JSON.stringify(await page.evaluate(() => window.panel.hass.fetched)) === '["Sofa_01"]', "not fetched into HA first");
+    await page.keyboard.press("Escape");
+
+    await source("custom");
+    assert((await page.locator("homeslice-panel .inspector p", { hasText: "No models uploaded yet" }).count()) === 1, "no empty note");
+    await page.locator("homeslice-panel .inspector label.upload-model input").setInputFiles({ name: "Our chair.glb", mimeType: "model/gltf-binary", buffer: readFileSync(join(root, "assets/models/chair.glb")) });
+    await page.locator('homeslice-panel .inspector .library button[data-key="custom:m1"]').waitFor();
+    await dropKey("custom:m1", ...spot);
+    await page.waitForFunction((n) => window.panel._model.levels[0].rooms.find((r) => r.id === "living").furniture?.length === n, start + 3);
+    f = await last();
+    assert(f.model === "custom:m1" && f.type === "item" && f.size?.[0] > 0 && f.height > 0, `custom: ${JSON.stringify(f)}`);
+    await shot(page, "editor-library-custom");
+    for (let i = 0; i < 3; i++) await page.keyboard.press("Control+z");
+    assert((await count()) === start, "not undone");
+    await page.keyboard.press("Escape");
+    await page.locator('homeslice-panel aside.tools button.tool[data-tool="select"]').click();
+    assert(errors.length === 0, errors.join(" | "));
+  });
+
   await test("a floor lamp linked to a light: the lamp marker goes, the piece is the lamp", async () => {
     await page.keyboard.press("Escape");
     await page.keyboard.press("Escape");
     const lb = await page.locator('homeslice-panel svg.plan g[data-room="living"] polygon').boundingBox();
     await page.mouse.click(lb.x + lb.width * 0.85, lb.y + lb.height * 0.9);
     await page.locator("homeslice-panel .inspector button", { hasText: "Add furniture" }).click();
+    await page.locator('homeslice-panel .inspector .library-sources button[data-source="builtin"]').click();
     await page.locator('homeslice-panel .inspector .library button[data-type="floor_lamp"]').click();
     const lampMarkers = () => page.locator('homeslice-panel svg.plan [data-light*="light.reading_lamp"]').count();
     assert((await lampMarkers()) === 1, "the reading lamp should have its marker before linking");

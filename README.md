@@ -64,7 +64,10 @@ repository itself doesn't contain the built frontend; build it with `npm run bui
    - **2. Doors & windows:** click a wall to add a window, link its blind and contact.
    - **3. Objects & entities:** lights are placed automatically and can be dragged;
      drag furniture from the library (wall pieces go against a wall; `R` to turn); place solar, battery, grid and power-measured
-     devices for the energy overlay.
+     devices for the energy overlay. The library has four sources: **Built-in** (simple
+     shapes, lightest), **Kenney** (low-poly models, included), **Poly Haven** (realistic
+     models, downloaded into Home Assistant once when placed) and **Custom** (upload your
+     own `.glb`).
    - Save (`Ctrl+S`). Cards update at once.
 4. Add a **Homeslice** card to a dashboard. Its visual editor shows a small preview: turn
    it into the angle you want, then pick the look.
@@ -169,6 +172,8 @@ levels:
           - { type: table, at: [3, 2], rotation: 90 }
           - { type: tv, at: [3, 7.8], rotation: 180, mount: wall, elevation: 1 }  # wall, ceiling
           - { type: sofa_corner, at: [2, 3], mirror: true }                    # flipped left to right
+          - { type: sofa, at: [3, 4], model: polyhaven:Sofa_01, size: [1.57, 0.66], height: 0.8 }
+          # model: builtin | kenney:<name> | polyhaven:<id> | custom:<id> (default: the card's style)
       - { id: kitchen, area_id: kitchen, rect: [6, 0, 4, 8], floor: tile }
       - { id: garden, area_id: garden, kind: outdoor, rect: [0, 8, 10, 6], awning: cover.awning }
     walls:
@@ -221,4 +226,9 @@ uv pip install --python .venv/bin/python pytest-homeassistant-custom-component h
 ## License
 
 MIT. The furniture models in `assets/models/` are by [Kenney](https://kenney.nl)
-(Furniture Kit and Car Kit, CC0). A card loads only the models its house uses.
+(Furniture Kit, Nature Kit and Car Kit, CC0). A card loads only the models its house uses.
+
+The editor's Poly Haven library uses the [Poly Haven](https://polyhaven.com) API; its
+models are CC0. Home Assistant downloads a model (1k textures) into
+`<config>/homeslice/assets/` the first time a house uses it, and every device loads it
+from there. Homeslice is not made or endorsed by Poly Haven.

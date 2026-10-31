@@ -4,7 +4,7 @@
 // Run after adding a furniture type or changing its model: node scripts/thumbnails.mjs
 import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync, existsSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
-import { join, resolve } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { build } from "vite";
 import { chromium } from "playwright-core";
 
@@ -33,7 +33,7 @@ await page.route("http://thumbs.local/**", (route) => {
   route.fulfill({ contentType: type, body: readFileSync(file) });
 });
 await page.goto("http://thumbs.local/");
-await page.waitForFunction(() => window.thumbnails, null, { timeout: 30000 });
+await page.waitForFunction(() => window.thumbnails, null, { timeout: 300000 });
 const images = await page.evaluate(() => window.thumbnails);
 await browser.close();
 rmSync(out, { recursive: true });
@@ -41,7 +41,12 @@ rmSync(out, { recursive: true });
 // library pictures, and top-down pictures for the editor's plan
 for (const [folder, set] of [["thumbs", images.thumbs], ["plan", images.plans]]) {
   const target = join(root, "assets", folder);
-  mkdirSync(target, { recursive: true });
-  for (const [type, url] of Object.entries(set)) writeFileSync(join(target, `${type}.png`), Buffer.from(url.split(",")[1], "base64"));
+  for (const [key, url] of Object.entries(set)) {
+    const file = join(target, `${key}.png`);
+    mkdirSync(dirname(file), { recursive: true });
+    writeFileSync(file, Buffer.from(url.split(",")[1], "base64"));
+  }
   console.log(`${Object.keys(set).length} pictures in assets/${folder}/`);
 }
+writeFileSync(join(root, "frontend/editor/kenney-sizes.json"), JSON.stringify(images.sizes, null, 1) + "\n");
+console.log(`${Object.keys(images.sizes).length} Kenney sizes in frontend/editor/kenney-sizes.json`);

@@ -16,7 +16,23 @@ import { deriveWalls, innerPolygon, sideOfRoom, type Wall, type WallOpening } fr
 import { HouseRenderer } from "../render/scene";
 import { stairFrame, stairHole } from "../model/stairs";
 import { misalignedWalls } from "../model/checks";
-import { FURNITURE, FURNITURE_GROUPS, FURNITURE_TYPES, mountOf } from "../model/furniture";
+import { FURNITURE, FURNITURE_TYPES, mountOf } from "../model/furniture";
+import { loadModel } from "../render/models";
+import {
+  LIBRARY_SOURCES,
+  builtinGroups,
+  customGroups,
+  filterGroups,
+  humanize,
+  kenneyGroups,
+  planPicture,
+  polyhavenGroups,
+  type CustomAsset,
+  type LibraryGroup,
+  type LibraryItem,
+  type LibrarySource,
+  type PolyhavenAsset,
+} from "./library";
 import { listedLights, placeLights, type PlacedLight } from "../model/lights";
 import { prefsSensors, type EnergyPrefs } from "../ha/energy";
 import { applyAll, checklist, type CheckItem } from "./checklist";
@@ -242,11 +258,6 @@ export function wrapWords(text: string, chars: number): string[] {
   return lines.length ? lines : [text];
 }
 
-/** A furniture type seen from straight above, framed on its footprint (assets/plan). */
-const planPicture = (type: FurnitureType) => new URL(/* @vite-ignore */ `plan/${type}.png`, import.meta.url).href;
-
-/** Picture of a furniture type for the library (assets/thumbs, next to the bundle). */
-const thumb = (type: FurnitureType) => new URL(/* @vite-ignore */ `thumbs/${type}.png`, import.meta.url).href;
 
 function readPref(key: string): string | null {
   try {
@@ -330,6 +341,11 @@ export class HomeslicePanel extends LitElement {
     _linkEnd: { state: true },
     _robotPlace: { state: true },
     _libraryFilter: { state: true },
+    _librarySource: { state: true },
+    _polyhaven: { state: true },
+    _customModels: { state: true },
+    _placing: { state: true },
+    _libraryError: { state: true },
     _checklist: { state: true },
     _openingPreset: { state: true },
     _hintsHidden: { state: true },
@@ -416,7 +432,15 @@ export class HomeslicePanel extends LitElement {
   /** Door or window being dragged from the library onto a wall. */
   private openingDrag: string | null = null;
   /** Furniture type being dragged from the library onto the plan. */
-  private libraryDrag: FurnitureType | null = null;
+  private libraryDrag: LibraryItem | null = null;
+  /** The library's source (remembered in this browser). */
+  private _librarySource: LibrarySource = (LIBRARY_SOURCES as string[]).includes(readPref("homeslice-library") ?? "") ? (readPref("homeslice-library") as LibrarySource) : "kenney";
+  /** Poly Haven's catalogue: loading (null), loaded, or why it can't be. */
+  private _polyhaven: PolyhavenAsset[] | { error: string } | null = null;
+  private _customModels: CustomAsset[] | null = null;
+  /** A library item being downloaded or measured before it is placed. */
+  private _placing: string | null = null;
+  private _libraryError = "";
   /** Selected piece of furniture (objects mode). */
   private _furn: { room: string; index: number } | null = null;
   /** Unsaved changes found from an earlier visit, offered for restoring. */
@@ -2039,11 +2063,11 @@ export class HomeslicePanel extends LitElement {
           }
           return;
         }
-        const type = this.libraryDrag;
+        const item = this.libraryDrag;
         this.libraryDrag = null;
-        if (!type) return;
+        if (!item) return;
         e.preventDefault();
-        this.addFurnitureAt(type, this.eventWorld(e as unknown as PointerEvent));
+        void this.addFurnitureAt(item, this.eventWorld(e as unknown as PointerEvent));
       }}
     >${content}</svg>`;
   }
@@ -2113,7 +2137,7 @@ export class HomeslicePanel extends LitElement {
         const label = `${this.t(`furniture.${f.type}` as StringKey)} · ${this.n(w)} × ${this.n(d)} m`;
         return svg`<g class="furniture mount-${mountOf(f)} editable ${sel ? "selected" : ""}" data-furniture=${JSON.stringify({ room: r.id, index: i })}
             transform="translate(${cx} ${cy}) rotate(${f.rotation ?? 0})">
-          <image href=${planPicture(f.type)} x=${(-w * k) / 2} y=${(-d * k) / 2} width=${w * k} height=${d * k} preserveAspectRatio="none"
+          <image href=${planPicture(f)} x=${(-w * k) / 2} y=${(-d * k) / 2} width=${w * k} height=${d * k} preserveAspectRatio="none"
             transform=${f.mirror ? "scale(-1 1)" : ""}></image>
           <rect x=${(-w * k) / 2} y=${(-d * k) / 2} width=${w * k} height=${d * k} rx="2"><title>${label}</title></rect>
         </g>
@@ -2146,7 +2170,12 @@ export class HomeslicePanel extends LitElement {
       <div class="row">
         <label>${this.t("editor.furniture_width")}<input type="number" min="0.1" step="0.05" .value=${String(w)} @change=${size(0)} /></label>
         <label>${this.t("editor.furniture_depth")}<input type="number" min="0.1" step="0.05" .value=${String(d)} @change=${size(1)} /></label>
+        <label>${this.t("editor.furniture_height")}<input type="number" min="0.02" step="0.05" .value=${String(f.height ?? FURNITURE[f.type].height)} @change=${(e: Event) => {
+          const v = Number((e.target as HTMLInputElement).value);
+          if (v > 0) set({ height: v === FURNITURE[f.type].height ? undefined : v });
+        }} /></label>
       </div>
+      ${f.model ? html`<p class="muted">${this.t("editor.furniture_model")}: ${this.modelName(f.model)}</p>` : nothing}
       <div class="row">
         <label>${this.t("editor.furniture_mount")}
           <select @change=${(e: Event) => this.setMount(r, sel.index, (e.target as HTMLSelectElement).value as FurnitureMount)}>
@@ -3500,49 +3529,185 @@ export class HomeslicePanel extends LitElement {
   }
 
   /**
-   * The furniture library, grouped like a home is furnished: drag a piece onto a room, or
-   * click it to put it into the selected room.
+   * The furniture library, grouped like a home is furnished, from one source at a time:
+   * drag a piece onto a room, or click it to put it into the selected room.
    */
   private renderLibrary(room: RoomInput | null) {
-    const q = this._libraryFilter.trim().toLowerCase();
-    const matches = (t: FurnitureType) => !q || this.t(`furniture.${t}` as StringKey).toLowerCase().includes(q) || t.includes(q);
-    const groups = FURNITURE_GROUPS.map((g) => ({ ...g, types: g.types.filter(matches) })).filter((g) => g.types.length);
-    return html`<p class="muted">${this.t(room ? "editor.library_hint_room" : "editor.library_hint", { room: room ? this.roomName(room) : "" })}</p>
+    const source = this._librarySource;
+    const typeName = (t: FurnitureType) => this.t(`furniture.${t}` as StringKey);
+    let groups: LibraryGroup[] = [];
+    let status: unknown = nothing;
+    if (source === "builtin") groups = builtinGroups();
+    else if (source === "kenney") groups = kenneyGroups();
+    else if (source === "polyhaven") {
+      const c = this._polyhaven;
+      if (!c) {
+        this.loadPolyhaven();
+        status = html`<p class="muted">${this.t("editor.library_loading")}</p>`;
+      } else if ("error" in c) status = html`<p class="muted">${this.t("editor.library_polyhaven_error", { error: c.error })}</p>`;
+      else groups = polyhavenGroups(c);
+    } else {
+      if (!this._customModels) this.loadCustomModels();
+      groups = customGroups(this._customModels ?? []);
+    }
+    groups = filterGroups(groups, this._libraryFilter, typeName);
+    const credit =
+      source === "polyhaven"
+        ? html`<p class="muted credit">${this.t("editor.library_polyhaven_credit")} <a href="https://polyhaven.com" target="_blank" rel="noopener">polyhaven.com</a></p>`
+        : source === "kenney"
+          ? html`<p class="muted credit">${this.t("editor.library_kenney_credit")} <a href="https://kenney.nl" target="_blank" rel="noopener">kenney.nl</a></p>`
+          : nothing;
+    return html`<div class="library-sources" role="tablist">
+        ${LIBRARY_SOURCES.map(
+          (s) => html`<button role="tab" class=${s === source ? "active" : ""} aria-selected=${s === source} data-source=${s}
+            @click=${() => {
+              this._librarySource = s;
+              this._libraryError = "";
+              writePref("homeslice-library", s);
+            }}>${this.t(`editor.library_${s}` as StringKey)}</button>`,
+        )}
+      </div>
+      ${credit}
+      <p class="muted">${this.t(room ? "editor.library_hint_room" : "editor.library_hint", { room: room ? this.roomName(room) : "" })}</p>
+      ${source === "custom"
+        ? html`<label class="file upload-model"
+            >${this.t("editor.library_upload")}<input type="file" accept=".glb,model/gltf-binary" @change=${(e: Event) => this.uploadModel(e)}
+          /></label>
+          <p class="muted">${this.t("editor.library_upload_hint")}</p>`
+        : nothing}
+      ${this._libraryError ? html`<p class="error">${this._libraryError}</p>` : nothing}
       <input class="library-search" type="search" placeholder=${this.t("editor.library_search")} aria-label=${this.t("editor.library_search")} .value=${this._libraryFilter}
         @input=${(e: Event) => (this._libraryFilter = (e.target as HTMLInputElement).value)} />
-      ${groups.length ? nothing : html`<p class="muted">${this.t("editor.library_none")}</p>`}
+      ${status}
+      ${status === nothing && !groups.length ? html`<p class="muted">${this.t(source === "custom" && !this._libraryFilter ? "editor.library_no_uploads" : "editor.library_none")}</p>` : nothing}
       ${groups.map(
         (g) => html`<h4>${this.t(`furniture.group_${g.id}` as StringKey)}</h4>
           <div class="library">
-            ${g.types.map(
-              (t) => html`<button class="piece" draggable="true" title=${this.t(`furniture.${t}` as StringKey)} data-type=${t}
-                @dragstart=${(e: DragEvent) => {
-                  this.libraryDrag = t;
-                  e.dataTransfer?.setData("text/plain", t);
-                  if (e.dataTransfer) e.dataTransfer.effectAllowed = "copy";
-                }}
-                @dragend=${() => (this.libraryDrag = null)}
-                @click=${() => room && this.addFurnitureAt(t, labelPoint(this.inner(room)), room.id)}>
-                <img src=${thumb(t)} alt="" loading="lazy" draggable="false" />
-                <span>${this.t(`furniture.${t}` as StringKey)}</span>
-              </button>`,
-            )}
+            ${g.items.map((item) => {
+              const name = item.name ?? typeName(item.type);
+              return html`<div class="piece-wrap">
+                <button class="piece ${this._placing === item.key ? "placing" : ""}" draggable="true" title=${name} data-type=${item.type} data-key=${item.key}
+                  @dragstart=${(e: DragEvent) => {
+                    this.libraryDrag = item;
+                    e.dataTransfer?.setData("text/plain", item.key);
+                    if (e.dataTransfer) e.dataTransfer.effectAllowed = "copy";
+                  }}
+                  @dragend=${() => (this.libraryDrag = null)}
+                  @click=${() => room && this.addFurnitureAt(item, labelPoint(this.inner(room)), room.id)}>
+                  ${item.thumb ? html`<img src=${item.thumb} alt="" loading="lazy" draggable="false" />` : html`<span class="no-thumb"><ha-icon icon="mdi:cube-outline"></ha-icon></span>`}
+                  <span>${name}</span>
+                </button>
+                ${source === "custom"
+                  ? html`<button class="remove-model" title=${this.t("editor.library_delete_model")} aria-label=${this.t("editor.library_delete_model")}
+                      @click=${() => this.deleteModel(item.model.slice(7), name)}>×</button>`
+                  : nothing}
+              </div>`;
+            })}
           </div>`,
       )}`;
   }
 
+  /** Where a piece's model is from and its name, e.g. "Kenney · Lounge design sofa". */
+  private modelName(model: string): string {
+    const [source, id] = model.includes(":") ? model.split(":", 2) : [model, ""];
+    if (source === "builtin") return this.t("editor.library_builtin");
+    const custom = source === "custom" ? this._customModels?.find((m) => m.id === id)?.name : undefined;
+    const polyhaven = source === "polyhaven" && this._polyhaven && !("error" in this._polyhaven) ? this._polyhaven.find((a) => a.id === id)?.name : undefined;
+    return `${this.t(`editor.library_${source}` as StringKey)} · ${custom ?? polyhaven ?? humanize(id)}`;
+  }
+
+  private loadPolyhaven() {
+    if (this._polyhaven || this.polyhavenRequest || !this._hass) return;
+    this.polyhavenRequest = this._hass
+      .callWS<PolyhavenAsset[]>({ type: "homeslice/assets/polyhaven" })
+      .then((c) => (this._polyhaven = c))
+      .catch((e: { message?: string }) => (this._polyhaven = { error: e?.message ?? String(e) }))
+      .finally(() => (this.polyhavenRequest = null));
+  }
+  private polyhavenRequest: Promise<unknown> | null = null;
+
+  private loadCustomModels() {
+    if (this.customRequest || !this._hass) return;
+    this.customRequest = this._hass
+      .callWS<CustomAsset[]>({ type: "homeslice/assets/custom" })
+      .then((c) => (this._customModels = c))
+      .catch(() => (this._customModels = []))
+      .finally(() => (this.customRequest = null));
+  }
+  private customRequest: Promise<unknown> | null = null;
+
+  /** Uploads a .glb into Home Assistant and adds it to the library. */
+  private async uploadModel(e: Event) {
+    const input = e.target as HTMLInputElement;
+    const file = input.files?.[0];
+    input.value = "";
+    if (!file || !this._hass) return;
+    this._libraryError = "";
+    const data = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result));
+      reader.onerror = () => reject(reader.error);
+      reader.readAsDataURL(file);
+    });
+    try {
+      const added = await this._hass.callWS<CustomAsset>({ type: "homeslice/assets/custom/upload", name: file.name.replace(/\.glb$/i, ""), data });
+      this._customModels = [...(this._customModels ?? []), added].sort((a, b) => a.name.localeCompare(b.name));
+    } catch (err) {
+      this._libraryError = (err as { message?: string })?.message ?? String(err);
+    }
+  }
+
+  private async deleteModel(id: string, name: string) {
+    if (!this._hass) return;
+    const used = (this._model?.levels ?? []).some((l) => l.rooms.some((r) => (r.furniture ?? []).some((f) => f.model === `custom:${id}`)));
+    if (!confirm(this.t(used ? "editor.library_delete_used" : "editor.library_delete_confirm", { name }))) return;
+    await this._hass.callWS({ type: "homeslice/assets/custom/delete", asset: id });
+    this._customModels = (this._customModels ?? []).filter((m) => m.id !== id);
+  }
+
   /** Adds a piece where it was dropped (wall pieces go against the nearest wall) and selects it. */
-  private addFurnitureAt(type: FurnitureType, world: Vec2, roomId?: string) {
+  private async addFurnitureAt(item: LibraryItem, world: Vec2, roomId?: string) {
+    const type = item.type;
+    let size = item.size;
+    let height = item.height;
+    if (item.model.startsWith("polyhaven:") || item.model.startsWith("custom:")) {
+      if (this._placing) return;
+      this._placing = item.key;
+      this._libraryError = "";
+      try {
+        // Poly Haven's: into Home Assistant first (once); every device loads it from there
+        if (item.model.startsWith("polyhaven:")) await this._hass!.callWS({ type: "homeslice/assets/polyhaven/fetch", asset: item.model.slice(10) });
+        // uploaded ones: as big as the model says (glTF is in metres)
+        if (!size) {
+          const loaded = await loadModel(item.model);
+          if (!loaded) throw new Error(this.t("editor.library_model_failed"));
+          const { Box3, Vector3 } = await import("three");
+          const s = new Box3().setFromObject(loaded).getSize(new Vector3());
+          const r = (v: number) => Math.max(0.05, Math.round(v * 100) / 100);
+          size = [r(s.x), r(s.z)];
+          height = r(s.y);
+        }
+      } catch (err) {
+        this._libraryError = (err as { message?: string })?.message ?? String(err);
+        return;
+      } finally {
+        this._placing = null;
+      }
+    }
     const m = this._model!;
     const rooms = (this.levelInput?.rooms ?? []).filter((r) => r.kind !== "void");
     const room = rooms.find((r) => r.id === roomId) ?? rooms.find((r) => pointInPolygon(world, this.inner(r))) ?? rooms.find((r) => pointInPolygon(world, roomPolygon(m, r)));
     if (!room) return;
     const { min } = bbox(roomPolygon(m, room));
     const def = FURNITURE[type];
-    const onWall = def.mount === "wall" ? wallSnap(this.inner(room), world, def.size[1]) : null;
+    const depth = size?.[1] ?? def.size[1];
+    const onWall = def.mount === "wall" ? wallSnap(this.inner(room), world, depth) : null;
     const p = onWall?.at ?? world;
     const at: [number, number] = [Math.round((p[0] - min[0]) * 100) / 100, Math.round((p[1] - min[1]) * 100) / 100];
-    const { model, index } = addFurniture(m, this._level, room.id, { type, at, ...(onWall?.rotation ? { rotation: onWall.rotation } : {}) });
+    const piece: FurnitureInput = { type, at, model: item.model, ...(onWall?.rotation ? { rotation: onWall.rotation } : {}) };
+    if (size && (size[0] !== def.size[0] || size[1] !== def.size[1])) piece.size = size;
+    if (height !== undefined && height !== def.height) piece.height = height;
+    const { model, index } = addFurniture(m, this._level, room.id, piece);
     this.commit(model);
     this._room = room.id;
     this._furn = { room: room.id, index };
@@ -4486,6 +4651,56 @@ export class HomeslicePanel extends LitElement {
     }
     .library .piece:hover {
       border-color: var(--accent);
+    }
+    .library-sources {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      margin: 4px 0 6px;
+    }
+    .library-sources button {
+      flex: 1;
+      min-width: 0;
+      padding: 4px 6px;
+      font-size: 12px;
+    }
+    .library-sources button.active {
+      border-color: var(--accent);
+      background: color-mix(in srgb, var(--accent) 18%, transparent);
+    }
+    .credit a {
+      color: inherit;
+    }
+    .piece-wrap {
+      position: relative;
+      display: flex;
+    }
+    .piece-wrap .piece {
+      flex: 1;
+    }
+    .library .piece.placing {
+      opacity: 0.5;
+      cursor: progress;
+    }
+    .library .no-thumb {
+      width: 56px;
+      height: 56px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      --mdc-icon-size: 32px;
+      opacity: 0.6;
+    }
+    .remove-model {
+      position: absolute;
+      top: 0;
+      right: 0;
+      min-width: 0;
+      width: 20px;
+      height: 20px;
+      padding: 0;
+      line-height: 1;
+      border-radius: 50%;
     }
     .library .piece img {
       width: 56px;

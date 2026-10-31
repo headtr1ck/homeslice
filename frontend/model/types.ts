@@ -77,7 +77,12 @@ export type FurnitureType =
   | "fence"
   | "garden_path"
   | "bench"
-  | "car";
+  | "car"
+  | "side_table"
+  | "table_lamp"
+  | "stool"
+  /** Anything else: a model from a library or an uploaded one. */
+  | "item";
 
 /** `wall`: hangs on a wall (its back against it); `ceiling`: hangs from the ceiling. */
 export type FurnitureMount = "floor" | "wall" | "ceiling";
@@ -95,8 +100,16 @@ export interface FurnitureInput {
   mount?: FurnitureMount;
   /** Wall pieces: metres from the floor to the piece's bottom (default by type). */
   elevation?: number;
+  /** Height in metres (default by type, or the model's own). */
+  height?: number;
   /** Flipped left to right, e.g. a corner sofa with its long side on the other end. */
   mirror?: boolean;
+  /**
+   * Which model shows the piece: `builtin` (the simple shapes), `kenney:<name>` (Kenney's
+   * models in the bundle), `polyhaven:<id>` (downloaded from Poly Haven into Home
+   * Assistant) or `custom:<id>` (an uploaded .glb). Default: the card's furniture style.
+   */
+  model?: string;
   /**
    * The entity this piece is, e.g. a floor lamp's light (it then glows where the piece
    * stands) or a TV's media player (shown in the room's popup).
@@ -358,7 +371,7 @@ export interface Room {
   /** `piece`: the light of a piece of furniture (placed where the piece is). */
   lights: { entity: string; at?: Vec2; hidden: boolean; piece?: boolean }[];
   /** `elevation`: bottom above the floor in metres (ceiling pieces: null, they hang from the ceiling). */
-  furniture: { type: FurnitureType; at: Vec2; rotation: number; size: [number, number]; height: number; mount: FurnitureMount; elevation: number | null; mirror: boolean; entity?: string }[];
+  furniture: { type: FurnitureType; at: Vec2; rotation: number; size: [number, number]; height: number; mount: FurnitureMount; elevation: number | null; mirror: boolean; entity?: string; model?: string }[];
 }
 
 /** Where an opening is defined: a level's own list, or a façade entry shared by levels. */

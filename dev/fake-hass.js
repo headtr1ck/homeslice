@@ -49,6 +49,7 @@ export function makeHass(fixture, onChange) {
       for (const callback of subscribers) callback({ model: structuredClone(model) });
     },
     saved: [],
+    fetched: [],
     areaUpdates: [],
     async callWS(msg) {
       // several houses: the fixture's model is the first; `houses` holds the rest
@@ -60,6 +61,29 @@ export function makeHass(fixture, onChange) {
         const { type, house, level, id, ...patch } = msg;
         if (!patch.image && !underlays[key]) throw new Error("Upload an image first");
         underlays[key] = { ...underlays[key], ...patch };
+        return null;
+      }
+      // models: a tiny Poly Haven catalogue, and uploads kept in memory
+      if (msg.type === "homeslice/assets/polyhaven")
+        return [
+          { id: "Sofa_01", name: "Sofa 01", categories: ["furniture", "seating"], tags: ["couch"], dimensions: [1.571, 0.658, 0.796], thumbnail: null },
+          { id: "potted_plant_01", name: "Potted Plant 01", categories: ["plants", "potted plants"], tags: [], dimensions: [0.5, 0.5, 1.2], thumbnail: null },
+          { id: "modern_ceiling_lamp_01", name: "Modern Ceiling Lamp 01", categories: ["lighting"], tags: ["hanging"], dimensions: [0.4, 0.4, 0.6], thumbnail: null },
+        ];
+      if (msg.type === "homeslice/assets/polyhaven/fetch") {
+        hass.fetched.push(msg.asset);
+        return { url: `/homeslice_assets/polyhaven/${msg.asset}/${msg.asset}_1k.gltf` };
+      }
+      const uploads = (fixture.uploads ??= []);
+      if (msg.type === "homeslice/assets/custom") return structuredClone(uploads);
+      if (msg.type === "homeslice/assets/custom/upload") {
+        if (!msg.data.startsWith("data:")) throw new Error("Upload a .glb file (binary glTF)");
+        const added = { id: `m${uploads.length + 1}`, name: msg.name, url: `/homeslice_assets/custom/m${uploads.length + 1}.glb`, bytes: msg.data.length };
+        uploads.push(added);
+        return structuredClone(added);
+      }
+      if (msg.type === "homeslice/assets/custom/delete") {
+        fixture.uploads = uploads.filter((u) => u.id !== msg.asset);
         return null;
       }
       if (msg.type === "homeslice/underlay/delete") {

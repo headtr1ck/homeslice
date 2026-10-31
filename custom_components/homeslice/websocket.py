@@ -9,6 +9,7 @@ import voluptuous as vol
 from homeassistant.components import websocket_api
 from homeassistant.core import HomeAssistant, callback
 
+from .assets import AssetError, Assets
 from .const import DEFAULT_HOUSE, DOMAIN
 from .store import HomesliceStore, ModelError
 from .underlay import UnderlayError, Underlays
@@ -22,10 +23,14 @@ def _underlays(hass: HomeAssistant) -> Underlays:
     return hass.data[DOMAIN]["underlays"]
 
 
+def _assets(hass: HomeAssistant) -> Assets:
+    return hass.data[DOMAIN]["assets"]
+
+
 @callback
 def async_register_websocket(hass: HomeAssistant) -> None:
     """Register the websocket commands."""
-    for command in (ws_list, ws_get_model, ws_subscribe, ws_save, ws_delete, ws_import_files, ws_underlay_get, ws_underlay_set, ws_underlay_delete):
+    for command in (ws_list, ws_get_model, ws_subscribe, ws_save, ws_delete, ws_import_files, ws_underlay_get, ws_underlay_set, ws_underlay_delete, ws_polyhaven_catalog, ws_polyhaven_fetch, ws_custom_list, ws_custom_upload, ws_custom_delete):
         websocket_api.async_register_command(hass, command)
 
 
@@ -159,4 +164,62 @@ async def ws_underlay_set(hass: HomeAssistant, connection: websocket_api.ActiveC
 async def ws_underlay_delete(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
     """Remove a level's floor plan image (admins only)."""
     await _underlays(hass).async_delete(msg["house"], msg["level"])
+    connection.send_result(msg["id"])
+
+
+# ----- models from Poly Haven and uploaded ones -----
+
+
+@websocket_api.websocket_command({vol.Required("type"): "homeslice/assets/polyhaven"})
+@websocket_api.require_admin
+@websocket_api.async_response
+async def ws_polyhaven_catalog(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
+    """Poly Haven's models for homes (admins only: the editor's library)."""
+    try:
+        connection.send_result(msg["id"], await _assets(hass).async_catalog())
+    except (AssetError, OSError, TimeoutError) as err:
+        connection.send_error(msg["id"], "unavailable", f"Poly Haven is not reachable: {err}")
+
+
+@websocket_api.websocket_command({vol.Required("type"): "homeslice/assets/polyhaven/fetch", vol.Required("asset"): str})
+@websocket_api.require_admin
+@websocket_api.async_response
+async def ws_polyhaven_fetch(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
+    """Downloads a Poly Haven model into Home Assistant (once) and returns its URL."""
+    try:
+        connection.send_result(msg["id"], {"url": await _assets(hass).async_polyhaven(msg["asset"])})
+    except AssetError as err:
+        connection.send_error(msg["id"], "unavailable", str(err))
+
+
+@websocket_api.websocket_command({vol.Required("type"): "homeslice/assets/custom"})
+@websocket_api.async_response
+async def ws_custom_list(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
+    """The uploaded models."""
+    connection.send_result(msg["id"], await _assets(hass).async_custom_list())
+
+
+@websocket_api.websocket_command(
+    {vol.Required("type"): "homeslice/assets/custom/upload", vol.Required("name"): str, vol.Required("data"): str}
+)
+@websocket_api.require_admin
+@websocket_api.async_response
+async def ws_custom_upload(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
+    """Stores an uploaded .glb (admins only)."""
+    try:
+        connection.send_result(msg["id"], await _assets(hass).async_custom_upload(msg["name"], msg["data"]))
+    except AssetError as err:
+        connection.send_error(msg["id"], "invalid_model", str(err))
+
+
+@websocket_api.websocket_command({vol.Required("type"): "homeslice/assets/custom/delete", vol.Required("asset"): str})
+@websocket_api.require_admin
+@websocket_api.async_response
+async def ws_custom_delete(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
+    """Removes an uploaded model (admins only)."""
+    try:
+        await _assets(hass).async_custom_delete(msg["asset"])
+    except AssetError as err:
+        connection.send_error(msg["id"], "invalid_id", str(err))
+        return
     connection.send_result(msg["id"])

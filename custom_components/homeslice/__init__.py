@@ -15,6 +15,7 @@ from homeassistant.core import Event, HomeAssistant, ServiceCall, callback
 from homeassistant.helpers import area_registry as ar, entity_registry as er, floor_registry as fr
 from homeassistant.helpers.debounce import Debouncer
 
+from .assets import ASSETS_URL, Assets
 from .const import DOMAIN, FRONTEND_FILE, FRONTEND_URL, PANEL_FILE
 from .repairs import async_check_house
 from .store import HomesliceStore
@@ -34,6 +35,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     await store.async_load()
     data["store"] = store
     data["underlays"] = Underlays(hass)
+    assets = Assets(hass)
+    await hass.async_add_executor_job(assets.ensure_dirs)
+    data["assets"] = assets
     # Phase 1 kept houses as YAML files; import them on first start.
     if not store.houses:
         imported = await store.async_import_files()
@@ -45,7 +49,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         bundle = FRONTEND_DIR / FRONTEND_FILE
         version = await hass.async_add_executor_job(_bundle_version, bundle)
         await hass.http.async_register_static_paths(
-            [StaticPathConfig(FRONTEND_URL, str(FRONTEND_DIR), cache_headers=False)]
+            [
+                StaticPathConfig(FRONTEND_URL, str(FRONTEND_DIR), cache_headers=False),
+                # Poly Haven's and uploaded models (file names never change: cached)
+                StaticPathConfig(ASSETS_URL, str(assets.root), cache_headers=True),
+            ]
         )
         add_extra_js_url(hass, f"{FRONTEND_URL}/{FRONTEND_FILE}?v={version}")
         # the editor: a sidebar page for admins
@@ -80,8 +88,18 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     def registry_changed(event: Event) -> None:
         hass.async_create_task(debouncer.async_call())
 
+    @callback
+    def house_changed(house_id: str, model: dict | None) -> None:
+        async_check_house(hass, house_id, model)
+        if model:
+            hass.async_create_background_task(assets.async_ensure_models(model), f"homeslice models {house_id}")
+
     check_all()
-    entry.async_on_unload(store.async_listen(lambda house_id, model: async_check_house(hass, house_id, model)))
+    for house_id in list(store.houses):
+        model = store.get(house_id)
+        if model:
+            hass.async_create_background_task(assets.async_ensure_models(model), f"homeslice models {house_id}")
+    entry.async_on_unload(store.async_listen(house_changed))
     for event_type in (
         ar.EVENT_AREA_REGISTRY_UPDATED,
         fr.EVENT_FLOOR_REGISTRY_UPDATED,
