@@ -1035,6 +1035,17 @@ console.log("editor, starting from scratch");
     await page.keyboard.press("Control+z");
   });
 
+  await test("a level can start from the one below", async () => {
+    await page.keyboard.press("Escape");
+    await page.locator("homeslice-panel button.level", { hasText: "First Floor" }).click();
+    await page.locator("homeslice-panel .inspector button", { hasText: "Start from the level below" }).click();
+    const ground = (await lvl("ground_floor")).rooms.filter((r) => r.kind !== "outdoor");
+    const first = (await lvl("first_floor")).rooms;
+    assert(first.length === ground.length && first.every((r) => !r.area_id), `copied: ${JSON.stringify(first)}`);
+    await page.keyboard.press("Control+z");
+    await page.locator("homeslice-panel button.level", { hasText: "Ground Floor" }).click();
+  });
+
   await test("levels: height, add above, delete", async () => {
     await page.keyboard.press("Escape");
     const height = page.locator("homeslice-panel .inspector input[type=number]");

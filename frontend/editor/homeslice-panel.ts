@@ -20,6 +20,7 @@ import {
   History,
   addOpening,
   addRoom,
+  copyRooms,
   addEnergy,
   deleteEnergy,
   updateEnergy,
@@ -1935,6 +1936,14 @@ export class HomeslicePanel extends LitElement {
                 </li>`,
               )}
             </ul>`
+        : nothing}
+      ${index > 0
+        ? html`<button @click=${() => {
+            if (l.rooms.length && !confirm(this.t("editor.copy_below_confirm"))) return;
+            this.commit(copyRooms(m, m.levels[index - 1].id, l.id));
+            this._room = null;
+          }}>${this.t("editor.copy_below")}</button>
+          <p class="muted">${this.t("editor.copy_below_hint")}</p>`
         : nothing}
       ${this.renderUnderlayInspector()}
       <div class="row">

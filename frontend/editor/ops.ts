@@ -780,3 +780,30 @@ export function deleteEnergy(model: HouseInput, index: number): HouseInput {
   if (!m.energy.length) delete m.energy;
   return m;
 }
+
+/**
+ * Replaces a level's rooms with copies of another level's (shapes, kinds and wall
+ * entries; no area links, lights or openings): a quick start for a floor whose walls
+ * mostly stack on the one below.
+ */
+export function copyRooms(model: HouseInput, fromLevel: string, toLevel: string): HouseInput {
+  const m = clone(model);
+  const src = level(m, fromLevel);
+  const dst = level(m, toLevel);
+  dst.rooms = src.rooms
+    .filter((r) => (r.kind ?? "room") !== "outdoor")
+    .map((r) => {
+      const copy: RoomInput = { ...clone(r) };
+      delete copy.area_id;
+      delete copy.lights;
+      delete copy.awning;
+      delete copy.name;
+      return copy;
+    });
+  const ids = new Set(dst.rooms.map((r) => r.id));
+  dst.walls = (src.walls ?? []).filter((w) => !w.between || w.between.every((id) => ids.has(id))).map((w) => clone(w));
+  if (!dst.walls.length) delete dst.walls;
+  dst.openings = (dst.openings ?? []).filter((o) => ids.has(o.room));
+  if (!dst.openings.length) delete dst.openings;
+  return m;
+}

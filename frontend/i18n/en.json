@@ -220,5 +220,8 @@
   "editor.room_depth": "Depth north–south (m)",
   "editor.room_size_hint": "Measured on the wall centre lines; changing it moves the east or south wall, and the rooms next to it follow.",
   "editor.temperature_sensor": "Temperature sensor",
-  "editor.temperature_hint": "Saved in the Home Assistant area, so other dashboards use it too. Empty: the area's first temperature sensor."
+  "editor.temperature_hint": "Saved in the Home Assistant area, so other dashboards use it too. Empty: the area's first temperature sensor.",
+  "editor.copy_below": "Start from the level below",
+  "editor.copy_below_hint": "Copies the rooms of the level below (shapes only, without areas): walls that stack line up exactly. Then rename, merge or reshape.",
+  "editor.copy_below_confirm": "Replace this level's rooms with copies of the level below?"
 }

@@ -25,6 +25,7 @@ import {
   addLevel,
   deleteLevel,
   newHouse,
+  copyRooms,
   addEnergy,
   updateEnergy,
   deleteEnergy,
@@ -326,5 +327,18 @@ describe("energy", () => {
     model = updateEnergy(model, index, { at: [3.14159, 1], name: "" });
     expect(model.energy).toEqual([{ kind: "battery", level: "g", at: [3.142, 1] }]);
     expect(deleteEnergy(model, index).energy).toBeUndefined();
+  });
+});
+
+describe("copying a level", () => {
+  it("copies room shapes without their links", () => {
+    let m = house();
+    m.levels[0].rooms[0].area_id = "living";
+    m.levels[0].rooms.push({ id: "garden", kind: "outdoor", rect: [0, 8, 10, 3] });
+    m.levels[0].walls = [{ between: ["left", "right"] }];
+    m.levels.push({ id: "f", rooms: [] });
+    m = copyRooms(m, "g", "f");
+    expect(m.levels[1].rooms).toEqual([{ id: "left", rect: [0, 0, 5, 8] }, { id: "right", rect: [5, 0, 5, 8] }]);
+    expect(m.levels[1].walls).toEqual([{ between: ["left", "right"] }]);
   });
 });
