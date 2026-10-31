@@ -1033,6 +1033,14 @@ console.log("editor, starting from scratch");
     assert((await model()).levels[1].rooms[0].name === "Renamed", "pasted YAML not applied");
     assert((await model()).id === "test_house", "id must stay");
     await page.keyboard.press("Control+z");
+    await page.locator("homeslice-panel header button[aria-label='House settings']").click();
+    const download = page.waitForEvent("download");
+    await page.locator("homeslice-panel .inspector button", { hasText: "Download .glb" }).click();
+    const file = await download;
+    assert(file.suggestedFilename() === "test_house.glb", `file: ${file.suggestedFilename()}`);
+    const bytes = readFileSync(await file.path());
+    assert(bytes.subarray(0, 4).toString() === "glTF" && bytes.length > 10000, `glb: ${bytes.length} bytes`);
+    await page.keyboard.press("Escape");
   });
 
   await test("a level can start from the one below", async () => {

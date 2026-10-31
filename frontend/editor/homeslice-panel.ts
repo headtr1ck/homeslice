@@ -3,6 +3,7 @@
 // Homeslice's storage, where every card picks them up at once.
 
 import { LitElement, css, html, nothing, svg, type PropertyValues } from "lit";
+import { GLTFExporter } from "three/examples/jsm/exporters/GLTFExporter.js";
 import { parse as parseYaml, stringify as toYaml } from "yaml";
 import { areaEntities, type Hass } from "../ha/hass";
 import { localize, type StringKey } from "../i18n/localize";
@@ -454,6 +455,7 @@ export class HomeslicePanel extends LitElement {
       this._calib = null;
       this._underlayMove = false;
       this._energyPlace = null;
+      this._settings = null;
       this._drag = null;
       this._rectPreview = null;
     } else if (e.key.startsWith("Arrow") && this._model && (this._stair || this._energySel !== null)) {
@@ -2017,6 +2019,26 @@ export class HomeslicePanel extends LitElement {
       <p class="muted">${this.t("editor.lights_hint")}</p>`;
   }
 
+  /** The house as a binary glTF file: floors stacked as built, with the roof. */
+  private async exportGlb() {
+    const { house, issues } = expandHouse(this._model!);
+    if (!house) return;
+    const canvas = document.createElement("canvas");
+    const r = new HouseRenderer(canvas);
+    try {
+      const walls = new Map(house.levels.map((l) => [l.id, deriveWalls(l, house.walls, issues)]));
+      r.setModel(house, walls, { explode: 0, roof: true, showOutdoor: true });
+      const glb = (await new GLTFExporter().parseAsync(r.object, { binary: true })) as ArrayBuffer;
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(new Blob([glb], { type: "model/gltf-binary" }));
+      a.download = `${this._house}.glb`;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    } finally {
+      r.dispose();
+    }
+  }
+
   private renderHouseSettings() {
     const m = this._model!;
     const st = this._settings!;
@@ -2064,6 +2086,9 @@ export class HomeslicePanel extends LitElement {
         }}>${st.copied ? this.t("editor.copied") : this.t("editor.yaml_copy")}</button>
         <button @click=${download}>${this.t("editor.yaml_download")}</button>
       </div>
+      <h3>${this.t("editor.export_3d")}</h3>
+      <p class="muted">${this.t("editor.export_3d_hint")}</p>
+      <button @click=${() => void this.exportGlb()}>${this.t("editor.export_glb")}</button>
       <label>${this.t("editor.yaml_paste")}
         <textarea class="yaml" rows="8" spellcheck="false" .value=${st.paste ?? ""} @input=${(e: Event) => (this._settings = { ...st, paste: (e.target as HTMLTextAreaElement).value, problems: undefined })}></textarea>
       </label>

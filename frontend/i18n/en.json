@@ -223,5 +223,8 @@
   "editor.temperature_hint": "Saved in the Home Assistant area, so other dashboards use it too. Empty: the area's first temperature sensor.",
   "editor.copy_below": "Start from the level below",
   "editor.copy_below_hint": "Copies the rooms of the level below (shapes only, without areas): walls that stack line up exactly. Then rename, merge or reshape.",
-  "editor.copy_below_confirm": "Replace this level's rooms with copies of the level below?"
+  "editor.copy_below_confirm": "Replace this level's rooms with copies of the level below?",
+  "editor.export_3d": "3D model",
+  "editor.export_3d_hint": "The house as a glTF file, e.g. for Blender.",
+  "editor.export_glb": "Download .glb"
 }

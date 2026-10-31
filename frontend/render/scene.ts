@@ -830,6 +830,11 @@ export class HouseRenderer {
     return { group, centre: point(r0 + along / 2, 0.5) };
   }
 
+  /** The house as a three.js object (for exporting it). */
+  get object(): THREE.Object3D {
+    return this.root;
+  }
+
   /** For tests: whether the roof is drawn. */
   roofVisible() {
     return !!this.roof?.visible;
