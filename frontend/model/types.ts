@@ -90,8 +90,12 @@ export interface WallInput {
   side?: Side;
   /** A free-standing wall (not on a room boundary). */
   line?: [[Coord, Coord], [Coord, Coord]];
-  /** `open`: no wall there (default for `between`); `wall`: build one (default for `line`). */
+  /**
+   * `open`: no wall there (default for `between`); `wall`: build one (default for `line`;
+   * with `between`, used to give that wall its own `thickness`).
+   */
   type?: "open" | "wall";
+  /** Metres (default: the house's interior wall thickness). */
   thickness?: number;
 }
 
@@ -269,6 +273,8 @@ export interface Level {
   openBoundaries: { between: [string, string]; side?: Side }[];
   /** Free-standing walls. */
   freeWalls: { a: Vec2; b: Vec2; thickness?: number }[];
+  /** Walls between two rooms with their own thickness, optionally one side only. */
+  thickBoundaries: { between: [string, string]; side?: Side; thickness: number }[];
 }
 
 export interface Vertical {

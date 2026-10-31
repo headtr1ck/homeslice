@@ -170,6 +170,7 @@ export function expandHouse(input: unknown): ExpandResult {
 
     const openBoundaries: Level["openBoundaries"] = [];
     const freeWalls: Level["freeWalls"] = [];
+    const thickBoundaries: Level["thickBoundaries"] = [];
     (li.walls ?? []).forEach((wi, i) => {
       const wp = `${lp}.walls[${i}]`;
       if (wi?.between) {
@@ -177,6 +178,10 @@ export function expandHouse(input: unknown): ExpandResult {
         if (wi.between.length !== 2 || unknown.length) return err(wp, `between needs two rooms of this level (unknown: ${unknown.join(", ") || "none"}; rooms: ${[...roomIds].join(", ")}).`);
         if (wi.side && !SIDES.includes(wi.side)) return err(wp, `side must be one of ${SIDES.join(", ")}, got "${wi.side}".`);
         if ((wi.type ?? "open") === "open") openBoundaries.push({ between: wi.between, side: wi.side });
+        else if (wi.thickness !== undefined) {
+          if (!(wi.thickness > 0 && wi.thickness < 2)) return err(wp, `thickness is in metres, e.g. 0.12; got ${wi.thickness}.`);
+          thickBoundaries.push({ between: wi.between, side: wi.side, thickness: wi.thickness });
+        }
         return;
       }
       if (wi?.line) {
@@ -209,6 +214,7 @@ export function expandHouse(input: unknown): ExpandResult {
       openings,
       openBoundaries,
       freeWalls,
+      thickBoundaries,
     });
     elevation += height + slab;
   });

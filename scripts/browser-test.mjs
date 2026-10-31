@@ -744,6 +744,152 @@ console.log("editor");
     await page.keyboard.press("Control+z");
   });
 
+  const toPage = (p) =>
+    page.evaluate(([x, y]) => {
+      const r = window.panel.shadowRoot.querySelector("svg.plan").getBoundingClientRect();
+      const v = window.panel._view;
+      return { x: r.left + x * v.scale + v.ox, y: r.top + y * v.scale + v.oy };
+    }, p);
+  const typeInto = async (label, value) => {
+    const input = page.locator("homeslice-panel .inspector label", { hasText: label }).locator("input");
+    await input.fill(String(value));
+    await input.dispatchEvent("change");
+  };
+
+  await test("lengths: every room shows its inside lengths; typing one moves the wall", async () => {
+    await page.keyboard.press("Escape");
+    const dims = await page.locator("homeslice-panel svg.plan text.room-dim").allTextContents();
+    // the hall inside its walls: 0.36 m outside wall, half of a 0.12 m inside wall
+    const hallWidth = (await room("hall")).rect[2];
+    const inside = (hallWidth - 0.42).toFixed(2);
+    assert(dims.length > 8 && dims.includes(inside), `lengths: ${dims.join(", ")} (hall ${inside})`);
+    const toggle = page.locator('homeslice-panel aside.tools button[aria-label="Show lengths"]');
+    await toggle.click();
+    assert((await page.locator("homeslice-panel svg.plan text.room-dim").count()) === 0, "lengths not hidden");
+    await toggle.click();
+    const hb = await page.locator('homeslice-panel svg.plan g[data-room="hall"] polygon').boundingBox();
+    await page.mouse.click(hb.x + hb.width / 2, hb.y + hb.height * 0.75);
+    const kitchen = await room("kitchen");
+    await page.locator("homeslice-panel svg.plan text.dim.editable", { hasText: inside }).first().click();
+    const input = page.locator("homeslice-panel svg.plan input.dim-input");
+    assert(await input.isVisible(), "no field to type the length");
+    await input.fill((Number(inside) + 0.2).toFixed(2));
+    await input.press("Enter");
+    const hall = await room("hall");
+    assert(Math.abs(hall.rect[2] - (hallWidth + 0.2)) < 1e-6, `hall: ${JSON.stringify(hall)}`);
+    assert(Math.abs((await room("kitchen")).rect[2] - (kitchen.rect[2] - 0.2)) < 1e-6, "the kitchen did not follow the wall");
+    await shot(page, "editor-lengths");
+    await page.keyboard.press("Control+z");
+  });
+
+  await test("doors & windows: the distances to the corners and the width can be typed", async () => {
+    await page.locator("homeslice-panel .segmented.modes button", { hasText: "Doors & windows" }).click();
+    const hit = await page.evaluate(() => {
+      const l = [...window.panel.shadowRoot.querySelectorAll("svg.plan line.opening-hit")].find((x) => JSON.parse(x.dataset.opening).room === "hall");
+      const r = l.getBoundingClientRect();
+      return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+    });
+    await page.mouse.click(hit.x, hit.y);
+    const dims = await page.locator("homeslice-panel svg.plan g.opening-dims text").allTextContents();
+    // the hall door: 1 m from the room's west end (0.36 m of it is the outside wall), 1 m wide
+    const rest = ((await room("hall")).rect[2] - 0.06 - 2).toFixed(2);
+    assert(JSON.stringify(dims) === JSON.stringify(["0.64", "1.00", rest]), `door distances: ${dims.join(", ")} (expected …, ${rest})`);
+    await page.locator("homeslice-panel svg.plan g.opening-dims text", { hasText: rest }).click();
+    const input = page.locator("homeslice-panel svg.plan input.dim-input");
+    await input.fill("0.5");
+    await input.press("Enter");
+    const door = (await model()).levels[0].openings.find((o) => o.room === "hall");
+    assert(Math.abs(door.at - (1 + Number(rest) - 0.5)) < 1e-6 && door.width === 1, `door: ${JSON.stringify(door)}`);
+    await shot(page, "editor-opening-lengths");
+    await page.keyboard.press("Control+z");
+    await page.keyboard.press("Escape");
+  });
+
+  await test("doors & windows: house-wide defaults for sill and height", async () => {
+    const sill = page.locator('homeslice-panel .inspector input[aria-label="Window Sill (m)"]');
+    await sill.fill("0");
+    await sill.dispatchEvent("change");
+    assert((await model()).opening_defaults?.window?.sill === 0, `defaults: ${JSON.stringify((await model()).opening_defaults)}`);
+    await page.keyboard.press("Control+z");
+    await page.locator("homeslice-panel .segmented.modes button", { hasText: "Rooms & walls" }).click();
+  });
+
+  await test("measuring between two points", async () => {
+    await page.keyboard.press("m");
+    const a = await toPage([1, 7]);
+    const b = await toPage([4, 7]);
+    await page.mouse.move(a.x, a.y);
+    await page.mouse.down();
+    await page.mouse.move(b.x, b.y, { steps: 6 });
+    await page.mouse.up();
+    const label = await page.locator("homeslice-panel svg.plan g.measure text").textContent();
+    assert(label === "3.00 m", `measured: ${label}`);
+    await shot(page, "editor-measure");
+    await page.keyboard.press("Escape");
+    assert((await page.locator("homeslice-panel svg.plan g.measure").count()) === 0, "measurement not cleared");
+  });
+
+  await test("a free-standing wall: draw, change its thickness, delete", async () => {
+    await page.keyboard.press("w");
+    const a = await toPage([1, 8]);
+    const b = await toPage([3.5, 8.05]);
+    await page.mouse.move(a.x, a.y);
+    await page.mouse.down();
+    await page.mouse.move(b.x, b.y, { steps: 6 });
+    await page.mouse.up();
+    const walls = () => model().then((m) => m.levels[0].walls ?? []);
+    const drawn = (await walls()).find((w) => w.line);
+    // nearly horizontal becomes horizontal
+    assert(drawn && drawn.line[0][1] === drawn.line[1][1] && Math.abs(drawn.line[1][0] - drawn.line[0][0] - 2.5) < 0.06, `wall: ${JSON.stringify(drawn)}`);
+    assert((await page.locator("homeslice-panel .inspector h2").textContent()) === "Free-standing wall", "free wall not selected");
+    await typeInto("Thickness (cm)", 8);
+    assert((await walls()).find((w) => w.line)?.thickness === 0.08, `thickness: ${JSON.stringify(await walls())}`);
+    await shot(page, "editor-free-wall");
+    await page.locator("homeslice-panel .inspector button", { hasText: "Delete wall" }).click();
+    assert(!(await walls()).some((w) => w.line), "free wall not deleted");
+  });
+
+  await test("building settings: wall thickness, neighbours, floor slab, one wall's own thickness", async () => {
+    await page.keyboard.press("Escape");
+    const outer = await page.evaluate(() => {
+      const r = window.panel.shadowRoot.querySelector("svg.plan line.wall-hit[data-outline]").getBoundingClientRect();
+      return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+    });
+    await page.mouse.click(outer.x, outer.y);
+    assert((await page.locator("homeslice-panel .inspector h2").textContent()) === "Outside walls", "outline not selected");
+    await typeInto("Outside (cm)", 42);
+    assert((await model()).walls?.exterior === 0.42, `walls: ${JSON.stringify((await model()).walls)}`);
+    await page.locator("homeslice-panel .inspector label.check", { hasText: "west" }).locator("input").check();
+    assert(JSON.stringify((await model()).party_walls) === JSON.stringify(["east", "west"]), `party: ${JSON.stringify((await model()).party_walls)}`);
+    await page.evaluate(() => window.panel.shadowRoot.activeElement?.blur());
+    await page.keyboard.press("Control+z");
+    await page.keyboard.press("Control+z");
+    assert(!(await model()).walls && JSON.stringify((await model()).party_walls) === JSON.stringify(["east"]), `undo did not restore the walls: ${JSON.stringify((await model()).walls)} ${JSON.stringify((await model()).party_walls)}`);
+    await page.keyboard.press("Escape");
+    await typeInto("Floor slab (cm)", 30);
+    assert((await model()).levels[0].slab === 0.3, `slab: ${(await model()).levels[0].slab}`);
+    await page.keyboard.press("Control+z");
+    const hit = await page.evaluate(() => {
+      const l = [...window.panel.shadowRoot.querySelectorAll("svg.plan line.wall-hit[data-wall]")].find((x) => {
+        const w = JSON.parse(x.dataset.wall);
+        return [w.a, w.b].sort().join() === "hall,kitchen";
+      });
+      const r = l.getBoundingClientRect();
+      return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+    });
+    await page.mouse.click(hit.x, hit.y);
+    await typeInto("Thickness (cm)", 24);
+    const own = (await model()).levels[0].walls?.find((w) => w.thickness);
+    assert(own?.thickness === 0.24 && own.type === "wall", `wall: ${JSON.stringify((await model()).levels[0].walls)}`);
+    const dims = await page.locator("homeslice-panel svg.plan text.room-dim").allTextContents();
+    // the hall loses another 6 cm to the thicker wall
+    const thinner = ((await room("hall")).rect[2] - 0.36 - 0.12).toFixed(2);
+    assert(dims.includes(thinner), `hall after the thicker wall: ${dims.join(", ")} (expected ${thinner})`);
+    await page.keyboard.press("Control+z");
+    await page.keyboard.press("Escape");
+    assert(errors.length === 0, errors.join(" | "));
+  });
+
   await test("dragging one wall piece moves only that piece; the longer room side gets a step", async () => {
     await page.keyboard.press("Escape");
     // hall | living runs along y = 4 from x 0 to the hall's width; living's side goes on to x 5
@@ -1170,7 +1316,7 @@ console.log("editor, starting from scratch");
 
   await test("levels: height, add above, delete", async () => {
     await page.keyboard.press("Escape");
-    const height = page.locator("homeslice-panel .inspector input[type=number]");
+    const height = page.locator("homeslice-panel .inspector label", { hasText: "Storey height" }).locator("input");
     await height.fill("2.8");
     await height.dispatchEvent("change");
     assert((await lvl("ground_floor")).height === 2.8, "height not stored");

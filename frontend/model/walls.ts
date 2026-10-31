@@ -126,11 +126,11 @@ export function deriveWalls(level: Level, thickness: WallThickness, issues: Issu
     const room = level.rooms.find((r) => r.id === roomId);
     return room ? sideOfRoom(room.polygon, p, q) : null;
   };
-  const isOpen = (piece: Piece) =>
-    piece.rooms.size === 2 &&
-    level.openBoundaries.some(
-      (o) => o.between.every((r) => piece.rooms.has(r)) && (!o.side || sideFrom(o.between[0], piece.a, piece.b) === o.side),
-    );
+  const matches = (piece: Piece, o: { between: [string, string]; side?: Side }) =>
+    piece.rooms.size === 2 && o.between.every((r) => piece.rooms.has(r)) && (!o.side || sideFrom(o.between[0], piece.a, piece.b) === o.side);
+  const isOpen = (piece: Piece) => level.openBoundaries.some((o) => matches(piece, o));
+  // the last entry wins, like in the file
+  const ownThickness = (piece: Piece) => [...(level.thickBoundaries ?? [])].reverse().find((o) => matches(piece, o))?.thickness;
   const typeOf = (piece: Piece): WallType => {
     if (!piece.outline) return isOpen(piece) ? "open" : "interior";
     const side = sideOf(outwardNormal(...piece.outline));
@@ -138,10 +138,11 @@ export function deriveWalls(level: Level, thickness: WallThickness, issues: Issu
   };
 
   // 4. merge collinear neighbours with the same type and the same rooms on them
-  type Seg = { a: Vec2; b: Vec2; type: WallType; rooms: Set<string>; directed: boolean };
+  type Seg = { a: Vec2; b: Vec2; type: WallType; rooms: Set<string>; directed: boolean; own?: number };
   const segs: Seg[] = [...pieces.values()].map((p) => {
     const [a, b] = p.outline ?? [p.a, p.b];
-    return { a, b, type: typeOf(p), rooms: p.rooms, directed: !!p.outline };
+    const type = typeOf(p);
+    return { a, b, type, rooms: p.rooms, directed: !!p.outline, own: type === "interior" ? ownThickness(p) : undefined };
   });
   const collinear = (s: Seg, t: Seg) => project(t.a, s.a, s.b).distance < 1e-4 && project(t.b, s.a, s.b).distance < 1e-4;
   let merged = true;
@@ -152,7 +153,7 @@ export function deriveWalls(level: Level, thickness: WallThickness, issues: Issu
         if (i === j) continue;
         const s = segs[i];
         const t = segs[j];
-        if (s.type !== t.type || roomsKey(s.rooms) !== roomsKey(t.rooms) || !collinear(s, t)) continue;
+        if (s.type !== t.type || s.own !== t.own || roomsKey(s.rooms) !== roomsKey(t.rooms) || !collinear(s, t)) continue;
         // s.b → t.a continues s; undirected interior pieces may need flipping
         let next: Seg | null = null;
         if (s.b === t.a) next = t;
@@ -168,7 +169,7 @@ export function deriveWalls(level: Level, thickness: WallThickness, issues: Issu
 
   // build walls
   const walls: Wall[] = segs.map((s, i) => {
-    const t = s.type === "open" ? 0 : thickness[s.type];
+    const t = s.type === "open" ? 0 : (s.own ?? thickness[s.type]);
     const normal = outwardNormal(s.a, s.b);
     const shift = s.type === "interior" || s.type === "open" ? [0, 0] as Vec2 : scale(normal, -t / 2);
     return {

@@ -46,7 +46,19 @@ import {
   slug,
   uniqueId,
   updateLevel,
+  boundaryThickness,
+  setBoundaryThickness,
+  setWallThickness,
+  setPartyWalls,
+  setOpeningDefaults,
+  addFreeWall,
+  updateFreeWall,
+  deleteFreeWall,
+  freeWallIndexes,
+  resizeSide,
 } from "./ops";
+import { expandHouse } from "../model/expand";
+import { deriveWalls } from "../model/walls";
 
 // left | right, sharing the wall at x = 5
 const house = (): HouseInput => ({
@@ -359,5 +371,67 @@ describe("furniture", () => {
     expect(rooms(moved.model).left.furniture).toBeUndefined();
     expect(rooms(moved.model).right.furniture).toEqual([{ type: "sofa", at: [2, 4] }]);
     expect(rooms(deleteFurniture(moved.model, "g", "right", 0)).right.furniture).toBeUndefined();
+  });
+});
+
+describe("walls and building settings", () => {
+  const wallsOf = (m: HouseInput) => {
+    const { house: h } = expandHouse(m);
+    return deriveWalls(h!.levels[0], h!.walls);
+  };
+  const shared = (m: HouseInput) => wallsOf(m).find((w) => w.type === "interior" && w.rooms.length === 2)!;
+
+  it("gives one wall between two rooms its own thickness, and back", () => {
+    let m = setBoundaryThickness(house(), "g", "left", "right", "east", 0.24);
+    expect(boundaryThickness(m, "g", "left", "right", "east")).toBe(0.24);
+    // seen from the other room it is that room's west side
+    expect(boundaryThickness(m, "g", "right", "left", "west")).toBe(0.24);
+    expect(shared(m).thickness).toBe(0.24);
+    // opening and closing the wall keeps its thickness
+    m = setBoundaryOpen(m, "g", "left", "right", "east", true, ["east"]);
+    m = setBoundaryOpen(m, "g", "left", "right", "east", false, ["east"]);
+    expect(boundaryThickness(m, "g", "left", "right", "east")).toBe(0.24);
+    m = setBoundaryThickness(m, "g", "left", "right", "east", undefined);
+    expect(m.levels[0].walls).toBeUndefined();
+    expect(shared(m).thickness).toBe(0.12);
+  });
+
+  it("house-wide thicknesses and neighbour walls", () => {
+    let m = setWallThickness(house(), { exterior: 0.42, interior: 0.1 });
+    expect(m.walls).toEqual({ exterior: 0.42, interior: 0.1 });
+    m = setPartyWalls(m, ["east"]);
+    const walls = wallsOf(m);
+    expect(walls.find((w) => w.side === "east")!.type).toBe("party");
+    expect(walls.find((w) => w.side === "west")!.thickness).toBe(0.42);
+    expect(shared(m).thickness).toBe(0.1);
+    m = setWallThickness(setPartyWalls(m, []), { exterior: undefined, interior: undefined });
+    expect(m.walls).toBeUndefined();
+    expect(m.party_walls).toBeUndefined();
+  });
+
+  it("defaults for windows apply to windows without their own sill or height", () => {
+    const m = setOpeningDefaults(house(), "window", { sill: 0, height: 2.4 });
+    const { house: h } = expandHouse(m);
+    expect(h!.levels[0].openings[0]).toMatchObject({ sill: 0, height: 2.4 });
+    expect(setOpeningDefaults(m, "window", { sill: undefined, height: undefined }).opening_defaults).toBeUndefined();
+  });
+
+  it("free-standing walls: add, change, delete", () => {
+    let { model, index } = addFreeWall(house(), "g", [1, 2], [3.0004, 2]);
+    expect(freeWallIndexes(model, "g")).toEqual([index]);
+    model = updateFreeWall(model, "g", index, { thickness: 0.08, line: [[1, 2], [4, 2]] });
+    expect(model.levels[0].walls![index]).toEqual({ line: [[1, 2], [4, 2]], thickness: 0.08 });
+    expect(wallsOf(model).some((w) => w.rooms.length === 0 && w.thickness === 0.08)).toBe(true);
+    expect(deleteFreeWall(model, "g", index).levels[0].walls).toBeUndefined();
+  });
+
+  it("typing a side's length moves the wall at its east or south end", () => {
+    const m = house();
+    const left = roomPolygon(m, rooms(m).left);
+    // the north side runs west → east: the shared wall moves east, the right room shrinks
+    const i = left.findIndex((p, k) => p[1] === 0 && left[(k + 1) % left.length][1] === 0);
+    const out = resizeSide(m, "g", left, i, 0.5);
+    expect(rooms(out).left.rect).toEqual([0, 0, 5.5, 8]);
+    expect(rooms(out).right.rect).toEqual([5.5, 0, 4.5, 8]);
   });
 });

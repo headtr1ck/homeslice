@@ -7,7 +7,7 @@ import { GLTFExporter } from "three/examples/jsm/exporters/GLTFExporter.js";
 import { parse as parseYaml, stringify as toYaml } from "yaml";
 import { areaEntities, type Hass } from "../ha/hass";
 import { localize, type StringKey } from "../i18n/localize";
-import { expandHouse } from "../model/expand";
+import { DEFAULTS, expandHouse } from "../model/expand";
 import { bbox, labelPoint, pointInPolygon } from "../model/geometry";
 import type { EnergyInput, FurnitureInput, FurnitureType, HouseInput, Issue, OpeningInput, OpeningSource, OpeningType, RoomInput, Side, Vec2, Vertical } from "../model/types";
 import { deriveWalls, innerPolygon, sideOfRoom, type Wall } from "../model/walls";
@@ -20,6 +20,16 @@ import type { EnergyPrefs } from "../ha/energy";
 import { ENERGY_COLORS } from "../render/scene";
 import {
   History,
+  addFreeWall,
+  boundaryThickness,
+  deleteFreeWall,
+  freeWallIndexes,
+  resizeSide,
+  setBoundaryThickness,
+  setOpeningDefaults,
+  setPartyWalls,
+  setWallThickness,
+  updateFreeWall,
   addOpening,
   addRoom,
   addFurniture,
@@ -70,7 +80,7 @@ import {
   type Snapped,
 } from "./ops";
 
-type Tool = "select" | "rect" | "stairs";
+type Tool = "select" | "rect" | "stairs" | "wall" | "measure";
 /** The editor's phases: shape the house, then doors and windows, then objects and entities. */
 type Mode = "rooms" | "openings" | "objects";
 
@@ -158,7 +168,34 @@ type Drag =
   | { kind: "energy"; origin: HouseInput; index: number; startWorld: Vec2; at: Vec2; moved: boolean }
   | { kind: "light"; origin: HouseInput; entity: string; room: string; startWorld: Vec2; ctx: SnapContext; moved: boolean }
   | { kind: "wall"; origin: HouseInput; a: Vec2; b: Vec2; startWorld: Vec2; normal: Vec2; thickness: number; faces: number[] }
-  | { kind: "opening"; origin: HouseInput; src: OpeningSource; axis: 0 | 1; startWorld: Vec2; at: number; snaps: OpeningSnaps };
+  | { kind: "opening"; origin: HouseInput; src: OpeningSource; axis: 0 | 1; startWorld: Vec2; at: number; snaps: OpeningSnaps }
+  | { kind: "measure"; ctx: SnapContext }
+  | { kind: "freewall"; ctx: SnapContext }
+  | { kind: "freewall-end"; origin: HouseInput; index: number; end: 0 | 1; ctx: SnapContext };
+
+/** A length shown on the plan that can be clicked and typed. */
+interface DimTarget {
+  value: number;
+  apply: (value: number) => HouseInput | null;
+}
+
+const cm = (m: number) => Math.round(m * 1000) / 10;
+
+function readPref(key: string): string | null {
+  try {
+    return localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+function writePref(key: string, value: string) {
+  try {
+    localStorage.setItem(key, value);
+  } catch {
+    // no storage: the setting lasts until the page is closed
+  }
+}
 
 /** Where a dragged door or window can snap to, as positions along its wall. */
 interface OpeningSnaps {
@@ -220,6 +257,11 @@ export class HomeslicePanel extends LitElement {
     _underlayHidden: { state: true },
     _calib: { state: true },
     _underlayMove: { state: true },
+    _dims: { state: true },
+    _dimEdit: { state: true },
+    _measure: { state: true },
+    _linePreview: { state: true },
+    _freeWall: { state: true },
   };
 
   narrow = false;
@@ -260,6 +302,18 @@ export class HomeslicePanel extends LitElement {
   private underlayRequest = "";
   private underlaySaveTimer = 0;
   private _shortcuts = false;
+  /** Show the rooms' inside lengths on the plan. */
+  private _dims = readPref("homeslice-dims") !== "off";
+  /** A length being typed: where its field sits and what it changes. */
+  private _dimEdit: { x: number; y: number; target: DimTarget } | null = null;
+  /** Lengths on the plan that can be typed, by key (filled while rendering). */
+  private dimTargets = new Map<string, DimTarget>();
+  /** The measuring tool's line. */
+  private _measure: { a: Vec2; b: Vec2 } | null = null;
+  /** A free-standing wall being drawn. */
+  private _linePreview: [Vec2, Vec2] | null = null;
+  /** Selected free-standing wall (index in the level's `walls`). */
+  private _freeWall: number | null = null;
   /** Selected piece of furniture (objects mode). */
   private _furn: { room: string; index: number } | null = null;
   /** Unsaved changes found from an earlier visit, offered for restoring. */
@@ -474,6 +528,8 @@ export class HomeslicePanel extends LitElement {
 
   /** Every edit goes through here: one undo step per call. */
   private commit(next: HouseInput, previous: HouseInput = this._model!) {
+    // a field's change event can fire again when it loses focus: no empty undo steps
+    if (JSON.stringify(next) === JSON.stringify(previous)) return;
     this.history.push(previous);
     this._model = next;
   }
@@ -490,7 +546,9 @@ export class HomeslicePanel extends LitElement {
 
   private handleKey(e: KeyboardEvent) {
     const target = e.composedPath()[0] as HTMLElement | undefined;
-    if (target && ["INPUT", "SELECT", "TEXTAREA"].includes(target.tagName)) return;
+    // fields keep their keys; checkboxes and buttons don't need them (Ctrl+Z still undoes)
+    const typing = target && (["SELECT", "TEXTAREA"].includes(target.tagName) || (target.tagName === "INPUT" && !["checkbox", "radio", "button"].includes((target as HTMLInputElement).type)));
+    if (typing) return;
     const mod = e.ctrlKey || e.metaKey;
     if (mod && e.key.toLowerCase() === "z") {
       e.preventDefault();
@@ -513,6 +571,9 @@ export class HomeslicePanel extends LitElement {
     } else if ((e.key === "Delete" || e.key === "Backspace") && this._energySel !== null && this._model && this._mode === "objects") {
       this.commit(deleteEnergy(this._model, this._energySel));
       this._energySel = null;
+    } else if ((e.key === "Delete" || e.key === "Backspace") && this._freeWall !== null && this._model && this._mode === "rooms") {
+      this.commit(deleteFreeWall(this._model, this._level, this._freeWall));
+      this._freeWall = null;
     } else if ((e.key === "Delete" || e.key === "Backspace") && this._stair && this._model && this._mode === "rooms") {
       this.commit(deleteStairs(this._model, this._stair));
       this._stair = null;
@@ -534,6 +595,10 @@ export class HomeslicePanel extends LitElement {
       this._shortcuts = false;
       this._drag = null;
       this._rectPreview = null;
+      this._measure = null;
+      this._linePreview = null;
+      this._freeWall = null;
+      this._dimEdit = null;
     } else if (e.key.startsWith("Arrow") && this._model && (this._stair || this._energySel !== null)) {
       // nudge the selected stairs or energy item: 5 cm, Shift 50 cm
       e.preventDefault();
@@ -554,6 +619,8 @@ export class HomeslicePanel extends LitElement {
     } else if (e.key === "r" && !mod) this._tool = "rect";
     else if (e.key === "s" && !mod && this._mode === "rooms") this._tool = "stairs";
     else if (e.key === "v" && !mod) this._tool = "select";
+    else if (e.key === "w" && !mod && this._mode === "rooms") this._tool = "wall";
+    else if (e.key === "m" && !mod) this._tool = "measure";
   }
 
   // ----- geometry helpers -----
@@ -639,6 +706,8 @@ export class HomeslicePanel extends LitElement {
 
   private onPlanDown(e: PointerEvent) {
     if (!this._model) return;
+    // typing a length: the field handles its own clicks
+    if ((e.target as Element).closest("foreignObject")) return;
     this._settings = null;
     const target = e.target as Element;
     (e.currentTarget as Element).setPointerCapture(e.pointerId);
@@ -651,6 +720,24 @@ export class HomeslicePanel extends LitElement {
     }
     if (u && this._underlayMove) {
       this._drag = { kind: "underlay", start: world, origin: u.place.origin };
+      return;
+    }
+    // a length that can be typed
+    const dimHit = target.closest("[data-dimedit]") as SVGElement | null;
+    const dim = dimHit ? this.dimTargets.get(dimHit.dataset.dimedit!) : undefined;
+    if (dimHit && dim) {
+      // no mousedown: its focus change would close the field right away
+      e.preventDefault();
+      const screen = this.eventScreen(e);
+      this._dimEdit = { x: screen[0], y: screen[1], target: dim };
+      return;
+    }
+    this._dimEdit = null;
+    if (this._tool === "measure") {
+      const ctx = this.snapContext();
+      const p = snap(world, ctx).p;
+      this._measure = { a: p, b: p };
+      this._drag = { kind: "measure", ctx };
       return;
     }
     if (this._mode === "openings") {
@@ -727,6 +814,27 @@ export class HomeslicePanel extends LitElement {
       this._drag = { kind: "pan", start: this.eventScreen(e), offset: [this._view.ox, this._view.oy] };
       return;
     }
+    const freeEnd = target.closest("[data-freeend]") as SVGElement | null;
+    if (freeEnd && this._freeWall !== null) {
+      this._drag = { kind: "freewall-end", origin: clone(this._model), index: this._freeWall, end: Number(freeEnd.dataset.freeend) as 0 | 1, ctx: this.snapContext() };
+      return;
+    }
+    if (this._tool === "wall") {
+      const ctx = this.snapContext();
+      const p = snap(world, ctx).p;
+      this._linePreview = [p, p];
+      this._drag = { kind: "freewall", ctx };
+      return;
+    }
+    const freeHit = target.closest("[data-freewall]") as SVGElement | null;
+    if (freeHit) {
+      this._freeWall = Number(freeHit.dataset.freewall);
+      this._room = null;
+      this._wall = null;
+      this._stair = null;
+      return;
+    }
+    this._freeWall = null;
     const handle = target.closest("[data-handle]") as SVGElement | null;
     if (handle?.dataset.handle === "vertex") {
       const from: Vec2 = JSON.parse(handle.dataset.at!);
@@ -922,6 +1030,35 @@ export class HomeslicePanel extends LitElement {
       this._hint = { x: screen[0], y: screen[1], lines: [this.t("editor.opening_at", { at: (o?.at ?? 0).toFixed(2), width: (o?.width ?? 0).toFixed(2) })] };
       return;
     }
+    if (drag.kind === "measure" && this._measure) {
+      const s = snapped(world, drag.ctx);
+      this._guides = { x: s.alignX, y: s.alignY, ring: s.target };
+      this._measure = { a: this._measure.a, b: s.p };
+      return;
+    }
+    if (drag.kind === "freewall" && this._linePreview) {
+      const a = this._linePreview[0];
+      const s = snapped(world, drag.ctx);
+      // nearly horizontal or vertical: exactly so
+      let b = s.p;
+      if (!free && Math.abs(b[1] - a[1]) < Math.abs(b[0] - a[0]) * 0.09) b = [b[0], a[1]];
+      else if (!free && Math.abs(b[0] - a[0]) < Math.abs(b[1] - a[1]) * 0.09) b = [a[0], b[1]];
+      this._guides = { x: s.alignX, y: s.alignY, ring: s.target };
+      this._linePreview = [a, b];
+      this._hint = { x: screen[0], y: screen[1], lines: [fmtM(Math.hypot(b[0] - a[0], b[1] - a[1]))] };
+      return;
+    }
+    if (drag.kind === "freewall-end") {
+      const w = drag.origin.levels.find((l) => l.id === this._level)?.walls?.[drag.index];
+      if (!w?.line) return;
+      const s = snapped(world, drag.ctx);
+      const line = (w.line as [Vec2, Vec2]).map((p) => [...p]) as [Vec2, Vec2];
+      line[drag.end] = s.p;
+      this._guides = { x: s.alignX, y: s.alignY, ring: s.target };
+      this._model = updateFreeWall(drag.origin, this._level, drag.index, { line });
+      this._hint = { x: screen[0], y: screen[1], lines: [fmtM(Math.hypot(line[1][0] - line[0][0], line[1][1] - line[0][1]))] };
+      return;
+    }
     if (drag.kind === "rect") {
       const endSnap = snapped(world, drag.ctx);
       const end = endSnap.p;
@@ -944,7 +1081,19 @@ export class HomeslicePanel extends LitElement {
       this.saveUnderlay({ place: this._underlay.place });
       return;
     }
-    if (drag.kind === "vertex" || drag.kind === "edge" || drag.kind === "opening" || drag.kind === "wall" || drag.kind === "stair-move" || drag.kind === "stair-resize" || drag.kind === "light" || drag.kind === "energy" || drag.kind === "furniture") {
+    if (drag.kind === "freewall" && this._linePreview) {
+      const [a, b] = this._linePreview;
+      this._linePreview = null;
+      if (Math.hypot(b[0] - a[0], b[1] - a[1]) >= 0.2) {
+        const { model, index } = addFreeWall(this._model, this._level, a, b);
+        this.commit(model);
+        this._freeWall = index;
+        this._room = null;
+        this._tool = "select";
+      }
+      return;
+    }
+    if (drag.kind === "vertex" || drag.kind === "edge" || drag.kind === "opening" || drag.kind === "wall" || drag.kind === "stair-move" || drag.kind === "stair-resize" || drag.kind === "light" || drag.kind === "energy" || drag.kind === "furniture" || drag.kind === "freewall-end") {
       if (JSON.stringify(drag.origin) !== JSON.stringify(this._model)) this.commit(this._model, drag.origin);
     } else if (drag.kind === "rect" && this._rectPreview && this._tool === "stairs") {
       const [[x0, y0], , [x1, y1]] = this._rectPreview;
@@ -1064,6 +1213,11 @@ export class HomeslicePanel extends LitElement {
   // ----- 3D preview -----
 
   protected override updated(changed: PropertyValues) {
+    if (changed.has("_dimEdit") && this._dimEdit) {
+      const input = this.renderRoot.querySelector("input.dim-input") as HTMLInputElement | null;
+      input?.focus();
+      input?.select();
+    }
     if ((changed.has("_level") || changed.has("_house")) && this._model) void this.loadUnderlay();
     if ((changed.has("_model") || changed.has("_saved")) && this._model && !this._draft) this.keepDraft();
     if (changed.has("_model") || changed.has("_level")) {
@@ -1393,8 +1547,20 @@ export class HomeslicePanel extends LitElement {
                 ?disabled=${this._model!.levels.findIndex((l) => l.id === this._level) >= this._model!.levels.length - 1}
                 @click=${() => (this._tool = "stairs")}>
                 <ha-icon icon="mdi:stairs"></ha-icon>
+              </button>
+              <button class=${this._tool === "wall" ? "active" : ""} title=${this.t("editor.tool_wall")} aria-label=${this.t("editor.tool_wall")} @click=${() => (this._tool = "wall")}>
+                <ha-icon icon="mdi:wall"></ha-icon>
               </button>`
             : nothing}
+          <button class=${this._tool === "measure" ? "active" : ""} title=${this.t("editor.tool_measure")} aria-label=${this.t("editor.tool_measure")} @click=${() => (this._tool = "measure")}>
+            <ha-icon icon="mdi:tape-measure"></ha-icon>
+          </button>
+          <button class=${this._dims ? "active" : ""} title=${this.t("editor.dims")} aria-label=${this.t("editor.dims")} aria-pressed=${this._dims} @click=${() => {
+            this._dims = !this._dims;
+            writePref("homeslice-dims", this._dims ? "on" : "off");
+          }}>
+            <ha-icon icon="mdi:ruler"></ha-icon>
+          </button>
           <button title=${this.t("editor.fit")} aria-label=${this.t("editor.fit")} @click=${() => this.fitView()}>
             <ha-icon icon="mdi:fit-to-screen-outline"></ha-icon>
           </button>
@@ -1430,7 +1596,7 @@ export class HomeslicePanel extends LitElement {
           ${this._hint
             ? html`<div class="hint" style="left:${this._hint.x + 16}px;top:${this._hint.y + 16}px">${this._hint.lines.map((l) => html`<div>${l}</div>`)}</div>`
             : nothing}
-          <div class="help">${this._calib ? html`<b>${this.t(!this._calib.a ? "editor.calib_first" : !this._calib.b ? "editor.calib_second" : "editor.calib_distance")}</b> ` : this._underlayMove ? html`<b>${this.t("editor.underlay_move_hint")}</b> ` : this._energyPlace ? html`<b>${this.t("editor.energy_click", { name: this.energyName(this._energyPlace) })}</b> ` : nothing}${this.t(this._mode === "openings" ? "editor.openings_hint" : this._mode === "objects" ? "editor.help_objects" : this._tool === "rect" ? "editor.help_rect" : this._tool === "stairs" ? "editor.help_stairs" : "editor.help_select")}${this._pendingArea && this._tool === "rect" ? html` <b>${this.t("editor.drawing_for", { area: this._hass?.areas?.[this._pendingArea]?.name ?? this._pendingArea })}</b>` : nothing}</div>
+          <div class="help">${this._calib ? html`<b>${this.t(!this._calib.a ? "editor.calib_first" : !this._calib.b ? "editor.calib_second" : "editor.calib_distance")}</b> ` : this._underlayMove ? html`<b>${this.t("editor.underlay_move_hint")}</b> ` : this._energyPlace ? html`<b>${this.t("editor.energy_click", { name: this.energyName(this._energyPlace) })}</b> ` : nothing}${this.t(this._tool === "measure" ? "editor.help_measure" : this._mode === "openings" ? "editor.openings_hint" : this._mode === "objects" ? "editor.help_objects" : this._tool === "rect" ? "editor.help_rect" : this._tool === "stairs" ? "editor.help_stairs" : this._tool === "wall" ? "editor.help_wall" : "editor.help_select")}${this._pendingArea && this._tool === "rect" ? html` <b>${this.t("editor.drawing_for", { area: this._hass?.areas?.[this._pendingArea]?.name ?? this._pendingArea })}</b>` : nothing}</div>
         </section>
         <section class="side">
           <canvas
@@ -1464,6 +1630,7 @@ export class HomeslicePanel extends LitElement {
     const selected = l?.rooms.find((r) => r.id === this._room);
     const selPoly = this._room === OUTLINE ? outlineScope(m, this._level).poly : selected ? roomPolygon(m, selected) : [];
     const grid = this._view.scale >= 20 ? 1 : 5;
+    this.dimTargets.clear();
     return html`<svg
       class="plan tool-${this._tool} mode-${this._mode} ${this._underlayMove ? "underlay-move" : ""} ${this._underlay?.level === this._level && !this._underlayHidden ? "has-underlay" : ""}"
       @pointerdown=${this.onPlanDown}
@@ -1516,13 +1683,19 @@ export class HomeslicePanel extends LitElement {
             ${flight ? svg`<polyline class="stair-path" marker-end="url(#arrow)" points=${pts(this.stairPath(v))}></polyline>` : nothing}
           </g>`;
         })}
+      ${this._dims && l ? this.renderRoomDims(l.rooms, walls) : nothing}
+      ${this._mode === "rooms" && level ? this.renderFreeWalls(level.freeWalls) : nothing}
       ${this._stair && this._mode === "rooms" ? this.renderStairHandles() : nothing}
       ${this.renderFurniture()}
       ${this._mode === "objects" ? this.renderLamps() : nothing}
       ${this._mode === "objects" ? this.renderEnergyMarkers() : nothing}
       ${selPoly.length && this._mode === "rooms" ? this.renderHandles(selPoly, selected ? this.inner(selected, walls) : selPoly) : nothing}
       ${this._rectPreview ? svg`<polygon class="rect-preview" points=${pts(this._rectPreview)}></polygon>` : nothing}
+      ${this._linePreview ? svg`<polyline class="line-preview" points=${pts(this._linePreview)}></polyline>` : nothing}
+      ${this._mode === "openings" && this._opening ? this.renderOpeningDims(walls) : nothing}
+      ${this._measure ? this.renderMeasure(this._measure) : nothing}
       ${this.renderGuides()}
+      ${this._dimEdit ? this.renderDimEdit(this._dimEdit) : nothing}
     </svg>`;
   }
 
@@ -1786,9 +1959,158 @@ export class HomeslicePanel extends LitElement {
       })}`;
   }
 
+  /** Registers a length that can be clicked and typed; returns its key for `data-dimedit`. */
+  private dimTarget(key: string, value: number, apply: (v: number) => HouseInput | null): string {
+    this.dimTargets.set(key, { value, apply });
+    return key;
+  }
+
+  /** Inside lengths of every room, along its walls (the selected room shows them on its handles). */
+  private renderRoomDims(rooms: RoomInput[], walls: Wall[]) {
+    const out: unknown[] = [];
+    for (const r of rooms) {
+      if (this._mode === "rooms" && r.id === this._room) continue;
+      // the selected door or window shows its own distances along that room's wall
+      if (this._mode === "openings" && r.id === this._opening?.room) continue;
+      if ((r.kind ?? "room") === "void") continue;
+      const inner = this.inner(r, walls);
+      inner.forEach((p, i) => {
+        const q = inner[(i + 1) % inner.length];
+        const len = Math.hypot(q[0] - p[0], q[1] - p[1]);
+        const [ax, ay] = this.toScreen(p);
+        const [bx, by] = this.toScreen(q);
+        const sl = Math.hypot(bx - ax, by - ay);
+        // short sides (steps, wall ends) would only clutter
+        if (sl < 46 || len < 0.3) return;
+        const mx = (ax + bx) / 2;
+        const my = (ay + by) / 2;
+        let nx = -(by - ay) / sl;
+        let ny = (bx - ax) / sl;
+        if (!pointInPolygon(this.toWorld([mx + nx * 10, my + ny * 10]), inner)) {
+          nx = -nx;
+          ny = -ny;
+        }
+        let angle = (Math.atan2(by - ay, bx - ax) * 180) / Math.PI;
+        if (angle > 90) angle -= 180;
+        if (angle < -90) angle += 180;
+        const x = mx + nx * 9;
+        const y = my + ny * 9;
+        out.push(svg`<text class="room-dim" x=${x} y=${y} dominant-baseline="middle" text-anchor="middle" transform="rotate(${angle} ${x} ${y})">${len.toFixed(2)}</text>`);
+      });
+    }
+    return out;
+  }
+
+  /**
+   * The selected door or window's distances to the room's inside corners and its width,
+   * drawn along the inside face of its wall; each can be clicked and typed.
+   */
+  private renderOpeningDims(walls: Wall[]) {
+    const sel = this._opening!;
+    const m = this._model!;
+    const o = readOpening(m, this._level, sel.src);
+    const room = this.levelInput?.rooms.find((r) => r.id === sel.room);
+    const key = JSON.stringify(sel.src);
+    const wall = walls.find((w) => w.openings.some((x) => JSON.stringify(x.source) === key && x.room === sel.room));
+    const wo = wall?.openings.find((x) => JSON.stringify(x.source) === key && x.room === sel.room);
+    if (!o || !room || !wall || !wo) return nothing;
+    const len = Math.hypot(wall.b[0] - wall.a[0], wall.b[1] - wall.a[1]) || 1;
+    const u: Vec2 = [(wall.b[0] - wall.a[0]) / len, (wall.b[1] - wall.a[1]) / len];
+    const n: Vec2 = [-u[1], u[0]];
+    const tOf = (p: Vec2) => (p[0] - wall.a[0]) * u[0] + (p[1] - wall.a[1]) * u[1];
+    const dOf = (p: Vec2) => (p[0] - wall.a[0]) * n[0] + (p[1] - wall.a[1]) * n[1];
+    // the room's inside face along this wall: parallel, within the wall, overlapping the opening
+    const inner = this.inner(room, walls);
+    let face: { t0: number; t1: number; d: number } | null = null;
+    inner.forEach((p, i) => {
+      const q = inner[(i + 1) % inner.length];
+      const d0 = dOf(p);
+      if (Math.abs(d0 - dOf(q)) > 0.01 || Math.abs(d0) > wall.thickness + 0.01) return;
+      const [t0, t1] = [tOf(p), tOf(q)].sort((x, y) => x - y);
+      if (t1 < wo.start || t0 > wo.end) return;
+      if (!face || t1 - t0 > face.t1 - face.t0) face = { t0, t1, d: d0 };
+    });
+    if (!face) return nothing;
+    const { t0, t1, d } = face as { t0: number; t1: number; d: number };
+    const axis = o.side === "north" || o.side === "south" ? 0 : 1;
+    const sign = Math.sign(u[axis]) || 1;
+    const shift = (dt: number) => updateOpening(m, this._level, sel.src, { at: Math.max(0, Math.round((o.at + dt * sign) * 100) / 100) });
+    // drawn a little into the room
+    const inward = Math.sign(d) || 1;
+    const off = d + (inward * 16) / this._view.scale;
+    const at = (t: number): Vec2 => this.toScreen([wall.a[0] + u[0] * t + n[0] * off, wall.a[1] + u[1] * t + n[1] * off]);
+    const parts: { from: number; to: number; key: string; apply: (v: number) => HouseInput | null }[] = [
+      { from: t0, to: wo.start, key: "gap-a", apply: (v) => (v >= 0 ? shift(t0 + v - wo.start) : null) },
+      { from: wo.start, to: wo.end, key: "width", apply: (v) => (v > 0.1 ? updateOpening(m, this._level, sel.src, { width: Math.round(v * 100) / 100 }) : null) },
+      { from: wo.end, to: t1, key: "gap-b", apply: (v) => (v >= 0 ? shift(t1 - v - wo.end) : null) },
+    ];
+    return svg`<g class="opening-dims">${parts.map((part) => {
+      const value = part.to - part.from;
+      const [ax, ay] = at(part.from);
+      const [bx, by] = at(part.to);
+      const mx = (ax + bx) / 2;
+      const my = (ay + by) / 2;
+      let angle = (Math.atan2(by - ay, bx - ax) * 180) / Math.PI;
+      if (angle > 90) angle -= 180;
+      if (angle < -90) angle += 180;
+      const tick = (x: number, y: number) => svg`<line class="dim-line" x1=${x - n[0] * 5} y1=${y - n[1] * 5} x2=${x + n[0] * 5} y2=${y + n[1] * 5}></line>`;
+      return svg`<line class="dim-line" x1=${ax} y1=${ay} x2=${bx} y2=${by}></line>${tick(ax, ay)}${tick(bx, by)}
+        <text class="dim editable" data-dimedit=${this.dimTarget(part.key, value, part.apply)} x=${mx} y=${my} dy="-5" text-anchor="middle" transform="rotate(${angle} ${mx} ${my})">${value.toFixed(2)}</text>`;
+    })}</g>`;
+  }
+
+  private renderMeasure({ a, b }: { a: Vec2; b: Vec2 }) {
+    const [ax, ay] = this.toScreen(a);
+    const [bx, by] = this.toScreen(b);
+    const len = Math.hypot(b[0] - a[0], b[1] - a[1]);
+    const dx = Math.abs(b[0] - a[0]);
+    const dy = Math.abs(b[1] - a[1]);
+    const diagonal = dx > 0.005 && dy > 0.005;
+    return svg`<g class="measure">
+      <line x1=${ax} y1=${ay} x2=${bx} y2=${by}></line>
+      <circle cx=${ax} cy=${ay} r="4"></circle><circle cx=${bx} cy=${by} r="4"></circle>
+      ${len > 0.005
+        ? svg`<text class="dim" x=${(ax + bx) / 2} y=${(ay + by) / 2 - 8} text-anchor="middle">${fmtM(len)}${diagonal ? ` (${dx.toFixed(2)} × ${dy.toFixed(2)})` : ""}</text>`
+        : nothing}
+    </g>`;
+  }
+
+  /** Click targets and handles of free-standing walls (the walls themselves are drawn with the others). */
+  private renderFreeWalls(free: { a: Vec2; b: Vec2 }[]) {
+    const indexes = freeWallIndexes(this._model!, this._level);
+    return svg`${free.map((w, k) => {
+      const index = indexes[k];
+      const [ax, ay] = this.toScreen(w.a);
+      const [bx, by] = this.toScreen(w.b);
+      const sel = index === this._freeWall;
+      return svg`<line class="wall-hit free ${sel ? "selected" : ""}" data-freewall=${index} x1=${ax} y1=${ay} x2=${bx} y2=${by} stroke-width="14"></line>
+        ${sel ? svg`<circle class="vertex" data-freeend="0" cx=${ax} cy=${ay} r="7"></circle><circle class="vertex" data-freeend="1" cx=${bx} cy=${by} r="7"></circle>` : nothing}`;
+    })}`;
+  }
+
+  private renderDimEdit(edit: { x: number; y: number; target: DimTarget }) {
+    const done = (input: HTMLInputElement) => {
+      const v = parseFloat(input.value.replace(",", "."));
+      this._dimEdit = null;
+      if (isNaN(v) || Math.abs(v - edit.target.value) < 0.0005) return;
+      const next = edit.target.apply(v);
+      if (next) this.commit(next);
+    };
+    // an HTML field inside the SVG (an svg template would make it an SVG element)
+    return svg`<foreignObject x=${edit.x - 45} y=${edit.y - 16} width="90" height="32">${html`
+      <input class="dim-input" type="number" step="0.01" .value=${edit.target.value.toFixed(2)} aria-label=${this.t("editor.dim_edit")}
+        @keydown=${(e: KeyboardEvent) => {
+          if (e.key === "Enter") done(e.target as HTMLInputElement);
+          else if (e.key === "Escape") this._dimEdit = null;
+        }}
+        @blur=${(e: Event) => this._dimEdit && done(e.target as HTMLInputElement)} />`}
+    </foreignObject>`;
+  }
+
   /** Handles sit on the wall centre lines; the lengths shown are inside dimensions. */
   private renderHandles(poly: Vec2[], inner: Vec2[]) {
     const sides = this.innerSides(poly, inner);
+    const m = this._model!;
     return svg`${poly.map((p, i) => {
       const q = poly[(i + 1) % poly.length];
       const [ax, ay] = this.toScreen(p);
@@ -1802,7 +2124,8 @@ export class HomeslicePanel extends LitElement {
       return svg`<g>
         <line class="edge-hit" data-handle="edge" data-at=${JSON.stringify([p, q])} x1=${ax} y1=${ay} x2=${bx} y2=${by}></line>
         <rect class="edge-handle" data-handle="edge" data-at=${JSON.stringify([p, q])} x=${mx - 5} y=${my - 5} width="10" height="10" rx="2"></rect>
-        <text class="dim" x=${mx + nx * 16} y=${my + ny * 16 + 4} text-anchor="middle">${len.toFixed(2)}</text>
+        <text class="dim editable" data-dimedit=${this.dimTarget(`side-${i}`, len, (v) => (v > 0.2 ? resizeSide(m, this._level, poly, i, v - len) : null))}
+          x=${mx + nx * 16} y=${my + ny * 16 + 4} text-anchor="middle">${len.toFixed(2)}</text>
       </g>`;
     })}
     ${poly.map((p) => {
@@ -1820,9 +2143,10 @@ export class HomeslicePanel extends LitElement {
     if (this._mode === "objects") return this.renderObjectsInspector();
     if (this._mode === "openings") {
       if (this._opening) return this.renderOpeningInspector(this._opening);
-      return html`<h2>${this.t("editor.mode_openings")}</h2><p class="muted">${this.t("editor.openings_hint")}</p>`;
+      return html`<h2>${this.t("editor.mode_openings")}</h2><p class="muted">${this.t("editor.openings_hint")}</p>${this.renderOpeningDefaults()}`;
     }
     if (this._stair) return this.renderStairInspector(this._stair);
+    if (this._freeWall !== null) return this.renderFreeWallInspector(this._freeWall);
     if (this._room === OUTLINE) return this.renderOutlineInspector();
     if (this._wall) return this.renderWallInspector(this._wall);
     const r = l.rooms.find((x) => x.id === this._room);
@@ -2063,7 +2387,77 @@ export class HomeslicePanel extends LitElement {
         <button role="radio" aria-checked=${!open} class=${!open ? "active" : ""} @click=${() => set(false)}>${this.t("editor.wall_solid")}</button>
         <button role="radio" aria-checked=${open} class=${open ? "active" : ""} @click=${() => set(true)}>${this.t("editor.wall_open")}</button>
       </div>
-      <p class="muted">${this.t("editor.wall_hint")}</p>`;
+      <p class="muted">${this.t("editor.wall_hint")}</p>
+      ${open
+        ? nothing
+        : (() => {
+            const own = boundaryThickness(m, this._level, sel.a, sel.b, sel.side);
+            const house = m.walls?.interior ?? DEFAULTS.walls.interior;
+            return html`${this.cmInput(this.t("editor.wall_thickness"), own, house, (v) => this.commit(setBoundaryThickness(m, this._level, sel.a, sel.b, sel.side, v)))}
+              <p class="muted">${this.t("editor.wall_thickness_hint", { cm: cm(house) })}</p>`;
+          })()}`;
+  }
+
+  /** A thickness in centimetres (stored in metres); empty means `fallback`. */
+  private cmInput(label: string, value: number | undefined, fallback: number, set: (metres: number | undefined) => void) {
+    return html`<label>${label}
+      <input type="number" min="1" max="150" step="0.5" placeholder=${String(cm(fallback))} .value=${value === undefined ? "" : String(cm(value))}
+        @change=${(e: Event) => {
+          const raw = (e.target as HTMLInputElement).value.trim();
+          const v = parseFloat(raw.replace(",", "."));
+          if (raw === "") set(undefined);
+          else if (v > 0 && v <= 150) set(Math.round(v * 10) / 1000);
+        }} />
+    </label>`;
+  }
+
+  private renderFreeWallInspector(index: number) {
+    const m = this._model!;
+    const w = this.levelInput?.walls?.[index];
+    if (!w?.line) return nothing;
+    const [a, b] = w.line as [Vec2, Vec2];
+    const len = Math.hypot(b[0] - a[0], b[1] - a[1]);
+    return html`<h2>${this.t("editor.free_wall")}</h2>
+      <p class="muted">${this.t("editor.free_wall_hint")}</p>
+      <div class="row">
+        <label>${this.t("editor.free_wall_length")}
+          <input type="number" min="0.2" step="0.05" .value=${len.toFixed(2)} @change=${(e: Event) => {
+            const v = parseFloat((e.target as HTMLInputElement).value);
+            if (!(v >= 0.2) || !len) return;
+            // the second end moves along the wall
+            const end: Vec2 = [a[0] + ((b[0] - a[0]) * v) / len, a[1] + ((b[1] - a[1]) * v) / len];
+            this.commit(updateFreeWall(m, this._level, index, { line: [a, end] }));
+          }} />
+        </label>
+        ${this.cmInput(this.t("editor.wall_thickness"), w.thickness, m.walls?.interior ?? DEFAULTS.walls.interior, (v) => this.commit(updateFreeWall(m, this._level, index, { thickness: v })))}
+      </div>
+      <button class="danger" @click=${() => {
+        this.commit(deleteFreeWall(m, this._level, index));
+        this._freeWall = null;
+      }}>${this.t("editor.free_wall_delete")}</button>`;
+  }
+
+  /** House-wide sill and height per type of door or window. */
+  private renderOpeningDefaults() {
+    const m = this._model!;
+    const types: OpeningType[] = ["window", "door", "garage_door", "opening"];
+    const field = (type: OpeningType, key: "sill" | "height") => {
+      const own = m.opening_defaults?.[type]?.[key];
+      return html`<input type="number" min="0" max="5" step="0.05" aria-label=${`${this.t(`editor.type_${type}` as StringKey)} ${this.t(`editor.opening_${key}` as StringKey)}`}
+        placeholder=${String(DEFAULTS.opening[type][key])} .value=${own === undefined ? "" : String(own)}
+        @change=${(e: Event) => {
+          const raw = (e.target as HTMLInputElement).value.trim();
+          const v = parseFloat(raw.replace(",", "."));
+          if (raw === "") this.commit(setOpeningDefaults(m, type, { [key]: undefined }));
+          else if (v >= 0 && v <= 5) this.commit(setOpeningDefaults(m, type, { [key]: Math.round(v * 100) / 100 }));
+        }} />`;
+    };
+    return html`<h3>${this.t("editor.opening_defaults")}</h3>
+      <p class="muted">${this.t("editor.opening_defaults_hint")}</p>
+      <table class="defaults">
+        <tr><th></th><th>${this.t("editor.opening_sill")}</th><th>${this.t("editor.opening_height")}</th></tr>
+        ${types.map((t) => html`<tr><th>${this.t(`editor.type_${t}` as StringKey)}</th><td>${field(t, "sill")}</td><td>${field(t, "height")}</td></tr>`)}
+      </table>`;
   }
 
   private levelName(l: { floor_id?: string; name?: string; id: string }) {
@@ -2116,6 +2510,7 @@ export class HomeslicePanel extends LitElement {
             set({ height: v > 0 && v !== 2.6 ? v : undefined });
           }} />
         </label>
+        ${this.cmInput(this.t("editor.slab"), l.slab, DEFAULTS.slab, (v) => set({ slab: v }))}
       </div>
       <p class="muted">${this.t("editor.rooms_count", { count: l.rooms.length })} · ${this.t("editor.select_hint")}</p>
       ${unplaced.length
@@ -2267,6 +2662,8 @@ export class HomeslicePanel extends LitElement {
       ["V", "editor.key_select"],
       ["R", "editor.key_room"],
       ["S", "editor.key_stairs"],
+      ["W", "editor.key_wall"],
+      ["M", "editor.key_measure"],
       ["R (" + this.t("editor.mode_objects") + ")", "editor.key_turn"],
       ["Del", "editor.key_delete"],
       ["Esc", "editor.key_escape"],
@@ -2448,7 +2845,37 @@ export class HomeslicePanel extends LitElement {
             if (val > 0 && val < 75) this.commit(setRoof(m, { pitch: val === 35 ? undefined : val }));
           }} />
         </label>
-      </div>`;
+        <label>${this.t("editor.roof_overhang")}
+          <input type="number" min="0" max="2" step="0.05" .value=${String(m.roof?.overhang ?? 0.3)} @change=${(e: Event) => {
+            const val = Number((e.target as HTMLInputElement).value);
+            if (val >= 0 && val <= 2) this.commit(setRoof(m, { overhang: val === 0.3 ? undefined : val }));
+          }} />
+        </label>
+      </div>
+      <h3>${this.t("editor.walls_section")}</h3>
+      <div class="row">
+        ${this.cmInput(this.t("editor.walls_exterior"), m.walls?.exterior, DEFAULTS.walls.exterior, (v) => this.commit(setWallThickness(m, { exterior: v })))}
+        ${this.cmInput(this.t("editor.walls_interior"), m.walls?.interior, DEFAULTS.walls.interior, (v) => this.commit(setWallThickness(m, { interior: v })))}
+        ${this.cmInput(this.t("editor.walls_party"), m.walls?.party, DEFAULTS.walls.party, (v) => this.commit(setWallThickness(m, { party: v })))}
+      </div>
+      <p class="muted">${this.t("editor.walls_hint")}</p>
+      <h3>${this.t("editor.party")}</h3>
+      ${(() => {
+        const l = this.levelInput!;
+        // a level with its own setting (e.g. a top floor that stands free) shows and changes that
+        const own = l.party_walls !== undefined;
+        const sides = l.party_walls ?? m.party_walls ?? [];
+        const toggle = (side: Side, on: boolean) => {
+          const next = (["north", "east", "south", "west"] as Side[]).filter((x) => (x === side ? on : sides.includes(x)));
+          this.commit(setPartyWalls(m, next, own ? l.id : undefined));
+        };
+        return html`<div class="checks">
+            ${(["north", "east", "south", "west"] as Side[]).map(
+              (side) => html`<label class="check"><input type="checkbox" .checked=${sides.includes(side)} @change=${(e: Event) => toggle(side, (e.target as HTMLInputElement).checked)} />${this.t(`editor.side_${side}` as StringKey)}</label>`,
+            )}
+          </div>
+          <p class="muted">${this.t(own ? "editor.party_level_hint" : "editor.party_hint")}</p>`;
+      })()}`;
   }
 
   static override styles = css`
@@ -3005,7 +3432,7 @@ export class HomeslicePanel extends LitElement {
     }
     .dim {
       font-size: 11px;
-      fill: var(--primary-text-color, #eee);
+      fill: #222;
       paint-order: stroke;
       /* room fills are always light: a light halo keeps names readable over walls */
       stroke: rgba(255, 255, 255, 0.75);
@@ -3023,6 +3450,76 @@ export class HomeslicePanel extends LitElement {
       stroke: #ff4fa3;
       stroke-width: 2;
       pointer-events: none;
+    }
+    .room-dim {
+      font-size: 10px;
+      fill: #4a4f55;
+      pointer-events: none;
+    }
+    .dim.editable {
+      pointer-events: auto;
+      cursor: text;
+      font-weight: 600;
+      fill: #0277bd;
+    }
+    .dim.editable:hover {
+      fill: #01579b;
+      font-size: 12px;
+    }
+    .dim-line {
+      stroke: #4a4f55;
+      stroke-width: 1;
+      pointer-events: none;
+    }
+    .measure line {
+      stroke: #ff4fa3;
+      stroke-width: 2;
+    }
+    .measure circle {
+      fill: #ff4fa3;
+    }
+    .measure {
+      pointer-events: none;
+    }
+    .line-preview {
+      fill: none;
+      stroke: var(--accent);
+      stroke-width: 6;
+      stroke-linecap: round;
+      opacity: 0.7;
+      pointer-events: none;
+    }
+    .wall-hit.free.selected {
+      stroke: var(--accent);
+      stroke-opacity: 0.35;
+    }
+    input.dim-input {
+      width: 84px;
+      min-height: 28px;
+      height: 28px;
+      box-sizing: border-box;
+      padding: 0 6px;
+      border: 2px solid var(--accent);
+    }
+    table.defaults {
+      border-collapse: collapse;
+      width: 100%;
+    }
+    table.defaults th {
+      font-weight: normal;
+      font-size: 12px;
+      text-align: left;
+      color: var(--secondary-text-color);
+      padding: 2px 4px 2px 0;
+    }
+    table.defaults input {
+      width: 100%;
+      box-sizing: border-box;
+    }
+    .checks {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px 16px;
     }
     .rect-preview {
       fill: rgba(3, 169, 244, 0.15);

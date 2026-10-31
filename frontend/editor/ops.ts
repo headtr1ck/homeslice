@@ -2,7 +2,7 @@
 // each returns a new model, which keeps undo/redo trivial and makes them easy to test.
 
 import { bbox, dist, normalizeOrientation, project, signedArea } from "../model/geometry";
-import type { Coord, EnergyInput, FurnitureInput, HouseInput, LevelInput, OpeningInput, OpeningSource, RoomInput, ShapeInput, RoofInput, Side, Vec2, VerticalInput } from "../model/types";
+import type { Coord, EnergyInput, FurnitureInput, HouseInput, LevelInput, OpeningInput, OpeningSource, OpeningType, RoomInput, ShapeInput, RoofInput, Side, Vec2, VerticalInput, WallInput, WallThickness } from "../model/types";
 
 /** Points closer than this count as the same corner (shared by neighbouring rooms). */
 export const SAME_POINT = 0.01;
@@ -97,6 +97,20 @@ export function moveVertex(model: HouseInput, levelId: string, from: Vec2, to: V
   for (const id of levels) mapRooms(m, id, (p) => (dist(p, from) < SAME_POINT ? to : null));
   if (outlineCorner) writeOutline(m, levelId, scope.owner, scope.poly.map((p) => (dist(p, from) < SAME_POINT ? to : p)));
   return m;
+}
+
+/**
+ * Makes side `i` of a polygon (wall centre lines) `delta` metres longer by moving the
+ * wall at its east or south end, like dragging it: neighbouring rooms follow.
+ */
+export function resizeSide(model: HouseInput, levelId: string, poly: Vec2[], i: number, delta: number): HouseInput {
+  const n = poly.length;
+  const p = poly[i];
+  const q = poly[(i + 1) % n];
+  const length = dist(p, q) || 1;
+  const u: Vec2 = [(q[0] - p[0]) / length, (q[1] - p[1]) / length];
+  if (u[0] + u[1] >= 0) return moveEdge(model, levelId, q, poly[(i + 2) % n], [u[0] * delta, u[1] * delta]);
+  return moveEdge(model, levelId, poly[(i - 1 + n) % n], p, [-u[0] * delta, -u[1] * delta]);
 }
 
 /**
@@ -298,9 +312,103 @@ export function setBoundaryOpen(model: HouseInput, levelId: string, a: string, b
   const sides = new Set(openSides(m, levelId, a, b, allSides));
   if (open) sides.add(side);
   else sides.delete(side);
-  const others = (l.walls ?? []).filter((w) => !(w.between && w.between.includes(a) && w.between.includes(b)));
+  // entries that open this pair are rewritten; walls with their own thickness stay
+  const others = (l.walls ?? []).filter((w) => !(w.between && w.between.includes(a) && w.between.includes(b) && (w.type ?? "open") === "open"));
   const mine = sides.size === allSides.length ? [{ between: [a, b] as [string, string] }] : [...sides].map((s) => ({ between: [a, b] as [string, string], side: s }));
   l.walls = [...others, ...mine];
+  if (!l.walls.length) delete l.walls;
+  return m;
+}
+
+/** The own thickness of one side (seen from `a`) of the wall between two rooms, if set. */
+export function boundaryThickness(model: HouseInput, levelId: string, a: string, b: string, side: Side): number | undefined {
+  let found: number | undefined;
+  for (const w of level(model, levelId).walls ?? []) {
+    if (!w.between || w.type !== "wall" || w.thickness === undefined) continue;
+    const [x, y] = w.between;
+    if (!((x === a && y === b) || (x === b && y === a))) continue;
+    if (!w.side || (x === a ? w.side : OPPOSITE[w.side]) === side) found = w.thickness;
+  }
+  return found;
+}
+
+/** Gives one side (seen from `a`) of the wall between two rooms its own thickness; undefined: the house's. */
+export function setBoundaryThickness(model: HouseInput, levelId: string, a: string, b: string, side: Side, thickness: number | undefined): HouseInput {
+  const m = clone(model);
+  const l = level(m, levelId);
+  const mine = (w: WallInput) => !!w.between && w.type === "wall" && w.between.includes(a) && w.between.includes(b) && (!w.side || (w.between[0] === a ? w.side : OPPOSITE[w.side]) === side);
+  // an entry for all sides keeps applying to the others
+  const whole = (l.walls ?? []).find((w) => mine(w) && !w.side);
+  const rest = (l.walls ?? []).filter((w) => !mine(w));
+  if (whole) for (const s of ["north", "south", "east", "west"] as Side[]) if (s !== side) rest.push({ ...whole, between: [a, b], side: s });
+  if (thickness !== undefined) rest.push({ between: [a, b], side, type: "wall", thickness: round(thickness) });
+  l.walls = rest;
+  if (!l.walls.length) delete l.walls;
+  return m;
+}
+
+/** House-wide wall thicknesses (metres); undefined: the default. */
+export function setWallThickness(model: HouseInput, patch: Partial<WallThickness>): HouseInput {
+  const m = clone(model);
+  const next = { ...(m.walls ?? {}), ...patch };
+  for (const [k, v] of Object.entries(patch)) if (v === undefined) delete (next as Record<string, unknown>)[k];
+  if (Object.keys(next).length) m.walls = next;
+  else delete m.walls;
+  return m;
+}
+
+/** Sides of the house shared with a neighbour (for the whole house, or one level). */
+export function setPartyWalls(model: HouseInput, sides: Side[], levelId?: string): HouseInput {
+  const m = clone(model);
+  const target: { party_walls?: Side[] } = levelId ? level(m, levelId) : m;
+  if (sides.length) target.party_walls = [...sides];
+  else delete target.party_walls;
+  return m;
+}
+
+/** Default sill and height for a type of opening; undefined fields go back to the built-in default. */
+export function setOpeningDefaults(model: HouseInput, type: OpeningType, patch: { sill?: number; height?: number }): HouseInput {
+  const m = clone(model);
+  const all = { ...(m.opening_defaults ?? {}) };
+  const next = { ...(all[type] ?? {}), ...patch };
+  for (const [k, v] of Object.entries(patch)) if (v === undefined) delete (next as Record<string, unknown>)[k];
+  if (Object.keys(next).length) all[type] = next;
+  else delete all[type];
+  if (Object.keys(all).length) m.opening_defaults = all;
+  else delete m.opening_defaults;
+  return m;
+}
+
+// ----- free-standing walls -----
+
+/** Indexes of a level's free-standing walls in its `walls` list. */
+export function freeWallIndexes(model: HouseInput, levelId: string): number[] {
+  return (level(model, levelId).walls ?? []).flatMap((w, i) => (w.line && (w.type ?? "wall") === "wall" ? [i] : []));
+}
+
+export function addFreeWall(model: HouseInput, levelId: string, a: Vec2, b: Vec2): { model: HouseInput; index: number } {
+  const m = clone(model);
+  const l = level(m, levelId);
+  l.walls = [...(l.walls ?? []), { line: [[round(a[0]), round(a[1])], [round(b[0]), round(b[1])]] }];
+  return { model: m, index: l.walls.length - 1 };
+}
+
+export function updateFreeWall(model: HouseInput, levelId: string, index: number, patch: { line?: [Vec2, Vec2]; thickness?: number }): HouseInput {
+  const m = clone(model);
+  const w = level(m, levelId).walls?.[index];
+  if (!w?.line) return m;
+  if (patch.line) w.line = patch.line.map((p) => [round(p[0]), round(p[1])]) as [Vec2, Vec2];
+  if ("thickness" in patch) {
+    if (patch.thickness === undefined) delete w.thickness;
+    else w.thickness = round(patch.thickness);
+  }
+  return m;
+}
+
+export function deleteFreeWall(model: HouseInput, levelId: string, index: number): HouseInput {
+  const m = clone(model);
+  const l = level(m, levelId);
+  l.walls = (l.walls ?? []).filter((_, i) => i !== index);
   if (!l.walls.length) delete l.walls;
   return m;
 }
