@@ -462,5 +462,11 @@
   "editor.opening_door_entrance_panes": "Haustür mit Glasfeldern",
   "editor.opening_door_entrance_sidelight": "Haustür mit Seitenteil",
   "editor.hint_hide": "Hinweis ausblenden",
-  "editor.stairs_top": "Treppen führen zur nächsten Etage hinauf, und dies ist die oberste: eine tiefere Etage wählen oder eine Etage darüber hinzufügen."
+  "editor.stairs_top": "Treppen führen zur nächsten Etage hinauf, und dies ist die oberste: eine tiefere Etage wählen oder eine Etage darüber hinzufügen.",
+  "card.presence": "Jemand ist hier",
+  "card.alert_moisture": "Wasser",
+  "card.alert_smoke": "Rauch",
+  "card.alert_gas": "Gas",
+  "card.alert_carbon_monoxide": "Kohlenmonoxid",
+  "cardeditor.presence": "Räume mit Bewegung oder Anwesenheit markieren (Wasser-, Rauch- und Gasalarme immer)"
 }

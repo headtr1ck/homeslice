@@ -462,5 +462,11 @@
   "editor.opening_door_entrance_panes": "Entrance door, small panes",
   "editor.opening_door_entrance_sidelight": "Entrance door with side panel",
   "editor.hint_hide": "Hide this hint",
-  "editor.stairs_top": "Stairs lead up to the next floor, and this is the top floor: pick a lower floor, or add a floor above."
+  "editor.stairs_top": "Stairs lead up to the next floor, and this is the top floor: pick a lower floor, or add a floor above.",
+  "card.presence": "Someone is here",
+  "card.alert_moisture": "Leak",
+  "card.alert_smoke": "Smoke",
+  "card.alert_gas": "Gas",
+  "card.alert_carbon_monoxide": "Carbon monoxide",
+  "cardeditor.presence": "Mark rooms with motion or presence (leak, smoke and gas alarms always show)"
 }

@@ -146,6 +146,14 @@
     "lawn_mower.mower": {
       "entity_id": "lawn_mower.mower",
       "area_id": null
+    },
+    "binary_sensor.kitchen_motion": {
+      "entity_id": "binary_sensor.kitchen_motion",
+      "area_id": "kitchen"
+    },
+    "binary_sensor.kids_room_leak": {
+      "entity_id": "binary_sensor.kids_room_leak",
+      "area_id": "kids_room"
     }
   },
   "states": {
@@ -359,6 +367,22 @@
         "battery": 80,
         "latitude": 48.00005,
         "longitude": 10.00002
+      }
+    },
+    "binary_sensor.kitchen_motion": {
+      "entity_id": "binary_sensor.kitchen_motion",
+      "state": "on",
+      "attributes": {
+        "friendly_name": "Kitchen motion",
+        "device_class": "motion"
+      }
+    },
+    "binary_sensor.kids_room_leak": {
+      "entity_id": "binary_sensor.kids_room_leak",
+      "state": "off",
+      "attributes": {
+        "friendly_name": "Kids room leak",
+        "device_class": "moisture"
       }
     }
   },

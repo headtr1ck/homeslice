@@ -84,6 +84,7 @@ interactive: false             # true: drag to turn, scroll/pinch to zoom, doubl
 energy: false                  # true: energy overlay (shows the roof unless view.roof: false)
 mode: 3d                       # or plan: a flat floor plan from above, one floor at a time
 sun: true                      # light from the real sun (sun.sun), darker at night
+presence: true                 # mark rooms with motion/occupancy/presence; leak, smoke and gas alarms always show
 level: ground                  # optional: the floor shown first (plan: default the entrance floor)
 view:                          # all optional
   azimuth: 250                 # overview camera: 0 north, 90 east, 180 south, 270 west

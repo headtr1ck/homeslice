@@ -182,6 +182,27 @@ console.log("demo house");
     assert(temp === "21.4 °C", `living room temperature label: ${temp}`);
   });
 
+  await test("rooms show presence, and alarms in red", async () => {
+    const label = (name) => page.locator("homeslice-card .label", { has: page.locator("button.name", { hasText: name }) });
+    assert((await label("Kitchen").locator("ha-icon.presence").count()) === 1, "no presence mark in the kitchen");
+    assert((await label("Kids Room").locator("ha-icon.presence").count()) === 0, "presence mark without motion");
+    await act(page, () =>
+      page.evaluate(() => {
+        const h = window.card.hass;
+        window.card.hass = { ...h, states: { ...h.states, "binary_sensor.kids_room_leak": { ...h.states["binary_sensor.kids_room_leak"], state: "on" } } };
+      }),
+    );
+    assert(await label("Kids Room").evaluate((el) => el.classList.contains("alert")), "leak not shown on the kids room");
+    await shot(page, "demo-alarm");
+    await act(page, () =>
+      page.evaluate(() => {
+        const h = window.card.hass;
+        window.card.hass = { ...h, states: { ...h.states, "binary_sensor.kids_room_leak": { ...h.states["binary_sensor.kids_room_leak"], state: "off" } } };
+      }),
+    );
+    assert(!(await label("Kids Room").evaluate((el) => el.classList.contains("alert"))), "alarm stays after the leak is gone");
+  });
+
   await test("shutters follow the cover position", async () => {
     const shutter = () => page.evaluate(() => window.card.renderer.coverState("bedroom_north_0"));
     let s = await shutter();

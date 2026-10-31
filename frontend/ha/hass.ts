@@ -135,3 +135,32 @@ export function areaPopup(hass: Hass, areaId: string | undefined, extra: string[
   ];
   return sections.filter((s) => s.cards.length);
 }
+
+/** Binary sensors that mean someone is in a room. */
+const PRESENCE = ["motion", "occupancy", "presence"];
+/** Binary sensors that call for attention, with their icons. */
+const ALERTS: Record<string, string> = { moisture: "mdi:water-alert", smoke: "mdi:smoke-detector-alert", gas: "mdi:gas-cylinder", carbon_monoxide: "mdi:molecule-co" };
+
+export interface AreaSensors {
+  /** A motion, occupancy or presence sensor of the area is on. */
+  presence: boolean;
+  /** Leak, smoke, gas or CO sensors of the area that are on: their device classes. */
+  alerts: string[];
+}
+
+/** What the area's motion, presence and alarm sensors say. */
+export function areaSensors(hass: Hass, areaId: string): AreaSensors {
+  let presence = false;
+  const alerts: string[] = [];
+  for (const id of areaEntities(hass, areaId, "binary_sensor")) {
+    const s = hass.states[id];
+    if (s?.state !== "on") continue;
+    const dc = String(s.attributes.device_class ?? "");
+    if (PRESENCE.includes(dc)) presence = true;
+    else if (dc in ALERTS && !alerts.includes(dc)) alerts.push(dc);
+  }
+  return { presence, alerts };
+}
+
+/** The icon for an alert's device class. */
+export const alertIcon = (deviceClass: string) => ALERTS[deviceClass] ?? "mdi:alert";

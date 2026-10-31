@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { areaEntities, areaLight, areaPopup, areaTemperature, coverOpen, type Hass } from "./hass";
+import { areaEntities, areaLight, areaPopup, areaSensors, areaTemperature, coverOpen, type Hass } from "./hass";
 
 const fixture = JSON.parse(readFileSync("dev/fixtures/demo-hass.json", "utf8"));
 const hass = (): Hass => ({ ...fixture, callWS: async () => null, callService: async () => null });
@@ -31,6 +31,14 @@ describe("HA helpers", () => {
     expect(areaTemperature(h, "living_room")).toBe("21.4 °C");
     expect(areaTemperature(h, "bedroom")).toBe("19.2 °C");
     expect(areaTemperature(h, "hall")).toBeNull();
+  });
+
+  it("reads presence and alarms of an area", () => {
+    const h = hass();
+    expect(areaSensors(h, "kitchen")).toEqual({ presence: true, alerts: [] });
+    expect(areaSensors(h, "kids_room")).toEqual({ presence: false, alerts: [] });
+    h.states = { ...h.states, "binary_sensor.kids_room_leak": { ...h.states["binary_sensor.kids_room_leak"], state: "on" } };
+    expect(areaSensors(h, "kids_room")).toEqual({ presence: false, alerts: ["moisture"] });
   });
 
   it("groups popup cards like HA's area views", () => {

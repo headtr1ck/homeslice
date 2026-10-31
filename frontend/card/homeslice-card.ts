@@ -1,5 +1,5 @@
 import { LitElement, css, html, nothing, svg, type PropertyValues } from "lit";
-import { areaEntities, areaPopup, areaTemperature, contactOpen, coverOpen, lightsLook, type Hass, type PopupSection } from "../ha/hass";
+import { areaEntities, areaPopup, areaTemperature, contactOpen, coverOpen, lightsLook, type Hass, type PopupSection, alertIcon, areaSensors, type AreaSensors } from "../ha/hass";
 import { formatNumber, localize, type StringKey } from "../i18n/localize";
 import { expandHouse } from "../model/expand";
 import { labelPoint } from "../model/geometry";
@@ -31,6 +31,8 @@ export interface HomesliceCardConfig {
   energy?: boolean;
   /** Light the house from the real sun (HA's sun.sun) and dim it at night (default true). */
   sun?: boolean;
+  /** Mark rooms with someone in them (motion, occupancy, presence sensors; default true). Leak, smoke and gas alarms always show. */
+  presence?: boolean;
   /** `plan`: a flat floor plan seen from straight above, one floor at a time (default `3d`). */
   mode?: "3d" | "plan";
   /** The floor shown first (level id); default: the whole house, or in plan mode the entrance floor. */
@@ -61,6 +63,8 @@ interface Label {
   name: string;
   temperature: string | null;
   areaId?: string;
+  presence: boolean;
+  alerts: string[];
   hasLights: boolean;
   on: boolean;
 }
@@ -496,13 +500,18 @@ export class HomesliceCard extends LitElement {
     const covers = this.openings.map((o) => (o.cover ? coverOpen(hass, o.cover, inverted.has(o.cover)) : null));
     const contacts = this.openings.map((o) => (o.contact ? contactOpen(hass, o.contact) : false));
     const temperatures = this.rooms.map((r) => (r.room.areaId ? areaTemperature(hass, r.room.areaId) : null));
+    // an alarm turns the room's floor red, over its lights
+    const sensors = this.rooms.map((r) => this.roomSensors(r.room.areaId));
+    sensors.forEach((s, i) => {
+      if (s.alerts.length) lights[i] = { rgb: [255, 40, 30], brightness: 1 };
+    });
     const awnings = this.rooms.map((r) => (r.room.awning ? coverOpen(hass, r.room.awning, inverted.has(r.room.awning)) : null));
     this.energyReadings = this.config.energy ? this.house.energy.map((e) => readEnergy(hass, e, this.energyPrefs)) : [];
     this.robotReadings = this.house.robots.map((r) => readRobot(hass, r));
     // the real sun, turned into the plan's directions; rounded so it redraws now and then, not always
     const sun = this.config.sun !== false ? hass.states["sun.sun"]?.attributes : undefined;
     const sunAt = typeof sun?.azimuth === "number" && typeof sun?.elevation === "number" ? [Math.round(sun.azimuth - this.house.north), Math.round(sun.elevation)] : null;
-    const signature = JSON.stringify([lights, lamps, covers, contacts, temperatures, awnings, this.energyReadings, this.robotReadings, sunAt]);
+    const signature = JSON.stringify([lights, lamps, covers, contacts, temperatures, sensors, awnings, this.energyReadings, this.robotReadings, sunAt]);
     if (signature === this.stateSignature) return;
     this.stateSignature = signature;
     this.lamps.forEach((l, i) => this.renderer!.setLamp(l.entity, lamps[i]));
@@ -521,6 +530,13 @@ export class HomesliceCard extends LitElement {
       this.renderer!.setContact(o.id, contacts[i]);
     });
     this.scheduleDraw();
+  }
+
+  /** A room's motion/presence and alarm sensors, as the card shows them. */
+  private roomSensors(areaId: string | undefined): AreaSensors {
+    if (!areaId || !this.hass) return { presence: false, alerts: [] };
+    const s = areaSensors(this.hass, areaId);
+    return { presence: this.config.presence !== false && s.presence, alerts: s.alerts };
   }
 
   // ----- floors -----
@@ -805,6 +821,7 @@ export class HomesliceCard extends LitElement {
         name: this.roomName(r),
         temperature: areaId ? areaTemperature(this.hass, areaId) : null,
         areaId,
+        ...this.roomSensors(areaId),
         hasLights: this.roomLights(r.key).length > 0,
         on: lightsLook(this.hass, this.roomLights(r.key)) !== null,
       });
@@ -868,7 +885,7 @@ export class HomesliceCard extends LitElement {
           ></canvas>
           ${this._readout ? html`<div class="readout">${this._readout}</div>` : nothing}
           ${this._labels.map(
-            (l) => html`<div class="label ${this._hover !== null && l.levelIndex > this._hover ? "faded" : ""}" style="left:${l.x}px;top:${l.y}px">
+            (l) => html`<div class="label ${this._hover !== null && l.levelIndex > this._hover ? "faded" : ""} ${l.alerts.length ? "alert" : ""}" style="left:${l.x}px;top:${l.y}px">
               ${l.hasLights
                 ? html`<button
                     class="lamp ${l.on ? "on" : ""}"
@@ -880,7 +897,13 @@ export class HomesliceCard extends LitElement {
                 : nothing}
               <button class="name" @click=${() => this.openPopup(l.key)}>
                 <span class="name">${l.name}</span>
-                ${l.temperature ? html`<span class="temp">${l.temperature}</span>` : nothing}
+                ${l.temperature || l.presence || l.alerts.length
+                  ? html`<span class="temp"
+                      >${l.alerts.map((a) => html`<ha-icon class="alert-icon" icon=${alertIcon(a)} title=${this.t(`card.alert_${a}` as StringKey)}></ha-icon>`)}${l.presence
+                        ? html`<ha-icon class="presence" icon="mdi:motion-sensor" title=${this.t("card.presence")}></ha-icon>`
+                        : nothing}${l.temperature ?? ""}</span
+                    >`
+                  : nothing}
               </button>
             </div>`,
           )}
@@ -1082,6 +1105,30 @@ export class HomesliceCard extends LitElement {
     .label span.temp {
       font-size: 11px;
       opacity: 0.85;
+      display: inline-flex;
+      align-items: center;
+      gap: 2px;
+    }
+    .label span.temp ha-icon {
+      --mdc-icon-size: 13px;
+    }
+    .label.alert button.name {
+      background: var(--error-color, #db4437);
+      color: #fff;
+      animation: homeslice-alert 1.2s ease-in-out infinite;
+    }
+    .label.alert span.temp {
+      opacity: 1;
+    }
+    @keyframes homeslice-alert {
+      50% {
+        box-shadow: 0 0 0 8px rgba(219, 68, 55, 0.35);
+      }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .label.alert button.name {
+        animation: none;
+      }
     }
     .lamp {
       pointer-events: auto;
