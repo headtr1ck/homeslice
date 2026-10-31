@@ -1266,5 +1266,7 @@
   "surface.none": "Kein Boden",
   "editor.texture_polyhaven_credit": "Foto-Texturen, frei (CC0), von Poly Haven. Home Assistant lädt eine Textur einmal herunter, wenn du sie wählst.",
   "editor.texture_loading": "Wird geladen…",
-  "editor.texture_more": "{count} weitere: über die Suche zu finden."
+  "editor.texture_more": "{count} weitere: über die Suche zu finden.",
+  "editor.entity_search": "Nach Name, Gerät oder ID suchen",
+  "editor.entity_none": "nicht verknüpft"
 }

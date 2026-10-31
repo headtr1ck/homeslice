@@ -1266,5 +1266,7 @@
   "surface.none": "No floor",
   "editor.texture_polyhaven_credit": "Photo textures, free (CC0), from Poly Haven. Home Assistant downloads a texture once, when you pick it.",
   "editor.texture_loading": "Downloading…",
-  "editor.texture_more": "{count} more: search to find them."
+  "editor.texture_more": "{count} more: search to find them.",
+  "editor.entity_search": "Search by name, device or id",
+  "editor.entity_none": "not linked"
 }

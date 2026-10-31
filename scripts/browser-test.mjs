@@ -502,6 +502,40 @@ console.log("demo house, roof");
     assert(looks >= 5, `${looks} finish textures in the scene`);
     await shot(page, "demo-painted");
   });
+  await test("a lamp linked to a light glows with it, and a tap on it toggles the light", async () => {
+    await act(page, async () => {
+      await page.evaluate(() => {
+        const m = structuredClone(window.__demoModel);
+        m.levels[0].rooms.find((r) => r.id === "living").furniture = [{ type: "floor_lamp", model: "modern:floor_lamp_drum", at: [2, 2], entity: "light.reading_lamp" }];
+        window.card.hass.pushModel(m);
+      });
+      await page.evaluate(() => window.card.renderer.modelsReady());
+    });
+    const glow = () => page.evaluate(() => (window.card.renderer.pieceGlows.get("light.reading_lamp") ?? []).map((m) => m.emissiveIntensity));
+    const state = () => page.evaluate(() => window.card.hass.states["light.reading_lamp"].state);
+    const before = await state();
+    assert((await glow()).length > 0, "the lamp's shade and bulb are not linked");
+    assert((await glow()).every((i) => (before === "on" ? i > 0.2 : i === 0)), `glow ${await glow()} for a light that is ${before}`);
+    // tap on the lamp: where its shade is on screen
+    const at = await page.evaluate(() => {
+      const r = window.card.renderer;
+      const piece = r.linked.find((g) => g.userData.entity === "light.reading_lamp");
+      const p = new piece.position.constructor();
+      piece.getWorldPosition(p);
+      p.y += 1.3;
+      p.project(r.camera);
+      const canvas = window.card.shadowRoot.querySelector("canvas").getBoundingClientRect();
+      return { x: canvas.left + ((p.x + 1) / 2) * canvas.width, y: canvas.top + ((1 - p.y) / 2) * canvas.height };
+    });
+    await page.mouse.click(at.x, at.y);
+    await page.waitForFunction((b) => window.card.hass.states["light.reading_lamp"].state !== b, before, { timeout: 3000 });
+    await page.waitForTimeout(300);
+    const after = await state();
+    assert((await glow()).every((i) => (after === "on" ? i > 0.2 : i === 0)), `glow ${await glow()} after the tap (${after})`);
+    await shot(page, "demo-lamp-linked");
+    await page.mouse.click(at.x, at.y);
+    await page.waitForFunction((b) => window.card.hass.states["light.reading_lamp"].state === b, before, { timeout: 3000 });
+  });
   await test("simple furniture when the card asks for it", async () => {
     await page.evaluate(() => {
       window.card.setConfig({ ...window.card.config, view: { ...window.card.config.view, furniture: "simple" } });
@@ -1586,7 +1620,11 @@ console.log("editor");
     await page.locator('homeslice-panel .inspector .library button[data-key="modern:floor_lamp_tripod"]').click();
     const lampMarkers = () => page.locator('homeslice-panel svg.plan [data-light*="light.reading_lamp"]').count();
     assert((await lampMarkers()) === 1, "the reading lamp should have its marker before linking");
-    await page.locator("homeslice-panel .inspector label", { hasText: "Linked to" }).locator("select").selectOption("light.reading_lamp");
+    const link = page.locator("homeslice-panel .inspector details.entity-picker");
+    await link.locator("summary").click();
+    await link.locator("input.entity-search").fill("reading");
+    assert((await link.locator("button.entity-option").count()) === 2, "search should leave 'not linked' and the reading lamp");
+    await link.locator('button.entity-option[data-entity="light.reading_lamp"]').click();
     const piece = (await room("living")).furniture.find((f) => f.type === "floor_lamp");
     assert(piece?.entity === "light.reading_lamp", `piece: ${JSON.stringify(piece)}`);
     assert((await lampMarkers()) === 0, "the lamp marker should give way to the piece");

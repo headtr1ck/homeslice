@@ -275,7 +275,13 @@ function shelves(b: Builder, w: number, d: number, h: number, m: THREE.Material,
 }
 
 /** Lamp shades: open cones and domes, light inside. */
-const shadeMat = (_finish: THREE.Material, color: string) => mat(["black", "anthracite"].includes(color) ? FINISHES[color] : C.shade, { side: THREE.DoubleSide });
+/** Marks a material as lit by its lamp: a card lights it with the linked light. */
+function glowing<M extends THREE.Material>(m: M): M {
+  m.userData.glow = true;
+  return m;
+}
+const shadeMat = (_finish: THREE.Material, color: string) =>
+  ["black", "anthracite"].includes(color) ? mat(FINISHES[color], { side: THREE.DoubleSide }) : glowing(mat(C.shade, { side: THREE.DoubleSide }));
 
 const BUILDERS: Record<string, Build> = {
   sofa: (b, w, d, _h, f, _c, a) => sofa(b, w, d, f, "none", a),
@@ -426,7 +432,7 @@ const BUILDERS: Record<string, Build> = {
   floor_lamp_globe: (b, w, _d, h, _f, _c, a) => {
     b.cyl(w * 0.45, w * 0.45, 0.025, 0, 0, 0, a, 28);
     b.cyl(0.01, 0.01, h - 0.3, 0, 0.025, 0, a, 8);
-    b.sphere(w * 0.5, 0, h - w * 0.5, 0, mat("#f6f1e6", { transparent: true, opacity: 0.92 }), 1, 1, 1, 24);
+    b.sphere(w * 0.5, 0, h - w * 0.5, 0, glowing(mat("#f6f1e6", { transparent: true, opacity: 0.92 })), 1, 1, 1, 24);
   },
   table_lamp: (b, w, _d, h, f, color, a) => {
     b.sphere(w * 0.28, 0, h * 0.24, 0, f, 1, 0.9, 1, 20);
@@ -3699,9 +3705,9 @@ function canopyAndCord(b: Builder, h: number, y: number, m: THREE.Material) {
 function bulb(b: Builder, x: number, y: number, z: number, r: number) {
   b.sphere(r, x, y, z, glowMat(), 1, 1.15, 1, 14);
 }
-const glowMat = () => mat("#fff6df", { emissive: "#fff2cc", emissiveIntensity: 0.8, side: THREE.DoubleSide });
+const glowMat = () => glowing(mat("#fff6df", { emissive: "#fff2cc", emissiveIntensity: 0.8, side: THREE.DoubleSide }));
 /** Opal glass: lit from within. */
-const opal = () => mat("#e6e1d6", { emissive: "#fff1d6", emissiveIntensity: 0.12, roughness: 0.5, side: THREE.DoubleSide });
+const opal = () => glowing(mat("#e6e1d6", { emissive: "#fff1d6", emissiveIntensity: 0.12, roughness: 0.5, side: THREE.DoubleSide }));
 
 /** Woven rattan or wicker, see-through-ish and double-sided. */
 const wicker = new Map<string, THREE.MeshStandardMaterial>();

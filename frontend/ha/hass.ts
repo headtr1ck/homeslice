@@ -14,7 +14,7 @@ export interface Hass {
   states: Record<string, HassEntityState>;
   areas?: Record<string, { area_id: string; name: string; icon?: string | null; floor_id?: string | null; temperature_entity_id?: string | null }>;
   floors?: Record<string, { floor_id: string; name: string; level?: number | null }>;
-  devices?: Record<string, { id: string; area_id?: string | null }>;
+  devices?: Record<string, { id: string; area_id?: string | null; name?: string | null; name_by_user?: string | null }>;
   entities?: Record<string, { entity_id: string; area_id?: string | null; device_id?: string | null; hidden?: boolean; entity_category?: string | null }>;
   callWS<T>(msg: Record<string, unknown>): Promise<T>;
   connection?: {

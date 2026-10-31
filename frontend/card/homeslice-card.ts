@@ -436,6 +436,13 @@ export class HomesliceCard extends LitElement {
     this.flowFrame = requestAnimationFrame(step);
   }
 
+  /** What a tap on a linked piece does: toggle what can be toggled, else HA's details. */
+  private useEntity(entity: string) {
+    const domain = entity.split(".")[0];
+    if (["light", "switch", "fan", "input_boolean"].includes(domain)) void this.hass?.callService("homeassistant", "toggle", {}, { entity_id: entity });
+    else this.moreInfo(entity);
+  }
+
   /** HA's own details dialog for an entity. */
   private moreInfo(entityId: string) {
     this.dispatchEvent(new CustomEvent("hass-more-info", { detail: { entityId }, bubbles: true, composed: true }));
@@ -774,6 +781,15 @@ export class HomesliceCard extends LitElement {
     }
     if (!this.renderer || this.transitioning) return;
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    // a piece linked to an entity: lamps and switches toggle, the rest show their details
+    const entity = this.renderer.pickEntity(e.clientX - rect.left, e.clientY - rect.top);
+    if (entity) {
+      clearTimeout(this.clickTimer);
+      // (with a free camera, wait: a second click makes it a double-click)
+      if (!this.interactive) this.useEntity(entity);
+      else this.clickTimer = window.setTimeout(() => this.useEntity(entity), 250);
+      return;
+    }
     const key = this.renderer.pick(e.clientX - rect.left, e.clientY - rect.top);
     if (!key) return;
     // wait a moment: a second click makes it a double-click (reset view), not a popup

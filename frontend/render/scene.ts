@@ -262,6 +262,12 @@ export class HouseRenderer {
   private glasses = new Map<string, THREE.MeshLambertMaterial>();
   /** Lamps by entity: the fitting and its pool of light on the floor. */
   private lamps = new Map<string, THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>[]>();
+  /** The glowing parts (bulbs, shades, opal glass) of pieces linked to a light, by light. */
+  private pieceGlows = new Map<string, THREE.MeshLambertMaterial[]>();
+  /** Each light's last look, for pieces that finish loading later. */
+  private lampLooks = new Map<string, LightLook | null>();
+  /** Pieces linked to an entity, for taps. */
+  private linked: THREE.Object3D[] = [];
   private lampObjects: THREE.Object3D[] = [];
   private glowTexture?: THREE.Texture;
   private roof: THREE.Group | null = null;
@@ -382,6 +388,8 @@ export class HouseRenderer {
     this.levels = [];
     this.levelIds = [];
     this.floors.clear();
+    this.pieceGlows.clear();
+    this.linked = [];
     this.covers.clear();
     this.glasses.clear();
     this.awnings.clear();
@@ -790,8 +798,45 @@ export class HouseRenderer {
     }
   }
 
+  /**
+   * A piece linked to a light: its glowing parts get their own materials (in the level's
+   * fade, not its hover tint, which also uses the glow) and follow the light.
+   */
+  private linkGlow(entity: string, piece: THREE.Object3D, materials: Set<THREE.Material>) {
+    const own = new Map<THREE.Material, THREE.MeshLambertMaterial>();
+    piece.traverse((o) => {
+      if (!(o instanceof THREE.Mesh)) return;
+      const swap = (m: THREE.Material) => {
+        if (!m.userData.glow) return m;
+        let c = own.get(m);
+        if (!c) {
+          own.set(m, (c = (m as THREE.MeshLambertMaterial).clone()));
+          materials.add(c);
+        }
+        return c;
+      };
+      o.material = Array.isArray(o.material) ? o.material.map(swap) : swap(o.material);
+    });
+    if (!own.size) return;
+    const list = this.pieceGlows.get(entity) ?? [];
+    list.push(...own.values());
+    this.pieceGlows.set(entity, list);
+    if (this.lampLooks.has(entity)) this.setLamp(entity, this.lampLooks.get(entity)!);
+  }
+
   /** A lamp's light: colour and brightness, or null when off. */
   setLamp(entity: string, light: LightLook | null) {
+    this.lampLooks.set(entity, light);
+    // the piece itself: bulbs and shades lit in the light's colour, dull when off
+    for (const m of this.pieceGlows.get(entity) ?? []) {
+      if (light) {
+        m.emissive.setRGB(light.rgb[0] / 255, light.rgb[1] / 255, light.rgb[2] / 255, THREE.SRGBColorSpace);
+        m.emissiveIntensity = 0.25 + 0.75 * light.brightness;
+      } else {
+        m.emissive.setRGB(0, 0, 0);
+        m.emissiveIntensity = 0;
+      }
+    }
     for (const glow of this.lamps.get(entity) ?? []) {
       if (!light) {
         glow.visible = false;
@@ -1155,7 +1200,11 @@ export class HouseRenderer {
     g.rotation.y = -(f.rotation * Math.PI) / 180;
     // mirrored in its own frame, before turning
     if (f.mirror) g.scale.x = -1;
-    g.traverse((o) => (o.userData.outdoor = true)); // not a tap target: taps go to the room
+    g.traverse((o) => (o.userData.outdoor = true)); // not a tap target for rooms: taps go to the room
+    if (f.entity) {
+      g.userData.entity = f.entity;
+      this.linked.push(g);
+    }
     if (this.view.furniture === "detailed" && detailFor(f)) this.detail(g, f);
     return g;
   }
@@ -1170,6 +1219,7 @@ export class HouseRenderer {
       if (!m) {
         const s = source as THREE.MeshStandardMaterial;
         m = new THREE.MeshLambertMaterial({ color: modelColor(source), map: s.map ?? null, transparent: s.transparent, opacity: s.opacity, side: s.side, emissive: s.emissive ?? 0x000000, emissiveIntensity: s.emissiveIntensity ?? 1 });
+        if (source.userData.glow) m.userData.glow = true;
         converted.set(source, m);
         materials.add(m);
         // join the level's fading and hover tint as they are now
@@ -1199,6 +1249,7 @@ export class HouseRenderer {
       }
       piece.traverse((o) => (o.userData.outdoor = true));
       piece.userData.detailed = true;
+      if (f.entity?.startsWith("light.")) this.linkGlow(f.entity, piece, materials);
       g.add(piece);
       const level = this.levels.find((l) => l.materials === materials);
       if (level) this.applyLevel(level);
@@ -1285,6 +1336,26 @@ export class HouseRenderer {
       c.strip.mesh.visible = cut || !c.shutter;
       if (c.shutter) c.shutter.mesh.visible = !cut && c.closed > 0.01;
     }
+  }
+
+  /**
+   * The entity of a linked piece under a canvas position (CSS px), if it is in front of
+   * the floor there.
+   */
+  pickEntity(x: number, y: number): string | null {
+    const ndc = new THREE.Vector2((x / this.size.width) * 2 - 1, -(y / this.size.height) * 2 + 1);
+    const ray = new THREE.Raycaster();
+    ray.setFromCamera(ndc, this.camera);
+    const visible = (o: THREE.Object3D) => {
+      const level = this.levels.find((l) => l.group === o.parent);
+      return !!level && level.group.visible && level.opacity > 0.5;
+    };
+    const pieces = this.linked.filter(visible);
+    if (!pieces.length) return null;
+    const hit = ray.intersectObjects([...pieces, ...[...this.floors.values()].filter(visible)], true).find((h) => h.object.visible)?.object;
+    let o: THREE.Object3D | null = hit ?? null;
+    while (o && !o.userData.entity && !o.userData.room) o = o.parent;
+    return (o?.userData.entity as string | undefined) ?? null;
   }
 
   /** Room under a canvas position (CSS px), as `level/room`. */

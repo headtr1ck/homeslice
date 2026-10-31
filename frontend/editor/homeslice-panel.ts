@@ -360,6 +360,7 @@ export class HomeslicePanel extends LitElement {
     _finishSource: { state: true },
     _textureFilter: { state: true },
     _textureBusy: { state: true },
+    _entityFilter: { state: true },
     _customModels: { state: true },
     _placing: { state: true },
     _libraryError: { state: true },
@@ -462,6 +463,7 @@ export class HomeslicePanel extends LitElement {
   private _finishSource: "builtin" | "polyhaven" = "builtin";
   private _textureFilter = "";
   private _textureBusy: string | null = null;
+  private _entityFilter = "";
   private _customModels: CustomAsset[] | null = null;
   /** A library item being downloaded or measured before it is placed. */
   private _placing: string | null = null;
@@ -2234,7 +2236,7 @@ export class HomeslicePanel extends LitElement {
       </div>
       <p class="muted">${this.t(`editor.mount_${mountOf(f)}_hint` as StringKey)}</p>
       ${this.renderSnapPieces()}
-      ${this.linkSelect(r.area_id, f.entity, (entity) => set({ entity }))}
+      ${this.linkSelect(r.area_id, f.entity, (entity) => set({ entity }), ["floor_lamp", "table_lamp", "wall_lamp", "ceiling_lamp", "ceiling_fan"].includes(f.type) ? "light" : f.type === "tv" ? "media_player" : undefined)}
       <p class="muted">${this.t("editor.furniture_entity_hint")}</p>
       <div class="row">
         <button title=${this.t("editor.turn_left")} @click=${() => this.rotateFurniture(-90)}>⟲ 90°</button>
@@ -3912,20 +3914,47 @@ export class HomeslicePanel extends LitElement {
   }
 
   /** An entity a piece of furniture is: the area's own first, then all of the usual domains. */
-  private linkSelect(areaId: string | undefined, value: string | undefined, onChange: (id: string | undefined) => void) {
-    const domains = ["light", "switch", "media_player", "fan", "climate", "humidifier", "vacuum", "sensor", "binary_sensor", "cover", "water_heater"];
+  /**
+   * What a piece is in Home Assistant: a searchable list of entities (by name, id, device
+   * or area), the room's own first, lights first for lamps.
+   */
+  private linkSelect(areaId: string | undefined, value: string | undefined, onChange: (id: string | undefined) => void, prefer?: string) {
+    const domains = ["light", "switch", "media_player", "fan", "climate", "humidifier", "vacuum", "lawn_mower", "sensor", "binary_sensor", "cover", "water_heater", "lock", "camera", "remote", "input_boolean", "valve", "siren", "button"];
     const hass = this._hass;
     const states = hass?.states ?? {};
     const name = (id: string) => (states[id]?.attributes.friendly_name as string | undefined) ?? id;
-    const all = Object.keys(states).filter((id) => domains.includes(id.split(".")[0]));
+    const deviceOf = (id: string) => {
+      const d = hass?.entities?.[id]?.device_id;
+      const dev = d ? hass?.devices?.[d] : undefined;
+      return dev ? (dev.name_by_user ?? dev.name ?? undefined) : undefined;
+    };
     const own = new Set(areaId && hass ? domains.flatMap((d) => areaEntities(hass, areaId, d)) : []);
-    const ids = [...all.filter((id) => own.has(id)).sort((a, b) => name(a).localeCompare(name(b))), ...all.filter((id) => !own.has(id)).sort((a, b) => name(a).localeCompare(name(b)))];
-    return html`<label>${this.t("editor.furniture_entity")}
-      <select @change=${(e: Event) => onChange((e.target as HTMLSelectElement).value || undefined)}>
-        <option value="">—</option>
-        ${ids.map((id) => html`<option value=${id} ?selected=${value === id}>${own.has(id) ? `★ ${name(id)}` : name(id)}</option>`)}
-      </select>
-    </label>`;
+    const words = this._entityFilter.trim().toLowerCase().split(/\s+/).filter(Boolean);
+    const rank = (id: string) => (own.has(id) ? 0 : 2) + (prefer && id.startsWith(`${prefer}.`) ? 0 : 1);
+    const ids = Object.keys(states)
+      .filter((id) => domains.includes(id.split(".")[0]))
+      .filter((id) => words.every((w) => `${name(id)} ${id} ${deviceOf(id) ?? ""}`.toLowerCase().includes(w)))
+      .sort((a, b) => rank(a) - rank(b) || name(a).localeCompare(name(b)));
+    const choose = (e: Event, id: string | undefined) => {
+      (e.currentTarget as HTMLElement).closest("details")?.removeAttribute("open");
+      this._entityFilter = "";
+      onChange(id);
+    };
+    return html`<div class="entity-link">
+      <span class="label">${this.t("editor.furniture_entity")}</span>
+      <details class="entity-picker">
+        <summary>${value ? html`<b>${name(value)}</b> <span class="muted">${deviceOf(value) ? `${deviceOf(value)} · ` : ""}${value}</span>` : "—"}</summary>
+        <input class="entity-search" type="search" placeholder=${this.t("editor.entity_search")} aria-label=${this.t("editor.entity_search")} .value=${this._entityFilter}
+          @input=${(e: Event) => (this._entityFilter = (e.target as HTMLInputElement).value)} />
+        <button class="entity-option" data-entity="" @click=${(e: Event) => choose(e, undefined)}>— ${this.t("editor.entity_none")}</button>
+        ${ids.slice(0, 40).map(
+          (id) => html`<button class="entity-option ${value === id ? "active" : ""}" data-entity=${id} @click=${(e: Event) => choose(e, id)}>
+            <b>${own.has(id) ? "★ " : ""}${name(id)}</b><span class="muted">${deviceOf(id) ? `${deviceOf(id)} · ` : ""}${id}</span>
+          </button>`,
+        )}
+        ${ids.length > 40 ? html`<p class="muted">${this.t("editor.texture_more", { count: ids.length - 40 })}</p>` : nothing}
+      </details>
+    </div>`;
   }
 
   /** The switch between snapping pieces into place and placing them freely. */
@@ -4872,6 +4901,38 @@ export class HomeslicePanel extends LitElement {
       align-items: center;
       gap: 6px;
       margin: 6px 0;
+    }
+    .entity-link .label {
+      display: block;
+      margin-top: 8px;
+      font-size: 12px;
+      color: var(--secondary-text-color, #999);
+    }
+    .entity-picker summary {
+      cursor: pointer;
+      padding: 6px 8px;
+      border-radius: 8px;
+      border: 1px solid var(--divider-color, #444);
+    }
+    .entity-picker .entity-search {
+      width: 100%;
+      margin: 6px 0;
+      box-sizing: border-box;
+    }
+    button.entity-option {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      width: 100%;
+      text-align: left;
+      padding: 4px 8px;
+      margin: 1px 0;
+    }
+    button.entity-option.active {
+      outline: 2px solid var(--accent);
+    }
+    button.entity-option .muted {
+      font-size: 11px;
     }
     .finish-picker {
       margin: 4px 0 8px;
