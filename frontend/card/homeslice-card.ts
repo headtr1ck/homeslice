@@ -1072,7 +1072,10 @@ export class HomesliceCard extends LitElement {
     .label span.name {
       font-size: 12px;
       font-weight: 500;
-      white-space: nowrap;
+      /* long names break between words instead of running over the next room */
+      max-width: 9em;
+      text-align: center;
+      line-height: 1.15;
     }
     .label span.temp {
       font-size: 11px;

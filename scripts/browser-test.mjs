@@ -792,14 +792,32 @@ console.log("editor");
     assert((await page.locator("homeslice-panel button.save").textContent()).trim() === "Saved", "save button doesn't say Saved");
   });
 
+  /** A spot on an outside wall that nothing else covers (doors and windows are clickable too). */
+  const freeOutlineSpot = (westmost) =>
+    page.evaluate((westmost) => {
+      const root = window.panel.shadowRoot;
+      const spots = [];
+      for (const l of root.querySelectorAll("svg.plan line.wall-hit[data-outline]")) {
+        const r = l.getBoundingClientRect();
+        for (let t = 0.1; t < 0.95; t += 0.05) {
+          const x = r.left + r.width * t;
+          const y = r.top + r.height * t;
+          const [x1, y1, x2, y2] = ["x1", "y1", "x2", "y2"].map((k) => l[k].baseVal.value);
+          const svg = root.querySelector("svg.plan").getBoundingClientRect();
+          const px = svg.left + x1 + (x2 - x1) * t;
+          const py = svg.top + y1 + (y2 - y1) * t;
+          if (root.elementFromPoint(px, py) === l) spots.push({ x: px, y: py });
+          void x;
+          void y;
+        }
+      }
+      return westmost ? spots.sort((a, b) => a.x - b.x)[0] : spots[0];
+    }, westmost);
+
   await test("outside walls: select the outline, moving the façade moves every floor", async () => {
     await page.keyboard.press("Escape");
     // the west wall's click zone
-    const west = await page.evaluate(() => {
-      const lines = [...window.panel.shadowRoot.querySelectorAll("svg.plan line.wall-hit[data-outline]")];
-      const r = lines.map((l) => l.getBoundingClientRect()).sort((a, b) => a.left - b.left)[0];
-      return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
-    });
+    const west = await freeOutlineSpot(true);
     await page.mouse.click(west.x, west.y);
     assert((await page.locator("homeslice-panel .inspector h2").textContent()) === "Outside walls", "outline not selected");
     const handle = page.locator('homeslice-panel svg.plan rect.edge-handle[data-at="[[8,10],[0,10]]"]');
@@ -880,7 +898,7 @@ console.log("editor");
   });
 
   await test("doors & windows: the distances to the corners and the width can be typed", async () => {
-    await page.locator("homeslice-panel .segmented.modes button", { hasText: "Doors & windows" }).click();
+    await page.locator('homeslice-panel aside.tools button.tool[data-tool="opening"]').click();
     const hit = await page.evaluate(() => {
       const l = [...window.panel.shadowRoot.querySelectorAll("svg.plan line.opening-hit")].find((x) => JSON.parse(x.dataset.opening).room === "hall");
       const r = l.getBoundingClientRect();
@@ -963,12 +981,14 @@ console.log("editor");
   });
 
   await test("doors & windows: house-wide defaults for sill and height", async () => {
+    await page.keyboard.press("Escape");
+    await page.locator('homeslice-panel aside.tools button.tool[data-tool="opening"]').click();
     const sill = page.locator('homeslice-panel .inspector input[aria-label="Window Sill (m)"]');
     await sill.fill("0");
     await sill.dispatchEvent("change");
     assert((await model()).opening_defaults?.window?.sill === 0, `defaults: ${JSON.stringify((await model()).opening_defaults)}`);
     await page.keyboard.press("Control+z");
-    await page.locator("homeslice-panel .segmented.modes button", { hasText: "Rooms & walls" }).click();
+    await page.locator('homeslice-panel aside.tools button.tool[data-tool="select"]').click();
   });
 
   await test("measuring between two points", async () => {
@@ -1008,10 +1028,7 @@ console.log("editor");
 
   await test("building settings: wall thickness, neighbours, floor slab, one wall's own thickness", async () => {
     await page.keyboard.press("Escape");
-    const outer = await page.evaluate(() => {
-      const r = window.panel.shadowRoot.querySelector("svg.plan line.wall-hit[data-outline]").getBoundingClientRect();
-      return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
-    });
+    const outer = await freeOutlineSpot(false);
     await page.mouse.click(outer.x, outer.y);
     assert((await page.locator("homeslice-panel .inspector h2").textContent()) === "Outside walls", "outline not selected");
     await typeInto("Outside (cm)", 42);
@@ -1106,7 +1123,7 @@ console.log("editor");
 
   await test("doors & windows: click a wall to add a window, drag it, link a blind, delete it", async () => {
     await page.keyboard.press("Escape");
-    await page.locator("homeslice-panel .segmented.modes button", { hasText: "Doors & windows" }).click();
+    await page.locator('homeslice-panel aside.tools button.tool[data-tool="opening"]').click();
     const before = (await model()).levels[0].openings.length;
     // a free stretch of the kitchen's north wall (x = 6.8; an earlier step moved the kitchen to x = 3.5 … 8)
     const at = await page.evaluate(() => {
@@ -1149,7 +1166,7 @@ console.log("editor");
 
     await page.keyboard.press("Delete");
     assert((await model()).levels[0].openings.length === before, "window not deleted");
-    await page.locator("homeslice-panel .segmented.modes button", { hasText: "Rooms & walls" }).click();
+    await page.locator('homeslice-panel aside.tools button.tool[data-tool="select"]').click();
   });
 
   await test("stairs: select, move, change shape, draw new ones and delete them", async () => {
@@ -1190,7 +1207,7 @@ console.log("editor");
 
   await test("objects mode: lights are placed automatically and can be dragged into another room", async () => {
     await page.keyboard.press("Escape");
-    await page.locator("homeslice-panel .modes button", { hasText: "Objects" }).click();
+    await page.locator('homeslice-panel aside.tools button.tool[data-tool="select"]').click();
     const markers = page.locator("homeslice-panel svg.plan g.lamp-marker");
     assert((await markers.count()) >= 3, `lamp markers: ${await markers.count()}`);
     assert((await page.locator("homeslice-panel svg.plan g.lamp-marker.placed").count()) === 0, "nothing is placed yet");
@@ -1218,15 +1235,17 @@ console.log("editor");
     assert((await room("kitchen")).lights?.[0]?.hidden === true, "not hidden");
     await page.locator("homeslice-panel .inspector ul.lights li.hidden button").click();
     assert(!(await room("kitchen")).lights, "hidden entry not removed by Show");
-    await page.locator("homeslice-panel .modes button", { hasText: "Rooms" }).click();
+    await page.locator('homeslice-panel aside.tools button.tool[data-tool="select"]').click();
     assert(errors.length === 0, errors.join(" | "));
   });
 
   await test("objects mode: add furniture, drag it into another room, turn and delete it", async () => {
     await page.keyboard.press("Escape");
-    await page.locator("homeslice-panel .modes button", { hasText: "Objects" }).click();
+    await page.locator('homeslice-panel aside.tools button.tool[data-tool="select"]').click();
     const kb = await page.locator('homeslice-panel svg.plan g[data-room="kitchen"] polygon').boundingBox();
     await page.mouse.click(kb.x + kb.width * 0.8, kb.y + kb.height * 0.85);
+    // the room's inspector offers furniture: the furniture tool's library, for this room
+    await page.locator("homeslice-panel .inspector button", { hasText: "Add furniture" }).click();
     await page.locator('homeslice-panel .inspector .library button[data-type="table"]').click();
     assert((await room("kitchen")).furniture?.[0]?.type === "table", `kitchen: ${JSON.stringify((await room("kitchen")).furniture)}`);
     assert((await page.locator("homeslice-panel .inspector h2").textContent()) === "Table", "new table not selected");
@@ -1250,13 +1269,13 @@ console.log("editor");
     await page.keyboard.press("Delete");
     assert(!(await room("living")).furniture, "not deleted");
     await page.keyboard.press("Escape");
-    await page.locator("homeslice-panel .modes button", { hasText: "Rooms" }).click();
+    await page.locator('homeslice-panel aside.tools button.tool[data-tool="select"]').click();
     assert(errors.length === 0, errors.join(" | "));
   });
 
   await test("furniture library: grouped with pictures; drag pieces onto rooms, wall pieces go against a wall", async () => {
     await page.keyboard.press("Escape");
-    await page.locator("homeslice-panel .modes button", { hasText: "Objects" }).click();
+    await page.locator('homeslice-panel aside.tools button.tool[data-tool="furniture"]').click();
     const groups = await page.locator("homeslice-panel .inspector h4").allTextContents();
     assert(groups[0] === "Living" && groups.includes("Bathroom") && groups.includes("Lighting"), `groups: ${groups.join(", ")}`);
     // searching narrows the library down
@@ -1267,7 +1286,7 @@ console.log("editor");
     // every type has its picture
     await page.locator("homeslice-panel .inspector .library").last().scrollIntoViewIfNeeded();
     await page.waitForFunction(() => [...window.panel.shadowRoot.querySelectorAll(".library img")].every((i) => i.complete && i.naturalWidth > 0), null, { timeout: 10000 });
-    await page.locator("homeslice-panel .inspector h3", { hasText: "Furniture library" }).scrollIntoViewIfNeeded();
+    await page.locator("homeslice-panel .inspector input.library-search").scrollIntoViewIfNeeded();
     await shot(page, "editor-library-panel");
     // HTML drag and drop from the library onto the plan, as the browser does it
     const dropPiece = (type, x, y) =>
@@ -1317,13 +1336,13 @@ console.log("editor");
     await page.keyboard.press("Control+z");
     await page.keyboard.press("Control+z");
     await page.keyboard.press("Escape");
-    await page.locator("homeslice-panel .modes button", { hasText: "Rooms" }).click();
+    await page.locator('homeslice-panel aside.tools button.tool[data-tool="select"]').click();
     assert(errors.length === 0, errors.join(" | "));
   });
 
   await test("robots: place a mower's dock, show it live from GPS after two calibration spots", async () => {
     await page.keyboard.press("Escape");
-    await page.locator("homeslice-panel .modes button", { hasText: "Objects" }).click();
+    await page.locator('homeslice-panel aside.tools button.tool[data-tool="devices"]').click();
     await page.locator("homeslice-panel .inspector ul.lights li", { hasText: "Mower" }).locator("button").click();
     assert((await page.locator("homeslice-panel .help").textContent()).includes("Click where the dock of Mower is"), "no placing hint");
     const dockAt = await toPage([6, 9.3]);
@@ -1353,13 +1372,13 @@ console.log("editor");
     assert(Math.hypot(live.x + live.width / 2 - spot.x, live.y + live.height / 2 - spot.y) < 3, `live dot at ${JSON.stringify(live)}, expected ${JSON.stringify(spot)}`);
     await shot(page, "editor-robot");
     await page.keyboard.press("Escape");
-    await page.locator("homeslice-panel .modes button", { hasText: "Rooms" }).click();
+    await page.locator('homeslice-panel aside.tools button.tool[data-tool="select"]').click();
     assert(errors.length === 0, errors.join(" | "));
   });
 
   await test("objects mode: place energy items from HA's energy settings", async () => {
     await page.keyboard.press("Escape");
-    await page.locator("homeslice-panel .modes button", { hasText: "Objects" }).click();
+    await page.locator('homeslice-panel aside.tools button.tool[data-tool="devices"]').click();
     const offers = await page.locator("homeslice-panel .inspector ul.offers li .name").allTextContents();
     assert(["Solar", "Battery", "Grid", "Inverter", "Heat pump"].every((n) => offers.includes(n)), `offers: ${offers}`);
     await page.locator("homeslice-panel .inspector ul.offers li", { hasText: "Battery" }).locator("button").click();
@@ -1381,11 +1400,13 @@ console.log("editor");
     assert((await page.locator("homeslice-panel .inspector h2").textContent()) === "Battery", "battery not selected");
     assert(await page.locator("homeslice-panel .inspector label", { hasText: "Charge sensor" }).count(), "no charge sensor for the battery");
     await page.keyboard.press("Escape");
+    await page.locator('homeslice-panel aside.tools button.tool[data-tool="devices"]').click();
     await page.locator("homeslice-panel .inspector ul.offers li", { hasText: "Solar" }).locator("button").click();
     assert((await model()).energy[1].kind === "solar", "solar not added");
     // a heat pump and a grid meter; the heat pump's line goes to the battery (the hub) by itself
     const placeAt = async (name, x, y) => {
       await page.keyboard.press("Escape");
+    await page.locator('homeslice-panel aside.tools button.tool[data-tool="devices"]').click();
       await page.locator("homeslice-panel .inspector ul.offers li", { hasText: name }).locator("button").click();
       await page.mouse.click(plan.x + ox + x * scale, plan.y + oy + y * scale);
     };
@@ -1410,11 +1431,12 @@ console.log("editor");
     assert((await page.locator("homeslice-panel svg.plan line.energy-link").count()) >= 2, "lines not drawn on the plan");
     await shot(page, "editor-energy");
     await page.keyboard.press("Escape");
+    await page.locator('homeslice-panel aside.tools button.tool[data-tool="devices"]').click();
     await page.locator("homeslice-panel .inspector ul.energy li", { hasText: "Battery" }).locator("button:not(.link)").click();
     assert((await model()).energy.length === 3, "battery not removed");
     assert((await model()).energy.every((e) => e.to === undefined), "lines to the removed battery should go back to the hub");
     await page.keyboard.press("Control+z");
-    await page.locator("homeslice-panel .modes button", { hasText: "Rooms" }).click();
+    await page.locator('homeslice-panel aside.tools button.tool[data-tool="select"]').click();
     assert(errors.length === 0, errors.join(" | "));
   });
 
