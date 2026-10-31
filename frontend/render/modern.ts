@@ -684,7 +684,14 @@ const BUILDERS: Record<string, Build> = {
     for (let i = 0; i < n; i++) {
       const x = -w / 2 + (w / n) * (i + 0.5);
       b.rod(v(x, h - 0.05, back(d) + 0.02), v(x, h - 0.02, back(d) + 0.08), 0.008, a);
-      if (i % 2 === 0) b.box(0.32, h - 0.12, 0.08, x, 0, back(d) + 0.07, mat(C.clothes[Math.floor(rand() * C.clothes.length)], { roughness: 1 }), 0.03);
+      if (i % 2 === 0) {
+        // a coat: shoulders narrow at the hook, wider and longer below, sleeves at the sides
+        const cm = mat(C.clothes[Math.floor(rand() * C.clothes.length)], { roughness: 1 });
+        const coat = new THREE.CylinderGeometry(0.1, 0.17, h - 0.12, 4, 1, false, Math.PI / 4);
+        coat.scale(1, 1, 0.35);
+        b.add(coat, cm, x, (h - 0.12) / 2, back(d) + 0.07);
+        for (const sx of [-1, 1]) b.add(new THREE.CapsuleGeometry(0.03, (h - 0.12) * 0.55, 4, 8), cm, x + sx * 0.13, (h - 0.12) * 0.6, back(d) + 0.08).rotation.z = sx * 0.12;
+      }
     }
   },
   coat_stand: (b, w, _d, h, f) => {
@@ -1398,7 +1405,7 @@ const BUILDERS: Record<string, Build> = {
   },
   kitchen_upper_glass: (b, w, d, h, f) => {
     const n = Math.max(1, Math.round(w / 0.5));
-    b.box(w, h, d - 0.02, 0, 0, back(d) + (d - 0.02) / 2, mat("#e8e6e1"));
+    hollow(b, w, h, d - 0.02, 0, back(d) + (d - 0.02) / 2, mat("#e8e6e1"), 0.018);
     for (let s = 1; s < 3; s++) b.box(w - 0.04, 0.015, d - 0.06, 0, (h * s) / 3, back(d) + (d - 0.04) / 2, mat("#f3f1ec"));
     for (let s = 0; s < 3; s++) for (let i = 0; i < Math.floor((w - 0.06) / 0.12); i++) b.cyl(0.05, 0.04, 0.03, -w / 2 + 0.09 + i * 0.12, (h * s) / 3 + 0.02, -0.03, mat(C.ceramic), 14);
     const cw = w / n;
@@ -3062,6 +3069,173 @@ const BUILDERS: Record<string, Build> = {
       b.batch(leaf.clone(), leafMat(i % 2 ? C.leaf : "#3f7037"), matrix(Math.cos(ang) * rr, ph + t * (h - ph), Math.sin(ang) * rr, rand() * 3, rand() * 6, rand() * 3));
     }
   },
+  // ----- bathroom, hall and kitchen extras -----
+  towel_ladder: (b, w, d, h, f) => {
+    const zAt = (y: number) => d / 2 - 0.02 - (y / h) * (d - 0.04);
+    for (const sx of [-1, 1]) b.rod(v(sx * (w / 2 - 0.02), 0, zAt(0)), v(sx * (w / 2 - 0.02), h, zAt(h)), 0.016, f, 6);
+    for (let i = 1; i < 5; i++) {
+      const y = (i * h) / 5;
+      b.add(new THREE.CylinderGeometry(0.012, 0.012, w - 0.04, 8).rotateZ(Math.PI / 2), f, 0, y, zAt(y));
+      if (i % 2) b.box(w * 0.7, 0.35, 0.03, 0, y - 0.34, zAt(y) + 0.02, mat(i === 1 ? C.linen : "#9fb3c8", { roughness: 1 }), 0.01);
+    }
+  },
+  bath_tall_cabinet: (b, w, d, h, f, _c, a) => {
+    b.box(w, h, d - 0.02, 0, 0, -0.01, f, 0.006);
+    fronts(b, -w / 2, w, 0.02, h * 0.62, d / 2 - 0.038, 1, f, 1, "bar", a);
+    b.box(w - 0.04, 0.02, d - 0.06, 0, h * 0.66, 0, f);
+    for (let i = 0; i < 3; i++) b.cyl(0.03, 0.03, 0.12, -w * 0.25 + i * w * 0.25, h * 0.66 + 0.02, 0, mat(["#f2f2f2", "#9fd3e0", "#e8c8a8"][i]), 12);
+    fronts(b, -w / 2, w, h * 0.82, h * 0.16, d / 2 - 0.038, 1, f, 1, "bar", a);
+  },
+  bath_shelf: (b, w, d, h, f) => {
+    // a wall shelf with rolled towels and bottles
+    for (const y of [0, h - 0.02]) b.box(w, 0.02, d, 0, y, 0, f, 0.004);
+    for (const sx of [-1, 1]) b.box(0.02, h, d, sx * (w / 2 - 0.01), 0, 0, f);
+    for (let i = 0; i < 3; i++) b.add(new THREE.CylinderGeometry(0.06, 0.06, d * 0.8, 14).rotateX(Math.PI / 2), mat(["#f4f1ea", "#9fb3c8", "#f4f1ea"][i]), -w * 0.25 + i * 0.12, 0.08, 0);
+    for (let i = 0; i < 3; i++) b.cyl(0.025, 0.028, 0.14 + i * 0.03, w * 0.15 + i * 0.07, 0.02, 0, mat(["#dfe6ea", "#c9a47c", "#2b2c2e"][i], { roughness: 0.4 }), 10);
+  },
+  mirror_lit: (b, w, d, h, f) => {
+    // a mirror with a glowing edge
+    b.box(w, h, d * 0.5, 0, 0, -d / 4, f, 0.02);
+    b.box(w - 0.01, h - 0.01, 0.004, 0, 0.005, d / 4, mat("#fff6df", { emissive: "#fff2cc", emissiveIntensity: 0.8 }), 0.02);
+    b.box(w - 0.05, h - 0.05, 0.006, 0, 0.025, d / 4 + 0.002, mat(C.mirror, { metalness: 0.9, roughness: 0.05 }), 0.015);
+  },
+  laundry_hamper: (b, w, d, h, f) => {
+    b.box(w, h - 0.03, d, 0, 0, 0, wickerMat("sand"), 0.03);
+    b.box(w + 0.01, 0.04, d + 0.01, 0, h - 0.04, 0, f, 0.015);
+  },
+  console_table: (b, w, d, h, f, _c, a) => {
+    b.box(w, 0.03, d, 0, h - 0.03, 0, f, 0.006);
+    b.box(w - 0.06, 0.02, d - 0.04, 0, 0.18, 0, f, 0.004);
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) b.box(0.025, h - 0.03, 0.025, sx * (w / 2 - 0.03), 0, sz * (d / 2 - 0.03), a);
+    b.cyl(0.07, 0.05, 0.2, -w * 0.3, h, 0, mat(C.ceramic), 16);
+    b.cyl(0.08, 0.08, 0.02, w * 0.25, h, 0, mat(FINISHES.brass, { metalness: 0.7, roughness: 0.3 }), 18);
+  },
+  umbrella_stand: (b, w, d, h, f) => {
+    const r = Math.min(w, d) / 2;
+    b.cyl(r, r * 0.9, h, 0, 0, 0, f, 20);
+    for (let i = 0; i < 3; i++) {
+      const ang = (i / 3) * Math.PI * 2;
+      b.rod(v(Math.cos(ang) * r * 0.4, 0.1, Math.sin(ang) * r * 0.4), v(Math.cos(ang) * r * 0.7, h + 0.35, Math.sin(ang) * r * 0.7), 0.012, mat(["#2b2c2e", "#8a3a32", "#2f5fa8"][i]), 6);
+      b.add(new THREE.TorusGeometry(0.04, 0.008, 6, 10, Math.PI), mat("#5a3a24"), Math.cos(ang) * r * 0.7, h + 0.38, Math.sin(ang) * r * 0.7);
+    }
+  },
+  hall_wardrobe: (b, w, d, h, f, _c, a) => {
+    // an open coat bay with a bench and hooks, a cupboard beside it
+    const cw = w * 0.45;
+    b.box(cw, h, d, w / 2 - cw / 2, 0, 0, f, 0.006);
+    fronts(b, w / 2 - cw, cw, 0.05, h - 0.1, d / 2 - 0.018, 1, f, 1, "bar", a);
+    b.box(w - cw, 0.02, d, -cw / 2, h - 0.02, 0, f);
+    b.box(0.02, h, d, -w / 2 + 0.01, 0, 0, f);
+    b.box(w - cw, 0.04, d, -cw / 2, 0.42, 0, f, 0.006);
+    b.box(w - cw - 0.04, 0.38, d - 0.04, -cw / 2, 0.02, 0, f, 0.006);
+    fronts(b, -w / 2, w - cw, 0.04, 0.36, d / 2 - 0.018, 2, f, 1, "bar", a);
+    b.box(w - cw, 0.02, 0.02, -cw / 2, h - 0.35, -d / 2 + 0.03, f);
+    for (let i = 0; i < 3; i++) {
+      const x = -w / 2 + 0.12 + i * ((w - cw - 0.2) / 2);
+      b.rod(v(x, h - 0.37, -d / 2 + 0.04), v(x, h - 0.33, -d / 2 + 0.1), 0.007, a, 4);
+      b.box(0.08, 0.6, 0.3, x, h - 1.0, -d / 2 + 0.17, mat(C.clothes[i], { roughness: 1 }), 0.03);
+    }
+  },
+  key_cabinet: (b, w, d, h, f, _c, a) => {
+    b.box(w, h, d, 0, 0, 0, f, 0.006);
+    fronts(b, -w / 2, w, 0.005, h - 0.01, d / 2 - 0.018, 1, f, 1, "knob", a);
+  },
+  bar_cart: (b, w, d, h, f, _c, a) => {
+    for (const y of [0.15, h - 0.08]) {
+      b.box(w, 0.012, d, 0, y, 0, f, 0.004);
+      for (const sz of [-1, 1]) b.box(w, 0.04, 0.008, 0, y, sz * (d / 2 - 0.004), a);
+    }
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) b.cyl(0.01, 0.01, h, sx * (w / 2 - 0.02), 0, sz * (d / 2 - 0.02), a, 8);
+    b.add(new THREE.TorusGeometry(0.1, 0.012, 6, 20).rotateY(Math.PI / 2), mat(C.black), w / 2 - 0.02, 0.1, 0);
+    b.rod(v(-w / 2 - 0.04, h, -d / 2 + 0.02), v(-w / 2 - 0.04, h, d / 2 - 0.02), 0.01, a, 6);
+    for (let i = 0; i < 4; i++) {
+      const x = -w / 2 + 0.1 + i * 0.13;
+      b.cyl(0.035, 0.035, 0.22, x, h - 0.068, -0.05, mat(["#2f6b45", "#8a3a32", "#c9a47c", "#e6e1d6"][i], { transparent: true, opacity: 0.85, roughness: 0.1 }), 12);
+      b.cyl(0.012, 0.015, 0.08, x, h + 0.152, -0.05, mat(["#2f6b45", "#8a3a32", "#c9a47c", "#e6e1d6"][i]), 8);
+    }
+  },
+  wine_fridge: (b, w, d, h, f) => {
+    hollow(b, w, h, d - 0.02, 0, -0.01, f, 0.03);
+    b.box(w - 0.04, h - 0.08, 0.01, 0, 0.06, d / 2 - 0.01, mat("#1c2024", { transparent: true, opacity: 0.35, roughness: 0.05 }));
+    for (let r = 0; r < 6; r++)
+      for (let i = 0; i < 6; i++) {
+        const btl = b.add(new THREE.CylinderGeometry(0.035, 0.035, 0.1, 10).rotateX(Math.PI / 2), mat(i % 3 ? "#3a1f24" : "#2f4a35"), -w / 2 + 0.08 + i * (w - 0.16) / 5, 0.12 + r * (h - 0.2) / 6, d / 2 - 0.08);
+        void btl;
+      }
+    b.box(0.02, h * 0.6, 0.03, w / 2 - 0.05, h * 0.2, d / 2 + 0.01, mat(C.chrome, { metalness: 0.8, roughness: 0.2 }), 0.006);
+  },
+  kitchen_trolley: (b, w, d, h, f, _c, a) => {
+    b.box(w, 0.035, d, 0, h - 0.035, 0, surface("oak", 0.7), 0.006);
+    for (const y of [0.12, h * 0.5]) b.box(w - 0.04, 0.015, d - 0.04, 0, y, 0, f);
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
+      b.box(0.025, h - 0.06, 0.025, sx * (w / 2 - 0.02), 0.05, sz * (d / 2 - 0.02), f);
+      b.sphere(0.025, sx * (w / 2 - 0.02), 0.025, sz * (d / 2 - 0.02), mat(C.black), 1, 1, 1, 8);
+    }
+    b.rod(v(w / 2 + 0.03, h - 0.08, -d / 2 + 0.05), v(w / 2 + 0.03, h - 0.08, d / 2 - 0.05), 0.01, a, 6);
+    for (let i = 0; i < 4; i++) b.cyl(0.04, 0.04, 0.1, -w / 2 + 0.1 + i * 0.13, h * 0.5 + 0.015, 0, glass(), 12);
+  },
+  display_cabinet: (b, w, d, h, f, _c, a) => {
+    // a glass-fronted cabinet with dishes and vases on glass shelves
+    const body = new Builder();
+    hollow(body, w, h - 0.12, d, 0, 0, f, 0.02);
+    const g = body.done();
+    g.position.y = 0.12;
+    b.g.add(g);
+    legs(b, w, d, 0.12, 0.04, 0.012, a);
+    const n = Math.max(1, Math.round(w / 0.5));
+    for (let i = 0; i < n; i++) {
+      const cw = w / n;
+      const x = -w / 2 + cw * (i + 0.5);
+      b.box(cw - 0.06, h - 0.22, 0.004, x, 0.17, d / 2 + 0.002, glass());
+      for (let s = 1; s < 4; s++) {
+        const y = 0.12 + ((h - 0.12) * s) / 4;
+        b.box(cw - 0.06, 0.008, d - 0.06, x, y, 0, glass());
+        if (s % 2) for (let k = 0; k < 3; k++) b.cyl(0.08, 0.075, 0.015, x - cw * 0.2 + k * cw * 0.2, y + 0.008, 0, mat(C.ceramic), 16);
+        else b.cyl(0.04, 0.06, 0.18, x, y + 0.008, 0, mat(["#5d7a60", "#b5683f", "#4d6a88"][(i + s) % 3]), 14);
+      }
+      b.box(0.012, 0.15, 0.02, x + cw / 2 - 0.05, h * 0.5, d / 2 + 0.01, a, 0.004);
+      b.box(0.005, h - 0.2, 0.02, -w / 2 + cw * (i + 1), 0.16, d / 2, mat("#26272a"));
+    }
+  },
+  bar_stool_back: (b, w, d, h, f, _c, a) => {
+    const seat = h * 0.68;
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) b.rod(v(sx * (w / 2 - 0.06), seat, sz * (d / 2 - 0.06)), v(sx * (w / 2 - 0.03), 0, sz * (d / 2 - 0.03)), 0.012, a, 6);
+    b.add(new THREE.TorusGeometry(Math.min(w, d) * 0.42, 0.008, 6, 4, Math.PI * 2).rotateX(Math.PI / 2).rotateY(Math.PI / 4), a, 0, seat * 0.35, 0);
+    b.box(w - 0.04, 0.05, d - 0.06, 0, seat, 0.01, f, 0.02);
+    b.box(w - 0.06, h - seat - 0.05, 0.04, 0, seat + 0.05, -d / 2 + 0.04, f, 0.02)?.rotation.set(-0.1, 0, 0);
+  },
+  dining_armchair: (b, w, d, h, f, _c, a) => {
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) b.cyl(0.018, 0.014, 0.44, sx * (w / 2 - 0.05), 0, sz * (d / 2 - 0.05), a, 10);
+    // a curved shell: back and arms in one, a cushion
+    const shell = new THREE.CylinderGeometry(w / 2, w / 2 - 0.03, h - 0.44, 28, 1, true, Math.PI * 0.6, Math.PI * 0.8);
+    shell.scale(1, 1, (d * 0.95) / w);
+    b.add(shell, mat((f as THREE.MeshStandardMaterial).color.getStyle(), { side: THREE.DoubleSide, roughness: 1 }), 0, 0.44 + (h - 0.44) / 2, 0.02);
+    b.add(new THREE.CylinderGeometry(w / 2 - 0.03, w / 2 - 0.03, 0.08, 28).scale(1, 1, (d * 0.9) / w), f, 0, 0.44, 0.02);
+  },
+  rug_persian: (b, w, d, h, _f, color) => b.box(w, h, d, 0, 0, 0, rugMaterial("persian", color, mat(FINISHES[color] ?? FINISHES.terracotta))),
+  rug_berber: (b, w, d, h, _f, color) => b.box(w, h, d, 0, 0, 0, rugMaterial("berber", color, mat(FINISHES[color] ?? FINISHES.beige))),
+  floor_lamp_reading: (b, w, d, h, f, _c, a) => {
+    b.cyl(w * 0.4, w * 0.42, 0.025, 0, 0, 0, a, 24);
+    b.cyl(0.01, 0.01, h - 0.15, 0, 0.025, 0, a, 8);
+    b.rod(v(0, h - 0.13, 0), v(0, h - 0.05, d * 0.35), 0.008, a, 6);
+    const shade = b.add(new THREE.CylinderGeometry(0.04, 0.08, 0.14, 20, 1, true), mat((f as THREE.MeshStandardMaterial).color.getStyle(), { side: THREE.DoubleSide }), 0, h - 0.1, d * 0.4);
+    shade.rotation.x = 0.4;
+    bulb(b, 0, h - 0.14, d * 0.42, 0.025);
+  },
+  table_lamp_glass: (b, w, _d, h, f, c, a) => {
+    // a clear glass base, a linen drum
+    b.add(new THREE.LatheGeometry([[0.001, 0], [0.4, 0], [0.48, 0.25], [0.42, 0.45], [0.15, 0.55], [0.001, 0.55]].map(([x, y]) => new THREE.Vector2(x * w * 0.6, y * h)), 28), glass());
+    b.cyl(0.008, 0.008, h * 0.15, 0, h * 0.55, 0, a, 8);
+    b.cyl(w * 0.42, w * 0.5, h * 0.32, 0, h * 0.66, 0, shadeMat(f, c), 30, true);
+    bulb(b, 0, h * 0.72, 0, 0.03);
+  },
+  pendant_bell: (b, w, d, h, f, c, a) => {
+    const r = Math.min(w, d) / 2;
+    const sh = r * 1.2;
+    canopyAndCord(b, h, sh, a);
+    b.add(new THREE.LatheGeometry([[0.06, 1], [0.12, 0.85], [0.18, 0.5], [0.35, 0.15], [0.5, 0]].map(([x, y]) => new THREE.Vector2(x * r * 2, y * sh)), 32), shadeMat(f, c), 0, 0, 0);
+    bulb(b, 0, sh * 0.2, 0, 0.04);
+  },
   // ----- vehicles -----
   car_hatchback: (b, w, d, h, _f, color) => car(b, w, d, h, color, "hatchback"),
   car_estate: (b, w, d, h, _f, color) => car(b, w, d, h, color, "estate"),
@@ -3180,6 +3354,14 @@ function car(b: Builder, w: number, d: number, h: number, color: string, style: 
     for (const z of [mid, -d / 2 + c3[0] * d - 0.05]) for (const sx of [-1, 1]) b.box(0.004, belt - 0.3, 0.006, sx * w * 0.466, 0.28, z, black);
   }
   for (const sx of [-1, 1]) b.box(0.08, 0.06, 0.12, sx * (w / 2 - 0.02), belt + 0.02, -d / 2 + c3[0] * d - 0.08, paint, 0.02);
+}
+
+/** An open-fronted box (glass cabinets): back, sides, top and bottom of thickness t. */
+function hollow(b: Builder, w: number, h: number, d: number, x: number, z: number, m: THREE.Material, t: number) {
+  b.box(w, h, t, x, 0, z - d / 2 + t / 2, m);
+  for (const sx of [-1, 1]) b.box(t, h, d, x + sx * (w / 2 - t / 2), 0, z, m);
+  b.box(w, t, d, x, 0, z, m);
+  b.box(w, t, d, x, h - t, z, m);
 }
 
 /** A kitchen base unit: plinth, carcass and worktop; where its fronts go. */
@@ -3713,7 +3895,7 @@ function tree(b: Builder, w: number, d: number, h: number, seed: number, kind: "
 // ----- rugs: woven patterns on a canvas -----
 
 const rugTextures = new Map<string, THREE.Material>();
-function rugMaterial(pattern: "border" | "rings" | "stripes", color: string, fallback: THREE.Material): THREE.Material {
+function rugMaterial(pattern: "border" | "rings" | "stripes" | "persian" | "berber", color: string, fallback: THREE.Material): THREE.Material {
   const key = `${pattern}/${color}`;
   let m = rugTextures.get(key);
   if (m) return m;
@@ -3739,6 +3921,48 @@ function rugMaterial(pattern: "border" | "rings" | "stripes", color: string, fal
       ctx.strokeStyle = col;
       ctx.beginPath();
       ctx.arc(128, 128, r, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+  } else if (pattern === "persian") {
+    // borders, a medallion, small motifs scattered over the field
+    ctx.fillStyle = dark;
+    ctx.fillRect(0, 0, 256, 256);
+    ctx.fillStyle = base.getStyle();
+    ctx.fillRect(22, 22, 212, 212);
+    ctx.strokeStyle = light;
+    ctx.lineWidth = 4;
+    ctx.strokeRect(12, 12, 232, 232);
+    ctx.strokeRect(30, 30, 196, 196);
+    ctx.fillStyle = dark;
+    ctx.beginPath();
+    ctx.moveTo(128, 70);
+    ctx.lineTo(186, 128);
+    ctx.lineTo(128, 186);
+    ctx.lineTo(70, 128);
+    ctx.fill();
+    ctx.fillStyle = light;
+    ctx.beginPath();
+    ctx.arc(128, 128, 24, 0, Math.PI * 2);
+    ctx.fill();
+    for (let i = 0; i < 4; i++)
+      for (let j = 0; j < 4; j++) {
+        if ((i === 1 || i === 2) && (j === 1 || j === 2)) continue;
+        ctx.fillStyle = (i + j) % 2 ? light : dark;
+        ctx.fillRect(52 + i * 46, 52 + j * 46, 10, 10);
+      }
+  } else if (pattern === "berber") {
+    ctx.strokeStyle = dark;
+    ctx.lineWidth = 3;
+    for (let x = -256; x < 512; x += 48) {
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x + 128, 128);
+      ctx.lineTo(x, 256);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(x + 24, 0);
+      ctx.lineTo(x - 104, 128);
+      ctx.lineTo(x + 24, 256);
       ctx.stroke();
     }
   } else {

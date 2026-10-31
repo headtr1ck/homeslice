@@ -899,6 +899,30 @@
    ]
   },
   {
+   "model": "modern:display_cabinet",
+   "name": "Display cabinet",
+   "group": "living",
+   "type": "shelf",
+   "size": [
+    1,
+    0.42,
+    1.9
+   ],
+   "finishes": [
+    "oak",
+    "white",
+    "walnut",
+    "black",
+    "anthracite"
+   ],
+   "accents": [
+    "black",
+    "chrome",
+    "brass",
+    "oak"
+   ]
+  },
+  {
    "model": "modern:tv_stand",
    "name": "TV on a low board",
    "group": "living",
@@ -1291,6 +1315,41 @@
     "white",
     "grey",
     "anthracite"
+   ]
+  },
+  {
+   "model": "modern:rug_persian",
+   "name": "Persian rug",
+   "group": "living",
+   "type": "rug",
+   "size": [
+    2.5,
+    1.7,
+    0.012
+   ],
+   "finishes": [
+    "terracotta",
+    "blue",
+    "green",
+    "beige",
+    "anthracite"
+   ]
+  },
+  {
+   "model": "modern:rug_berber",
+   "name": "Berber rug",
+   "group": "living",
+   "type": "rug",
+   "size": [
+    2,
+    1.4,
+    0.02
+   ],
+   "finishes": [
+    "beige",
+    "white",
+    "sand",
+    "grey"
    ]
   },
   {
@@ -1725,6 +1784,58 @@
     "black",
     "brass",
     "chrome"
+   ]
+  },
+  {
+   "model": "modern:bar_stool_back",
+   "name": "Bar stool with back",
+   "group": "dining",
+   "type": "stool",
+   "size": [
+    0.45,
+    0.45,
+    1
+   ],
+   "finishes": [
+    "grey",
+    "beige",
+    "anthracite",
+    "green",
+    "blue",
+    "terracotta",
+    "pink"
+   ],
+   "accents": [
+    "black",
+    "brass",
+    "oak",
+    "chrome"
+   ]
+  },
+  {
+   "model": "modern:dining_armchair",
+   "name": "Dining armchair",
+   "group": "dining",
+   "type": "chair",
+   "size": [
+    0.58,
+    0.55,
+    0.8
+   ],
+   "finishes": [
+    "grey",
+    "beige",
+    "anthracite",
+    "green",
+    "blue",
+    "terracotta",
+    "pink"
+   ],
+   "accents": [
+    "oak",
+    "walnut",
+    "black",
+    "brass"
    ]
   },
   {
@@ -2486,6 +2597,62 @@
     "silver",
     "black",
     "white"
+   ]
+  },
+  {
+   "model": "modern:bar_cart",
+   "name": "Bar cart",
+   "group": "kitchen",
+   "type": "item",
+   "size": [
+    0.7,
+    0.42,
+    0.82
+   ],
+   "finishes": [
+    "black",
+    "white",
+    "oak"
+   ],
+   "accents": [
+    "brass",
+    "black",
+    "chrome"
+   ]
+  },
+  {
+   "model": "modern:wine_fridge",
+   "name": "Wine fridge",
+   "group": "kitchen",
+   "type": "fridge",
+   "size": [
+    0.6,
+    0.58,
+    0.85
+   ],
+   "finishes": [
+    "black",
+    "silver"
+   ]
+  },
+  {
+   "model": "modern:kitchen_trolley",
+   "name": "Kitchen trolley",
+   "group": "kitchen",
+   "type": "item",
+   "size": [
+    0.6,
+    0.42,
+    0.9
+   ],
+   "finishes": [
+    "white",
+    "black",
+    "oak"
+   ],
+   "accents": [
+    "chrome",
+    "black"
    ]
   },
   {
@@ -3505,6 +3672,94 @@
    ]
   },
   {
+   "model": "modern:console_table",
+   "name": "Console table",
+   "group": "hall",
+   "type": "side_table",
+   "size": [
+    1.1,
+    0.32,
+    0.8
+   ],
+   "finishes": [
+    "oak",
+    "walnut",
+    "black",
+    "white",
+    "marble"
+   ],
+   "accents": [
+    "black",
+    "brass",
+    "oak"
+   ]
+  },
+  {
+   "model": "modern:umbrella_stand",
+   "name": "Umbrella stand",
+   "group": "hall",
+   "type": "item",
+   "size": [
+    0.26,
+    0.26,
+    0.55
+   ],
+   "finishes": [
+    "black",
+    "white",
+    "terracotta",
+    "brass"
+   ]
+  },
+  {
+   "model": "modern:hall_wardrobe",
+   "name": "Hall wardrobe",
+   "group": "hall",
+   "type": "wardrobe",
+   "size": [
+    1.3,
+    0.4,
+    2
+   ],
+   "finishes": [
+    "oak",
+    "white",
+    "walnut",
+    "black",
+    "anthracite"
+   ],
+   "accents": [
+    "black",
+    "chrome",
+    "brass",
+    "oak"
+   ]
+  },
+  {
+   "model": "modern:key_cabinet",
+   "name": "Key cabinet",
+   "group": "hall",
+   "type": "item",
+   "size": [
+    0.3,
+    0.08,
+    0.4
+   ],
+   "finishes": [
+    "white",
+    "oak",
+    "black"
+   ],
+   "accents": [
+    "black",
+    "chrome",
+    "brass",
+    "oak"
+   ],
+   "mount": "wall",
+   "elevation": 1.5
+  },
+  {
    "model": "modern:toilet_wall",
    "name": "Wall-hung toilet",
    "group": "bathroom",
@@ -4187,6 +4442,97 @@
    ],
    "mount": "wall",
    "elevation": 0.2
+  },
+  {
+   "model": "modern:towel_ladder",
+   "name": "Towel ladder",
+   "group": "bathroom",
+   "type": "item",
+   "size": [
+    0.5,
+    0.4,
+    1.7
+   ],
+   "finishes": [
+    "oak",
+    "black",
+    "white"
+   ]
+  },
+  {
+   "model": "modern:bath_tall_cabinet",
+   "name": "Tall bathroom cabinet",
+   "group": "bathroom",
+   "type": "shelf",
+   "size": [
+    0.4,
+    0.35,
+    1.7
+   ],
+   "finishes": [
+    "oak",
+    "white",
+    "walnut",
+    "black",
+    "anthracite"
+   ],
+   "accents": [
+    "chrome",
+    "black",
+    "brass"
+   ]
+  },
+  {
+   "model": "modern:bath_shelf",
+   "name": "Bathroom shelf",
+   "group": "bathroom",
+   "type": "shelf",
+   "size": [
+    0.6,
+    0.15,
+    0.32
+   ],
+   "finishes": [
+    "oak",
+    "white",
+    "black"
+   ],
+   "mount": "wall",
+   "elevation": 1.3
+  },
+  {
+   "model": "modern:mirror_lit",
+   "name": "Mirror with light",
+   "group": "bathroom",
+   "type": "mirror",
+   "size": [
+    0.8,
+    0.04,
+    0.7
+   ],
+   "finishes": [
+    "white",
+    "black",
+    "silver"
+   ],
+   "mount": "wall",
+   "elevation": 1.2
+  },
+  {
+   "model": "modern:laundry_hamper",
+   "name": "Laundry hamper",
+   "group": "bathroom",
+   "type": "item",
+   "size": [
+    0.42,
+    0.35,
+    0.62
+   ],
+   "finishes": [
+    "oak",
+    "white",
+    "black"
+   ]
   },
   {
    "model": "modern:monstera",
@@ -5782,6 +6128,77 @@
     "oak",
     "white"
    ]
+  },
+  {
+   "model": "modern:floor_lamp_reading",
+   "name": "Reading lamp",
+   "group": "lighting",
+   "type": "floor_lamp",
+   "size": [
+    0.3,
+    0.45,
+    1.4
+   ],
+   "finishes": [
+    "black",
+    "white",
+    "green",
+    "brass"
+   ],
+   "accents": [
+    "black",
+    "brass",
+    "white"
+   ]
+  },
+  {
+   "model": "modern:table_lamp_glass",
+   "name": "Glass table lamp",
+   "group": "lighting",
+   "type": "table_lamp",
+   "size": [
+    0.34,
+    0.34,
+    0.55
+   ],
+   "finishes": [
+    "white",
+    "beige",
+    "black",
+    "sand",
+    "green",
+    "terracotta"
+   ],
+   "accents": [
+    "brass",
+    "chrome",
+    "black"
+   ]
+  },
+  {
+   "model": "modern:pendant_bell",
+   "name": "Pendant, bell",
+   "group": "lighting",
+   "type": "ceiling_lamp",
+   "size": [
+    0.38,
+    0.38,
+    0.9
+   ],
+   "finishes": [
+    "black",
+    "white",
+    "green",
+    "anthracite",
+    "brass"
+   ],
+   "accents": [
+    "black",
+    "brass",
+    "white",
+    "chrome"
+   ],
+   "mount": "ceiling"
   },
   {
    "model": "modern:washer",
