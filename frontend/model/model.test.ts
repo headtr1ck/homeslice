@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { expandHouse } from "./expand";
 import { bbox, signedArea } from "./geometry";
+import { misalignedWalls } from "./checks";
 import { placeLights } from "./lights";
 import { stairHole } from "./stairs";
 import type { HouseInput, Room } from "./types";
@@ -356,5 +357,21 @@ describe("documentation", () => {
     const { house, issues } = expandHouse(parse(block));
     expect(issues).toEqual([]);
     expect(house?.levels.map((l) => l.id)).toEqual(["ground", "first"]);
+  });
+});
+
+describe("checks", () => {
+  it("flags walls almost on top of a wall below", () => {
+    const input = twoRooms();
+    input.levels.push({ id: "first", rooms: [{ id: "x", rect: [0, 0, 4.92, 8] }, { id: "y", rect: [4.92, 0, 5.08, 8] }] });
+    const { house } = expandHouse(input);
+    const walls = new Map(house!.levels.map((l) => [l.id, deriveWalls(l, house!.walls, [])]));
+    const issues = misalignedWalls(house!, walls);
+    const cm = issues.map((i) => i.message.match(/(\d+) cm/)?.[1]);
+    expect(cm).toContain("8");
+    // exactly on top: nothing to say
+    input.levels[1].rooms = [{ id: "x", rect: [0, 0, 5, 8] }, { id: "y", rect: [5, 0, 5, 8] }];
+    const h2 = expandHouse(input).house!;
+    expect(misalignedWalls(h2, new Map(h2.levels.map((l) => [l.id, deriveWalls(l, h2.walls, [])])))).toEqual([]);
   });
 });

@@ -12,6 +12,7 @@ import type { EnergyInput, HouseInput, Issue, OpeningInput, OpeningSource, Openi
 import { deriveWalls, innerPolygon, sideOfRoom, type Wall } from "../model/walls";
 import { HouseRenderer } from "../render/scene";
 import { stairFrame, stairHole } from "../model/stairs";
+import { misalignedWalls } from "../model/checks";
 import { listedLights, placeLights, type PlacedLight } from "../model/lights";
 import type { EnergyPrefs } from "../ha/energy";
 import { ENERGY_COLORS } from "../render/scene";
@@ -1201,8 +1202,13 @@ export class HomeslicePanel extends LitElement {
   private issues(): Issue[] {
     if (!this._model) return [];
     const { house, issues } = expandHouse(this._model);
-    if (house) for (const l of house.levels) deriveWalls(l, house.walls, issues);
-    return issues;
+    if (!house) return issues;
+    const walls = new Map(house.levels.map((l) => [l.id, deriveWalls(l, house.walls, issues)]));
+    const name = (levelId: string, roomId: string) => {
+      const r = this._model!.levels.find((l) => l.id === levelId)?.rooms.find((x) => x.id === roomId);
+      return r ? this.roomName(r) : roomId;
+    };
+    return [...issues, ...misalignedWalls(house, walls, name)];
   }
 
   protected override render() {
