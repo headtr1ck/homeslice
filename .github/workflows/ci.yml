@@ -52,5 +52,5 @@ jobs:
       - uses: hacs/action@main
         with:
           category: integration
-          # private until release: no brand assets or topics yet
-          ignore: brands topics description
+          # no icon in home-assistant/brands yet
+          ignore: brands
