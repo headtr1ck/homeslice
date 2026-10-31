@@ -75,7 +75,7 @@ interface EnergyLabel {
 }
 
 /** Height of a label plus a gap, in CSS px. */
-const LABEL_STEP = 42;
+const LABEL_STEP = 48;
 
 /**
  * Callouts for the whole-house view: labels in a column on either side of the house
