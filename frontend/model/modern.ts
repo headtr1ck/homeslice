@@ -46,6 +46,7 @@ const POT = ["white", "terracotta", "anthracite", "concrete", "sand", "green", "
 const FRONTS = ["white", "anthracite", "oak", "green", "blue", "black", "walnut"];
 const WORKTOP = ["marble", "concrete", "white", "oak", "black", "anthracite"];
 const TAPS = ["chrome", "black", "brass"];
+const HANDLES = ["black", "chrome", "brass", "oak"];
 const PAINT = ["silver", "white", "black", "anthracite", "blue", "red", "green"];
 
 const k = (id: string, type: FurnitureType, size: [number, number, number], finishes: string[], more: Partial<ModernKind> = {}): ModernKind => ({ id, type, size, finishes, ...more });
@@ -152,7 +153,17 @@ export const MODERN_GROUPS: { id: string; kinds: ModernKind[] }[] = [
       k("bed_single", "bed_single", [0.9, 2.05, 0.9], ["beige", "grey", "anthracite", "green", "blue", "pink", "oak"], { accents: ["black", "oak", "brass", "chrome"] }),
       k("nightstand", "nightstand", [0.45, 0.38, 0.5], WOOD, { accents: ["black", "oak", "brass"] }),
       k("nightstand_wall", "nightstand", [0.45, 0.32, 0.18], WOOD, { mount: "wall", elevation: 0.45 }),
-      k("wardrobe", "wardrobe", [2.0, 0.6, 2.2], WOOD),
+      k("wardrobe", "wardrobe", [2.0, 0.6, 2.2], WOOD, { accents: HANDLES }),
+      k("wardrobe_1door", "wardrobe", [0.5, 0.6, 2.0], WOOD, { accents: HANDLES }),
+      k("wardrobe_2door", "wardrobe", [1.0, 0.6, 2.0], WOOD, { accents: HANDLES }),
+      k("wardrobe_3door", "wardrobe", [1.5, 0.6, 2.2], WOOD, { accents: HANDLES }),
+      k("wardrobe_4door", "wardrobe", [2.0, 0.6, 2.3], WOOD, { accents: HANDLES }),
+      k("wardrobe_drawers", "wardrobe", [1.0, 0.6, 2.0], WOOD, { accents: HANDLES }),
+      k("wardrobe_mirror", "wardrobe", [1.0, 0.6, 2.0], WOOD, { accents: HANDLES }),
+      k("wardrobe_top", "wardrobe", [1.5, 0.6, 2.5], WOOD, { accents: HANDLES }),
+      k("wardrobe_legs", "wardrobe", [1.0, 0.55, 1.8], WOOD, { accents: HANDLES }),
+      k("chest_tall", "shelf", [0.8, 0.48, 1.2], WOOD, { accents: HANDLES }),
+      k("chest_low", "shelf", [0.8, 0.48, 0.8], WOOD, { accents: HANDLES }),
       k("wardrobe_sliding", "wardrobe", [2.0, 0.65, 2.2], [...WOOD, "grey"], { accents: ["black", "chrome", "brass"] }),
       k("wardrobe_open", "wardrobe", [1.6, 0.55, 2.0], ["black", "oak", "white"]),
       k("dresser", "shelf", [1.2, 0.48, 0.8], WOOD, { accents: ["black", "oak", "brass"] }),

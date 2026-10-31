@@ -9,6 +9,8 @@ import { GLTFExporter } from "three/examples/jsm/exporters/GLTFExporter.js";
 import { parse as parseYaml, stringify as toYaml } from "yaml";
 import { areaEntities, type Hass } from "../ha/hass";
 import { formatNumber, localize, type StringKey } from "../i18n/localize";
+import en from "../i18n/en.json";
+import de from "../i18n/de.json";
 import { DEFAULTS, expandHouse } from "../model/expand";
 import { bbox, labelPoint, pointInPolygon } from "../model/geometry";
 import type { EnergyInput, FurnitureInput, FurnitureMount, FurnitureType, HouseInput, Issue, OpeningInput, OpeningSource, OpeningType, RoomInput, Side, Vec2, Vertical } from "../model/types";
@@ -3568,7 +3570,11 @@ export class HomeslicePanel extends LitElement {
     const typeName = (t: FurnitureType) => this.t(`furniture.${t}` as StringKey);
     let groups: LibraryGroup[] = [];
     let status: unknown = nothing;
-    if (source === "builtin") groups = builtinGroups().map((g) => ({ ...g, items: g.items.map((i) => (i.nameKey ? { ...i, name: this.t(i.nameKey as StringKey) } : i)) }));
+    if (source === "builtin")
+      groups = builtinGroups().map((g) => ({
+        ...g,
+        items: g.items.map((i) => (i.nameKey ? { ...i, name: this.t(i.nameKey as StringKey), tags: [...(i.tags ?? []), ...this.aliases(i.key.slice(7)), this.t(`furniture.group_${g.id}` as StringKey)] } : i)),
+      }));
     else if (source === "kenney") groups = kenneyGroups();
     else if (source === "polyhaven") {
       const c = this._polyhaven;
@@ -3640,6 +3646,11 @@ export class HomeslicePanel extends LitElement {
   }
 
   /** Where a piece's model is from and its name, e.g. "Kenney · Lounge design sofa". */
+  /** Other words for a piece, in every language (people search in the words they think in). */
+  private aliases(kind: string): string[] {
+    return [en, de].map((l) => (l as Record<string, string>)[`alias.${kind}`] ?? "").filter(Boolean);
+  }
+
   private modelName(model: string): string {
     const [source, id] = model.includes(":") ? model.split(":", 2) : [model, ""];
     if (source === "builtin") return `${this.t("editor.library_builtin")} · ${this.t("editor.library_simple")}`;

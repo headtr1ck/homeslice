@@ -196,8 +196,12 @@ export function customGroups(models: CustomAsset[]): LibraryGroup[] {
 export function filterGroups(groups: LibraryGroup[], query: string, typeName: (t: FurnitureType) => string): LibraryGroup[] {
   const q = query.trim().toLowerCase();
   if (!q) return groups;
-  const matches = (i: LibraryItem) => [i.name ?? "", typeName(i.type), i.type, ...(i.tags ?? [])].some((s) => s.toLowerCase().includes(q));
-  // (Modern names are matched through their tags and type; the panel adds the translated name)
+  // every word somewhere: "black lamp", "dusche glas"
+  const words = q.split(/\s+/);
+  const matches = (i: LibraryItem) => {
+    const text = [i.name ?? "", typeName(i.type), i.type, ...(i.tags ?? [])].join(" ").toLowerCase();
+    return words.every((w) => text.includes(w));
+  };
   return groups.map((g) => ({ ...g, items: g.items.filter(matches) })).filter((g) => g.items.length);
 }
 

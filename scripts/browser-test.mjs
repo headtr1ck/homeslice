@@ -1377,6 +1377,13 @@ console.log("editor");
     await page.locator("homeslice-panel .inspector input.library-search").fill("birch");
     const found = await page.locator("homeslice-panel .inspector .library button").evaluateAll((b) => b.map((x) => x.dataset.key));
     assert(JSON.stringify(found) === '["modern:tree_birch"]', `search: ${found}`);
+    // aliases, in German too, every word somewhere
+    await page.locator("homeslice-panel .inspector input.library-search").fill("spülmaschine");
+    const dishwasher = await page.locator("homeslice-panel .inspector .library button").evaluateAll((b) => b.map((x) => x.dataset.key));
+    assert(JSON.stringify(dishwasher) === '["modern:kitchen_dishwasher"]', `alias search: ${dishwasher}`);
+    await page.locator("homeslice-panel .inspector input.library-search").fill("shower glass");
+    const showers = await page.locator("homeslice-panel .inspector .library button").evaluateAll((b) => b.map((x) => x.dataset.key));
+    assert(showers.includes("modern:shower_walk_in") && !showers.includes("modern:bathtub"), `two words: ${showers}`);
     await page.locator("homeslice-panel .inspector input.library-search").fill("");
     // the pictures load (lazily, as they scroll into view) and none is missing
     for (const lib of await page.locator("homeslice-panel .inspector .library").all()) await lib.scrollIntoViewIfNeeded();

@@ -237,14 +237,14 @@ function sofa(b: Builder, w: number, d: number, fabric: THREE.Material, corner: 
 }
 
 /** Doors (or drawers) across a front at z, gaps between them, and handles if asked. */
-function fronts(b: Builder, x0: number, w: number, y0: number, h: number, z: number, n: number, m: THREE.Material, rows = 1, handle?: "bar" | "knob") {
+function fronts(b: Builder, x0: number, w: number, y0: number, h: number, z: number, n: number, m: THREE.Material, rows = 1, handle?: "bar" | "knob", handleM: THREE.Material = mat(C.black)) {
   const cw = w / n;
   const rh = h / rows;
   for (let i = 0; i < n; i++)
     for (let r = 0; r < rows; r++) {
       b.box(cw - 0.004, rh - 0.004, 0.018, x0 + cw * (i + 0.5), y0 + rh * r + 0.002, z + 0.009, m, 0.003);
-      if (handle === "bar") b.box(rows > 1 ? Math.min(0.2, cw * 0.4) : 0.012, rows > 1 ? 0.012 : Math.min(0.3, rh * 0.25), 0.02, x0 + cw * (i + 0.5) + (rows > 1 ? 0 : (i % 2 ? -1 : 1) * (cw / 2 - 0.05)), y0 + rh * r + (rows > 1 ? rh - 0.06 : rh * 0.5), z + 0.028, mat(C.black));
-      if (handle === "knob") b.sphere(0.015, x0 + cw * (i + 0.5), y0 + rh * (r + 0.5), z + 0.03, mat(C.black), 1, 1, 1, 8);
+      if (handle === "bar") b.box(rows > 1 ? Math.min(0.2, cw * 0.4) : 0.012, rows > 1 ? 0.012 : Math.min(0.3, rh * 0.25), 0.02, x0 + cw * (i + 0.5) + (rows > 1 ? 0 : (i % 2 ? -1 : 1) * (cw / 2 - 0.05)), y0 + rh * r + (rows > 1 ? rh - 0.06 : rh * 0.5), z + 0.028, handleM);
+      if (handle === "knob") b.sphere(0.015, x0 + cw * (i + 0.5), y0 + rh * (r + 0.5), z + 0.03, handleM, 1, 1, 1, 8);
     }
 }
 
@@ -567,11 +567,17 @@ const BUILDERS: Record<string, Build> = {
     b.box(w, h, d, 0, 0, 0, f, 0.006);
     fronts(b, -w / 2, w, 0.005, h - 0.01, d / 2 - 0.018, 1, f, 1);
   },
-  wardrobe: (b, w, d, h, f) => {
-    b.box(w, h - 0.08, d - 0.02, 0, 0.08, back(d) + (d - 0.02) / 2, f);
-    b.box(w - 0.02, 0.08, d - 0.06, 0, 0, back(d) + (d - 0.06) / 2, mat(C.black));
-    fronts(b, -w / 2, w, 0.08, h - 0.08, d / 2 - 0.02, Math.max(1, Math.round(w / 0.5)), f, 1, "bar");
-  },
+  wardrobe: (b, w, d, h, f, _c, a) => cupboard(b, w, d, h, f, a, {}),
+  wardrobe_1door: (b, w, d, h, f, _c, a) => cupboard(b, w, d, h, f, a, { doors: 1 }),
+  wardrobe_2door: (b, w, d, h, f, _c, a) => cupboard(b, w, d, h, f, a, { doors: 2 }),
+  wardrobe_3door: (b, w, d, h, f, _c, a) => cupboard(b, w, d, h, f, a, { doors: 3, mirror: [1] }),
+  wardrobe_4door: (b, w, d, h, f, _c, a) => cupboard(b, w, d, h, f, a, { doors: 4 }),
+  wardrobe_drawers: (b, w, d, h, f, _c, a) => cupboard(b, w, d, h, f, a, { doors: 2, drawers: 2 }),
+  wardrobe_mirror: (b, w, d, h, f, _c, a) => cupboard(b, w, d, h, f, a, { doors: 2, mirror: [0, 1] }),
+  wardrobe_top: (b, w, d, h, f, _c, a) => cupboard(b, w, d, h, f, a, { top: true }),
+  wardrobe_legs: (b, w, d, h, f, _c, a) => cupboard(b, w, d, h, f, a, { doors: 2, legs: true, drawers: 1 }),
+  chest_tall: (b, w, d, h, f, _c, a) => cupboard(b, w, d, h, f, a, { doors: 0, drawers: Math.max(3, Math.round(h / 0.2)), legs: true }),
+  chest_low: (b, w, d, h, f, _c, a) => cupboard(b, w, d, h, f, a, { doors: 0, drawers: 3, columns: Math.max(1, Math.round(w / 0.8)) }),
   wardrobe_sliding: (b, w, d, h, f, _c, a) => {
     b.box(w, h, d - 0.06, 0, 0, back(d) + (d - 0.06) / 2, f);
     const n = Math.max(2, Math.round(w / 1));
@@ -752,7 +758,7 @@ const BUILDERS: Record<string, Build> = {
       const top = v(Math.cos(a) * reach * (w / 2) * 1.2, ph + (h - ph) * (0.45 + rand() * 0.4), Math.sin(a) * reach * (d / 2) * 1.2);
       b.batch(new THREE.CylinderGeometry(0.006, 0.008, 1, 5), mat(C.leaf), new THREE.Matrix4().compose(v(top.x / 2, (ph + top.y) / 2, top.z / 2), new THREE.Quaternion().setFromUnitVectors(v(0, 1, 0), top.clone().sub(v(0, ph, 0)).normalize()), v(1, top.distanceTo(v(0, ph, 0)), 1)));
       const size = 0.28 + rand() * 0.14;
-      b.batch(leafGeometry(size, size * 0.95, 0.35, 3), leafMat(i % 3 ? C.leafDark : C.leaf), matrix(top.x, top.y, top.z, -0.7 - rand() * 0.5, -a + Math.PI / 2, 0));
+      b.batch(leafGeometry(size, size * 0.95, 0.35, 3), leafMat(i % 3 ? C.leafDark : C.leaf), matrix(top.x, top.y, top.z, -0.7 - rand() * 0.5, -a - Math.PI / 2, 0));
     }
   },
   fiddle_fig: (b, w, d, h, f) => {
@@ -765,7 +771,7 @@ const BUILDERS: Record<string, Build> = {
       const a = i * 2.4;
       const r = 0.05 + rand() * 0.12 * (1 - i / 50);
       const size = 0.16 + rand() * 0.08;
-      b.batch(leafGeometry(size, size * 0.85, 0.15), leafMat(rand() > 0.5 ? C.leafDark : C.leaf), matrix(Math.cos(a) * r, y, Math.sin(a) * r, -0.9 + rand() * 0.5, -a + Math.PI / 2, 0));
+      b.batch(leafGeometry(size, size * 0.85, 0.15), leafMat(rand() > 0.5 ? C.leafDark : C.leaf), matrix(Math.cos(a) * r, y, Math.sin(a) * r, -0.9 + rand() * 0.5, -a - Math.PI / 2, 0));
     }
   },
   snake_plant: (b, w, d, h, f) => {
@@ -792,7 +798,7 @@ const BUILDERS: Record<string, Build> = {
       for (let k = 4; k < 20; k++) {
         const t = k / 20;
         const p = curve.getPoint(t);
-        for (const side of [-1, 1]) b.batch(leafGeometry(0.22 * (1 - t * 0.5), 0.025, 0.4), leafMat(k % 2 ? C.leaf : C.leafLight), matrix(p.x, p.y, p.z, -1.0 - t * 0.6, -a + Math.PI / 2 + side * 1.1, side * 0.4));
+        for (const side of [-1, 1]) b.batch(leafGeometry(0.22 * (1 - t * 0.5), 0.025, 0.4), leafMat(k % 2 ? C.leaf : C.leafLight), matrix(p.x, p.y, p.z, -1.0 - t * 0.6, -a - Math.PI / 2 + side * 1.1, side * 0.4));
       }
     }
   },
@@ -2034,7 +2040,7 @@ const BUILDERS: Record<string, Build> = {
       const reach = (Math.min(w, d) / 2) * (0.35 + rand() * 0.4);
       const top = v(Math.cos(a) * reach * 0.5, ph + (h - ph) * (0.35 + rand() * 0.3), Math.sin(a) * reach * 0.5);
       stem(b, v(0, ph, 0), top, 0.004, C.leaf);
-      b.batch(leafGeometry(0.22 + rand() * 0.08, 0.09, 0.45), leafMat(i % 3 ? "#2f5a2f" : "#3d6d3a"), matrix(top.x, top.y, top.z, -0.5 - rand() * 0.5, -a + Math.PI / 2, 0));
+      b.batch(leafGeometry(0.22 + rand() * 0.08, 0.09, 0.45), leafMat(i % 3 ? "#2f5a2f" : "#3d6d3a"), matrix(top.x, top.y, top.z, -0.5 - rand() * 0.5, -a - Math.PI / 2, 0));
     }
     for (let i = 0; i < 4; i++) {
       const a = (i / 4) * Math.PI * 2 + 0.6;
@@ -2056,7 +2062,7 @@ const BUILDERS: Record<string, Build> = {
         const y = ph + 0.15 + ((top - ph - 0.2) * i) / n;
         const a = i * 2.3 + ox * 10;
         const size = 0.18 + rand() * 0.06;
-        b.batch(leafGeometry(size, size * 0.6, 0.12), leafMat(rand() > 0.3 ? "#22382a" : "#2f4a35"), matrix(ox + Math.cos(a) * 0.03, y, Math.sin(a) * 0.03, -0.9 + (i / n) * 0.5, -a + Math.PI / 2, 0));
+        b.batch(leafGeometry(size, size * 0.6, 0.12), leafMat(rand() > 0.3 ? "#22382a" : "#2f4a35"), matrix(ox + Math.cos(a) * 0.03, y, Math.sin(a) * 0.03, -0.9 + (i / n) * 0.5, -a - Math.PI / 2, 0));
       }
       b.batch(new THREE.ConeGeometry(0.012, 0.08, 6), mat("#8a3a32"), matrix(ox, top + 0.03, 0));
     }
@@ -2073,7 +2079,7 @@ const BUILDERS: Record<string, Build> = {
       for (let k = 2; k < 16; k++) {
         const t = k / 16;
         const p = curve.getPoint(t);
-        for (const side of [-1, 1]) b.batch(leafGeometry(0.07 * (1 - t * 0.6), 0.018, 0.2), leafMat(k % 2 ? "#5f9a3f" : "#4c8a35"), matrix(p.x, p.y, p.z, -1.2 - t, -a + Math.PI / 2 + side * 1.2, side * 0.3));
+        for (const side of [-1, 1]) b.batch(leafGeometry(0.07 * (1 - t * 0.6), 0.018, 0.2), leafMat(k % 2 ? "#5f9a3f" : "#4c8a35"), matrix(p.x, p.y, p.z, -1.2 - t, -a - Math.PI / 2 + side * 1.2, side * 0.3));
       }
     }
   },
@@ -2113,7 +2119,7 @@ const BUILDERS: Record<string, Build> = {
       for (let k = 3; k < 12; k++) {
         const t = k / 12;
         const p = v(Math.cos(a) * 0.02, ph, Math.sin(a) * 0.02).lerp(top, t);
-        for (const side of [-1, 1]) b.batch(leafGeometry(0.06, 0.035, 0.05), leafMat(k % 2 ? "#1f3d22" : "#2a4f2c"), matrix(p.x, p.y, p.z, -0.6, -a + Math.PI / 2 + side * 1.3, 0));
+        for (const side of [-1, 1]) b.batch(leafGeometry(0.06, 0.035, 0.05), leafMat(k % 2 ? "#1f3d22" : "#2a4f2c"), matrix(p.x, p.y, p.z, -0.6, -a - Math.PI / 2 + side * 1.3, 0));
       }
     }
   },
@@ -2190,7 +2196,7 @@ const BUILDERS: Record<string, Build> = {
       const len = 0.38 + rand() * 0.12;
       const top = v(Math.cos(a) * w * 0.32, h - len - rand() * 0.35, Math.sin(a) * d * 0.32);
       stem(b, v(0, ph, 0), top, 0.008, "#4d7040");
-      b.batch(leafGeometry(len, 0.17, 0.08), leafMat(i % 2 ? "#3f6a3a" : "#4f7d45"), matrix(top.x, top.y, top.z, -0.25 - rand() * 0.3, -a + Math.PI / 2, 0));
+      b.batch(leafGeometry(len, 0.17, 0.08), leafMat(i % 2 ? "#3f6a3a" : "#4f7d45"), matrix(top.x, top.y, top.z, -0.25 - rand() * 0.3, -a - Math.PI / 2, 0));
     }
   },
   money_tree: (b, w, d, h, f) => {
@@ -2212,7 +2218,7 @@ const BUILDERS: Record<string, Build> = {
       const a = rand() * Math.PI * 2;
       const tip = v(Math.cos(a) * w * (0.15 + rand() * 0.25), top + rand() * (h - top - 0.1), Math.sin(a) * d * (0.15 + rand() * 0.25));
       stem(b, v(0, top, 0), tip, 0.004, "#4d7040");
-      for (let l = 0; l < 5; l++) b.batch(leafGeometry(0.12, 0.045, 0.15), leafMat(l % 2 ? C.leaf : C.leafLight), matrix(tip.x, tip.y, tip.z, -0.9, -a + Math.PI / 2 + (l - 2) * 0.45, 0));
+      for (let l = 0; l < 5; l++) b.batch(leafGeometry(0.12, 0.045, 0.15), leafMat(l % 2 ? C.leaf : C.leafLight), matrix(tip.x, tip.y, tip.z, -0.9, -a - Math.PI / 2 + (l - 2) * 0.45, 0));
     }
   },
   // ----- vehicles -----
@@ -2649,7 +2655,7 @@ function palm(b: Builder, w: number, d: number, h: number, f: THREE.Material, se
     for (let k = 4; k < o.leaflets; k++) {
       const t = k / o.leaflets;
       const p = curve.getPoint(t);
-      for (const side of [-1, 1]) b.batch(leafGeometry(0.3 * (1 - t * 0.5), o.width, 0.5), leafMat(o.color[k % o.color.length]), matrix(p.x, p.y, p.z, -1.3 - t * 0.6 * o.droop, -a + Math.PI / 2 + side * 1.0, side * 0.5));
+      for (const side of [-1, 1]) b.batch(leafGeometry(0.3 * (1 - t * 0.5), o.width, 0.5), leafMat(o.color[k % o.color.length]), matrix(p.x, p.y, p.z, -1.3 - t * 0.6 * o.droop, -a - Math.PI / 2 + side * 1.0, side * 0.5));
     }
   }
 }
@@ -2683,6 +2689,39 @@ function rosette(b: Builder, x: number, y: number, z: number, r: number, color: 
       leaf.translate(0, 0, r * (0.5 - ring * 0.12));
       b.batch(leaf, mat(color, { roughness: 0.6 }), matrix(x, y + ring * r * 0.25, z, -0.3 - ring * 0.35 - rand() * 0.1, a, 0));
     }
+}
+
+/**
+ * A cupboard: doors (some mirrored), drawers below, boxes on top, a plinth or legs.
+ * Handles in the accent.
+ */
+function cupboard(b: Builder, w: number, d: number, h: number, f: THREE.Material, a: THREE.Material, o: { doors?: number; drawers?: number; columns?: number; mirror?: number[]; top?: boolean; legs?: boolean }) {
+  const base = o.legs ? 0.14 : 0.08;
+  b.box(w, h - base, d - 0.02, 0, base, back(d) + (d - 0.02) / 2, f, o.legs ? 0.01 : 0);
+  if (o.legs) legs(b, w - 0.04, d - 0.06, base, 0.04, 0.016, a);
+  else b.box(w - 0.02, base, d - 0.06, 0, 0, back(d) + (d - 0.06) / 2, mat(C.black));
+  const z = d / 2 - 0.02;
+  const doors = o.doors ?? Math.max(1, Math.round(w / 0.5));
+  const drawerH = 0.2;
+  const drawers = o.drawers ?? 0;
+  const topH = o.top ? Math.min(0.45, h * 0.18) : 0;
+  let y = base;
+  if (drawers) {
+    const dh = doors ? drawers * drawerH : h - base;
+    fronts(b, -w / 2, w, y, dh, z, o.columns ?? (doors ? Math.max(1, Math.min(doors, Math.round(w / 0.8))) : 1), f, drawers, "bar", a);
+    y += dh;
+  }
+  if (doors) {
+    const dh = h - y - topH;
+    fronts(b, -w / 2, w, y, dh, z, doors, f, 1, "bar", a);
+    for (const i of o.mirror ?? []) {
+      if (i >= doors) continue;
+      const cw = w / doors;
+      b.box(cw - 0.08, dh - 0.16, 0.004, -w / 2 + cw * (i + 0.5), y + 0.08, z + 0.02, mat(C.mirror, { metalness: 0.9, roughness: 0.05 }));
+    }
+    y += dh;
+  }
+  if (topH) fronts(b, -w / 2, w, y, topH, z, doors, f, 1, "knob", a);
 }
 
 function tvPanel(b: Builder, w: number, h: number, y: number, z: number) {

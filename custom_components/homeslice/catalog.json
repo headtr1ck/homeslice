@@ -2184,6 +2184,252 @@
     "walnut",
     "black",
     "anthracite"
+   ],
+   "accents": [
+    "black",
+    "chrome",
+    "brass",
+    "oak"
+   ]
+  },
+  {
+   "model": "modern:wardrobe_1door",
+   "name": "Wardrobe, one door",
+   "group": "bedroom",
+   "type": "wardrobe",
+   "size": [
+    0.5,
+    0.6,
+    2
+   ],
+   "finishes": [
+    "oak",
+    "white",
+    "walnut",
+    "black",
+    "anthracite"
+   ],
+   "accents": [
+    "black",
+    "chrome",
+    "brass",
+    "oak"
+   ]
+  },
+  {
+   "model": "modern:wardrobe_2door",
+   "name": "Wardrobe, two doors",
+   "group": "bedroom",
+   "type": "wardrobe",
+   "size": [
+    1,
+    0.6,
+    2
+   ],
+   "finishes": [
+    "oak",
+    "white",
+    "walnut",
+    "black",
+    "anthracite"
+   ],
+   "accents": [
+    "black",
+    "chrome",
+    "brass",
+    "oak"
+   ]
+  },
+  {
+   "model": "modern:wardrobe_3door",
+   "name": "Wardrobe, three doors, one mirrored",
+   "group": "bedroom",
+   "type": "wardrobe",
+   "size": [
+    1.5,
+    0.6,
+    2.2
+   ],
+   "finishes": [
+    "oak",
+    "white",
+    "walnut",
+    "black",
+    "anthracite"
+   ],
+   "accents": [
+    "black",
+    "chrome",
+    "brass",
+    "oak"
+   ]
+  },
+  {
+   "model": "modern:wardrobe_4door",
+   "name": "Wardrobe, four doors",
+   "group": "bedroom",
+   "type": "wardrobe",
+   "size": [
+    2,
+    0.6,
+    2.3
+   ],
+   "finishes": [
+    "oak",
+    "white",
+    "walnut",
+    "black",
+    "anthracite"
+   ],
+   "accents": [
+    "black",
+    "chrome",
+    "brass",
+    "oak"
+   ]
+  },
+  {
+   "model": "modern:wardrobe_drawers",
+   "name": "Wardrobe with drawers",
+   "group": "bedroom",
+   "type": "wardrobe",
+   "size": [
+    1,
+    0.6,
+    2
+   ],
+   "finishes": [
+    "oak",
+    "white",
+    "walnut",
+    "black",
+    "anthracite"
+   ],
+   "accents": [
+    "black",
+    "chrome",
+    "brass",
+    "oak"
+   ]
+  },
+  {
+   "model": "modern:wardrobe_mirror",
+   "name": "Wardrobe, mirrored doors",
+   "group": "bedroom",
+   "type": "wardrobe",
+   "size": [
+    1,
+    0.6,
+    2
+   ],
+   "finishes": [
+    "oak",
+    "white",
+    "walnut",
+    "black",
+    "anthracite"
+   ],
+   "accents": [
+    "black",
+    "chrome",
+    "brass",
+    "oak"
+   ]
+  },
+  {
+   "model": "modern:wardrobe_top",
+   "name": "Wardrobe with top cupboards",
+   "group": "bedroom",
+   "type": "wardrobe",
+   "size": [
+    1.5,
+    0.6,
+    2.5
+   ],
+   "finishes": [
+    "oak",
+    "white",
+    "walnut",
+    "black",
+    "anthracite"
+   ],
+   "accents": [
+    "black",
+    "chrome",
+    "brass",
+    "oak"
+   ]
+  },
+  {
+   "model": "modern:wardrobe_legs",
+   "name": "Wardrobe on legs",
+   "group": "bedroom",
+   "type": "wardrobe",
+   "size": [
+    1,
+    0.55,
+    1.8
+   ],
+   "finishes": [
+    "oak",
+    "white",
+    "walnut",
+    "black",
+    "anthracite"
+   ],
+   "accents": [
+    "black",
+    "chrome",
+    "brass",
+    "oak"
+   ]
+  },
+  {
+   "model": "modern:chest_tall",
+   "name": "Tall chest of drawers",
+   "group": "bedroom",
+   "type": "shelf",
+   "size": [
+    0.8,
+    0.48,
+    1.2
+   ],
+   "finishes": [
+    "oak",
+    "white",
+    "walnut",
+    "black",
+    "anthracite"
+   ],
+   "accents": [
+    "black",
+    "chrome",
+    "brass",
+    "oak"
+   ]
+  },
+  {
+   "model": "modern:chest_low",
+   "name": "Chest of drawers",
+   "group": "bedroom",
+   "type": "shelf",
+   "size": [
+    0.8,
+    0.48,
+    0.8
+   ],
+   "finishes": [
+    "oak",
+    "white",
+    "walnut",
+    "black",
+    "anthracite"
+   ],
+   "accents": [
+    "black",
+    "chrome",
+    "brass",
+    "oak"
    ]
   },
   {
