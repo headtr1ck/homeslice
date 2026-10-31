@@ -333,6 +333,7 @@ export class HomeslicePanel extends LitElement {
     _libraryFilter: { state: true },
     _checklist: { state: true },
     _openingPreset: { state: true },
+    _hintsHidden: { state: true },
     _robotSel: { state: true },
     _robotCalib: { state: true },
   };
@@ -399,6 +400,14 @@ export class HomeslicePanel extends LitElement {
   private checkCache: { model: HouseInput; states: unknown; items: CheckItem[] } | null = null;
   /** Filter text of the furniture library. */
   private _libraryFilter = "";
+  /** Tools whose hint was dismissed. */
+  private _hintsHidden: string[] = (() => {
+    try {
+      return JSON.parse(readPref("homeslice-hints-hidden") ?? "[]");
+    } catch {
+      return [];
+    }
+  })();
   /** What a click on a wall adds with the door & window tool. */
   private _openingPreset = "window";
   /** Door or window being dragged from the library onto a wall. */
@@ -682,6 +691,41 @@ export class HomeslicePanel extends LitElement {
   private redo() {
     const next = this._model && this.history.redo(this._model);
     if (next) this._model = next;
+  }
+
+  /**
+   * The hint at the top of the plan: what to do right now (placing, calibrating), else how
+   * the current tool works; tool hints can be dismissed (remembered per tool).
+   */
+  private renderHint() {
+    const action = this._calib
+      ? this.t(!this._calib.a ? "editor.calib_first" : !this._calib.b ? "editor.calib_second" : "editor.calib_distance")
+      : this._underlayMove
+        ? this.t("editor.underlay_move_hint")
+        : this._energyPlace
+          ? this.t("editor.energy_click", { name: this.energyName(this._energyPlace) })
+          : this._robotPlace
+            ? this.t("editor.robot_click", { name: this.entityName(this._robotPlace) })
+            : this._robotCalib
+              ? this.t("editor.robot_calib_click")
+              : this._pendingArea && this._tool === "rect"
+                ? this.t("editor.drawing_for", { area: this._hass?.areas?.[this._pendingArea]?.name ?? this._pendingArea })
+                : "";
+    const m = this._model;
+    const top = !!m && m.levels.findIndex((l) => l.id === this._level) >= m.levels.length - 1;
+    // stairs lead up: on the top floor there is nowhere to go
+    const text = this._tool === "stairs" && top ? this.t("editor.stairs_top") : this.t(`editor.help_${this._tool}` as StringKey);
+    if (!action && this._hintsHidden.includes(this._tool) && !(this._tool === "stairs" && top)) return nothing;
+    const name = this.t(`editor.tool_${this._tool}` as StringKey).replace(/\s*\([^)]*\)$/, "");
+    return html`<div class="hint-bar ${action ? "action" : ""}" role="status">
+      ${action ? html`<b>${action}</b>` : html`<b>${name}:</b> ${text}`}
+      ${action
+        ? nothing
+        : html`<button class="close" aria-label=${this.t("editor.hint_hide")} title=${this.t("editor.hint_hide")} @click=${() => {
+            this._hintsHidden = [...this._hintsHidden, this._tool];
+            writePref("homeslice-hints-hidden", JSON.stringify(this._hintsHidden));
+          }}>×</button>`}
+    </div>`;
   }
 
   /** Nothing selected. */
@@ -1786,7 +1830,6 @@ export class HomeslicePanel extends LitElement {
           ${TOOLS.map(
             ({ tool, icon }) => html`<button class="tool ${this._tool === tool ? "active" : ""}" data-tool=${tool} title=${this.t(`editor.tool_${tool}` as StringKey)}
               aria-label=${this.t(`editor.tool_${tool}` as StringKey)} aria-pressed=${this._tool === tool}
-              ?disabled=${tool === "stairs" && this._model!.levels.findIndex((l) => l.id === this._level) >= this._model!.levels.length - 1}
               @click=${() => this.setTool(tool)}>
               <ha-icon icon=${icon}></ha-icon>
             </button>`,
@@ -1833,7 +1876,7 @@ export class HomeslicePanel extends LitElement {
           ${this._hint
             ? html`<div class="hint" style="left:${this._hint.x + 16}px;top:${this._hint.y + 16}px">${this._hint.lines.map((l) => html`<div>${l}</div>`)}</div>`
             : nothing}
-          <div class="help">${this._calib ? html`<b>${this.t(!this._calib.a ? "editor.calib_first" : !this._calib.b ? "editor.calib_second" : "editor.calib_distance")}</b> ` : this._underlayMove ? html`<b>${this.t("editor.underlay_move_hint")}</b> ` : this._energyPlace ? html`<b>${this.t("editor.energy_click", { name: this.energyName(this._energyPlace) })}</b> ` : this._robotPlace ? html`<b>${this.t("editor.robot_click", { name: this.entityName(this._robotPlace) })}</b> ` : this._robotCalib ? html`<b>${this.t("editor.robot_calib_click")}</b> ` : nothing}${this.t(`editor.help_${this._tool}` as StringKey)}${this._pendingArea && this._tool === "rect" ? html` <b>${this.t("editor.drawing_for", { area: this._hass?.areas?.[this._pendingArea]?.name ?? this._pendingArea })}</b>` : nothing}</div>
+          ${this.renderHint()}
         </section>
         <section class="side">
           <canvas
@@ -4664,13 +4707,42 @@ export class HomeslicePanel extends LitElement {
       font-variant-numeric: tabular-nums;
       white-space: nowrap;
     }
-    .help {
+    .hint-bar {
       position: absolute;
-      left: 12px;
-      bottom: 10px;
-      font-size: 12px;
-      color: var(--secondary-text-color, #999);
+      left: 10px;
+      top: 10px;
+      max-width: min(60ch, calc(100% - 20px));
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      padding: 6px 6px 6px 12px;
+      border-radius: 10px;
+      background: color-mix(in srgb, var(--card-background-color, #1c1c1c) 92%, transparent);
+      border: 1px solid var(--divider-color, #444);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+      font-size: 13px;
+      line-height: 1.35;
+      color: var(--primary-text-color, #eee);
+      /* the plan stays usable underneath; only the close button takes clicks */
       pointer-events: none;
+    }
+    .hint-bar .close {
+      pointer-events: auto;
+    }
+    .hint-bar.action {
+      border-color: var(--accent);
+    }
+    .hint-bar .close {
+      flex: none;
+      min-height: 0;
+      width: 24px;
+      height: 24px;
+      padding: 0;
+      border: none;
+      background: none;
+      font-size: 16px;
+      line-height: 1;
+      opacity: 0.7;
     }
     .side {
       width: min(420px, 40%);
@@ -4809,7 +4881,6 @@ export class HomeslicePanel extends LitElement {
         min-height: 0;
       }
       h1,
-      .help,
       canvas.preview {
         display: none;
       }

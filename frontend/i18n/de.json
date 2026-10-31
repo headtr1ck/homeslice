@@ -118,7 +118,7 @@
   "editor.awning": "Markise",
   "editor.awning_hint": "Eine Markise an der Hauswand neben diesem Bereich; sie fährt entsprechend der Position des Rollladens aus.",
   "editor.tool_stairs": "Treppe zeichnen (S)",
-  "editor.help_stairs": "Den Umriss des Treppenhauses ziehen. Die Treppe führt hinauf zur nächsten Ebene. Esc: abbrechen.",
+  "editor.help_stairs": "Ein Rechteck aufziehen, wo das Treppenhaus ist: von einer Ecke zur gegenüberliegenden. Die Treppe führt zur nächsten Etage hinauf. Esc: abbrechen.",
   "editor.stairs": "Treppe",
   "editor.shaft": "Schacht",
   "editor.stairs_hint": "ziehen zum Verschieben, Ecken zum Ändern der Größe",
@@ -458,5 +458,7 @@
   "editor.opening_window_split_single": "Fenster über Festverglasung",
   "editor.opening_door_entrance_strip": "Haustür mit Glasstreifen",
   "editor.opening_door_entrance_panes": "Haustür mit Glasfeldern",
-  "editor.opening_door_entrance_sidelight": "Haustür mit Seitenteil"
+  "editor.opening_door_entrance_sidelight": "Haustür mit Seitenteil",
+  "editor.hint_hide": "Hinweis ausblenden",
+  "editor.stairs_top": "Treppen führen zur nächsten Etage hinauf, und dies ist die oberste: eine tiefere Etage wählen oder eine Etage darüber hinzufügen."
 }

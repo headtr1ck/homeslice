@@ -118,7 +118,7 @@
   "editor.awning": "Awning",
   "editor.awning_hint": "An awning on the house wall next to this area; it extends with the cover's position.",
   "editor.tool_stairs": "Draw stairs (S)",
-  "editor.help_stairs": "Drag the stairwell's outline. The stairs lead up to the next level. Esc: cancel.",
+  "editor.help_stairs": "Drag a rectangle where the stairwell is: from one corner to the opposite one. The stairs lead up to the next floor. Esc: cancel.",
   "editor.stairs": "Stairs",
   "editor.shaft": "Shaft",
   "editor.stairs_hint": "drag to move, corners to resize",
@@ -458,5 +458,7 @@
   "editor.opening_window_split_single": "Window over a fixed pane",
   "editor.opening_door_entrance_strip": "Entrance door, glass strip",
   "editor.opening_door_entrance_panes": "Entrance door, small panes",
-  "editor.opening_door_entrance_sidelight": "Entrance door with side panel"
+  "editor.opening_door_entrance_sidelight": "Entrance door with side panel",
+  "editor.hint_hide": "Hide this hint",
+  "editor.stairs_top": "Stairs lead up to the next floor, and this is the top floor: pick a lower floor, or add a floor above."
 }
