@@ -501,7 +501,7 @@ export class HomesliceCard extends LitElement {
     const contacts = this.openings.map((o) => (o.contact ? contactOpen(hass, o.contact) : false));
     const temperatures = this.rooms.map((r) => (r.room.areaId ? areaTemperature(hass, r.room.areaId) : null));
     // an alarm turns the room's floor red, over its lights
-    const sensors = this.rooms.map((r) => this.roomSensors(r.room.areaId));
+    const sensors = this.rooms.map((r) => this.roomSensors(r.room));
     sensors.forEach((s, i) => {
       if (s.alerts.length) lights[i] = { rgb: [255, 40, 30], brightness: 1 };
     });
@@ -533,10 +533,11 @@ export class HomesliceCard extends LitElement {
   }
 
   /** A room's motion/presence and alarm sensors, as the card shows them. */
-  private roomSensors(areaId: string | undefined): AreaSensors {
-    if (!areaId || !this.hass) return { presence: false, alerts: [] };
-    const s = areaSensors(this.hass, areaId);
-    return { presence: this.config.presence !== false && s.presence, alerts: s.alerts };
+  private roomSensors(room: Room): AreaSensors {
+    if (!room.areaId || !this.hass) return { presence: false, alerts: [] };
+    const s = areaSensors(this.hass, room.areaId);
+    // outside, "moisture" is rain, not a leak
+    return { presence: this.config.presence !== false && s.presence, alerts: room.kind === "outdoor" ? [] : s.alerts };
   }
 
   // ----- floors -----
@@ -821,7 +822,7 @@ export class HomesliceCard extends LitElement {
         name: this.roomName(r),
         temperature: areaId ? areaTemperature(this.hass, areaId) : null,
         areaId,
-        ...this.roomSensors(areaId),
+        ...this.roomSensors(r.room),
         hasLights: this.roomLights(r.key).length > 0,
         on: lightsLook(this.hass, this.roomLights(r.key)) !== null,
       });
