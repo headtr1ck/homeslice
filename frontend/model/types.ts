@@ -145,7 +145,7 @@ export interface OpeningInput {
   height?: number;
   /**
    * The kind: windows single, double, fixed or split (a double window over a fixed pane);
-   * doors single, double, sliding, sliding_glass, glass or glass_double (terrace doors) (default:
+   * doors single, double, sliding, sliding_glass, glass or glass_double (glass doors) (default:
    * double when wider than 1.3 m for windows, 1.4 m for doors, else single); openings
    * square (default) or arch.
    */
@@ -197,7 +197,7 @@ export interface FacadeOpeningInput {
   height?: number;
   /**
    * The kind: windows single, double, fixed or split (a double window over a fixed pane);
-   * doors single, double, sliding, sliding_glass, glass or glass_double (terrace doors) (default:
+   * doors single, double, sliding, sliding_glass, glass or glass_double (glass doors) (default:
    * double when wider than 1.3 m for windows, 1.4 m for doors, else single); openings
    * square (default) or arch.
    */

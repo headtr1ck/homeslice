@@ -447,11 +447,12 @@
   "editor.furniture_entity_hint": "Die Entität dieses Möbelstücks: Das Licht einer Stehlampe leuchtet dort, wo die Lampe steht; ein Fernseher oder eine Waschmaschine erscheint im Popup des Raums.",
   "editor.opening_group_windows": "Fenster",
   "editor.opening_group_doors": "Türen",
-  "editor.opening_group_openings": "Durchgänge",
   "editor.opening_change_kind": "In eine andere Art ändern, auch in eine Tür oder einen Durchgang:",
-  "editor.opening_door_glass": "Terrassentür",
-  "editor.opening_door_glass_double": "Doppelflügelige Terrassentür",
+  "editor.opening_door_glass": "Glastür",
+  "editor.opening_door_glass_double": "Doppelflügelige Glastür",
   "editor.opening_window_split": "Zweiflügliges Fenster über Festverglasung",
   "editor.opening_door_sliding_glass": "Glas-Schiebetür",
-  "editor.opening_split": "Höhe der Festverglasung (m)"
+  "editor.opening_split": "Höhe der Festverglasung (m)",
+  "editor.opening_group_openings": "Durchgänge",
+  "editor.opening_group_other": "Sonstiges"
 }

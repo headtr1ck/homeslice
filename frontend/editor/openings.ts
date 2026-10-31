@@ -62,9 +62,10 @@ export function kindOf(o: Pick<OpeningInput, "type" | "style" | "width">): strin
   return style === "single" ? type : `${type}_${style}`;
 }
 
-/** The library's groups: windows, doors (and garage doors), openings. */
-export const OPENING_GROUPS: { id: "windows" | "doors" | "openings"; presets: OpeningPreset[] }[] = [
+/** The library's groups: windows, doors, openings (no door), and other (garage doors). */
+export const OPENING_GROUPS: { id: "windows" | "doors" | "openings" | "other"; presets: OpeningPreset[] }[] = [
   { id: "windows", presets: OPENING_PRESETS.filter((p) => p.type === "window") },
-  { id: "doors", presets: OPENING_PRESETS.filter((p) => p.type === "door" || p.type === "garage_door") },
+  { id: "doors", presets: OPENING_PRESETS.filter((p) => p.type === "door") },
   { id: "openings", presets: OPENING_PRESETS.filter((p) => p.type === "opening") },
+  { id: "other", presets: OPENING_PRESETS.filter((p) => p.type === "garage_door") },
 ];
