@@ -450,5 +450,8 @@
   "editor.opening_group_openings": "Openings",
   "editor.opening_change_kind": "Change it to another kind, also a door or an opening:",
   "editor.opening_door_glass": "Terrace door",
-  "editor.opening_door_glass_double": "Double terrace door"
+  "editor.opening_door_glass_double": "Double terrace door",
+  "editor.opening_window_split": "Double window over a fixed pane",
+  "editor.opening_door_sliding_glass": "Glass sliding door",
+  "editor.opening_split": "Fixed pane's height (m)"
 }

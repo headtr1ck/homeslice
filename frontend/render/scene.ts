@@ -479,11 +479,17 @@ export class HouseRenderer {
         // a bar in the middle (double windows, sliding doors)
         const bar = () => box(mid - 0.03, mid + 0.03, o.sill, top, wallMat, 0.07);
         // windows, and glass doors (sliding and terrace doors)
-        if (o.type === "window" || (o.type === "door" && ["sliding", "glass", "glass_double"].includes(o.style))) {
+        if (o.type === "window" || (o.type === "door" && ["sliding_glass", "glass", "glass_double"].includes(o.style))) {
           const mat = o.contact ? this.lambert(COLORS.glass, { transparent: true, opacity: 0.45 }) : glass;
           if (o.contact) this.glasses.set(o.id, mat);
           box(o.start, o.end, o.sill, top, mat, 0.03);
-          if (o.style === "double" || o.style === "sliding" || o.style === "glass_double") bar();
+          if (o.style === "double" || o.style === "sliding_glass" || o.style === "glass_double") bar();
+          if (o.style === "split") {
+            // a fixed pane below, a double window above
+            const at = o.sill + o.split;
+            box(o.start, o.end, at - 0.03, at + 0.03, wallMat, 0.07);
+            box(mid - 0.03, mid + 0.03, at, top, wallMat, 0.07);
+          }
         } else if (o.type === "door") {
           // closed leaves: one, or two meeting in the middle
           if (o.style === "double") {

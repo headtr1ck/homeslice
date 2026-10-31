@@ -450,5 +450,8 @@
   "editor.opening_group_openings": "Durchgänge",
   "editor.opening_change_kind": "In eine andere Art ändern, auch in eine Tür oder einen Durchgang:",
   "editor.opening_door_glass": "Terrassentür",
-  "editor.opening_door_glass_double": "Doppelflügelige Terrassentür"
+  "editor.opening_door_glass_double": "Doppelflügelige Terrassentür",
+  "editor.opening_window_split": "Zweiflügliges Fenster über Festverglasung",
+  "editor.opening_door_sliding_glass": "Glas-Schiebetür",
+  "editor.opening_split": "Höhe der Festverglasung (m)"
 }

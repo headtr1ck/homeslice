@@ -37,3 +37,19 @@ describe("kinds", () => {
     ]);
   });
 });
+
+describe("a double window over a fixed pane", () => {
+  it("splits at half its height unless told otherwise", () => {
+    const { house } = expandHouse({
+      schema: 1,
+      id: "s",
+      outline: { rect: [0, 0, 5, 5] },
+      levels: [{ id: "g", rooms: [{ id: "r", rect: [0, 0, 5, 5] }], openings: [{ room: "r", side: "south", at: 1, width: 1.6, sill: 0, height: 2.2, style: "split" }, { room: "r", side: "north", at: 1, width: 1.6, sill: 0, height: 2.2, style: "split", split: 0.9 }] }],
+    });
+    expect(house!.levels[0].openings.map((o) => [o.style, o.split])).toEqual([
+      ["split", 1.1],
+      ["split", 0.9],
+    ]);
+    expect(presetOf({ width: 1.6, sill: 0, style: "split" })?.id).toBe("window_split");
+  });
+});

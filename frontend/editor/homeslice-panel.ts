@@ -2490,6 +2490,12 @@ export class HomeslicePanel extends LitElement {
     const face = (p: Vec2): Vec2 => [p[0] + (swing[0] * w.thickness) / 2, p[1] + (swing[1] * w.thickness) / 2];
     const cls = o.type === "window" ? "swing window" : "swing";
     if (o.style === "sliding") {
+      // one leaf, slid along the wall
+      const off = w.thickness / 5;
+      const [a, b] = [at(o.start), at(o.end)].map((p) => this.toScreen([p[0] + inward[0] * off, p[1] + inward[1] * off]));
+      return svg`<line class="sliding solid" x1=${a[0]} y1=${a[1]} x2=${b[0]} y2=${b[1]}></line>`;
+    }
+    if (o.style === "sliding_glass") {
       // two panels, overlapping in the middle
       const off = w.thickness / 5;
       const panel = (t0: number, t1: number, side: number) => {
@@ -2515,7 +2521,7 @@ export class HomeslicePanel extends LitElement {
       return svg`<line class="${cls} leaf" x1=${h[0]} y1=${h[1]} x2=${e[0]} y2=${e[1]}></line><polyline class=${cls} points=${arc.map((p) => p.join(",")).join(" ")}></polyline>`;
     };
     const ends = [face(s0), face(s1)];
-    if (o.style === "double" || o.style === "glass_double") {
+    if (o.style === "double" || o.style === "glass_double" || o.style === "split") {
       const middle = face(at((o.start + o.end) / 2));
       return svg`${leaf(ends[0], middle)}${leaf(ends[1], middle)}`;
     }
@@ -2963,8 +2969,17 @@ export class HomeslicePanel extends LitElement {
             })}
           </div>`,
       )}
+      ${o.style === "split"
+        ? html`<label>${this.t("editor.opening_split")}
+            <input type="number" min="0.1" step="0.05" placeholder=${String(((o.height ?? 1.3) / 2).toFixed(2))} .value=${o.split === undefined ? "" : String(o.split)}
+              @change=${(e: Event) => {
+                const v = parseFloat((e.target as HTMLInputElement).value);
+                set({ split: v > 0 ? Math.round(v * 100) / 100 : undefined });
+              }} />
+          </label>`
+        : nothing}
       ${(o.type ?? "window") === "door" || (o.type ?? "window") === "window"
-        ? o.style === "fixed" || o.style === "sliding"
+        ? o.style === "fixed" || o.style === "sliding" || o.style === "sliding_glass"
           ? nothing
           : html`<div class="row">
               <button @click=${() => set({ hinge: o.hinge === "right" ? undefined : "right" })}>⇄ ${this.t(o.hinge === "right" ? "editor.hinge_right" : "editor.hinge_left")}</button>
@@ -3877,6 +3892,10 @@ export class HomeslicePanel extends LitElement {
     .swing.window {
       stroke-dasharray: 3 3;
       stroke: #3b82b8;
+    }
+    .sliding.solid {
+      stroke: #8a6a4a;
+      stroke-width: 3;
     }
     .sliding {
       stroke: #3b82b8;

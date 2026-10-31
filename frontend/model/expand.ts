@@ -46,11 +46,12 @@ export interface ExpandResult {
 }
 
 /** An opening's kind and the way it opens, with the defaults per type. */
-function look(o: { style?: OpeningStyle; hinge?: "left" | "right"; swing?: "in" | "out"; width: number }, type: OpeningType): Pick<Opening, "style" | "hinge" | "swing"> {
+function look(o: { style?: OpeningStyle; hinge?: "left" | "right"; swing?: "in" | "out"; width: number; split?: number }, type: OpeningType, height: number): Pick<Opening, "style" | "hinge" | "swing" | "split"> {
   // wide windows and doors have two leaves unless they say otherwise
   const fallback: OpeningStyle = type === "opening" ? "square" : (type === "window" && o.width > 1.3) || (type === "door" && o.width > 1.4) ? "double" : "single";
-  const styles: OpeningStyle[] = ["single", "double", "fixed", "sliding", "glass", "glass_double", "square", "arch"];
-  return { style: o.style && styles.includes(o.style) ? o.style : fallback, hinge: o.hinge === "right" ? "right" : "left", swing: o.swing === "out" ? "out" : "in" };
+  const styles: OpeningStyle[] = ["single", "double", "fixed", "split", "sliding", "sliding_glass", "glass", "glass_double", "square", "arch"];
+  const split = typeof o.split === "number" && o.split > 0 && o.split < height ? o.split : height / 2;
+  return { style: o.style && styles.includes(o.style) ? o.style : fallback, hinge: o.hinge === "right" ? "right" : "left", swing: o.swing === "out" ? "out" : "in", split };
 }
 
 const energySlug = (text: string) =>
@@ -190,7 +191,7 @@ export function expandHouse(input: unknown): ExpandResult {
         type,
         sill: oi.sill ?? d.sill,
         height: oi.height ?? d.height,
-        ...look(oi, type),
+        ...look(oi, type, oi.height ?? d.height),
         cover: oi.cover,
         contact: oi.contact,
       });
@@ -293,7 +294,7 @@ export function expandHouse(input: unknown): ExpandResult {
         type,
         sill: fi.sill ?? d.sill,
         height: fi.height ?? d.height,
-        ...look(fi, type),
+        ...look(fi, type, fi.height ?? d.height),
         cover: fi.covers?.[levelId],
         contact: fi.contacts?.[levelId],
       });

@@ -39,6 +39,7 @@ export interface WallOpening {
   style: OpeningStyle;
   hinge: "left" | "right";
   swing: "in" | "out";
+  split: number;
   /** Metres from the wall's start (`line[0]`). */
   start: number;
   end: number;
@@ -386,6 +387,6 @@ function placeOpening(o: Opening, level: Level, walls: Wall[], issues: Issue[], 
   }
   const overlap = wall.openings.find((x) => start < x.end && end > x.start);
   if (overlap) warn(`Overlaps opening "${overlap.id}".`);
-  wall.openings.push({ id: o.id, source: o.source, room: o.room, type: o.type, style: o.style, hinge: o.hinge, swing: o.swing, start, end, sill: o.sill, height, cover: o.cover, contact: o.contact });
+  wall.openings.push({ id: o.id, source: o.source, room: o.room, type: o.type, style: o.style, hinge: o.hinge, swing: o.swing, split: o.split, start, end, sill: o.sill, height, cover: o.cover, contact: o.contact });
   wall.openings.sort((x, y) => x.start - y.start);
 }

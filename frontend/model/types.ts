@@ -10,7 +10,7 @@ export type Coord = number | string;
 export type Side = "north" | "south" | "east" | "west";
 export type RoomKind = "room" | "outdoor" | "void";
 export type OpeningType = "window" | "door" | "garage_door" | "opening";
-export type OpeningStyle = "single" | "double" | "fixed" | "sliding" | "glass" | "glass_double" | "square" | "arch";
+export type OpeningStyle = "single" | "double" | "fixed" | "split" | "sliding" | "sliding_glass" | "glass" | "glass_double" | "square" | "arch";
 /** `open`: a boundary between two rooms that are open to each other (no wall is built). */
 export type WallType = "exterior" | "party" | "interior" | "open";
 
@@ -144,8 +144,8 @@ export interface OpeningInput {
   sill?: number;
   height?: number;
   /**
-   * The kind: windows single, double or fixed; doors single, double, sliding, glass or
-   * glass_double (terrace doors) (default:
+   * The kind: windows single, double, fixed or split (a double window over a fixed pane);
+   * doors single, double, sliding, sliding_glass, glass or glass_double (terrace doors) (default:
    * double when wider than 1.3 m for windows, 1.4 m for doors, else single); openings
    * square (default) or arch.
    */
@@ -154,6 +154,8 @@ export interface OpeningInput {
   hinge?: "left" | "right";
   /** Into the room (default) or out of it. */
   swing?: "in" | "out";
+  /** Windows of style split: metres from the sill to the bar above the fixed pane (default half). */
+  split?: number;
   cover?: string;
   contact?: string;
 }
@@ -194,8 +196,8 @@ export interface FacadeOpeningInput {
   sill?: number;
   height?: number;
   /**
-   * The kind: windows single, double or fixed; doors single, double, sliding, glass or
-   * glass_double (terrace doors) (default:
+   * The kind: windows single, double, fixed or split (a double window over a fixed pane);
+   * doors single, double, sliding, sliding_glass, glass or glass_double (terrace doors) (default:
    * double when wider than 1.3 m for windows, 1.4 m for doors, else single); openings
    * square (default) or arch.
    */
@@ -204,6 +206,8 @@ export interface FacadeOpeningInput {
   hinge?: "left" | "right";
   /** Into the room (default) or out of it. */
   swing?: "in" | "out";
+  /** Windows of style split: metres from the sill to the bar above the fixed pane (default half). */
+  split?: number;
   /** Cover per level id. */
   covers?: Record<string, string>;
   /** Contact sensor per level id. */
@@ -367,6 +371,8 @@ export interface Opening {
   style: OpeningStyle;
   hinge: "left" | "right";
   swing: "in" | "out";
+  /** Split windows: metres from the sill to the bar. */
+  split: number;
   cover?: string;
   contact?: string;
 }
