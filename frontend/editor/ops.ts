@@ -3,7 +3,7 @@
 
 import { bbox, dist, normalizeOrientation, project, signedArea } from "../model/geometry";
 import { expandHouse } from "../model/expand";
-import type { Coord, EnergyInput, FurnitureInput, HouseInput, LevelInput, OpeningInput, OpeningSource, OpeningType, RoomInput, ShapeInput, RoofInput, Side, Vec2, VerticalInput, WallInput, WallThickness } from "../model/types";
+import type { Coord, EnergyInput, FurnitureInput, HouseInput, LevelInput, OpeningInput, OpeningSource, OpeningType, RoomInput, ShapeInput, RobotInput, RoofInput, Side, Vec2, VerticalInput, WallInput, WallThickness } from "../model/types";
 
 /** Points closer than this count as the same corner (shared by neighbouring rooms). */
 export const SAME_POINT = 0.01;
@@ -998,6 +998,63 @@ export function setRoof(model: HouseInput, roof: Partial<RoofInput> | null): Hou
 }
 
 // ----- energy -----
+
+// ----- robots -----
+
+export function addRobot(model: HouseInput, robot: RobotInput): { model: HouseInput; index: number } {
+  const m = clone(model);
+  m.robots = [...(m.robots ?? []), { ...robot, dock: [round(robot.dock[0]), round(robot.dock[1])] }];
+  return { model: m, index: m.robots.length - 1 };
+}
+
+export function updateRobot(model: HouseInput, index: number, patch: Partial<RobotInput>): HouseInput {
+  const m = clone(model);
+  const r = m.robots?.[index];
+  if (!r) return m;
+  Object.assign(r, patch);
+  for (const [k, v] of Object.entries(patch)) if (v === undefined || v === "") delete (r as unknown as Record<string, unknown>)[k];
+  r.dock = [round(r.dock[0]), round(r.dock[1])];
+  return m;
+}
+
+export function deleteRobot(model: HouseInput, index: number): HouseInput {
+  const m = clone(model);
+  m.robots = (m.robots ?? []).filter((_, i) => i !== index);
+  if (!m.robots.length) delete m.robots;
+  return m;
+}
+
+/** Where the robot's live position comes from; null switches it off. */
+export function setRobotPosition(model: HouseInput, index: number, position: { entity?: string; attribute?: string } | null): HouseInput {
+  const m = clone(model);
+  const r = m.robots?.[index];
+  if (!r) return m;
+  if (!position) {
+    delete r.position;
+    return m;
+  }
+  // a different source makes the old calibration meaningless
+  const same = (r.position?.entity ?? r.entity) === (position.entity ?? r.entity) && r.position?.attribute === position.attribute;
+  r.position = { ...(position.entity && position.entity !== r.entity ? { entity: position.entity } : {}), ...(position.attribute ? { attribute: position.attribute } : {}), ...(same && r.position?.points ? { points: r.position.points } : {}) };
+  return m;
+}
+
+/** Adds a calibration point: the robot's own reading there, and the spot on the plan. */
+export function addRobotPoint(model: HouseInput, index: number, reading: Vec2, plan: Vec2): HouseInput {
+  const m = clone(model);
+  const r = m.robots?.[index];
+  if (!r) return m;
+  r.position ??= {};
+  r.position.points = [...(r.position.points ?? []), [[reading[0], reading[1]], [round(plan[0]), round(plan[1])]]];
+  return m;
+}
+
+export function clearRobotPoints(model: HouseInput, index: number): HouseInput {
+  const m = clone(model);
+  const p = m.robots?.[index]?.position;
+  if (p) delete p.points;
+  return m;
+}
 
 /** Every energy item's id (given, or the one the model derives from its name or kind). */
 export function energyIds(model: HouseInput): string[] {

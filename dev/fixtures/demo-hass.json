@@ -138,6 +138,14 @@
     "sensor.battery_soc": {
       "entity_id": "sensor.battery_soc",
       "device_id": "battery"
+    },
+    "vacuum.robo": {
+      "entity_id": "vacuum.robo",
+      "area_id": null
+    },
+    "lawn_mower.mower": {
+      "entity_id": "lawn_mower.mower",
+      "area_id": null
     }
   },
   "states": {
@@ -234,7 +242,7 @@
       "attributes": {
         "friendly_name": "Living room temperature",
         "device_class": "temperature",
-        "unit_of_measurement": "\u00b0C"
+        "unit_of_measurement": "°C"
       }
     },
     "sensor.bedroom_temperature": {
@@ -243,7 +251,7 @@
       "attributes": {
         "friendly_name": "Bedroom temperature",
         "device_class": "temperature",
-        "unit_of_measurement": "\u00b0C"
+        "unit_of_measurement": "°C"
       }
     },
     "sensor.bedroom_battery": {
@@ -329,6 +337,28 @@
         "unit_of_measurement": "W",
         "device_class": "power",
         "friendly_name": "Heat pump"
+      }
+    },
+    "vacuum.robo": {
+      "entity_id": "vacuum.robo",
+      "state": "cleaning",
+      "attributes": {
+        "friendly_name": "Robo",
+        "battery_level": 64,
+        "vacuum_position": {
+          "x": 26500,
+          "y": 26500
+        }
+      }
+    },
+    "lawn_mower.mower": {
+      "entity_id": "lawn_mower.mower",
+      "state": "mowing",
+      "attributes": {
+        "friendly_name": "Mower",
+        "battery": 80,
+        "latitude": 48.00005,
+        "longitude": 10.00002
       }
     }
   },

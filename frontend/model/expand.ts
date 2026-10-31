@@ -14,6 +14,7 @@ import type {
   Level,
   Opening,
   OpeningType,
+  Robot,
   Room,
   ShapeInput,
   Side,
@@ -360,5 +361,24 @@ export function expandHouse(input: unknown): ExpandResult {
   if (h.inverted_covers !== undefined && !(Array.isArray(h.inverted_covers) && h.inverted_covers.every((c) => typeof c === "string")))
     err("inverted_covers", "inverted_covers must be a list of cover entities.");
   const invertedCovers = Array.isArray(h.inverted_covers) ? h.inverted_covers.filter((c) => typeof c === "string") : [];
-  return { house: { id: h.id, name: h.name ?? h.id, walls, levels, vertical, roof, energy, invertedCovers }, issues };
+  const robots: Robot[] = [];
+  (h.robots ?? []).forEach((r, index) => {
+    const rp = `robots.${index}`;
+    const kind = r?.entity?.split(".")[0];
+    if (kind !== "vacuum" && kind !== "lawn_mower") return err(rp, `entity must be a vacuum.* or lawn_mower.* entity, got ${JSON.stringify(r?.entity)}.`);
+    const li = levelIndex.get(r.level);
+    if (li === undefined) return err(rp, `level must be one of ${[...levelIndex.keys()].join(", ")}, got ${JSON.stringify(r.level)}.`);
+    if (!Array.isArray(r.dock) || r.dock.length !== 2) return err(rp, "dock must be [x, y] in metres.");
+    const points = (r.position?.points ?? []).filter((p) => Array.isArray(p) && p.length === 2);
+    robots.push({
+      index,
+      entity: r.entity,
+      kind,
+      name: r.name,
+      levelIndex: li,
+      dock: [r.dock[0], r.dock[1]],
+      ...(r.position ? { position: { entity: r.position.entity ?? r.entity, attribute: r.position.attribute, points: points.map(([a, b]) => [[a[0], a[1]], [b[0], b[1]]] as [Vec2, Vec2]) } } : {}),
+    });
+  });
+  return { house: { id: h.id, name: h.name ?? h.id, walls, levels, vertical, roof, energy, invertedCovers, robots }, issues };
 }

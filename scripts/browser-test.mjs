@@ -452,6 +452,23 @@ console.log("demo house, roof");
       { timeout: 10000 },
     );
   });
+  await test("robots: the vacuum at its live position, with its status and battery", async () => {
+    const robots = await page.evaluate(() => window.card.renderer.robotState());
+    assert(robots.length === 1 && robots[0].visible && robots[0].at[0] === 2.5 && robots[0].at[1] === 2.5 && robots[0].color === "#4caf50", `robots: ${JSON.stringify(robots)}`);
+    const label = await page.locator("homeslice-card .robot-label").getAttribute("aria-label");
+    assert(label.includes("Robo") && label.includes("cleaning") && label.includes("64 %"), `label: ${label}`);
+    assert((await page.locator("homeslice-card .robot-label").textContent()).includes("64 %"), "battery not shown");
+    // docked: back at the dock, grey
+    await act(page, () =>
+      page.evaluate(() => {
+        const h = window.card.hass;
+        window.card.hass = { ...h, states: { ...h.states, "vacuum.robo": { ...h.states["vacuum.robo"], state: "docked", attributes: { ...h.states["vacuum.robo"].attributes, vacuum_position: { x: 24800, y: 27300 } } } } };
+      }),
+    );
+    const docked = await page.evaluate(() => window.card.renderer.robotState()[0]);
+    assert(docked.color === "#9e9e9e" && Math.abs(docked.at[0] - 0.8) < 1e-6 && Math.abs(docked.at[1] - 3.3) < 1e-6, `docked: ${JSON.stringify(docked)}`);
+  });
+
   await test("the roof shows in the overview only", async () => {
     const o = await page.evaluate(() => window.card.renderer.orientation);
     assert(o.azimuth === 200 && o.elevation === 45, `camera ${JSON.stringify(o)}`);
@@ -1172,6 +1189,42 @@ console.log("editor");
     await page.keyboard.press("Control+z");
     await page.keyboard.press("Control+z");
     await page.keyboard.press("Control+z");
+    await page.keyboard.press("Escape");
+    await page.locator("homeslice-panel .modes button", { hasText: "Rooms" }).click();
+    assert(errors.length === 0, errors.join(" | "));
+  });
+
+  await test("robots: place a mower's dock, show it live from GPS after two calibration spots", async () => {
+    await page.keyboard.press("Escape");
+    await page.locator("homeslice-panel .modes button", { hasText: "Objects" }).click();
+    await page.locator("homeslice-panel .inspector ul.lights li", { hasText: "Mower" }).locator("button").click();
+    assert((await page.locator("homeslice-panel .help").textContent()).includes("Click where the dock of Mower is"), "no placing hint");
+    const dockAt = await toPage([6, 9.3]);
+    await page.mouse.click(dockAt.x, dockAt.y);
+    const mower = () => model().then((m) => m.robots?.find((r) => r.entity === "lawn_mower.mower"));
+    assert((await mower())?.level === "ground", `mower: ${JSON.stringify(await mower())}`);
+    assert((await page.locator("homeslice-panel .inspector h2").textContent()) === "Mower", "mower not selected");
+    await page.locator("homeslice-panel .inspector label.check", { hasText: "live position" }).locator("input").check();
+    assert((await page.locator("homeslice-panel .inspector label", { hasText: "Attribute" }).locator("select").inputValue()) === "", "GPS should be offered for a mower with latitude/longitude");
+    // spot 1: where it is now
+    const record = async (lat, lon, plan) => {
+      await page.evaluate(([lat, lon]) => {
+        const h = window.panel.hass;
+        window.panel.hass = { ...h, states: { ...h.states, "lawn_mower.mower": { ...h.states["lawn_mower.mower"], attributes: { ...h.states["lawn_mower.mower"].attributes, latitude: lat, longitude: lon } } } };
+      }, [lat, lon]);
+      await page.locator("homeslice-panel .inspector button", { hasText: "Record a spot" }).click();
+      const at = await toPage(plan);
+      await page.mouse.click(at.x, at.y);
+    };
+    await record(48.0, 10.0, [1, 9.5]);
+    await record(48.0, 10.0001, [7, 9.5]);
+    assert((await mower()).position.points.length === 2, `points: ${JSON.stringify((await mower()).position)}`);
+    assert((await page.locator("homeslice-panel .inspector").textContent()).includes("Calibrated"), "not shown as calibrated");
+    // it is where the second spot was recorded
+    const live = await page.locator("homeslice-panel svg.plan circle.robot-live").last().boundingBox();
+    const spot = await toPage([7, 9.5]);
+    assert(Math.hypot(live.x + live.width / 2 - spot.x, live.y + live.height / 2 - spot.y) < 3, `live dot at ${JSON.stringify(live)}, expected ${JSON.stringify(spot)}`);
+    await shot(page, "editor-robot");
     await page.keyboard.press("Escape");
     await page.locator("homeslice-panel .modes button", { hasText: "Rooms" }).click();
     assert(errors.length === 0, errors.join(" | "));

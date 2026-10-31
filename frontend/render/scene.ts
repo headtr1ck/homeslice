@@ -275,6 +275,9 @@ export class HouseRenderer {
   /** The roof's shape and the level it sits on, for placing solar panels. */
   private roofInfo: { level: Level; shape: RoofShape } | null = null;
   private energyObjects: THREE.Object3D[] = [];
+  /** Robots: their body (moved to the live position) and status ring, on their level. */
+  private robots = new Map<string, { levelIndex: number; body: THREE.Group; ring: THREE.MeshBasicMaterial }>();
+  private robotObjects: THREE.Object3D[] = [];
   /** Where each energy item is, in its level group's coordinates (solar: on the roof). */
   private energyPoints = new Map<string, EnergyPoint>();
   private flows: Flow[] = [];
@@ -379,6 +382,8 @@ export class HouseRenderer {
     this.energyObjects = [];
     this.energyPoints.clear();
     this.flows = [];
+    this.robots.clear();
+    this.robotObjects = [];
     this.levelOutlines = [];
     this.levelHeights = [];
     this.levelRooms = [];
@@ -828,6 +833,92 @@ export class HouseRenderer {
     else points.push(...perimeterPath(outer, corner, plan(to)).map((q) => at(to.levelIndex, q, to.local.y)));
     points.push(end);
     return points;
+  }
+
+  /**
+   * Robot vacuums and mowers: a dock at its place, and the robot with a ring in its
+   * status colour (moved by setRobotState).
+   */
+  setRobots(items: { key: string; kind: "vacuum" | "lawn_mower"; levelIndex: number; dock: Vec2 }[]) {
+    for (const o of this.robotObjects) {
+      o.removeFromParent();
+      o.traverse((x) => x instanceof THREE.Mesh && x.geometry.dispose());
+    }
+    this.robotObjects = [];
+    this.robots.clear();
+    for (const item of items) {
+      const level = this.levels[item.levelIndex];
+      if (!level) continue;
+      const mat = (color: string) => {
+        const m = new THREE.MeshLambertMaterial({ color });
+        level.materials.add(m);
+        return m;
+      };
+      const mower = item.kind === "lawn_mower";
+      // the dock: a small station (vacuum) or a platform (mower)
+      const dock = this.mesh(mower ? new THREE.BoxGeometry(0.6, 0.06, 0.55) : new THREE.BoxGeometry(0.32, 0.12, 0.1), mat("#e4e4e2"));
+      dock.position.set(item.dock[0], mower ? 0.03 : 0.06, item.dock[1] + (mower ? 0 : -0.2));
+      // the robot
+      const body = new THREE.Group();
+      if (mower) {
+        const shell = this.mesh(new THREE.BoxGeometry(0.42, 0.18, 0.58), mat("#3f4a42"));
+        shell.position.y = 0.17;
+        const top = this.mesh(new THREE.BoxGeometry(0.34, 0.06, 0.4), mat("#e07a2f"));
+        top.position.y = 0.29;
+        body.add(shell, top);
+        for (const [x, z] of [[-0.23, -0.18], [0.23, -0.18], [-0.23, 0.2], [0.23, 0.2]]) {
+          const wheel = this.mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.06, 16), mat("#222"));
+          wheel.rotation.z = Math.PI / 2;
+          wheel.position.set(x, 0.1, z);
+          body.add(wheel);
+        }
+      } else {
+        const disc = this.mesh(new THREE.CylinderGeometry(0.17, 0.17, 0.09, 32), mat("#2f3337"));
+        disc.position.y = 0.055;
+        const cap = this.mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.012, 32), mat("#7b8188"));
+        cap.position.y = 0.105;
+        const lidar = this.mesh(new THREE.CylinderGeometry(0.045, 0.045, 0.035, 20), mat("#d8dadc"));
+        lidar.position.set(0, 0.125, -0.07);
+        body.add(disc, cap, lidar);
+      }
+      const ringMaterial = new THREE.MeshBasicMaterial({ color: "#9e9e9e", transparent: true, opacity: 0.85, side: THREE.DoubleSide });
+      level.materials.add(ringMaterial);
+      const r = mower ? 0.42 : 0.24;
+      const ring = new THREE.Mesh(new THREE.RingGeometry(r, r + 0.06, 40), ringMaterial);
+      ring.rotation.x = -Math.PI / 2;
+      ring.position.y = 0.012;
+      body.add(ring);
+      body.position.set(item.dock[0], 0, item.dock[1]);
+      for (const o of [dock, body]) {
+        o.traverse((x) => (x.userData.outdoor = true)); // taps go to the room underneath
+        level.group.add(o);
+        this.robotObjects.push(o);
+      }
+      this.robots.set(item.key, { levelIndex: item.levelIndex, body, ring: ringMaterial });
+      this.applyLevel(level);
+    }
+  }
+
+  /** Where a robot is (null: unknown, hidden) and its status colour. */
+  setRobotState(key: string, at: Vec2 | null, color: string) {
+    const r = this.robots.get(key);
+    if (!r) return;
+    r.body.visible = !!at;
+    if (at) r.body.position.set(at[0], 0, at[1]);
+    r.ring.color.set(color);
+  }
+
+  /** Screen position of a robot, or null when it isn't shown. */
+  projectRobot(key: string): { x: number; y: number } | null {
+    const r = this.robots.get(key);
+    if (!r || !r.body.visible || !this.pointVisible({ levelIndex: r.levelIndex })) return null;
+    const v = this.levels[r.levelIndex].group.localToWorld(r.body.position.clone().setY(0.3)).project(this.camera);
+    return { x: ((v.x + 1) / 2) * this.size.width, y: ((1 - v.y) / 2) * this.size.height };
+  }
+
+  /** For tests: where each robot is drawn. */
+  robotState() {
+    return [...this.robots.entries()].map(([key, r]) => ({ key, visible: r.body.visible, at: [r.body.position.x, r.body.position.z], color: `#${r.ring.color.getHexString()}` }));
   }
 
   /** Power per item (W towards what it is connected to); flows below a few watts stand still. */

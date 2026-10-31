@@ -260,6 +260,36 @@ export interface HouseInput {
   levels: LevelInput[];
   roof?: RoofInput;
   energy?: EnergyInput[];
+  robots?: RobotInput[];
+}
+
+/**
+ * A robot vacuum or lawn mower: its dock on the plan and, if Home Assistant knows where
+ * it is, its live position.
+ */
+export interface RobotInput {
+  /** `vacuum.*` or `lawn_mower.*`. */
+  entity: string;
+  name?: string;
+  level: string;
+  /** The dock, plan metres. */
+  dock: [number, number];
+  position?: RobotPositionInput;
+}
+
+export interface RobotPositionInput {
+  /** The entity that has the position (default: the robot's). */
+  entity?: string;
+  /**
+   * The attribute with the position, `{x, y}` or `[x, y]` in the robot's map units.
+   * Without it, the entity's `latitude` and `longitude` are used (GPS mowers).
+   */
+  attribute?: string;
+  /**
+   * Calibration: where the robot was by its own reckoning (map units, or [latitude,
+   * longitude]) and where that is on the plan. Two points; a third for mirrored maps.
+   */
+  points?: [[number, number], [number, number]][];
 }
 
 // ----- expanded -----
@@ -343,6 +373,18 @@ export interface House {
   roof: Required<RoofInput>;
   energy: Energy[];
   invertedCovers: string[];
+  robots: Robot[];
+}
+
+export interface Robot {
+  /** Index into the input list (for the editor). */
+  index: number;
+  entity: string;
+  kind: "vacuum" | "lawn_mower";
+  name?: string;
+  levelIndex: number;
+  dock: Vec2;
+  position?: { entity: string; attribute?: string; points: [Vec2, Vec2][] };
 }
 
 export interface Energy {

@@ -61,6 +61,11 @@ import {
   connectEnergy,
   snapFurniture,
   footprintHalf,
+  addRobot,
+  setRobotPosition,
+  addRobotPoint,
+  clearRobotPoints,
+  deleteRobot,
 } from "./ops";
 import { expandHouse } from "../model/expand";
 import { deriveWalls } from "../model/walls";
@@ -513,5 +518,21 @@ describe("snapping furniture", () => {
   it("only pieces turned by a right angle have a footprint", () => {
     expect(footprintHalf([2, 1], 90)).toEqual([0.5, 1]);
     expect(footprintHalf([2, 1], 45)).toBeNull();
+  });
+});
+
+describe("robots in the editor", () => {
+  it("places a robot, sets where its position comes from and calibrates it", () => {
+    let { model, index } = addRobot(house(), { entity: "vacuum.r", level: "g", dock: [1.0004, 2] });
+    expect(model.robots![0]).toEqual({ entity: "vacuum.r", level: "g", dock: [1, 2] });
+    model = setRobotPosition(model, index, { attribute: "vacuum_position" });
+    model = addRobotPoint(model, index, [25000, 25000], [1, 2]);
+    model = addRobotPoint(model, index, [26000, 25000], [2, 2]);
+    expect(model.robots![0].position).toEqual({ attribute: "vacuum_position", points: [[[25000, 25000], [1, 2]], [[26000, 25000], [2, 2]]] });
+    // the same source keeps the points; another one drops them
+    expect(setRobotPosition(model, index, { attribute: "vacuum_position" }).robots![0].position?.points).toHaveLength(2);
+    expect(setRobotPosition(model, index, { entity: "camera.map", attribute: "vacuum_position" }).robots![0].position).toEqual({ entity: "camera.map", attribute: "vacuum_position" });
+    expect(clearRobotPoints(model, index).robots![0].position).toEqual({ attribute: "vacuum_position" });
+    expect(deleteRobot(model, index).robots).toBeUndefined();
   });
 });

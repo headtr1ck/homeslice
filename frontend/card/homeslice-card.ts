@@ -7,6 +7,7 @@ import type { House, Issue, Room, Vec2 } from "../model/types";
 import { listedLights, placeLights, type PlacedLight } from "../model/lights";
 import { deriveWalls, innerPolygon, type Wall } from "../model/walls";
 import { formatPower, readEnergy, type EnergyPrefs, type EnergyReading } from "../ha/energy";
+import { readRobot, type RobotReading, type RobotStatus } from "../ha/robots";
 import { ENERGY_COLORS, HouseRenderer, viewOptions, type ViewOptions } from "../render/scene";
 
 export interface PopupOverride {
@@ -73,6 +74,17 @@ interface EnergyLabel {
   name: string;
   text: string;
 }
+
+/** Robot status colours (the ring under the robot and its label). */
+const ROBOT_COLORS: Record<RobotStatus, string> = {
+  active: "#4caf50",
+  returning: "#2196f3",
+  paused: "#ffb300",
+  error: "#e53935",
+  docked: "#9e9e9e",
+  idle: "#9e9e9e",
+  unknown: "#9e9e9e",
+};
 
 /** Height of a label plus a gap, in CSS px. */
 const LABEL_STEP = 48;
@@ -155,6 +167,7 @@ export class HomesliceCard extends LitElement {
     _labels: { state: true },
     _lampButtons: { state: true },
     _energyLabels: { state: true },
+    _robotLabels: { state: true },
     _level: { state: true },
     _popup: { state: true },
     _hover: { state: true },
@@ -169,6 +182,8 @@ export class HomesliceCard extends LitElement {
   private _labels: Label[] = [];
   private _lampButtons: LampButton[] = [];
   private _energyLabels: EnergyLabel[] = [];
+  private _robotLabels: { key: string; entity: string; x: number; y: number; name: string; text: string; battery: number | null; color: string; icon: string }[] = [];
+  private robotReadings: RobotReading[] = [];
   /** HA's energy settings (for the overlay's default sensors), once loaded. */
   private energyPrefs: EnergyPrefs | null = null;
   private energyReadings: EnergyReading[] = [];
@@ -363,6 +378,7 @@ export class HomesliceCard extends LitElement {
       this.renderer.setEnergy(house.energy.map((e) => ({ key: `energy-${e.index}`, to: e.to === null ? null : `energy-${e.to}`, kind: e.kind, levelIndex: e.levelIndex, at: e.at, roof: e.roof })));
       if (!this.energyPrefs) void this.loadEnergyPrefs();
     }
+    this.renderer.setRobots(house.robots.map((r) => ({ key: `robot-${r.index}`, kind: r.kind, levelIndex: r.levelIndex, dock: r.dock })));
     // keep the focused floor across model updates, if it still exists
     const focused = this._level ? house.levels.find((l) => l.id === this._level) : undefined;
     this._level = focused?.id ?? null;
@@ -400,6 +416,27 @@ export class HomesliceCard extends LitElement {
       this.flowFrame = requestAnimationFrame(step);
     };
     this.flowFrame = requestAnimationFrame(step);
+  }
+
+  /** HA's own details dialog for an entity. */
+  private moreInfo(entityId: string) {
+    this.dispatchEvent(new CustomEvent("hass-more-info", { detail: { entityId }, bubbles: true, composed: true }));
+  }
+
+  /** Robots: name, what they do and their battery, above them. */
+  private robotLabels() {
+    if (!this.house || !this.renderer || !this.hass) return [];
+    return this.house.robots.flatMap((r, i) => {
+      if (this._level && this.house!.levels[r.levelIndex]?.id !== this._level) return [];
+      const p = this.renderer!.projectRobot(`robot-${r.index}`);
+      const reading = this.robotReadings[i];
+      if (!p || !reading) return [];
+      const s = this.hass!.states[r.entity];
+      const name = r.name ?? (s?.attributes.friendly_name as string | undefined) ?? r.entity;
+      const format = (this.hass as unknown as { formatEntityState?: (s: unknown) => string }).formatEntityState;
+      const state = s ? (format ? format(s) : s.state) : "";
+      return [{ key: `robot-${r.index}`, entity: r.entity, ...p, name, battery: reading.battery, text: `${state}${reading.battery !== null ? ` · ${Math.round(reading.battery)} %` : ""}`, color: ROBOT_COLORS[reading.status], icon: r.kind === "lawn_mower" ? "mdi:robot-mower" : "mdi:robot-vacuum" }];
+    });
   }
 
   private energyLabels(): EnergyLabel[] {
@@ -447,10 +484,12 @@ export class HomesliceCard extends LitElement {
     const temperatures = this.rooms.map((r) => (r.room.areaId ? areaTemperature(hass, r.room.areaId) : null));
     const awnings = this.rooms.map((r) => (r.room.awning ? coverOpen(hass, r.room.awning, inverted.has(r.room.awning)) : null));
     this.energyReadings = this.config.energy ? this.house.energy.map((e) => readEnergy(hass, e, this.energyPrefs)) : [];
-    const signature = JSON.stringify([lights, lamps, covers, contacts, temperatures, awnings, this.energyReadings]);
+    this.robotReadings = this.house.robots.map((r) => readRobot(hass, r));
+    const signature = JSON.stringify([lights, lamps, covers, contacts, temperatures, awnings, this.energyReadings, this.robotReadings]);
     if (signature === this.stateSignature) return;
     this.stateSignature = signature;
     this.lamps.forEach((l, i) => this.renderer!.setLamp(l.entity, lamps[i]));
+    this.house.robots.forEach((r, i) => this.renderer!.setRobotState(`robot-${r.index}`, this.robotReadings[i].at, ROBOT_COLORS[this.robotReadings[i].status]));
     if (this.config.energy) {
       this.renderer.setFlows(Object.fromEntries(this.house.energy.map((e, i) => [`energy-${e.index}`, this.energyReadings[i]?.flow ?? null])));
       this.animateFlows();
@@ -756,6 +795,7 @@ export class HomesliceCard extends LitElement {
     }
     this._lampButtons = buttons;
     this._energyLabels = this.energyLabels();
+    this._robotLabels = this.robotLabels();
   }
 
   protected override render() {
@@ -808,6 +848,12 @@ export class HomesliceCard extends LitElement {
                 ${l.temperature ? html`<span class="temp">${l.temperature}</span>` : nothing}
               </button>
             </div>`,
+          )}
+          ${this._robotLabels.map(
+            (r) => html`<button class="robot-label" style="left:${r.x}px;top:${r.y}px;--robot:${r.color}" title=${`${r.name}: ${r.text}`} aria-label=${`${r.name}: ${r.text}`}
+              @click=${() => this.moreInfo(r.entity)}>
+              <ha-icon icon=${r.icon}></ha-icon>${r.battery !== null ? html`<span class="value">${Math.round(r.battery)} %</span>` : nothing}
+            </button>`,
           )}
           ${this._energyLabels.some((e) => e.place !== "above")
             ? html`<svg class="leaders">
@@ -960,6 +1006,7 @@ export class HomesliceCard extends LitElement {
     }
     .label {
       position: absolute;
+      z-index: 1;
       transform: translate(-50%, -50%);
       display: flex;
       flex-direction: column;
@@ -1027,6 +1074,32 @@ export class HomesliceCard extends LitElement {
       pointer-events: none;
       white-space: nowrap;
       --mdc-icon-size: 18px;
+    }
+    /* compact (icon and battery) so it doesn't cover room names; the rest is in its title */
+    .robot-label {
+      position: absolute;
+      /* under the room names, which stay tappable */
+      z-index: 0;
+      transform: translate(-50%, calc(-100% - 6px));
+      display: flex;
+      align-items: center;
+      gap: 3px;
+      padding: 2px 7px 2px 4px;
+      border-radius: 12px;
+      border: 1px solid var(--robot);
+      background: rgba(20, 24, 28, 0.85);
+      color: #eef1f4;
+      white-space: nowrap;
+      cursor: pointer;
+      font: inherit;
+      --mdc-icon-size: 18px;
+    }
+    .robot-label ha-icon {
+      color: var(--robot);
+    }
+    .robot-label .value {
+      font-size: 11px;
+      font-weight: 600;
     }
     .energy-label.left {
       transform: translate(-100%, -50%);

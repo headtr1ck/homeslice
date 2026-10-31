@@ -41,3 +41,12 @@ levels:
       - { room: bedroom, side: north, at: 1, width: 2, cover: cover.bedroom }
       - { room: kids, side: south, at: 1, width: 2, cover: cover.kids }
       - { room: kids, side: south, at: 5, width: 2, cover: cover.kids }
+robots:
+  - entity: vacuum.robo
+    level: ground
+    dock: [0.8, 3.3]
+    position:                          # optional: the live position, calibrated by two spots
+      attribute: vacuum_position
+      points:
+        - [[25000, 25000], [1, 1]]
+        - [[26000, 25000], [2, 1]]

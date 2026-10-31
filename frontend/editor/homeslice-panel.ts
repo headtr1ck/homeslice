@@ -17,6 +17,7 @@ import { misalignedWalls } from "../model/checks";
 import { FURNITURE, FURNITURE_GROUPS, FURNITURE_TYPES, mountOf } from "../model/furniture";
 import { listedLights, placeLights, type PlacedLight } from "../model/lights";
 import { prefsSensors, type EnergyPrefs } from "../ha/energy";
+import { rawPosition, readRobot } from "../ha/robots";
 import { ENERGY_COLORS } from "../render/scene";
 import {
   History,
@@ -33,6 +34,12 @@ import {
   wallSnap,
   connectEnergy,
   setCoverInverted,
+  addRobot,
+  updateRobot,
+  deleteRobot,
+  setRobotPosition,
+  addRobotPoint,
+  clearRobotPoints,
   snapFurniture,
   footprintHalf,
   addOpening,
@@ -178,7 +185,8 @@ type Drag =
   | { kind: "measure"; ctx: SnapContext }
   | { kind: "freewall"; ctx: SnapContext }
   | { kind: "freewall-end"; origin: HouseInput; index: number; end: 0 | 1; ctx: SnapContext }
-  | { kind: "energy-link"; from: number };
+  | { kind: "energy-link"; from: number }
+  | { kind: "robot"; origin: HouseInput; index: number; startWorld: Vec2; dock: Vec2; moved: boolean };
 
 /** A length shown on the plan that can be clicked and typed. */
 interface DimTarget {
@@ -273,6 +281,9 @@ export class HomeslicePanel extends LitElement {
     _linePreview: { state: true },
     _freeWall: { state: true },
     _linkEnd: { state: true },
+    _robotPlace: { state: true },
+    _robotSel: { state: true },
+    _robotCalib: { state: true },
   };
 
   narrow = false;
@@ -326,6 +337,11 @@ export class HomeslicePanel extends LitElement {
   private _linePreview: [Vec2, Vec2] | null = null;
   /** Selected free-standing wall (index in the level's `walls`). */
   private _freeWall: number | null = null;
+  /** Robot entity waiting for a click on its dock. */
+  private _robotPlace: string | null = null;
+  private _robotSel: number | null = null;
+  /** Calibrating a robot: its reading now, waiting for a click where it is on the plan. */
+  private _robotCalib: { index: number; reading: Vec2 } | null = null;
   /** While connecting two energy items: the free end of the line (plan metres). */
   private _linkEnd: Vec2 | null = null;
   /** Furniture type being dragged from the library onto the plan. */
@@ -359,7 +375,15 @@ export class HomeslicePanel extends LitElement {
     const first = !this._hass && hass;
     this._hass = hass;
     if (first) void this.loadHouses();
+    // live readings (robots, lights) follow HA, at most once a second
+    if (!this.hassRefresh)
+      this.hassRefresh = window.setTimeout(() => {
+        this.hassRefresh = 0;
+        this.requestUpdate();
+      }, 1000);
   }
+
+  private hassRefresh = 0;
 
   private t(key: StringKey, vars?: Record<string, string | number>) {
     return localize(this._hass?.locale?.language, key, vars);
@@ -401,6 +425,8 @@ export class HomeslicePanel extends LitElement {
     super.disconnectedCallback();
     window.removeEventListener("beforeunload", this.onBeforeUnload);
     window.removeEventListener("keydown", this.onKey);
+    clearTimeout(this.hassRefresh);
+    this.hassRefresh = 0;
     this.renderer?.dispose();
     this.renderer = undefined;
   }
@@ -623,6 +649,9 @@ export class HomeslicePanel extends LitElement {
       this._furn = null;
     } else if (e.key === "r" && !mod && this._furn && this._model && this._mode === "objects") {
       this.rotateFurniture(e.shiftKey ? -90 : 90);
+    } else if ((e.key === "Delete" || e.key === "Backspace") && this._robotSel !== null && this._model && this._mode === "objects") {
+      this.commit(deleteRobot(this._model, this._robotSel));
+      this._robotSel = null;
     } else if ((e.key === "Delete" || e.key === "Backspace") && this._energySel !== null && this._model && this._mode === "objects") {
       this.commit(deleteEnergy(this._model, this._energySel));
       this._energySel = null;
@@ -647,6 +676,9 @@ export class HomeslicePanel extends LitElement {
       this._energyPlace = null;
       this._furn = null;
       this._energySel = null;
+      this._robotSel = null;
+      this._robotPlace = null;
+      this._robotCalib = null;
       this._settings = null;
       this._shortcuts = false;
       this._drag = null;
@@ -817,6 +849,35 @@ export class HomeslicePanel extends LitElement {
       this._drag = { kind: "pan", start: this.eventScreen(e), offset: [this._view.ox, this._view.oy] };
       return;
     }
+    if (this._mode === "objects" && this._robotCalib) {
+      // where the robot is now: one calibration point
+      this.commit(addRobotPoint(this._model, this._robotCalib.index, this._robotCalib.reading, world));
+      this._robotCalib = null;
+      return;
+    }
+    if (this._mode === "objects" && this._robotPlace) {
+      const { model, index } = addRobot(this._model, { entity: this._robotPlace, level: this._level, dock: world });
+      this.commit(model);
+      this._robotPlace = null;
+      this._robotSel = index;
+      this._energySel = null;
+      this._room = null;
+      return;
+    }
+    const hitRobot = this._mode === "objects" ? (target.closest("[data-robot]") as SVGElement | null) : null;
+    if (hitRobot) {
+      const index = Number(hitRobot.dataset.robot);
+      const r = this._model.robots?.[index];
+      if (r) {
+        this._robotSel = index;
+        this._energySel = null;
+        this._furn = null;
+        this._room = null;
+        this._drag = { kind: "robot", origin: clone(this._model), index, startWorld: world, dock: r.dock, moved: false };
+        return;
+      }
+    }
+    if (this._mode === "objects") this._robotSel = null;
     if (this._mode === "objects" && this._energyPlace) {
       const at = snap(world, { ...this.snapContext(), points: [], align: { x: [], y: [] } }).p;
       const { model, index } = addEnergy(this._model, { ...this._energyPlace, level: this._level, at });
@@ -1022,6 +1083,15 @@ export class HomeslicePanel extends LitElement {
       this._guides = guides;
       return;
     }
+    if (drag.kind === "robot") {
+      const p: Vec2 = [drag.dock[0] + world[0] - drag.startWorld[0], drag.dock[1] + world[1] - drag.startWorld[1]];
+      if (!drag.moved && Math.hypot(p[0] - drag.dock[0], p[1] - drag.dock[1]) * this._view.scale < 4) return;
+      drag.moved = true;
+      const s = snapped(p, { ...this.snapContext(), points: [] });
+      this._guides = { x: s.alignX, y: s.alignY };
+      this._model = updateRobot(drag.origin, drag.index, { dock: s.p });
+      return;
+    }
     if (drag.kind === "energy") {
       const p: Vec2 = [drag.at[0] + world[0] - drag.startWorld[0], drag.at[1] + world[1] - drag.startWorld[1]];
       if (!drag.moved && Math.hypot(p[0] - drag.at[0], p[1] - drag.at[1]) * this._view.scale < 4) return;
@@ -1190,7 +1260,7 @@ export class HomeslicePanel extends LitElement {
       }
       return;
     }
-    if (drag.kind === "vertex" || drag.kind === "edge" || drag.kind === "opening" || drag.kind === "wall" || drag.kind === "stair-move" || drag.kind === "stair-resize" || drag.kind === "light" || drag.kind === "energy" || drag.kind === "furniture" || drag.kind === "freewall-end") {
+    if (drag.kind === "vertex" || drag.kind === "edge" || drag.kind === "opening" || drag.kind === "wall" || drag.kind === "stair-move" || drag.kind === "stair-resize" || drag.kind === "light" || drag.kind === "energy" || drag.kind === "furniture" || drag.kind === "freewall-end" || drag.kind === "robot") {
       if (JSON.stringify(drag.origin) !== JSON.stringify(this._model)) this.commit(this._model, drag.origin);
     } else if (drag.kind === "rect" && this._rectPreview && this._tool === "stairs") {
       const [[x0, y0], , [x1, y1]] = this._rectPreview;
@@ -1693,7 +1763,7 @@ export class HomeslicePanel extends LitElement {
           ${this._hint
             ? html`<div class="hint" style="left:${this._hint.x + 16}px;top:${this._hint.y + 16}px">${this._hint.lines.map((l) => html`<div>${l}</div>`)}</div>`
             : nothing}
-          <div class="help">${this._calib ? html`<b>${this.t(!this._calib.a ? "editor.calib_first" : !this._calib.b ? "editor.calib_second" : "editor.calib_distance")}</b> ` : this._underlayMove ? html`<b>${this.t("editor.underlay_move_hint")}</b> ` : this._energyPlace ? html`<b>${this.t("editor.energy_click", { name: this.energyName(this._energyPlace) })}</b> ` : nothing}${this.t(this._tool === "measure" ? "editor.help_measure" : this._mode === "openings" ? "editor.openings_hint" : this._mode === "objects" ? "editor.help_objects" : this._tool === "rect" ? "editor.help_rect" : this._tool === "stairs" ? "editor.help_stairs" : this._tool === "wall" ? "editor.help_wall" : "editor.help_select")}${this._pendingArea && this._tool === "rect" ? html` <b>${this.t("editor.drawing_for", { area: this._hass?.areas?.[this._pendingArea]?.name ?? this._pendingArea })}</b>` : nothing}</div>
+          <div class="help">${this._calib ? html`<b>${this.t(!this._calib.a ? "editor.calib_first" : !this._calib.b ? "editor.calib_second" : "editor.calib_distance")}</b> ` : this._underlayMove ? html`<b>${this.t("editor.underlay_move_hint")}</b> ` : this._energyPlace ? html`<b>${this.t("editor.energy_click", { name: this.energyName(this._energyPlace) })}</b> ` : this._robotPlace ? html`<b>${this.t("editor.robot_click", { name: this.entityName(this._robotPlace) })}</b> ` : this._robotCalib ? html`<b>${this.t("editor.robot_calib_click")}</b> ` : nothing}${this.t(this._tool === "measure" ? "editor.help_measure" : this._mode === "openings" ? "editor.openings_hint" : this._mode === "objects" ? "editor.help_objects" : this._tool === "rect" ? "editor.help_rect" : this._tool === "stairs" ? "editor.help_stairs" : this._tool === "wall" ? "editor.help_wall" : "editor.help_select")}${this._pendingArea && this._tool === "rect" ? html` <b>${this.t("editor.drawing_for", { area: this._hass?.areas?.[this._pendingArea]?.name ?? this._pendingArea })}</b>` : nothing}</div>
         </section>
         <section class="side">
           <canvas
@@ -1799,6 +1869,7 @@ export class HomeslicePanel extends LitElement {
       ${this._mode === "objects" ? this.renderLamps() : nothing}
       ${this._mode === "objects" ? this.renderEnergyLinks() : nothing}
       ${this._mode === "objects" ? this.renderEnergyMarkers() : nothing}
+      ${this._mode === "objects" ? this.renderRobotMarkers() : nothing}
       ${selPoly.length && this._mode === "rooms" ? this.renderHandles(selPoly, selected ? this.inner(selected, walls) : selPoly) : nothing}
       ${this._rectPreview ? svg`<polygon class="rect-preview" points=${pts(this._rectPreview)}></polygon>` : nothing}
       ${this._linePreview ? svg`<polyline class="line-preview" points=${pts(this._linePreview)}></polyline>` : nothing}
@@ -1981,6 +2052,127 @@ export class HomeslicePanel extends LitElement {
       out.push(svg`<line class="energy-link drawing" x1=${ax} y1=${ay} x2=${bx} y2=${by}></line>`);
     }
     return out;
+  }
+
+  /** The level's robots on the plan: their dock (drag to move) and where HA says they are. */
+  private renderRobotMarkers() {
+    const m = this._model!;
+    const { house } = expandHouse(m);
+    return svg`${(m.robots ?? []).map((r, i) => {
+      if (r.level !== this._level) return nothing;
+      const [x, y] = this.toScreen(r.dock);
+      const robot = house?.robots.find((x) => x.index === i);
+      const reading = robot && this._hass ? readRobot(this._hass, robot) : null;
+      const live = reading?.live && reading.at ? this.toScreen(reading.at) : null;
+      return svg`<g class="robot-marker ${this._robotSel === i ? "selected" : ""}" data-robot=${i}>
+          <rect x=${x - 12} y=${y - 9} width="24" height="18" rx="5"></rect>
+          <text x=${x} y=${y + 4} text-anchor="middle">${r.entity.startsWith("lawn_mower.") ? "M" : "V"}</text>
+          <title>${this.robotName(r.entity, r.name)}</title>
+        </g>
+        ${live ? svg`<circle class="robot-live" cx=${live[0]} cy=${live[1]} r="7"><title>${this.robotName(r.entity, r.name)}</title></circle>` : nothing}`;
+    })}`;
+  }
+
+  private robotName(entity: string, name?: string) {
+    return name || this.entityName(entity);
+  }
+
+  /** Robot vacuums and mowers: placed ones, then the ones HA has that aren't placed yet. */
+  private renderRobotSection() {
+    const m = this._model!;
+    const placed = m.robots ?? [];
+    const offers = Object.keys(this._hass?.states ?? {}).filter((id) => (id.startsWith("vacuum.") || id.startsWith("lawn_mower.")) && !placed.some((r) => r.entity === id));
+    if (!placed.length && !offers.length) return nothing;
+    return html`<h3>${this.t("editor.robots")}</h3>
+      <p class="muted">${this.t("editor.robots_hint")}</p>
+      <ul class="lights">
+        ${placed.map(
+          (r, i) => html`<li class=${this._robotSel === i ? "selected" : ""}>
+            <button class="link name" @click=${() => {
+              this._robotSel = i;
+              if (r.level !== this._level) this._level = r.level;
+            }}>${this.robotName(r.entity, r.name)}<small class="muted">${this.levelName(m.levels.find((l) => l.id === r.level) ?? { id: r.level })}</small></button>
+          </li>`,
+        )}
+        ${offers.map(
+          (id) => html`<li>
+            <span class="name">${this.entityName(id)}</span>
+            <button class=${this._robotPlace === id ? "active" : ""} @click=${() => {
+              this._robotPlace = id;
+              this._room = null;
+            }}>${this.t("editor.energy_place")}</button>
+          </li>`,
+        )}
+      </ul>`;
+  }
+
+  /**
+   * A robot: its name and, for a live position, where it comes from and the calibration
+   * (two spots where the robot's own position and the plan are matched up).
+   */
+  private renderRobotInspector(index: number) {
+    const m = this._model!;
+    const r = m.robots![index];
+    const hass = this._hass;
+    const states = hass?.states ?? {};
+    const { house } = expandHouse(m);
+    const robot = house?.robots.find((x) => x.index === index);
+    const reading = robot && hass ? readRobot(hass, robot) : null;
+    const source = r.position?.entity ?? r.entity;
+    // entities that know a position: map coordinates in an attribute, or GPS
+    const hasPosition = (id: string) => {
+      const a = states[id]?.attributes ?? {};
+      return typeof a.latitude === "number" || Object.values(a).some((v) => (Array.isArray(v) && v.length >= 2 && typeof v[0] === "number") || (v && typeof v === "object" && typeof (v as { x?: unknown }).x === "number"));
+    };
+    const candidates = [r.entity, ...Object.keys(states).filter((id) => id !== r.entity && hasPosition(id))];
+    const attrs = Object.entries(states[source]?.attributes ?? {})
+      .filter(([, v]) => (Array.isArray(v) && v.length >= 2 && typeof v[0] === "number") || (v && typeof v === "object" && typeof (v as { x?: unknown }).x === "number"))
+      .map(([k]) => k);
+    const gps = typeof states[source]?.attributes.latitude === "number";
+    const raw = r.position && hass && robot?.position ? rawPosition(hass, robot.position) : null;
+    const points = r.position?.points?.length ?? 0;
+    return html`<h2>${this.robotName(r.entity, r.name)}</h2>
+      <p class="muted">${this.t(r.entity.startsWith("lawn_mower.") ? "editor.robot_mower" : "editor.robot_vacuum")} · ${this.t("editor.robot_drag")}</p>
+      <p>${states[r.entity]?.state ?? "—"}${reading?.battery !== null && reading?.battery !== undefined ? ` · ${Math.round(reading.battery)} %` : ""}</p>
+      <label>${this.t("editor.energy_name")}
+        <input .value=${r.name ?? ""} placeholder=${this.entityName(r.entity)} @change=${(e: Event) => this.commit(updateRobot(m, index, { name: (e.target as HTMLInputElement).value.trim() || undefined }))} />
+      </label>
+      <h3>${this.t("editor.robot_live")}</h3>
+      <p class="muted">${this.t("editor.robot_live_hint")}</p>
+      <label class="check"><input type="checkbox" .checked=${!!r.position} @change=${(e: Event) => this.commit(setRobotPosition(m, index, (e.target as HTMLInputElement).checked ? { attribute: attrs[0] } : null))} />
+        ${this.t("editor.robot_live_on")}</label>
+      ${r.position
+        ? html`<label>${this.t("editor.robot_source")}
+              <select @change=${(e: Event) => {
+                const entity = (e.target as HTMLSelectElement).value;
+                const first = Object.entries(states[entity]?.attributes ?? {}).find(([, v]) => v && typeof v === "object" && (Array.isArray(v) ? typeof v[0] === "number" : typeof (v as { x?: unknown }).x === "number"))?.[0];
+                this.commit(setRobotPosition(m, index, { entity, attribute: first }));
+              }}>
+                ${candidates.map((id) => html`<option value=${id} ?selected=${id === source}>${this.entityName(id)}</option>`)}
+              </select>
+            </label>
+            <label>${this.t("editor.robot_attribute")}
+              <select @change=${(e: Event) => this.commit(setRobotPosition(m, index, { entity: source, attribute: (e.target as HTMLSelectElement).value || undefined }))}>
+                ${attrs.map((a) => html`<option value=${a} ?selected=${r.position?.attribute === a}>${a}</option>`)}
+                ${gps ? html`<option value="" ?selected=${!r.position?.attribute}>${this.t("editor.robot_gps")}</option>` : nothing}
+              </select>
+            </label>
+            <p class="muted">${raw ? this.t("editor.robot_reading", { at: raw.gps ? raw.at.map((v) => v.toFixed(6)).join(", ") : raw.at.map((v) => Math.round(v)).join(", ") }) : this.t("editor.robot_no_reading")}</p>
+            <p>${reading?.live ? this.t("editor.robot_calibrated") : this.t("editor.robot_points", { count: points })}</p>
+            <div class="row">
+              <button ?disabled=${!raw} class=${this._robotCalib?.index === index ? "active" : ""} @click=${() => {
+                // the reading at this moment, not when the inspector was drawn
+                const now = this._hass && robot?.position ? rawPosition(this._hass, robot.position) : null;
+                if (now) this._robotCalib = { index, reading: now.at };
+              }}>${this.t("editor.robot_record")}</button>
+              <button ?disabled=${!points} @click=${() => this.commit(clearRobotPoints(m, index))}>${this.t("editor.robot_clear")}</button>
+            </div>
+            <p class="muted">${this.t("editor.robot_calib_hint")}</p>`
+        : nothing}
+      <button class="danger" @click=${() => {
+        this.commit(deleteRobot(m, index));
+        this._robotSel = null;
+      }}>${this.t("editor.light_remove")}</button>`;
   }
 
   /** One energy item: its name, sensors and what its line connects to. */
@@ -2356,6 +2548,7 @@ export class HomeslicePanel extends LitElement {
     if (this._settings) return this.renderHouseSettings();
     if (this._mode === "objects" && this._furn) return this.renderFurnitureInspector(this._furn);
     if (this._mode === "objects" && this._energySel !== null && this._model?.energy?.[this._energySel]) return this.renderEnergyInspector(this._energySel);
+    if (this._mode === "objects" && this._robotSel !== null && this._model?.robots?.[this._robotSel]) return this.renderRobotInspector(this._robotSel);
     if (this._mode === "objects") return this.renderObjectsInspector();
     if (this._mode === "openings") {
       if (this._opening) return this.renderOpeningInspector(this._opening);
@@ -2819,7 +3012,8 @@ export class HomeslicePanel extends LitElement {
         <p class="muted">${this.t("editor.objects_hint")}</p>
         <p class="muted">${this.t("editor.lights_count", { count: lamps.length, auto })}</p>
         ${this.renderLibrary(null)}
-        ${this.renderEnergySection()}`;
+        ${this.renderEnergySection()}
+        ${this.renderRobotSection()}`;
     }
     const own = lamps.filter((l) => l.roomId === r.id);
     const hidden = (r.lights ?? []).filter((l) => l.hidden);
@@ -3567,6 +3761,30 @@ export class HomeslicePanel extends LitElement {
     .floor-row select {
       min-height: 30px;
       font-size: 13px;
+    }
+    .robot-marker {
+      cursor: grab;
+    }
+    .robot-marker rect {
+      fill: #455a64;
+      stroke: #fff;
+      stroke-width: 2;
+    }
+    .robot-marker.selected rect {
+      stroke: var(--accent);
+      stroke-width: 3;
+    }
+    .robot-marker text {
+      fill: #fff;
+      font-size: 11px;
+      font-weight: 600;
+      pointer-events: none;
+    }
+    .robot-live {
+      fill: #4caf50;
+      stroke: #fff;
+      stroke-width: 2;
+      pointer-events: none;
     }
     .energy-link {
       stroke-width: 2.5;
