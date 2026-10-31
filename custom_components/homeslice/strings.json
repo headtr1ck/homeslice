@@ -11,17 +11,21 @@
     }
   },
   "issues": {
-    "missing_area": {
-      "title": "Homeslice: area {ref} no longer exists",
-      "description": "House **{house}** links {where} to the area `{ref}`, which Home Assistant doesn't have anymore. Link the room to another area or restore the area."
-    },
     "missing_floor": {
       "title": "Homeslice: floor {ref} no longer exists",
-      "description": "House **{house}** links {where} to the floor `{ref}`, which Home Assistant doesn't have anymore. Link the level to another floor or restore the floor."
+      "description": "House **{house}** links level {level} to the floor `{ref}`, which Home Assistant doesn't have anymore. Link the level to another floor or restore the floor."
     },
-    "missing_entity": {
+    "missing_area": {
+      "title": "Homeslice: area {ref} no longer exists",
+      "description": "House **{house}** links room {room} to the area `{ref}`, which Home Assistant doesn't have anymore. Link the room to another area or restore the area."
+    },
+    "missing_entity_opening": {
       "title": "Homeslice: entity {ref} no longer exists",
-      "description": "House **{house}** uses `{ref}` for the {where}, but Home Assistant doesn't know this entity anymore. Pick another entity or remove the link."
+      "description": "House **{house}** uses `{ref}` for a door or window of room {room}, but Home Assistant doesn't know this entity anymore. Pick another entity or remove the link."
+    },
+    "missing_entity_facade": {
+      "title": "Homeslice: entity {ref} no longer exists",
+      "description": "House **{house}** uses `{ref}` for the façade window {opening}, but Home Assistant doesn't know this entity anymore. Pick another entity or remove the link."
     }
   },
   "services": {

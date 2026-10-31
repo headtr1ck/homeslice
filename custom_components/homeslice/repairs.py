@@ -16,27 +16,31 @@ from homeassistant.helpers import (
 from .const import DOMAIN
 
 
-def references(model: dict[str, Any]) -> Iterator[tuple[str, str, str]]:
+# Where a reference is: (translation key, placeholder name, id). The phrase around the id
+# ("room living", "Raum living") is in the translations.
+Where = tuple[str, str, str]
+
+
+def references(model: dict[str, Any]) -> Iterator[tuple[str, str, Where]]:
     """(kind, id, where) for every HA reference in a model."""
     for level in model.get("levels", []):
-        lid = level.get("id", "?")
         if level.get("floor_id"):
-            yield "floor", level["floor_id"], f"level {lid}"
+            yield "floor", level["floor_id"], ("missing_floor", "level", level.get("id", "?"))
         for room in level.get("rooms", []):
             if room.get("area_id"):
-                yield "area", room["area_id"], f"room {room.get('id', '?')}"
+                yield "area", room["area_id"], ("missing_area", "room", room.get("id", "?"))
         for opening in level.get("openings", []):
             for key in ("cover", "contact"):
                 if opening.get(key):
-                    yield "entity", opening[key], f"opening on {opening.get('room', '?')}"
+                    yield "entity", opening[key], ("missing_entity_opening", "room", opening.get("room", "?"))
     for opening in model.get("facade_openings", []):
         for key in ("covers", "contacts"):
             for entity_id in (opening.get(key) or {}).values():
                 if entity_id:
-                    yield "entity", entity_id, f"façade opening {opening.get('id', '?')}"
+                    yield "entity", entity_id, ("missing_entity_facade", "opening", opening.get("id", "?"))
 
 
-def missing(hass: HomeAssistant, model: dict[str, Any]) -> list[tuple[str, str, str]]:
+def missing(hass: HomeAssistant, model: dict[str, Any]) -> list[tuple[str, str, Where]]:
     """References HA doesn't know (entities count as known if they have a state)."""
     floors = fr.async_get(hass)
     areas = ar.async_get(hass)
@@ -78,6 +82,6 @@ def async_check_house(hass: HomeAssistant, house_id: str, model: dict[str, Any] 
             iid,
             is_fixable=False,
             severity=ir.IssueSeverity.WARNING,
-            translation_key=f"missing_{kind}",
-            translation_placeholders={"house": house_id, "ref": ref, "where": where},
+            translation_key=where[0],
+            translation_placeholders={"house": house_id, "ref": ref, where[1]: where[2]},
         )

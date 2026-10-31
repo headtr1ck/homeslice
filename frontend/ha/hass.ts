@@ -1,5 +1,7 @@
 // The parts of Home Assistant's frontend `hass` object Homeslice relies on, and helpers
 // built on HA's own registries. Keep every dependency on HA internals in this file.
+import { formatNumber } from "../i18n/localize";
+
 
 export interface HassEntityState {
   entity_id: string;
@@ -8,7 +10,7 @@ export interface HassEntityState {
 }
 
 export interface Hass {
-  locale?: { language: string };
+  locale?: { language: string; number_format?: string };
   states: Record<string, HassEntityState>;
   areas?: Record<string, { area_id: string; name: string; icon?: string | null; floor_id?: string | null; temperature_entity_id?: string | null }>;
   floors?: Record<string, { floor_id: string; name: string; level?: number | null }>;
@@ -96,7 +98,7 @@ export function areaTemperature(hass: Hass, areaId: string): string | null {
   const s = id ? hass.states[id] : undefined;
   if (!s || isNaN(Number(s.state))) return null;
   const unit = (s.attributes.unit_of_measurement as string | undefined) ?? "";
-  return `${Number(s.state).toFixed(1)} ${unit}`.trim();
+  return `${formatNumber(hass.locale, Number(s.state), 1)} ${unit}`.trim();
 }
 
 export interface PopupSection {

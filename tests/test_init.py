@@ -118,7 +118,7 @@ async def test_repairs_follow_broken_links(hass: HomeAssistant, setup, hass_ws_c
         "home_missing_area_cellar",
         "home_missing_entity_cover.gone",
     ]
-    assert issues.async_get_issue(DOMAIN, "home_missing_area_cellar").translation_placeholders["where"] == "room living"
+    assert issues.async_get_issue(DOMAIN, "home_missing_area_cellar").translation_placeholders["room"] == "living"
 
     # creating the area fixes that issue once the registry change is noticed
     ar.async_get(hass).async_create("Cellar")

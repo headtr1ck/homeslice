@@ -1,6 +1,6 @@
 import { LitElement, css, html, nothing, svg, type PropertyValues } from "lit";
 import { areaEntities, areaPopup, areaTemperature, contactOpen, coverOpen, lightsLook, type Hass, type PopupSection } from "../ha/hass";
-import { localize, type StringKey } from "../i18n/localize";
+import { formatNumber, localize, type StringKey } from "../i18n/localize";
 import { expandHouse } from "../model/expand";
 import { labelPoint } from "../model/geometry";
 import type { House, Issue, Room, Vec2 } from "../model/types";
@@ -468,7 +468,7 @@ export class HomesliceCard extends LitElement {
       const still = r.power === null || Math.abs(r.power) < 10;
       const state =
         still ? "" : e.kind === "battery" ? this.t(r.power! > 0 ? "card.energy_discharging" : "card.energy_charging") : e.kind === "grid" ? this.t(r.power! > 0 ? "card.energy_import" : "card.energy_export") : "";
-      const text = `${e.kind === "battery" && r.soc !== null ? `${Math.round(r.soc)} % · ` : ""}${formatPower(r.power === null ? null : Math.abs(r.power))}`;
+      const text = `${e.kind === "battery" && r.soc !== null ? `${Math.round(r.soc)} % · ` : ""}${formatPower(r.power === null ? null : Math.abs(r.power), this.hass?.locale)}`;
       out.push({ key, kind: e.kind, ...p, mx: p.x, my: p.y, place: "above", icon: ENERGY_ICONS[e.kind] ?? ENERGY_ICONS.device, name: state ? `${name} · ${state}` : name, text });
     });
     // the whole house: callouts beside it, so labels never cover other floors
@@ -744,7 +744,7 @@ export class HomesliceCard extends LitElement {
       this.placeLabels();
       const o = this.renderer!.orientation;
       const zoom = this.renderer!.zoom;
-      this._readout = this.t("card.camera", { azimuth: Math.round(o.azimuth), elevation: Math.round(o.elevation) }) + (Math.abs(zoom - 1) > 0.01 ? ` · ${zoom.toFixed(1)}×` : "");
+      this._readout = this.t("card.camera", { azimuth: Math.round(o.azimuth), elevation: Math.round(o.elevation) }) + (Math.abs(zoom - 1) > 0.01 ? ` · ${formatNumber(this.hass?.locale, zoom, 1)}×` : "");
       clearTimeout(this.readoutTimer);
       this.readoutTimer = window.setTimeout(() => (this._readout = ""), 2500);
     });

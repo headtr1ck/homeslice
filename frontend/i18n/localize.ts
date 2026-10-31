@@ -13,3 +13,26 @@ export function localize(language: string | undefined, key: StringKey, vars: Rec
   const text = table[key] ?? en[key] ?? key;
   return text.replace(/\{(\w+)\}/g, (m, name: string) => (name in vars ? String(vars[name]) : m));
 }
+
+/** HA's number format setting, as in `hass.locale`. */
+export interface NumberLocale {
+  language?: string;
+  number_format?: string;
+}
+
+const NUMBER_FORMATS: Record<string, string | undefined> = { comma_decimal: "en-US", decimal_comma: "de-DE", space_comma: "fr-FR", system: undefined };
+
+/**
+ * A number with `digits` decimals, written like the user's HA settings say (a decimal
+ * comma in German), without thousands separators.
+ */
+export function formatNumber(locale: NumberLocale | undefined, value: number, digits: number): string {
+  const format = locale?.number_format ?? "language";
+  if (format === "none" || !Number.isFinite(value)) return value.toFixed(digits);
+  const tag = format === "language" ? locale?.language : NUMBER_FORMATS[format];
+  try {
+    return new Intl.NumberFormat(tag, { minimumFractionDigits: digits, maximumFractionDigits: digits, useGrouping: false }).format(value);
+  } catch {
+    return value.toFixed(digits);
+  }
+}

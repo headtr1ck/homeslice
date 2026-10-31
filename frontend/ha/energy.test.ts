@@ -48,5 +48,6 @@ describe("energy readings", () => {
     expect(formatPower(350.4)).toBe("350 W");
     expect(formatPower(1234)).toBe("1.2 kW");
     expect(formatPower(null)).toBe("–");
+    expect(formatPower(1234, { language: "de" })).toBe("1,2 kW");
   });
 });

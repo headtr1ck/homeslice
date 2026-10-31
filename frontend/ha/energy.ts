@@ -1,6 +1,7 @@
 // The energy overlay's numbers: which sensors to read (from the house model, else Home
 // Assistant's energy settings) and the power flowing into the house's hub.
 
+import { formatNumber, type NumberLocale } from "../i18n/localize";
 import type { Energy } from "../model/types";
 import type { Hass } from "./hass";
 
@@ -59,8 +60,8 @@ export function readEnergy(hass: Hass, e: Energy, prefs: EnergyPrefs | null): En
 }
 
 /** "1.2 kW" / "350 W". */
-export function formatPower(w: number | null): string {
+export function formatPower(w: number | null, locale?: NumberLocale): string {
   if (w === null) return "–";
   const a = Math.abs(w);
-  return a >= 1000 ? `${(w / 1000).toFixed(a >= 10000 ? 0 : 1)} kW` : `${Math.round(w)} W`;
+  return a >= 1000 ? `${formatNumber(locale, w / 1000, a >= 10000 ? 0 : 1)} kW` : `${Math.round(w)} W`;
 }

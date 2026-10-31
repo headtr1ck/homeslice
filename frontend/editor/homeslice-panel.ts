@@ -8,7 +8,7 @@ import { OPENING_GROUPS, OPENING_PRESETS, applyPreset, kindOf, presetOf, type Op
 import { GLTFExporter } from "three/examples/jsm/exporters/GLTFExporter.js";
 import { parse as parseYaml, stringify as toYaml } from "yaml";
 import { areaEntities, type Hass } from "../ha/hass";
-import { localize, type StringKey } from "../i18n/localize";
+import { formatNumber, localize, type StringKey } from "../i18n/localize";
 import { DEFAULTS, expandHouse } from "../model/expand";
 import { bbox, labelPoint, pointInPolygon } from "../model/geometry";
 import type { EnergyInput, FurnitureInput, FurnitureMount, FurnitureType, HouseInput, Issue, OpeningInput, OpeningSource, OpeningType, RoomInput, Side, Vec2, Vertical } from "../model/types";
@@ -285,8 +285,6 @@ const PLAN_COLORS: Record<string, string> = {
   gravel: "#d9d2c7",
 };
 
-const fmtM = (v: number) => `${v.toFixed(2)} m`;
-
 /** Selection id for the level's outline (its outside walls). */
 const OUTLINE = "__outline__";
 
@@ -460,6 +458,15 @@ export class HomeslicePanel extends LitElement {
 
   private t(key: StringKey, vars?: Record<string, string | number>) {
     return localize(this._hass?.locale?.language, key, vars);
+  }
+
+  /** A number for reading, with the user's decimal separator. */
+  private n(v: number, digits = 2) {
+    return formatNumber(this._hass?.locale, v, digits);
+  }
+
+  private fmtM(v: number) {
+    return `${this.n(v)} m`;
   }
 
   /** Keeps unsaved changes in this browser, so a reload or crash doesn't lose them. */
@@ -873,7 +880,7 @@ export class HomeslicePanel extends LitElement {
     const d = Math.hypot(delta[0], delta[1]);
     if (d < 0.005) return "0.00 m";
     const side = Math.abs(delta[0]) >= Math.abs(delta[1]) ? (delta[0] > 0 ? "east" : "west") : delta[1] > 0 ? "south" : "north";
-    return `${d.toFixed(2)} m ${this.t(`editor.towards_${side}` as StringKey)}`;
+    return `${this.n(d)} m ${this.t(`editor.towards_${side}` as StringKey)}`;
   }
 
   /** Faces (and centres) of the walls parallel to `line`, as offsets along `normal`. */
@@ -1283,7 +1290,7 @@ export class HomeslicePanel extends LitElement {
       const ny = best.s.p[1] - best.o[1];
       this._guides = { x: best.s.alignX, y: best.s.alignY, ring: best.s.target };
       this._model = setStairsRect(drag.origin, drag.id, [nx, ny, w, d]);
-      this._hint = { x: screen[0], y: screen[1], lines: [`${nx.toFixed(2)}, ${ny.toFixed(2)} m`] };
+      this._hint = { x: screen[0], y: screen[1], lines: [`${this.n(nx)}; ${this.n(ny)} m`] };
       return;
     }
     if (drag.kind === "stair-resize") {
@@ -1295,7 +1302,7 @@ export class HomeslicePanel extends LitElement {
       const y = s.p[1] < fy ? fy - d : fy;
       this._guides = { x: s.alignX, y: s.alignY, ring: s.target };
       this._model = setStairsRect(drag.origin, drag.id, [x, y, w, d]);
-      this._hint = { x: screen[0], y: screen[1], lines: [`${w.toFixed(2)} × ${d.toFixed(2)} m`] };
+      this._hint = { x: screen[0], y: screen[1], lines: [`${this.n(w)} × ${this.n(d)} m`] };
       return;
     }
     if (drag.kind === "wall") {
@@ -1334,7 +1341,7 @@ export class HomeslicePanel extends LitElement {
       this._guides = best ? (drag.axis === 0 ? { x: best.guide } : { y: best.guide }) : null;
       this._model = updateOpening(drag.origin, this._level, drag.src, { at: Math.round(at * 100) / 100 });
       const o = readOpening(this._model, this._level, drag.src);
-      this._hint = { x: screen[0], y: screen[1], lines: [this.t("editor.opening_at", { at: (o?.at ?? 0).toFixed(2), width: (o?.width ?? 0).toFixed(2) })] };
+      this._hint = { x: screen[0], y: screen[1], lines: [this.t("editor.opening_at", { at: this.n(o?.at ?? 0), width: this.n(o?.width ?? 0) })] };
       return;
     }
     if (drag.kind === "energy-link") {
@@ -1354,7 +1361,7 @@ export class HomeslicePanel extends LitElement {
       const b = s.p;
       this._guides = { x: s.alignX, y: s.alignY, ring: s.target, rays: s.rays };
       this._linePreview = [a, b];
-      this._hint = { x: screen[0], y: screen[1], lines: [fmtM(Math.hypot(b[0] - a[0], b[1] - a[1]))] };
+      this._hint = { x: screen[0], y: screen[1], lines: [this.fmtM(Math.hypot(b[0] - a[0], b[1] - a[1]))] };
       return;
     }
     if (drag.kind === "freewall-end") {
@@ -1365,7 +1372,7 @@ export class HomeslicePanel extends LitElement {
       line[drag.end] = s.p;
       this._guides = { x: s.alignX, y: s.alignY, ring: s.target, rays: s.rays };
       this._model = updateFreeWall(drag.origin, this._level, drag.index, { line });
-      this._hint = { x: screen[0], y: screen[1], lines: [fmtM(Math.hypot(line[1][0] - line[0][0], line[1][1] - line[0][1]))] };
+      this._hint = { x: screen[0], y: screen[1], lines: [this.fmtM(Math.hypot(line[1][0] - line[0][0], line[1][1] - line[0][1]))] };
       return;
     }
     if (drag.kind === "rect") {
@@ -1376,7 +1383,7 @@ export class HomeslicePanel extends LitElement {
       this._rectPreview = [[x0, y0], [end[0], y0], [end[0], end[1]], [x0, end[1]]];
       const w = Math.abs(end[0] - x0);
       const d = Math.abs(end[1] - y0);
-      this._hint = { x: screen[0], y: screen[1], lines: [`${w.toFixed(2)} × ${d.toFixed(2)} m`, `${(w * d).toFixed(2)} m²`] };
+      this._hint = { x: screen[0], y: screen[1], lines: [`${this.n(w)} × ${this.n(d)} m`, `${this.n(w * d)} m²`] };
     }
   }
 
@@ -1472,8 +1479,8 @@ export class HomeslicePanel extends LitElement {
       // inside dimensions of the two sides at this corner
       const inner = this.inner(r);
       const sides = this.innerSides(poly, inner);
-      lines.push(`${fmtM(sides[(i - 1 + poly.length) % poly.length])} · ${fmtM(sides[i])} · ${Math.round(cornerAngle(poly, i))}°`);
-      lines.push(`${this.roomName(r)}: ${area(inner).toFixed(2)} m²`);
+      lines.push(`${this.fmtM(sides[(i - 1 + poly.length) % poly.length])} · ${this.fmtM(sides[i])} · ${Math.round(cornerAngle(poly, i))}°`);
+      lines.push(`${this.roomName(r)}: ${this.n(area(inner))} m²`);
       break;
     }
     return lines;
@@ -1481,7 +1488,7 @@ export class HomeslicePanel extends LitElement {
 
   private roomReadout(): string[] {
     const r = this.levelInput?.rooms.find((x) => x.id === this._room);
-    return r ? [`${this.roomName(r)}: ${area(this.inner(r)).toFixed(2)} m²`] : [];
+    return r ? [`${this.roomName(r)}: ${this.n(area(this.inner(r)))} m²`] : [];
   }
 
   /** Walls of the level being edited (derived from the current model). */
@@ -1974,7 +1981,7 @@ export class HomeslicePanel extends LitElement {
         const top = lampThere ? at[1] + 16 : at[1] - height / 2;
         return svg`<g class="room-label">
           <text class="room-name" x=${at[0]} y=${top + 11} text-anchor="middle">${lines.map((line, i) => svg`<tspan x=${at[0]} dy=${i ? 14 : 0}>${line}</tspan>`)}</text>
-          <text class="room-area" x=${at[0]} y=${top + lines.length * 14 + 10} text-anchor="middle">${area(poly).toFixed(1)} m²</text></g>`;
+          <text class="room-area" x=${at[0]} y=${top + lines.length * 14 + 10} text-anchor="middle">${this.n(area(poly), 1)} m²</text></g>`;
       })}
       ${(house?.vertical ?? [])
         // the hole where a stair arrives; where a flight starts, its footprint and the way up
@@ -2103,7 +2110,7 @@ export class HomeslicePanel extends LitElement {
         const [cx, cy] = this.toScreen([min[0] + f.at[0], min[1] + f.at[1]]);
         const k = this._view.scale;
         const sel = this._furn?.room === r.id && this._furn.index === i;
-        const label = `${this.t(`furniture.${f.type}` as StringKey)} · ${w.toFixed(2)} × ${d.toFixed(2)} m`;
+        const label = `${this.t(`furniture.${f.type}` as StringKey)} · ${this.n(w)} × ${this.n(d)} m`;
         return svg`<g class="furniture mount-${mountOf(f)} editable ${sel ? "selected" : ""}" data-furniture=${JSON.stringify({ room: r.id, index: i })}
             transform="translate(${cx} ${cy}) rotate(${f.rotation ?? 0})">
           <image href=${planPicture(f.type)} x=${(-w * k) / 2} y=${(-d * k) / 2} width=${w * k} height=${d * k} preserveAspectRatio="none"
@@ -2669,7 +2676,7 @@ export class HomeslicePanel extends LitElement {
         if (angle < -90) angle += 180;
         const x = mx + nx * 9;
         const y = my + ny * 9;
-        out.push(svg`<text class="room-dim" x=${x} y=${y} dominant-baseline="middle" text-anchor="middle" transform="rotate(${angle} ${x} ${y})">${len.toFixed(2)}</text>`);
+        out.push(svg`<text class="room-dim" x=${x} y=${y} dominant-baseline="middle" text-anchor="middle" transform="rotate(${angle} ${x} ${y})">${this.n(len)}</text>`);
       });
     }
     return out;
@@ -2689,9 +2696,9 @@ export class HomeslicePanel extends LitElement {
     const tx = x0 - gap;
     return svg`<g class="overall-dims">
       <line class="dim-line" x1=${x0} y1=${ty} x2=${x1} y2=${ty}></line>${tick(x0, ty, false)}${tick(x1, ty, false)}
-      <text class="dim overall" x=${(x0 + x1) / 2} y=${ty - 5} text-anchor="middle">${fmtM(max[0] - min[0])}</text>
+      <text class="dim overall" x=${(x0 + x1) / 2} y=${ty - 5} text-anchor="middle">${this.fmtM(max[0] - min[0])}</text>
       <line class="dim-line" x1=${tx} y1=${y0} x2=${tx} y2=${y1}></line>${tick(tx, y0, true)}${tick(tx, y1, true)}
-      <text class="dim overall" x=${tx - 5} y=${(y0 + y1) / 2} text-anchor="middle" transform="rotate(-90 ${tx - 5} ${(y0 + y1) / 2})">${fmtM(max[1] - min[1])}</text>
+      <text class="dim overall" x=${tx - 5} y=${(y0 + y1) / 2} text-anchor="middle" transform="rotate(-90 ${tx - 5} ${(y0 + y1) / 2})">${this.fmtM(max[1] - min[1])}</text>
     </g>`;
   }
 
@@ -2749,7 +2756,7 @@ export class HomeslicePanel extends LitElement {
       if (angle < -90) angle += 180;
       const tick = (x: number, y: number) => svg`<line class="dim-line" x1=${x - n[0] * 5} y1=${y - n[1] * 5} x2=${x + n[0] * 5} y2=${y + n[1] * 5}></line>`;
       return svg`<line class="dim-line" x1=${ax} y1=${ay} x2=${bx} y2=${by}></line>${tick(ax, ay)}${tick(bx, by)}
-        <text class="dim editable" data-dimedit=${this.dimTarget(part.key, value, part.apply)} x=${mx} y=${my} dy="-5" text-anchor="middle" transform="rotate(${angle} ${mx} ${my})">${value.toFixed(2)}</text>`;
+        <text class="dim editable" data-dimedit=${this.dimTarget(part.key, value, part.apply)} x=${mx} y=${my} dy="-5" text-anchor="middle" transform="rotate(${angle} ${mx} ${my})">${this.n(value)}</text>`;
     })}</g>`;
   }
 
@@ -2764,7 +2771,7 @@ export class HomeslicePanel extends LitElement {
       <line x1=${ax} y1=${ay} x2=${bx} y2=${by}></line>
       <circle cx=${ax} cy=${ay} r="4"></circle><circle cx=${bx} cy=${by} r="4"></circle>
       ${len > 0.005
-        ? svg`<text class="dim" x=${(ax + bx) / 2} y=${(ay + by) / 2 - 8} text-anchor="middle">${fmtM(len)}${diagonal ? ` (${dx.toFixed(2)} × ${dy.toFixed(2)})` : ""}</text>`
+        ? svg`<text class="dim" x=${(ax + bx) / 2} y=${(ay + by) / 2 - 8} text-anchor="middle">${this.fmtM(len)}${diagonal ? ` (${this.n(dx)} × ${this.n(dy)})` : ""}</text>`
         : nothing}
     </g>`;
   }
@@ -2819,7 +2826,7 @@ export class HomeslicePanel extends LitElement {
         <line class="edge-hit" data-handle="edge" data-at=${JSON.stringify([p, q])} x1=${ax} y1=${ay} x2=${bx} y2=${by}></line>
         <rect class="edge-handle" data-handle="edge" data-at=${JSON.stringify([p, q])} x=${mx - 5} y=${my - 5} width="10" height="10" rx="2"></rect>
         <text class="dim editable" data-dimedit=${this.dimTarget(`side-${i}`, len, (v) => (v > 0.2 ? resizeSide(m, this._level, poly, i, v - len) : null))}
-          x=${mx + nx * 16} y=${my + ny * 16 + 4} text-anchor="middle">${len.toFixed(2)}</text>
+          x=${mx + nx * 16} y=${my + ny * 16 + 4} text-anchor="middle">${this.n(len)}</text>
       </g>`;
     })}
     ${poly.map((p) => {
@@ -2882,7 +2889,7 @@ export class HomeslicePanel extends LitElement {
       return fa - fb || a.name.localeCompare(b.name);
     });
     return html`<h2>${this.roomName(r)}</h2>
-      <p class="muted">${area(poly).toFixed(2)} m² · ${this.t("editor.perimeter")} ${poly.reduce((s, p, i) => s + Math.hypot(poly[(i + 1) % poly.length][0] - p[0], poly[(i + 1) % poly.length][1] - p[1]), 0).toFixed(2)} m</p>
+      <p class="muted">${this.n(area(poly))} m² · ${this.t("editor.perimeter")} ${this.n(poly.reduce((s, p, i) => s + Math.hypot(poly[(i + 1) % poly.length][0] - p[0], poly[(i + 1) % poly.length][1] - p[1]), 0))} m</p>
       <label>${this.t("editor.ha_area")}
         <select @change=${(e: Event) => set({ area_id: (e.target as HTMLSelectElement).value || undefined })}>
           <option value="">—</option>
@@ -3735,7 +3742,7 @@ export class HomeslicePanel extends LitElement {
     const fromIndex = m.levels.findIndex((l) => l.id === v.from);
     const toIndex = m.levels.findIndex((l) => l.id === v.to);
     return html`<h2>${this.t(v.kind === "shaft" ? "editor.shaft" : "editor.stairs")}</h2>
-      <p class="muted">${w.toFixed(2)} × ${d.toFixed(2)} m · ${this.t("editor.stairs_hint")}</p>
+      <p class="muted">${this.n(w)} × ${this.n(d)} m · ${this.t("editor.stairs_hint")}</p>
       <div class="row">
         <label>${this.t("editor.stairs_from")}
           <select @change=${(e: Event) => set({ from: (e.target as HTMLSelectElement).value })}>${levelOptions(v.from, (i) => i < toIndex)}</select>
@@ -3794,7 +3801,7 @@ export class HomeslicePanel extends LitElement {
     });
     const poly = scope.poly;
     return html`<h2>${this.t("editor.outline")}</h2>
-      <p class="muted">${area(poly).toFixed(2)} m² ${this.t("editor.outline_area")}</p>
+      <p class="muted">${this.n(area(poly))} m² ${this.t("editor.outline_area")}</p>
       <p class="muted">${scope.owner === "house" ? this.t("editor.outline_shared", { levels: names.join(", ") }) : this.t("editor.outline_own")}</p>
       <p class="muted">${this.t("editor.outline_hint")}</p>
       <button @click=${() => this.commit(setOwnOutline(m, this._level, scope.owner === "house"))}>

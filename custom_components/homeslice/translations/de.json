@@ -11,17 +11,21 @@
     }
   },
   "issues": {
-    "missing_area": {
-      "title": "Homeslice: Bereich {ref} existiert nicht mehr",
-      "description": "Haus **{house}** ({where}) ist mit dem Bereich `{ref}` verknüpft, den es in Home Assistant nicht mehr gibt. Den Raum mit einem anderen Bereich verknüpfen oder den Bereich wiederherstellen."
-    },
     "missing_floor": {
       "title": "Homeslice: Etage {ref} existiert nicht mehr",
-      "description": "Haus **{house}** ({where}) ist mit der Etage `{ref}` verknüpft, die es in Home Assistant nicht mehr gibt. Die Ebene mit einer anderen Etage verknüpfen oder die Etage wiederherstellen."
+      "description": "Haus **{house}** verknüpft die Ebene {level} mit der Etage `{ref}`, die es in Home Assistant nicht mehr gibt. Die Ebene mit einer anderen Etage verknüpfen oder die Etage wiederherstellen."
     },
-    "missing_entity": {
+    "missing_area": {
+      "title": "Homeslice: Bereich {ref} existiert nicht mehr",
+      "description": "Haus **{house}** verknüpft den Raum {room} mit dem Bereich `{ref}`, den es in Home Assistant nicht mehr gibt. Den Raum mit einem anderen Bereich verknüpfen oder den Bereich wiederherstellen."
+    },
+    "missing_entity_opening": {
       "title": "Homeslice: Entität {ref} existiert nicht mehr",
-      "description": "Haus **{house}** verwendet `{ref}` ({where}), aber Home Assistant kennt diese Entität nicht mehr. Eine andere Entität auswählen oder die Verknüpfung entfernen."
+      "description": "Haus **{house}** verwendet `{ref}` für eine Tür oder ein Fenster im Raum {room}, aber Home Assistant kennt diese Entität nicht mehr. Eine andere Entität auswählen oder die Verknüpfung entfernen."
+    },
+    "missing_entity_facade": {
+      "title": "Homeslice: Entität {ref} existiert nicht mehr",
+      "description": "Haus **{house}** verwendet `{ref}` für das Fassadenfenster {opening}, aber Home Assistant kennt diese Entität nicht mehr. Eine andere Entität auswählen oder die Verknüpfung entfernen."
     }
   },
   "services": {
