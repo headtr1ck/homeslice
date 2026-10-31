@@ -30,6 +30,12 @@ export interface RoomInput extends ShapeInput {
   /** Cover entity of an awning over this (outdoor) area, mounted on the house wall. */
   awning?: string;
   /**
+   * What the awning's "open" means: `extended` (HA's convention for device class
+   * awning) or `retracted` (rolled up, like a blind letting the light in). Default: by
+   * the cover's device class.
+   */
+  awning_open?: "extended" | "retracted";
+  /**
    * Lights in this room. The area's lights are included automatically and placed
    * evenly; list a light to place it (`at`), hide it, or add one from another area.
    */
@@ -264,6 +270,7 @@ export interface Room {
   /** Positive shoelace area in plan coordinates (see geometry.signedArea). */
   polygon: Vec2[];
   awning?: string;
+  awningOpen?: "extended" | "retracted";
   /** As in the input, with `at` in plan coordinates. */
   lights: { entity: string; at?: Vec2; hidden: boolean }[];
   /** `elevation`: bottom above the floor in metres (ceiling pieces: null, they hang from the ceiling). */

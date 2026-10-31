@@ -151,6 +151,10 @@ export function expandHouse(input: unknown): ExpandResult {
       });
       const room: Room = { id: ri.id, areaId: ri.area_id, name: ri.name, kind, floor: ri.floor ?? DEFAULTS.floor[kind], polygon, lights, furniture };
       if (ri.awning) room.awning = ri.awning;
+      if (ri.awning_open !== undefined) {
+        if (!["extended", "retracted"].includes(ri.awning_open)) err(`${rp}.awning_open`, `awning_open must be extended or retracted, got ${JSON.stringify(ri.awning_open)}.`);
+        else room.awningOpen = ri.awning_open;
+      }
       rooms.push(room);
     });
 

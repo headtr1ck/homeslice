@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { areaEntities, areaLight, areaPopup, areaTemperature, coverOpen, type Hass } from "./hass";
+import { areaEntities, areaLight, areaPopup, areaTemperature, awningExtended, coverOpen, type Hass } from "./hass";
 
 const fixture = JSON.parse(readFileSync("dev/fixtures/demo-hass.json", "utf8"));
 const hass = (): Hass => ({ ...fixture, callWS: async () => null, callService: async () => null });
@@ -40,5 +40,16 @@ describe("HA helpers", () => {
       { type: "tile", entity: "light.living_room", features: [{ type: "light-brightness" }] },
       { type: "tile", entity: "light.reading_lamp", features: [{ type: "light-brightness" }] },
     ]);
+  });
+});
+
+describe("awnings", () => {
+  const hass = (device_class: string | undefined, position: number) =>
+    ({ states: { "cover.a": { entity_id: "cover.a", state: position ? "open" : "closed", attributes: { current_position: position, device_class } } } }) as unknown as Hass;
+  it("an awning cover is extended when open; a shutter used as an awning is rolled up when open", () => {
+    expect(awningExtended(hass("awning", 100), "cover.a")).toBe(1);
+    expect(awningExtended(hass("shutter", 100), "cover.a")).toBe(0);
+    expect(awningExtended(hass("shutter", 30), "cover.a")).toBeCloseTo(0.7);
+    expect(awningExtended(hass("shutter", 100), "cover.a", "extended")).toBe(1);
   });
 });

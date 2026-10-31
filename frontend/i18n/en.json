@@ -349,5 +349,10 @@
   "editor.energy_to_hub": "Automatic: {hub}",
   "editor.energy_to_none": "Nothing (this is where the lines meet)",
   "editor.energy_to_hint": "Where its flow line goes, e.g. a wallbox to the grid meter. Or drag from the small ring next to the selected item onto another one.",
-  "editor.energy_to_hint_roof": "Where the line from the panels goes, e.g. the inverter or the battery."
+  "editor.energy_to_hint_roof": "Where the line from the panels goes, e.g. the inverter or the battery.",
+  "editor.awning_open": "When the cover is open, the awning is",
+  "editor.awning_open_auto_extended": "Automatic: extended (an awning cover)",
+  "editor.awning_open_auto_retracted": "Automatic: rolled up (a shutter or blind)",
+  "editor.awning_open_extended": "Extended",
+  "editor.awning_open_retracted": "Rolled up"
 }

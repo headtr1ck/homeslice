@@ -1,5 +1,5 @@
 import { LitElement, css, html, nothing, svg, type PropertyValues } from "lit";
-import { areaEntities, areaPopup, areaTemperature, contactOpen, coverOpen, lightsLook, type Hass, type PopupSection } from "../ha/hass";
+import { areaEntities, areaPopup, areaTemperature, awningExtended, contactOpen, coverOpen, lightsLook, type Hass, type PopupSection } from "../ha/hass";
 import { localize, type StringKey } from "../i18n/localize";
 import { expandHouse } from "../model/expand";
 import { labelPoint } from "../model/geometry";
@@ -444,7 +444,7 @@ export class HomesliceCard extends LitElement {
     const covers = this.openings.map((o) => (o.cover ? coverOpen(hass, o.cover) : null));
     const contacts = this.openings.map((o) => (o.contact ? contactOpen(hass, o.contact) : false));
     const temperatures = this.rooms.map((r) => (r.room.areaId ? areaTemperature(hass, r.room.areaId) : null));
-    const awnings = this.rooms.map((r) => (r.room.awning ? coverOpen(hass, r.room.awning) : null));
+    const awnings = this.rooms.map((r) => (r.room.awning ? awningExtended(hass, r.room.awning, r.room.awningOpen) : null));
     this.energyReadings = this.config.energy ? this.house.energy.map((e) => readEnergy(hass, e, this.energyPrefs)) : [];
     const signature = JSON.stringify([lights, lamps, covers, contacts, temperatures, awnings, this.energyReadings]);
     if (signature === this.stateSignature) return;

@@ -2422,6 +2422,15 @@ export class HomeslicePanel extends LitElement {
       </label>
       ${(r.kind ?? "room") === "outdoor"
         ? html`${this.entitySelect(this.t("editor.awning"), "cover", r.area_id, r.awning, (awning) => set({ awning }))}
+            ${r.awning
+              ? html`<label>${this.t("editor.awning_open")}
+                  <select @change=${(e: Event) => set({ awning_open: ((e.target as HTMLSelectElement).value || undefined) as RoomInput["awning_open"] })}>
+                    <option value="" ?selected=${!r.awning_open}>${this.t(this._hass?.states[r.awning]?.attributes.device_class === "awning" ? "editor.awning_open_auto_extended" : "editor.awning_open_auto_retracted")}</option>
+                    <option value="extended" ?selected=${r.awning_open === "extended"}>${this.t("editor.awning_open_extended")}</option>
+                    <option value="retracted" ?selected=${r.awning_open === "retracted"}>${this.t("editor.awning_open_retracted")}</option>
+                  </select>
+                </label>`
+              : nothing}
             <p class="muted">${this.t("editor.awning_hint")}</p>`
         : nothing}
       <button class="danger" @click=${() => {

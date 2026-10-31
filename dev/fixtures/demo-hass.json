@@ -275,6 +275,7 @@
       "state": "open",
       "attributes": {
         "friendly_name": "Awning",
+        "device_class": "awning",
         "current_position": 60
       }
     },
