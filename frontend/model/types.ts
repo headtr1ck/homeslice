@@ -197,6 +197,13 @@ export interface VerticalInput extends ShapeInput {
  */
 export interface EnergyInput {
   kind: EnergyKind;
+  /** For `to` (default: from the name or kind, e.g. `battery`). */
+  id?: string;
+  /**
+   * The item its flow line goes to (an id). Default: the hub, i.e. the inverter, else
+   * the battery, else the grid.
+   */
+  to?: string;
   /** Level and plan position (metres); solar panels go on the roof instead. */
   level?: string;
   at?: [number, number];
@@ -324,6 +331,9 @@ export interface House {
 
 export interface Energy {
   kind: EnergyKind;
+  id: string;
+  /** Index (`index`) of the item its flow line goes to, or null (the hub itself). */
+  to: number | null;
   /** Index into the input list (for the editor). */
   index: number;
   levelIndex: number | null;

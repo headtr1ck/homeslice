@@ -43,6 +43,13 @@ export interface ExpandResult {
   issues: Issue[];
 }
 
+const energySlug = (text: string) =>
+  text
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "") || "item";
+
 export function expandHouse(input: unknown): ExpandResult {
   const issues: Issue[] = [];
   const err = (path: string, message: string) => issues.push({ severity: "error", path, message });
@@ -327,8 +334,27 @@ export function expandHouse(input: unknown): ExpandResult {
     }
     if (e.kind === "device" && !e.power) return err(ep, "A device needs power: <sensor>.");
     if (e.roof && !SIDES.includes(e.roof)) return err(ep, `roof must be one of ${SIDES.join(", ")}.`);
-    energy.push({ kind: e.kind, index, levelIndex: onLevel, at: e.at ? [e.at[0], e.at[1]] : null, power: e.power, soc: e.soc, name: e.name, roof: e.roof ?? "south" });
+    energy.push({ kind: e.kind, id: "", to: null, index, levelIndex: onLevel, at: e.at ? [e.at[0], e.at[1]] : null, power: e.power, soc: e.soc, name: e.name, roof: e.roof ?? "south" });
   });
+  // ids (given, else from the name or kind) and where each flow line goes
+  const taken = new Set<string>();
+  for (const e of energy) {
+    const given = h.energy![e.index].id;
+    if (given && taken.has(given)) err(`energy.${e.index}`, `id "${given}" is used twice.`);
+    let id = given ?? energySlug(e.name ?? e.kind);
+    for (let n = 2; !given && taken.has(id); n++) id = `${energySlug(e.name ?? e.kind)}_${n}`;
+    e.id = id;
+    taken.add(id);
+  }
+  const hub = energy.find((e) => e.kind === "inverter") ?? energy.find((e) => e.kind === "battery") ?? energy.find((e) => e.kind === "grid");
+  for (const e of energy) {
+    const to = h.energy![e.index].to;
+    if (to !== undefined) {
+      const target = energy.find((x) => x.id === to);
+      if (!target || target === e) err(`energy.${e.index}`, `to must be the id of another energy item (${energy.filter((x) => x !== e).map((x) => x.id).join(", ")}), got "${to}".`);
+      else e.to = target.index;
+    } else if (hub && hub !== e) e.to = hub.index;
+  }
 
   if (issues.some((i) => i.severity === "error")) return { house: null, issues };
   return { house: { id: h.id, name: h.name ?? h.id, walls, levels, vertical, roof, energy }, issues };

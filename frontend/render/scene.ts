@@ -134,6 +134,8 @@ export const ENERGY_COLORS: Record<string, string> = {
 /** An item of the energy overlay as the renderer needs it. */
 export interface EnergyItem {
   key: string;
+  /** The item its flow line goes to (null: none). */
+  to: string | null;
   kind: string;
   levelIndex: number | null;
   at: Vec2 | null;
@@ -142,9 +144,10 @@ export interface EnergyItem {
 
 interface Flow {
   key: string;
+  to: string;
   line: THREE.Line<THREE.BufferGeometry, THREE.LineBasicMaterial>;
   dots: THREE.Points<THREE.BufferGeometry, THREE.PointsMaterial>;
-  /** Watts towards the hub (negative: away from it). */
+  /** Watts towards `to` (negative: away from it). */
   watts: number;
 }
 const FOCUS_MS = 450;
@@ -245,7 +248,6 @@ export class HouseRenderer {
   /** Where each energy item is, in its level group's coordinates (solar: on the roof). */
   private energyPoints = new Map<string, { levelIndex: number; local: THREE.Vector3; onRoof?: boolean }>();
   private flows: Flow[] = [];
-  private hubKey: string | null = null;
   /** Awnings by "level/room": the fabric scales along its depth with the cover position. */
   private awnings = new Map<string, THREE.Mesh>();
   /** Upper parts of outer walls, hidden while they face a low camera. */
@@ -340,7 +342,6 @@ export class HouseRenderer {
     this.energyObjects = [];
     this.energyPoints.clear();
     this.flows = [];
-    this.hubKey = null;
     this.lamps.clear();
     this.lampObjects = [];
     this.cuttables = [];
@@ -685,7 +686,7 @@ export class HouseRenderer {
 
   /**
    * The energy overlay: a marker for each item, solar panels on the roof, and a line from
-   * each item to the hub (the inverter, else the battery, else the grid) for its flow.
+   * each item to the one it is connected to, for its flow.
    */
   setEnergy(items: EnergyItem[]) {
     for (const o of this.energyObjects) {
@@ -700,8 +701,6 @@ export class HouseRenderer {
     this.energyObjects = [];
     this.energyPoints.clear();
     this.flows = [];
-    const hub = items.find((i) => i.kind === "inverter") ?? items.find((i) => i.kind === "battery") ?? items.find((i) => i.kind === "grid");
-    this.hubKey = hub?.key ?? null;
     for (const item of items) {
       const color = ENERGY_COLORS[item.kind] ?? ENERGY_COLORS.device;
       if (item.kind === "solar") {
@@ -721,9 +720,9 @@ export class HouseRenderer {
         this.energyPoints.set(item.key, { levelIndex: item.levelIndex, local: new THREE.Vector3(item.at[0], 0.5, item.at[1]) });
       }
     }
-    // a line and moving dots from each item to the hub, drawn over the house
+    // a line and moving dots from each item to the one it is connected to, drawn over the house
     for (const item of items) {
-      if (item.key === this.hubKey || !this.energyPoints.has(item.key) || !this.hubKey || !this.energyPoints.has(this.hubKey)) continue;
+      if (!item.to || !this.energyPoints.has(item.key) || !this.energyPoints.has(item.to)) continue;
       const color = new THREE.Color(ENERGY_COLORS[item.kind] ?? ENERGY_COLORS.device);
       const line = new THREE.Line(
         new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3()]),
@@ -736,11 +735,11 @@ export class HouseRenderer {
       line.renderOrder = dots.renderOrder = 10;
       this.root.add(line, dots);
       this.energyObjects.push(line, dots);
-      this.flows.push({ key: item.key, line, dots, watts: 0 });
+      this.flows.push({ key: item.key, to: item.to, line, dots, watts: 0 });
     }
   }
 
-  /** Power per item (W towards the hub); flows below a few watts stand still. */
+  /** Power per item (W towards what it is connected to); flows below a few watts stand still. */
   setFlows(watts: Record<string, number | null>) {
     for (const f of this.flows) f.watts = watts[f.key] ?? 0;
   }
@@ -752,13 +751,13 @@ export class HouseRenderer {
 
   /** For tests: the energy overlay's state. */
   energyState() {
-    return { items: this.energyPoints.size, flows: this.flows.map((f) => ({ key: f.key, watts: f.watts, visible: f.line.visible, dots: f.dots.visible })), hub: this.hubKey };
+    return { items: this.energyPoints.size, flows: this.flows.map((f) => ({ key: f.key, to: f.to, watts: f.watts, visible: f.line.visible, dots: f.dots.visible })) };
   }
 
   /** Moves the flow lines with their levels and the dots along them. */
   private updateFlows(now: number) {
-    const hub = this.hubKey ? this.energyPoints.get(this.hubKey) : undefined;
     for (const f of this.flows) {
+      const hub = this.energyPoints.get(f.to);
       const from = this.energyPoints.get(f.key);
       const shown = !!hub && !!from && this.pointVisible(from) && this.pointVisible(hub);
       f.line.visible = shown;
@@ -772,7 +771,7 @@ export class HouseRenderer {
       pos.needsUpdate = true;
       f.line.geometry.computeBoundingSphere();
       if (!f.dots.visible) continue;
-      // towards the hub when positive; faster with more power
+      // towards `to` when positive; faster with more power
       const [start, end] = f.watts > 0 ? [a, b] : [b, a];
       const length = start.distanceTo(end) || 1;
       const speed = Math.min(4, 0.6 + Math.abs(f.watts) / 800); // m/s
@@ -1416,6 +1415,27 @@ export class HouseRenderer {
     if (!l) return null;
     const v = new THREE.Vector3(x, l.group.position.y + h, y).project(this.camera);
     return { x: ((v.x + 1) / 2) * this.size.width, y: ((1 - v.y) / 2) * this.size.height };
+  }
+
+  /** Where the house is on screen (CSS px): the framed box's corners, projected. */
+  screenBounds(): { left: number; right: number; top: number; bottom: number } {
+    const b = this.box;
+    let left = Infinity;
+    let right = -Infinity;
+    let top = Infinity;
+    let bottom = -Infinity;
+    for (const x of [b.min.x, b.max.x])
+      for (const y of [b.min.y, b.max.y])
+        for (const z of [b.min.z, b.max.z]) {
+          const v = new THREE.Vector3(x, y, z).project(this.camera);
+          const sx = ((v.x + 1) / 2) * this.size.width;
+          const sy = ((1 - v.y) / 2) * this.size.height;
+          left = Math.min(left, sx);
+          right = Math.max(right, sx);
+          top = Math.min(top, sy);
+          bottom = Math.max(bottom, sy);
+        }
+    return { left, right, top, bottom };
   }
 
   /** Screen position of an energy item, or null when it isn't shown. */

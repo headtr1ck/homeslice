@@ -526,7 +526,8 @@ console.log("demo house, energy");
   await test("energy overlay: panels on the roof, labels with power, flows to the battery", async () => {
     await page.waitForFunction(() => window.card.renderer.energyState().flows.some((f) => f.watts !== 0));
     const state = await page.evaluate(() => window.card.renderer.energyState());
-    assert(state.hub === "energy-1" && state.flows.length === 3, `energy: ${JSON.stringify(state)}`);
+    // no inverter: every line goes to the battery
+    assert(state.flows.length === 3 && state.flows.every((f) => f.to === "energy-1"), `energy: ${JSON.stringify(state)}`);
     const w = Object.fromEntries(state.flows.map((f) => [f.key, f.watts]));
     assert(w["energy-0"] === 2400 && w["energy-2"] === -300 && w["energy-3"] === -1200, `flows: ${JSON.stringify(w)}`);
     assert(state.flows.every((f) => f.visible && f.dots), "flows not drawn");
@@ -534,12 +535,23 @@ console.log("demo house, energy");
     const labels = await page.locator("homeslice-card .energy-label").allTextContents();
     const text = labels.map((l) => l.replace(/\s+/g, " ").trim()).join(" | ");
     assert(text.includes("2.4 kW") && text.includes("64 %") && text.includes("Heat pump") && text.includes("1.2 kW"), `labels: ${text}`);
+    // the whole house: callouts beside it with leader lines, not stacked over the floors
+    const places = await page.locator("homeslice-card .energy-label").evaluateAll((els) => els.map((e) => e.classList.contains("left") || e.classList.contains("right")));
+    assert(places.length && places.every(Boolean), "labels are not callouts in the overview");
+    assert((await page.locator("homeslice-card svg.leaders line").count()) === places.length, "no leader lines");
+    const boxes = await page.locator("homeslice-card .energy-label").evaluateAll((els) => els.map((e) => e.getBoundingClientRect().toJSON()));
+    for (let i = 0; i < boxes.length; i++)
+      for (let j = i + 1; j < boxes.length; j++) {
+        const [a, b] = [boxes[i], boxes[j]];
+        assert(a.right <= b.left || b.right <= a.left || a.bottom <= b.top || b.bottom <= a.top, `labels ${i} and ${j} overlap`);
+      }
     await page.waitForTimeout(200);
     await shot(page, "demo-energy");
     // a floor picked: only its items; no roof, no solar
     await act(page, () => page.locator("homeslice-card nav.levels button", { hasText: "Ground Floor" }).click());
     const focused = await page.locator("homeslice-card .energy-label").count();
     assert(focused === 3, `labels on the ground floor: ${focused}`);
+    assert((await page.locator("homeslice-card .energy-label.above").count()) === 3, "labels on a picked floor should sit at their markers");
     assert(errors.length === 0, errors.join(" | "));
   });
   await page.close();
@@ -1164,11 +1176,42 @@ console.log("editor");
     await page.mouse.up();
     energy = (await model()).energy;
     assert(Math.abs(energy[0].at[0] - 2) < 0.06, `moved: ${JSON.stringify(energy[0].at)}`);
+    // the placed item has its own inspector
+    assert((await page.locator("homeslice-panel .inspector h2").textContent()) === "Battery", "battery not selected");
+    assert(await page.locator("homeslice-panel .inspector label", { hasText: "Charge sensor" }).count(), "no charge sensor for the battery");
+    await page.keyboard.press("Escape");
     await page.locator("homeslice-panel .inspector ul.offers li", { hasText: "Solar" }).locator("button").click();
     assert((await model()).energy[1].kind === "solar", "solar not added");
+    // a heat pump and a grid meter; the heat pump's line goes to the battery (the hub) by itself
+    const placeAt = async (name, x, y) => {
+      await page.keyboard.press("Escape");
+      await page.locator("homeslice-panel .inspector ul.offers li", { hasText: name }).locator("button").click();
+      await page.mouse.click(plan.x + ox + x * scale, plan.y + oy + y * scale);
+    };
+    await placeAt("Grid", 1, 7);
+    await placeAt("Heat pump", 4, 7);
+    const hp = (await model()).energy.findIndex((e) => e.name === "Heat pump");
+    const connects = page.locator("homeslice-panel .inspector label", { hasText: "Line connects to" }).locator("select");
+    assert((await connects.locator("option:checked").textContent()) === "Automatic: Battery", `default: ${await connects.locator("option:checked").textContent()}`);
+    // connect it to the grid meter
+    const grid = (await model()).energy.findIndex((e) => e.kind === "grid");
+    await connects.selectOption(String(grid));
+    assert((await model()).energy[hp].to === "grid" && (await model()).energy[grid].id === "grid", `connected: ${JSON.stringify((await model()).energy)}`);
+    // …or drag from its ring onto the battery
+    const ring = await page.locator("homeslice-panel svg.plan g.link-handle circle").boundingBox();
+    const battery = await page.locator('homeslice-panel svg.plan g.energy-marker[data-energy="0"] rect').boundingBox();
+    await page.mouse.move(ring.x + ring.width / 2, ring.y + ring.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(battery.x + 11, battery.y + 11, { steps: 8 });
+    assert(await page.locator("homeslice-panel svg.plan line.energy-link.drawing").count(), "no line while connecting");
+    await page.mouse.up();
+    assert((await model()).energy[hp].to === "battery", `dragged: ${JSON.stringify((await model()).energy[hp])}`);
+    assert((await page.locator("homeslice-panel svg.plan line.energy-link").count()) >= 2, "lines not drawn on the plan");
     await shot(page, "editor-energy");
-    await page.locator("homeslice-panel .inspector ul.energy li", { hasText: "Battery" }).locator("button").click();
-    assert((await model()).energy.length === 1, "battery not removed");
+    await page.keyboard.press("Escape");
+    await page.locator("homeslice-panel .inspector ul.energy li", { hasText: "Battery" }).locator("button:not(.link)").click();
+    assert((await model()).energy.length === 3, "battery not removed");
+    assert((await model()).energy.every((e) => e.to === undefined), "lines to the removed battery should go back to the hub");
     await page.keyboard.press("Control+z");
     await page.locator("homeslice-panel .modes button", { hasText: "Rooms" }).click();
     assert(errors.length === 0, errors.join(" | "));

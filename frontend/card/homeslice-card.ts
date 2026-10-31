@@ -1,4 +1,4 @@
-import { LitElement, css, html, nothing, type PropertyValues } from "lit";
+import { LitElement, css, html, nothing, svg, type PropertyValues } from "lit";
 import { areaEntities, areaPopup, areaTemperature, contactOpen, coverOpen, lightsLook, type Hass, type PopupSection } from "../ha/hass";
 import { localize, type StringKey } from "../i18n/localize";
 import { expandHouse } from "../model/expand";
@@ -62,11 +62,45 @@ interface Label {
 interface EnergyLabel {
   key: string;
   kind: string;
+  /** Where the label sits, and the marker it belongs to. */
   x: number;
   y: number;
+  mx: number;
+  my: number;
+  /** `above`: just above its marker; `left`/`right`: a callout beside the house with a leader line. */
+  place: "above" | "left" | "right";
   icon: string;
   name: string;
   text: string;
+}
+
+/** Height of a label plus a gap, in CSS px. */
+const LABEL_STEP = 42;
+
+/**
+ * Callouts for the whole-house view: labels in a column on either side of the house
+ * (the side their marker is on), in the order of their markers from top to bottom, never
+ * overlapping, each with a leader line to its marker.
+ */
+export function calloutLayout<T extends { mx: number; my: number }>(
+  labels: T[],
+  house: { left: number; right: number; top: number; bottom: number },
+  size: { width: number; height: number },
+): (T & { x: number; y: number; place: "left" | "right" })[] {
+  const centre = (house.left + house.right) / 2;
+  const out: (T & { x: number; y: number; place: "left" | "right" })[] = [];
+  for (const side of ["left", "right"] as const) {
+    const column = labels.filter((l) => (l.mx < centre) === (side === "left")).sort((a, b) => a.my - b.my);
+    // just outside the house, but on the card
+    const x = side === "left" ? Math.max(150, house.left - 16) : Math.min(size.width - 150, house.right + 16);
+    const ys: number[] = [];
+    for (const l of column) ys.push(Math.max(l.my, (ys[ys.length - 1] ?? -Infinity) + LABEL_STEP));
+    // pushed off the bottom: move the column up as far as needed
+    const over = (ys[ys.length - 1] ?? 0) - (size.height - LABEL_STEP / 2);
+    if (over > 0) for (let i = 0; i < ys.length; i++) ys[i] = Math.max(LABEL_STEP / 2 + i * LABEL_STEP, ys[i] - over);
+    column.forEach((l, i) => out.push({ ...l, x, y: ys[i], place: side }));
+  }
+  return out;
 }
 
 const ENERGY_ICONS: Record<string, string> = {
@@ -326,7 +360,7 @@ export class HomesliceCard extends LitElement {
     );
     this.renderer.setModel(house, walls, this.view);
     if (this.config.energy) {
-      this.renderer.setEnergy(house.energy.map((e) => ({ key: `energy-${e.index}`, kind: e.kind, levelIndex: e.levelIndex, at: e.at, roof: e.roof })));
+      this.renderer.setEnergy(house.energy.map((e) => ({ key: `energy-${e.index}`, to: e.to === null ? null : `energy-${e.to}`, kind: e.kind, levelIndex: e.levelIndex, at: e.at, roof: e.roof })));
       if (!this.energyPrefs) void this.loadEnergyPrefs();
     }
     // keep the focused floor across model updates, if it still exists
@@ -384,12 +418,15 @@ export class HomesliceCard extends LitElement {
       const state =
         still ? "" : e.kind === "battery" ? this.t(r.power! > 0 ? "card.energy_discharging" : "card.energy_charging") : e.kind === "grid" ? this.t(r.power! > 0 ? "card.energy_import" : "card.energy_export") : "";
       const text = `${e.kind === "battery" && r.soc !== null ? `${Math.round(r.soc)} % · ` : ""}${formatPower(r.power === null ? null : Math.abs(r.power))}`;
-      out.push({ key, kind: e.kind, ...p, icon: ENERGY_ICONS[e.kind] ?? ENERGY_ICONS.device, name: state ? `${name} · ${state}` : name, text });
+      out.push({ key, kind: e.kind, ...p, mx: p.x, my: p.y, place: "above", icon: ENERGY_ICONS[e.kind] ?? ENERGY_ICONS.device, name: state ? `${name} · ${state}` : name, text });
     });
-    // labels close together are stacked upwards instead of covering each other
+    // the whole house: callouts beside it, so labels never cover other floors
+    const wrap = this.renderRoot.querySelector<HTMLElement>(".wrap");
+    if (!this._level && wrap) return calloutLayout(out, this.renderer.screenBounds(), { width: wrap.clientWidth, height: wrap.clientHeight });
+    // one floor: next to their markers; labels close together are stacked upwards
     const placed: EnergyLabel[] = [];
     for (const l of [...out].sort((a, b) => b.y - a.y)) {
-      while (placed.some((q) => Math.abs(q.x - l.x) < 150 && Math.abs(q.y - l.y) < 42)) l.y -= 44;
+      while (placed.some((q) => Math.abs(q.x - l.x) < 150 && Math.abs(q.y - l.y) < LABEL_STEP)) l.y -= LABEL_STEP + 2;
       placed.push(l);
     }
     return out;
@@ -771,8 +808,16 @@ export class HomesliceCard extends LitElement {
               </button>
             </div>`,
           )}
+          ${this._energyLabels.some((e) => e.place !== "above")
+            ? html`<svg class="leaders">
+                ${this._energyLabels.map(
+                  (e) => svg`<line x1=${e.x} y1=${e.y} x2=${e.mx} y2=${e.my} style="stroke:${ENERGY_COLORS[e.kind] ?? ENERGY_COLORS.device}"></line>
+                    <circle cx=${e.mx} cy=${e.my} r="3" style="fill:${ENERGY_COLORS[e.kind] ?? ENERGY_COLORS.device}"></circle>`,
+                )}
+              </svg>`
+            : nothing}
           ${this._energyLabels.map(
-            (e) => html`<div class="energy-label ${e.kind}" style="left:${e.x}px;top:${e.y}px;--energy:${ENERGY_COLORS[e.kind] ?? ENERGY_COLORS.device}">
+            (e) => html`<div class="energy-label ${e.kind} ${e.place}" style="left:${e.x}px;top:${e.y}px;--energy:${ENERGY_COLORS[e.kind] ?? ENERGY_COLORS.device}">
               <ha-icon icon=${e.icon}></ha-icon>
               <span class="name">${e.name}</span>
               <span class="value">${e.text}</span>
@@ -981,6 +1026,24 @@ export class HomesliceCard extends LitElement {
       pointer-events: none;
       white-space: nowrap;
       --mdc-icon-size: 18px;
+    }
+    .energy-label.left {
+      transform: translate(-100%, -50%);
+    }
+    .energy-label.right {
+      transform: translate(0, -50%);
+    }
+    svg.leaders {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      overflow: visible;
+    }
+    svg.leaders line {
+      stroke-width: 1;
+      opacity: 0.7;
     }
     .energy-label ha-icon {
       grid-row: span 2;

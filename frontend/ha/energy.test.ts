@@ -30,7 +30,7 @@ const prefs: EnergyPrefs = {
   device_consumption: [{ name: "Heat pump", stat_rate: "sensor.hp", stat_consumption: "sensor.hp_energy" }],
 };
 
-const item = (kind: Energy["kind"], extra: Partial<Energy> = {}): Energy => ({ kind, index: 0, levelIndex: 0, at: [0, 0], roof: "south", ...extra });
+const item = (kind: Energy["kind"], extra: Partial<Energy> = {}): Energy => ({ kind, id: kind, to: null, index: 0, levelIndex: 0, at: [0, 0], roof: "south", ...extra });
 
 describe("energy readings", () => {
   it("reads solar, battery and grid from HA's energy settings", () => {

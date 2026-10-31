@@ -2,6 +2,7 @@
 // each returns a new model, which keeps undo/redo trivial and makes them easy to test.
 
 import { bbox, dist, normalizeOrientation, project, signedArea } from "../model/geometry";
+import { expandHouse } from "../model/expand";
 import type { Coord, EnergyInput, FurnitureInput, HouseInput, LevelInput, OpeningInput, OpeningSource, OpeningType, RoomInput, ShapeInput, RoofInput, Side, Vec2, VerticalInput, WallInput, WallThickness } from "../model/types";
 
 /** Points closer than this count as the same corner (shared by neighbouring rooms). */
@@ -922,6 +923,34 @@ export function setRoof(model: HouseInput, roof: Partial<RoofInput> | null): Hou
 
 // ----- energy -----
 
+/** Every energy item's id (given, or the one the model derives from its name or kind). */
+export function energyIds(model: HouseInput): string[] {
+  const { house } = expandHouse(model);
+  const ids = (model.energy ?? []).map((e) => e.id ?? "");
+  for (const e of house?.energy ?? []) ids[e.index] = e.id;
+  return ids;
+}
+
+/**
+ * Connects an item's flow line to another item (by index), or back to the hub (null).
+ * The target's id is written down, so renaming it later keeps the line.
+ */
+export function connectEnergy(model: HouseInput, from: number, to: number | null): HouseInput {
+  const m = clone(model);
+  const e = m.energy?.[from];
+  if (!e || to === from) return m;
+  if (to === null) {
+    delete e.to;
+    return m;
+  }
+  const target = m.energy?.[to];
+  if (!target) return m;
+  const ids = energyIds(model);
+  target.id ??= ids[to];
+  e.to = target.id;
+  return m;
+}
+
 export function addEnergy(model: HouseInput, item: EnergyInput): { model: HouseInput; index: number } {
   const m = clone(model);
   m.energy = [...(m.energy ?? []), item];
@@ -940,7 +969,10 @@ export function updateEnergy(model: HouseInput, index: number, patch: Partial<En
 
 export function deleteEnergy(model: HouseInput, index: number): HouseInput {
   const m = clone(model);
+  const id = energyIds(model)[index];
   m.energy = (m.energy ?? []).filter((_, i) => i !== index);
+  // lines to it go back to the hub
+  for (const e of m.energy) if (e.to === id) delete e.to;
   if (!m.energy.length) delete m.energy;
   return m;
 }

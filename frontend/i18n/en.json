@@ -337,5 +337,17 @@
   "editor.floor_level_for": "Level for {floor}",
   "editor.merge_hint": "Floors like “Outside” go onto the ground floor's level, so the garden lies next to the house.",
   "editor.include_floors": "Also on this level",
-  "editor.include_floors_hint": "Areas of these Home Assistant floors are on this level too, e.g. an “Outside” floor with the garden."
+  "editor.include_floors_hint": "Areas of these Home Assistant floors are on this level too, e.g. an “Outside” floor with the garden.",
+  "editor.energy_link_drag": "Drag onto another item to connect them",
+  "editor.energy_drag": "drag it on the plan to move it",
+  "editor.energy_name": "Name",
+  "editor.energy_power": "Power sensor",
+  "editor.energy_power_default": "Empty: from Home Assistant's energy settings ({sensors}).",
+  "editor.energy_power_hint": "Watts or kW. Positive means producing (solar), discharging (battery) or importing (grid).",
+  "editor.energy_soc": "Charge sensor (%)",
+  "editor.energy_to": "Line connects to",
+  "editor.energy_to_hub": "Automatic: {hub}",
+  "editor.energy_to_none": "Nothing (this is where the lines meet)",
+  "editor.energy_to_hint": "Where its flow line goes, e.g. a wallbox to the grid meter. Or drag from the small ring next to the selected item onto another one.",
+  "editor.energy_to_hint_roof": "Where the line from the panels goes, e.g. the inverter or the battery."
 }

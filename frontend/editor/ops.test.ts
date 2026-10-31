@@ -58,6 +58,7 @@ import {
   resizeSide,
   wallSnap,
   suggestMerges,
+  connectEnergy,
 } from "./ops";
 import { expandHouse } from "../model/expand";
 import { deriveWalls } from "../model/walls";
@@ -461,5 +462,24 @@ describe("merging Home Assistant floors", () => {
     const m = newHouse("h", "H", [10, 8], [{ floor_id: "ground", include_floors: ["outside"], areas: [{ area_id: "kitchen", name: "Kitchen" }, { area_id: "garden", name: "Garden" }] }]);
     expect(m.levels[0].include_floors).toEqual(["outside"]);
     expect(m.levels[0].rooms.find((r) => r.area_id === "garden")?.kind).toBe("outdoor");
+  });
+});
+
+describe("energy connections in the editor", () => {
+  it("connects by index, writes the target's id, and reconnects to the hub when the target goes", () => {
+    let m: HouseInput = {
+      ...house(),
+      energy: [
+        { kind: "battery", level: "g", at: [1, 1] },
+        { kind: "grid", level: "g", at: [2, 1] },
+        { kind: "device", name: "Wallbox", power: "sensor.wb", level: "g", at: [3, 1] },
+      ],
+    };
+    m = connectEnergy(m, 2, 1);
+    expect(m.energy![1].id).toBe("grid");
+    expect(m.energy![2].to).toBe("grid");
+    expect(connectEnergy(m, 2, null).energy![2].to).toBeUndefined();
+    const gone = deleteEnergy(m, 1);
+    expect(gone.energy!.map((e) => e.to)).toEqual([undefined, undefined]);
   });
 });

@@ -375,3 +375,26 @@ describe("checks", () => {
     expect(misalignedWalls(h2, new Map(h2.levels.map((l) => [l.id, deriveWalls(l, h2.walls, [])])))).toEqual([]);
   });
 });
+
+describe("energy connections", () => {
+  const base = (energy: unknown[]) => ({ schema: 1, id: "e", outline: { rect: [0, 0, 6, 6] }, levels: [{ id: "g", rooms: [{ id: "r", rect: [0, 0, 6, 6] }] }], energy });
+  it("ids come from names or kinds; flows go to the hub unless connected elsewhere", () => {
+    const { house, issues } = expandHouse(
+      base([
+        { kind: "solar" },
+        { kind: "battery", level: "g", at: [1, 1] },
+        { kind: "grid", level: "g", at: [2, 1] },
+        { kind: "device", name: "Heat pump", power: "sensor.hp", level: "g", at: [3, 1] },
+        { kind: "device", name: "Wallbox", power: "sensor.wb", level: "g", at: [4, 1], to: "grid" },
+      ]),
+    );
+    expect(issues).toEqual([]);
+    expect(house!.energy.map((e) => e.id)).toEqual(["solar", "battery", "grid", "heat_pump", "wallbox"]);
+    // the battery is the hub (no inverter); the wallbox hangs off the grid
+    expect(house!.energy.map((e) => e.to)).toEqual([1, null, 1, 1, 2]);
+  });
+  it("explains an unknown connection", () => {
+    const { issues } = expandHouse(base([{ kind: "grid", level: "g", at: [1, 1], to: "inverter" }]));
+    expect(issues[0].message).toContain("to must be the id of another energy item");
+  });
+});
