@@ -351,5 +351,14 @@
   "editor.energy_to_hint": "Where its flow line goes, e.g. a wallbox to the grid meter. Or drag from the small ring next to the selected item onto another one.",
   "editor.energy_to_hint_roof": "Where the line from the panels goes, e.g. the inverter or the battery.",
   "editor.cover_inverted": "Inverted (reports open when the blind is down)",
-  "editor.awning_inverted": "Inverted (reports open when the awning is rolled up)"
+  "editor.awning_inverted": "Inverted (reports open when the awning is rolled up)",
+  "furniture.tree": "Tree",
+  "furniture.tree_small": "Small tree",
+  "furniture.pine": "Conifer",
+  "furniture.bush": "Bush",
+  "furniture.hedge": "Hedge",
+  "furniture.flower_bed": "Flower bed",
+  "furniture.fence": "Fence",
+  "furniture.garden_path": "Garden path",
+  "furniture.bench": "Bench"
 }

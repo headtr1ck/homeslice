@@ -4,8 +4,9 @@
 // transition ends.
 
 import * as THREE from "three";
-import { buildPiece, loadModel, modelFiles, partsFor } from "./models";
+import { buildPiece, loadModel, modelColor, modelFiles, partsFor } from "./models";
 import { nearestCorner, offsetPolygon, perimeterPath } from "../model/route";
+import { floorTexture } from "./textures";
 import { Line2 } from "three/examples/jsm/lines/Line2.js";
 import { LineGeometry } from "three/examples/jsm/lines/LineGeometry.js";
 import { LineMaterial } from "three/examples/jsm/lines/LineMaterial.js";
@@ -419,7 +420,8 @@ export class HouseRenderer {
       geo.translate(0, room.kind === "outdoor" ? -level.slab + 0.01 : 0.004, 0);
       const color = FLOOR_COLORS[room.floor] ?? FLOOR_COLORS.wood;
       // outdoor areas reach over the floors below in the exploded view: keep them see-through
-      const material = room.kind === "outdoor" ? this.lambert(color, { transparent: true, opacity: 0.55, depthWrite: false }) : this.lambert(color);
+      const map = floorTexture(room.floor);
+      const material = room.kind === "outdoor" ? this.lambert(color, { map, transparent: true, opacity: 0.55, depthWrite: false }) : this.lambert(color, { map });
       const floor = this.mesh(geo, material, false);
       floor.userData.room = `${level.id}/${room.id}`;
       floor.userData.outdoor = room.kind === "outdoor";
@@ -1035,6 +1037,35 @@ export class HouseRenderer {
       case "mirror":
         box(w, f.height, d, 0, 0, 0, m("#bcd7e6"));
         break;
+      case "tree":
+      case "tree_small":
+      case "pine":
+      case "bush": {
+        // a trunk and a crown
+        const trunk = f.type === "bush" ? 0 : f.height * 0.3;
+        if (trunk) box(Math.min(w, d) * 0.08, trunk, Math.min(w, d) * 0.08, 0, 0, 0, wood);
+        const crown = this.mesh(f.type === "pine" ? new THREE.ConeGeometry(0.5, 1, 12) : new THREE.SphereGeometry(0.5, 14, 10), m("#4f8a52"));
+        crown.scale.set(w, f.height - trunk, d);
+        crown.position.y = trunk + (f.height - trunk) / 2;
+        g.add(crown);
+        break;
+      }
+      case "hedge":
+        box(w, f.height, d, 0, 0, 0, m("#4f8a52"));
+        break;
+      case "flower_bed":
+        box(w, 0.15, d, 0, 0, 0, m("#7a5b44"));
+        box(w * 0.9, f.height - 0.15, d * 0.8, 0, 0.15, 0, m("#c76b8f"));
+        break;
+      case "fence":
+        box(w, f.height, Math.min(d, 0.05), 0, 0, 0, wood);
+        break;
+      case "garden_path":
+        box(w, f.height, d, 0, 0, 0, m("#bdb5a6"));
+        break;
+      case "bench":
+        box(w, f.height, d, 0, 0, 0, wood);
+        break;
       case "floor_lamp":
       case "wall_lamp":
       case "ceiling_lamp":
@@ -1106,7 +1137,7 @@ export class HouseRenderer {
       let m = converted.get(source);
       if (!m) {
         const s = source as THREE.MeshStandardMaterial;
-        m = new THREE.MeshLambertMaterial({ color: s.color ?? 0xffffff, map: s.map ?? null, transparent: s.transparent, opacity: s.opacity });
+        m = new THREE.MeshLambertMaterial({ color: modelColor(source), map: s.map ?? null, transparent: s.transparent, opacity: s.opacity });
         converted.set(source, m);
         materials.add(m);
         // join the level's fading and hover tint as they are now
@@ -1128,6 +1159,7 @@ export class HouseRenderer {
         child.traverse((o) => o instanceof THREE.Mesh && o.geometry.dispose());
       }
       piece.traverse((o) => (o.userData.outdoor = true));
+      piece.userData.detailed = true;
       g.add(piece);
       const level = this.levels.find((l) => l.materials === materials);
       if (level) this.applyLevel(level);

@@ -67,6 +67,15 @@ export type FurnitureType =
   | "wall_lamp"
   | "ceiling_lamp"
   | "ceiling_fan"
+  | "tree"
+  | "tree_small"
+  | "pine"
+  | "bush"
+  | "hedge"
+  | "flower_bed"
+  | "fence"
+  | "garden_path"
+  | "bench"
   | "car";
 
 /** `wall`: hangs on a wall (its back against it); `ceiling`: hangs from the ceiling. */

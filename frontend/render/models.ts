@@ -34,6 +34,16 @@ export const MODELS: Partial<Record<FurnitureType, Part[]>> = {
   wall_lamp: one("lampWall"),
   ceiling_lamp: one("lampSquareCeiling"),
   ceiling_fan: one("ceilingFan"),
+  tree: one("tree_oak_dark"),
+  tree_small: one("tree_default_dark"),
+  pine: one("tree_pineRoundC"),
+  // bush and hedge are built in code (PROCEDURAL): the kit's bushes look like weeds
+  bush: [],
+  hedge: [],
+  flower_bed: [{ files: ["flower_redA", "flower_yellowA", "flower_purpleA"], tile: true }],
+  fence: [{ files: ["fence_simple"], tile: true }],
+  garden_path: [{ files: ["path_stone"], tile: true }],
+  bench: one("bench"),
   armchair: one("loungeChair"),
   table: one("table"),
   chair: one("chair"),
@@ -67,6 +77,52 @@ export const WALL_MODELS: Partial<Record<FurnitureType, Part[]>> = {
 /** The parts of a piece as mounted. */
 export function partsFor(type: FurnitureType, mount: string): Part[] | undefined {
   return (mount === "wall" ? WALL_MODELS[type] : undefined) ?? MODELS[type];
+}
+
+/** Leaves, in the same colour as the trees' (through `modelColor`). */
+const LEAVES = new THREE.MeshStandardMaterial({ name: "leafsDark" });
+
+/** Low-poly leaf clumps filling a box: overlapping blobs, a little irregular but the same every time. */
+function leafClumps(size: [number, number], height: number, leaves: THREE.Material, count: number): THREE.Group {
+  const g = new THREE.Group();
+  const [w, d] = size;
+  const geo = new THREE.IcosahedronGeometry(0.5, 1);
+  for (let i = 0; i < count; i++) {
+    const t = count === 1 ? 0.5 : i / (count - 1);
+    const wobble = Math.sin(i * 12.9898) * 0.5 + 0.5; // deterministic
+    const sx = Math.min(w, d) * (1 + 0.25 * wobble);
+    const blob = new THREE.Mesh(geo, leaves);
+    blob.scale.set(count === 1 ? w : Math.max(sx, w / count * 1.6), height * (0.9 + 0.2 * wobble), d);
+    blob.position.set(count === 1 ? 0 : -w / 2 + sx / 2 + t * Math.max(0, w - sx), blob.scale.y / 2, (wobble - 0.5) * d * 0.1);
+    blob.castShadow = blob.receiveShadow = true;
+    g.add(blob);
+  }
+  return g;
+}
+
+/** Pieces drawn in code instead of from a model file. */
+const PROCEDURAL: Partial<Record<FurnitureType, (size: [number, number], height: number, leaves: THREE.Material) => THREE.Group>> = {
+  bush: (size, height, leaves) => leafClumps(size, height, leaves, 1),
+  // a hedge: clumps along its length, about one per metre
+  hedge: (size, height, leaves) => leafClumps(size, height, leaves, Math.max(2, Math.round(size[0] / 0.9))),
+};
+
+/** Kenney's nature colours are stylised (turquoise leaves): natural ones fit a house better. */
+const NATURAL: Record<string, string> = {
+  leafs: "#5e9b4a",
+  leafsDark: "#3f7a3a",
+  leafsFall: "#c98a3a",
+  grass: "#6aa84f",
+  woodBark: "#7a5a43",
+  woodBarkDark: "#5e4433",
+  stone: "#c9c4ba",
+  stoneDark: "#a39e94",
+};
+
+/** A model material's colour, natural for the nature models. */
+export function modelColor(source: THREE.Material): THREE.Color {
+  const natural = NATURAL[source.name];
+  return natural ? new THREE.Color(natural) : ((source as THREE.MeshStandardMaterial).color?.clone() ?? new THREE.Color(0xffffff));
 }
 
 /** Where the models are: next to the bundle (Home Assistant serves the whole folder). */
@@ -112,6 +168,8 @@ export function buildPiece(
   models: Map<string, THREE.Object3D | null>,
   material: (source: THREE.Material) => THREE.Material,
 ): THREE.Group | null {
+  const build = PROCEDURAL[type];
+  if (build) return build(size, height, material(LEAVES));
   const parts = partsFor(type, mount);
   if (!parts) return null;
   const g = new THREE.Group();

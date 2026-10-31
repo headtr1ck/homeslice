@@ -2,7 +2,7 @@
 // (scripts/thumbnails.mjs runs this in headless Chromium).
 import * as THREE from "three";
 import { FURNITURE, FURNITURE_TYPES } from "../frontend/model/furniture";
-import { buildPiece, loadModel, modelFiles } from "../frontend/render/models";
+import { buildPiece, loadModel, modelColor, modelFiles } from "../frontend/render/models";
 
 const SIZE = 160;
 
@@ -21,7 +21,7 @@ async function render(): Promise<Record<string, string>> {
       let m = lambert.get(src);
       if (!m) {
         const s = src as THREE.MeshStandardMaterial;
-        m = new THREE.MeshLambertMaterial({ color: s.color, map: s.map ?? null });
+        m = new THREE.MeshLambertMaterial({ color: modelColor(src), map: s.map ?? null });
         lambert.set(src, m);
       }
       return m;

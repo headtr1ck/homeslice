@@ -41,6 +41,15 @@ export const FURNITURE: Record<FurnitureType, FurnitureDefaults> = {
   wall_lamp: { size: [0.3, 0.2], height: 0.12, mount: "wall", elevation: 1.8 },
   ceiling_lamp: { size: [0.3, 0.3], height: 0.55, mount: "ceiling" },
   ceiling_fan: { size: [1.2, 1.2], height: 0.4, mount: "ceiling" },
+  tree: { size: [4, 4], height: 6 },
+  tree_small: { size: [2.2, 2.2], height: 3.5 },
+  pine: { size: [2.5, 2.5], height: 7 },
+  bush: { size: [1.2, 1.2], height: 1 },
+  hedge: { size: [3, 0.8], height: 1.6 },
+  flower_bed: { size: [2, 0.8], height: 0.4 },
+  fence: { size: [3, 0.1], height: 1 },
+  garden_path: { size: [3, 0.8], height: 0.05 },
+  bench: { size: [1.5, 0.5], height: 0.45 },
   car: { size: [1.85, 4.6], height: 1.5 },
 };
 
@@ -55,7 +64,7 @@ export const FURNITURE_GROUPS: { id: string; types: FurnitureType[] }[] = [
   { id: "bathroom", types: ["bathtub", "shower", "toilet", "sink", "mirror"] },
   { id: "utility", types: ["washer", "dryer"] },
   { id: "lighting", types: ["ceiling_lamp", "wall_lamp", "ceiling_fan"] },
-  { id: "outside", types: ["car"] },
+  { id: "outside", types: ["tree", "tree_small", "pine", "bush", "hedge", "flower_bed", "fence", "garden_path", "bench", "car"] },
 ];
 
 /** Where a piece hangs: its own mount, else its type's. */

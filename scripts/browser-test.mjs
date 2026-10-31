@@ -428,14 +428,11 @@ console.log("demo house, roof");
     const pieces = await page.evaluate(() => {
       const out = [];
       const level = window.card.renderer.object.getObjectByName("ground");
-      for (const g of level.children) {
-        let shared = 0;
-        g.traverse((o) => o.isMesh && o.userData.shared && shared++);
-        if (shared) out.push({ shared, holders: g.children[0]?.children.length ?? 0 });
-      }
+      for (const g of level.children) if (g.children[0]?.userData.detailed) out.push({ holders: g.children[0].children.length });
       return out;
     });
-    assert(pieces.length === types.length, `${pieces.length} of ${types.length} pieces detailed`);
+    // the demo garden has four pieces of its own
+    assert(pieces.length === types.length + 4, `${pieces.length} of ${types.length} + 4 pieces detailed`);
     // the 2.4 m kitchen counter is a row of cabinets, not one stretched cabinet
     assert(pieces[types.indexOf("kitchen")].holders >= 4, `kitchen units: ${pieces[types.indexOf("kitchen")].holders}`);
     await shot(page, "demo-furniture-detailed");
