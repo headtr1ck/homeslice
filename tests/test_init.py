@@ -284,6 +284,43 @@ async def test_old_custom_index_moves_out_of_the_served_folder(hass: HomeAssista
     assert [m["name"] for m in await assets.async_custom_list()] == ["Old"]
 
 
+async def test_polyhaven_textures_catalog_and_download(hass: HomeAssistant, setup, hass_ws_client, aioclient_mock, tmp_path: Path) -> None:
+    aioclient_mock.get(
+        "https://api.polyhaven.com/assets?t=textures",
+        json={
+            "wood_floor": {"name": "Wood Floor", "categories": ["wood", "floor", "indoor"], "dimensions": [2000, 2000], "download_count": 9},
+            "red_brick": {"name": "Red Brick", "categories": ["brick", "wall", "outdoor"], "dimensions": [3000, 3000], "download_count": 5},
+            "aerial_road": {"name": "Road", "categories": ["floor", "road", "aerial"], "dimensions": [30000, 30000], "download_count": 7},
+        },
+    )
+    aioclient_mock.get(
+        "https://api.polyhaven.com/files/wood_floor",
+        json={"Diffuse": {"1k": {"jpg": {"url": "https://dl.polyhaven.org/file/wood_floor_diff_1k.jpg", "size": 10}}}},
+    )
+    aioclient_mock.get("https://dl.polyhaven.org/file/wood_floor_diff_1k.jpg", content=b"\xff\xd8\xff\xe0jpeg")
+    client = await hass_ws_client(hass)
+    await client.send_json_auto_id({"type": "homeslice/assets/textures"})
+    result = (await client.receive_json())["result"]
+    assert [t["id"] for t in result] == ["wood_floor", "red_brick"]
+    assert result[0]["on"] == ["floor"] and result[1]["on"] == ["wall"] and result[1]["size"] == [3.0, 3.0]
+    for _ in range(2):
+        await client.send_json_auto_id({"type": "homeslice/assets/textures/fetch", "asset": "wood_floor"})
+        msg = await client.receive_json()
+        assert msg["result"] == {"url": "/homeslice_assets/textures/wood_floor/wood_floor_diff_1k.jpg", "size": [2.0, 2.0]}, msg
+    folder = tmp_path / "homeslice" / "assets" / "textures" / "wood_floor"
+    assert (folder / "wood_floor_diff_1k.jpg").read_bytes().startswith(b"\xff\xd8")
+    assert aioclient_mock.call_count == 3  # the catalogue once, the file list and the image once
+    await client.send_json_auto_id({"type": "homeslice/assets/textures/fetch", "asset": "../etc"})
+    assert not (await client.receive_json())["success"]
+
+
+def test_texture_refs() -> None:
+    from custom_components.homeslice.assets import texture_refs
+
+    model = {"facade": "polyhaven:red_brick", "levels": [{"rooms": [{"floor": "polyhaven:wood_floor", "wall": "paint_white", "wall_sides": {"north": "polyhaven:../x", "east": "polyhaven:plaster"}}]}]}
+    assert texture_refs(model) == {"red_brick", "wood_floor", "plaster"}
+
+
 async def test_polyhaven_catalog_keeps_home_categories(hass: HomeAssistant, setup, hass_ws_client, aioclient_mock) -> None:
     aioclient_mock.get(
         "https://api.polyhaven.com/assets?t=models",

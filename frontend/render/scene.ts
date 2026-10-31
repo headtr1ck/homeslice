@@ -7,7 +7,7 @@ import * as THREE from "three";
 import { simplePiece } from "./simple";
 import { detailFor, fitModel, loadModel, modelColor } from "./models";
 import { nearestCorner, offsetPolygon, perimeterPath } from "../model/route";
-import { finishLook } from "./finishes";
+import { finishLook, onFinishLoaded } from "./finishes";
 import { Line2 } from "three/examples/jsm/lines/Line2.js";
 import { LineGeometry } from "three/examples/jsm/lines/LineGeometry.js";
 import { LineMaterial } from "three/examples/jsm/lines/LineMaterial.js";
@@ -318,7 +318,10 @@ export class HouseRenderer {
     this.sun.shadow.mapSize.set(2048, 2048);
     this.sun.shadow.bias = -0.0005;
     this.scene.add(this.sun, this.sun.target);
+    // a downloaded floor or wall texture arrived: draw again
+    this.stopFinishes = onFinishLoaded(() => this.onChange?.());
   }
+  private stopFinishes: () => void;
 
   // ----- building -----
 
@@ -1650,6 +1653,7 @@ export class HouseRenderer {
   }
 
   dispose() {
+    this.stopFinishes();
     this.clear();
     this.renderer.dispose();
   }

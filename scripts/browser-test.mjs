@@ -1770,9 +1770,22 @@ console.log("editor, unsaved changes");
     await picker("wall", 1).locator('button.finish[data-finish="brick_white"]').click();
     r = await living();
     assert(r.wall_sides?.north === "brick_white", `accent: ${JSON.stringify(r.wall_sides)}`);
+    // a Poly Haven texture: downloaded into Home Assistant first, then drawn at its size
+    await page.route("**/homeslice_assets/textures/**", (route) =>
+      route.request().url().endsWith("info.json")
+        ? route.fulfill({ contentType: "application/json", body: JSON.stringify({ size: [2, 2] }) })
+        : route.fulfill({ contentType: "image/jpeg", body: readFileSync(join(root, "dev/fixtures/texture.jpg")) }),
+    );
+    await picker("floor").locator("summary").click();
+    await picker("floor").locator('button[data-finish-source="polyhaven"]').click();
+    await picker("floor").locator('button.finish[data-finish="polyhaven:wood_floor"]').click();
+    await page.waitForFunction(() => window.panel._model.levels[0].rooms.find((r) => r.id === "living").floor === "polyhaven:wood_floor");
+    assert((await page.evaluate(() => window.panel.hass.fetched)).includes("texture:wood_floor"), "texture not fetched into HA first");
+    assert((await picker("floor").locator("summary").textContent()).includes("Wood Floor"), "picked texture not named");
+    await page.evaluate(() => (window.panel._finishSource = "builtin"));
     await page.waitForTimeout(500);
     await shot(page, "editor-paint");
-    for (let i = 0; i < 4; i++) await page.keyboard.press("Control+z");
+    for (let i = 0; i < 5; i++) await page.keyboard.press("Control+z");
     r = await living();
     assert(!r.floor && !r.wall && !r.wall_sides, `not undone: ${JSON.stringify(r)}`);
     await page.keyboard.press("Escape");

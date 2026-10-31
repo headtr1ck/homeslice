@@ -39,6 +39,13 @@ POLYHAVEN_CATEGORIES = {
     "flowers", "appliances", "decorative", "vases", "wall decoration", "electronics", "office", "books",
     "props", "containers", "dishes", "food", "tools", "instrument", "rocks", "ground cover", "grass",
 }
+# textures for floors, walls and facades (not roads, terrain or aerial scans)
+TEXTURE_CATEGORIES = {
+    "floor", "wall", "wood", "brick", "plaster-concrete", "concrete", "tiles", "fabric", "cobblestone",
+    "gravel", "plaster", "raw wood", "roofing", "sandstone",
+}
+TEXTURE_EXCLUDE = {"aerial", "road", "asphalt", "terrain", "snow"}
+MAX_TEXTURE_BYTES = 5_000_000
 CATALOG_TTL = 24 * 3600
 MAX_POLYHAVEN_BYTES = 40_000_000
 RESOLUTION = "1k"
@@ -99,12 +106,14 @@ class Assets:
         self.hass = hass
         self.root = Path(hass.config.path(MODEL_DIR, ASSETS_DIR))
         self._catalog: tuple[float, list[dict[str, Any]]] | None = None
+        self._textures: tuple[float, list[dict[str, Any]]] | None = None
         self._fetching: dict[str, asyncio.Task[None]] = {}
 
     def ensure_dirs(self) -> None:
         """Create the folders (blocking)."""
         (self.root / "polyhaven").mkdir(parents=True, exist_ok=True)
         (self.root / "custom").mkdir(parents=True, exist_ok=True)
+        (self.root / "textures").mkdir(parents=True, exist_ok=True)
         # the index used to live in the served folder, where anyone could read it
         old = self.root / "custom" / "index.json"
         if old.exists() and not self._index_path.exists():
@@ -214,12 +223,93 @@ class Assets:
         _LOGGER.info("Downloaded Poly Haven model %s", asset_id)
 
     async def async_ensure_models(self, model: dict[str, Any]) -> None:
-        """Downloads the Poly Haven models a house uses (e.g. one imported from a file)."""
+        """Downloads the Poly Haven models and textures a house uses (e.g. one imported from a file)."""
         for asset_id in sorted(polyhaven_refs(model)):
             try:
                 await self.async_polyhaven(asset_id)
             except AssetError as err:
                 _LOGGER.warning("Could not fetch Poly Haven model %s: %s", asset_id, err)
+        for asset_id in sorted(texture_refs(model)):
+            try:
+                await self.async_texture(asset_id)
+            except AssetError as err:
+                _LOGGER.warning("Could not fetch Poly Haven texture %s: %s", asset_id, err)
+
+    # ----- Poly Haven textures -----
+
+    async def async_texture_catalog(self) -> list[dict[str, Any]]:
+        """Poly Haven's textures for floors, walls and facades (cached for a day)."""
+        if self._textures and time.monotonic() - self._textures[0] < CATALOG_TTL:
+            return self._textures[1]
+        data = await self._get_json(f"{POLYHAVEN_API}/assets?t=textures")
+        items = []
+        for asset_id, a in data.items():
+            categories = [c for c in a.get("categories", []) if not c.startswith("collection:")]
+            if not ID.match(asset_id) or not TEXTURE_CATEGORIES.intersection(categories) or TEXTURE_EXCLUDE.intersection(categories):
+                continue
+            dims = a.get("dimensions") or []
+            floor = "floor" in categories or "cobblestone" in categories or "gravel" in categories
+            wall = bool({"wall", "brick", "plaster"}.intersection(categories)) or "roofing" in categories
+            items.append(
+                {
+                    "id": asset_id,
+                    "name": a.get("name", asset_id),
+                    "categories": categories,
+                    "tags": a.get("tags", []),
+                    # millimetres: what one copy of the texture covers
+                    "size": [round(float(v) / 1000, 3) for v in dims[:2]] if len(dims) >= 2 else [2.0, 2.0],
+                    "on": ["floor", "wall"] if floor == wall else ["floor"] if floor else ["wall"],
+                    "thumbnail": a.get("thumbnail_url"),
+                    "downloads": a.get("download_count", 0),
+                }
+            )
+        items.sort(key=lambda i: -i["downloads"])
+        self._textures = (time.monotonic(), items)
+        return items
+
+    def texture_url(self, asset_id: str) -> str:
+        return f"{ASSETS_URL}/textures/{asset_id}/{asset_id}_diff_{RESOLUTION}.jpg"
+
+    async def async_texture(self, asset_id: str) -> dict[str, Any]:
+        """Downloads a texture's colour map (once); where it is served and the metres it covers."""
+        if not ID.match(asset_id):
+            raise AssetError("Not a Poly Haven texture id")
+        folder = self.root / "textures" / asset_id
+        info = folder / "info.json"
+
+        def read() -> Any:
+            return json.loads(info.read_text()) if info.exists() else None
+
+        known = await self.hass.async_add_executor_job(read)
+        if known:
+            return {"url": self.texture_url(asset_id), "size": known["size"]}
+        catalog = {t["id"]: t for t in await self.async_texture_catalog()}
+        if asset_id not in catalog:
+            raise AssetError("Poly Haven has no such texture")
+        files = await self._get_json(f"{POLYHAVEN_API}/files/{asset_id}")
+        entry = (files.get("Diffuse") or {}).get(RESOLUTION, {}).get("jpg")
+        if not entry or not str(entry.get("url", "")).startswith(POLYHAVEN_FILES):
+            raise AssetError("Poly Haven has no colour map of this texture")
+        if entry.get("size", 0) > MAX_TEXTURE_BYTES:
+            raise AssetError("This texture is too large")
+        session = async_get_clientsession(self.hass)
+        async with session.get(entry["url"], headers={"User-Agent": USER_AGENT}, timeout=120) as resp:
+            if resp.status != 200:
+                raise AssetError(f"Poly Haven answered {resp.status}")
+            blob = await resp.read()
+        if blob[:3] != b"\xff\xd8\xff":
+            raise AssetError("This is not a JPEG image")
+        size = catalog[asset_id]["size"]
+
+        def write() -> None:
+            folder.mkdir(parents=True, exist_ok=True)
+            (folder / f"{asset_id}_diff_{RESOLUTION}.jpg").write_bytes(blob)
+            # last: it marks the texture as complete
+            info.write_text(json.dumps({"size": size, "name": catalog[asset_id]["name"]}))
+
+        await self.hass.async_add_executor_job(write)
+        _LOGGER.info("Downloaded Poly Haven texture %s", asset_id)
+        return {"url": self.texture_url(asset_id), "size": size}
 
     # ----- custom models -----
 
@@ -276,3 +366,17 @@ def polyhaven_refs(model: dict[str, Any]) -> set[str]:
                 if isinstance(ref, str) and ref.startswith("polyhaven:") and ID.match(ref[10:]):
                     refs.add(ref[10:])
     return refs
+
+
+def texture_refs(model: dict[str, Any]) -> set[str]:
+    """The Poly Haven textures a house model uses (floors, walls, wall sides, facade)."""
+    refs: list[Any] = [model.get("facade")] if isinstance(model, dict) else []
+    for level in model.get("levels", []) if isinstance(model, dict) else []:
+        for room in level.get("rooms", []):
+            if not isinstance(room, dict):
+                continue
+            refs += [room.get("floor"), room.get("wall")]
+            sides = room.get("wall_sides")
+            if isinstance(sides, dict):
+                refs += list(sides.values())
+    return {r[10:] for r in refs if isinstance(r, str) and r.startswith("polyhaven:") and ID.match(r[10:])}

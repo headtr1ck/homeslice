@@ -36,6 +36,7 @@ import {
   type LibraryItem,
   type LibrarySource,
   type PolyhavenAsset,
+  type PolyhavenTexture,
 } from "./library";
 import { listedLights, placeLights, type PlacedLight } from "../model/lights";
 import { prefsSensors, type EnergyPrefs } from "../ha/energy";
@@ -355,6 +356,10 @@ export class HomeslicePanel extends LitElement {
     _snapPieces: { state: true },
     _librarySource: { state: true },
     _polyhaven: { state: true },
+    _textures: { state: true },
+    _finishSource: { state: true },
+    _textureFilter: { state: true },
+    _textureBusy: { state: true },
     _customModels: { state: true },
     _placing: { state: true },
     _libraryError: { state: true },
@@ -452,6 +457,11 @@ export class HomeslicePanel extends LitElement {
   private _librarySource: LibrarySource = (LIBRARY_SOURCES as string[]).includes(readPref("homeslice-library") ?? "") ? (readPref("homeslice-library") as LibrarySource) : "builtin";
   /** Poly Haven's catalogue: loading (null), loaded, or why it can't be. */
   private _polyhaven: PolyhavenAsset[] | { error: string } | null = null;
+  /** Poly Haven's textures for the finish pickers. */
+  private _textures: PolyhavenTexture[] | { error: string } | null = null;
+  private _finishSource: "builtin" | "polyhaven" = "builtin";
+  private _textureFilter = "";
+  private _textureBusy: string | null = null;
   private _customModels: CustomAsset[] | null = null;
   /** A library item being downloaded or measured before it is placed. */
   private _placing: string | null = null;
@@ -3033,9 +3043,17 @@ export class HomeslicePanel extends LitElement {
       (e.currentTarget as HTMLElement).closest("details")?.removeAttribute("open");
       pick(id);
     };
+    const source = this._finishSource;
     return html`<details class="finish-picker" data-surface=${surface}>
-      <summary>${this.finishSwatch(current)}<span>${current ? name(current) : fallback}</span></summary>
-      <button class="finish ${current ? "" : "active"}" data-finish="" @click=${(e: Event) => choose(e, undefined)}>${this.finishSwatch(undefined)}<span>${fallback}</span></button>
+      <summary>${this.finishSwatch(current)}<span>${current ? this.finishName(current) : fallback}</span></summary>
+      <div class="library-sources" role="tablist">
+        ${(["builtin", "polyhaven"] as const).map(
+          (s) => html`<button role="tab" class=${s === source ? "active" : ""} aria-selected=${s === source} data-finish-source=${s} @click=${() => (this._finishSource = s)}>${this.t(`editor.library_${s}` as StringKey)}</button>`,
+        )}
+      </div>
+      ${source === "polyhaven" ? this.renderTextureList(surface, current, choose) : nothing}
+      ${source === "builtin"
+        ? html`<button class="finish ${current ? "" : "active"}" data-finish="" @click=${(e: Event) => choose(e, undefined)}>${this.finishSwatch(undefined)}<span>${fallback}</span></button>
       ${FINISH_GROUPS.map((g) => {
         const items = list.filter((f) => f.group === g);
         return items.length
@@ -3044,8 +3062,49 @@ export class HomeslicePanel extends LitElement {
                 ${items.map((f) => html`<button class="finish ${current === f.id ? "active" : ""}" data-finish=${f.id} title=${name(f.id)} @click=${(e: Event) => choose(e, f.id)}>${this.finishSwatch(f.id)}<span>${name(f.id)}</span></button>`)}
               </div>`
           : nothing;
-      })}
+      })}`
+        : nothing}
     </details>`;
+  }
+
+  /** Poly Haven's textures for a surface: searchable; picking one downloads it into Home Assistant first. */
+  private renderTextureList(surface: Surface, current: string | undefined, choose: (e: Event, id: string | undefined) => void) {
+    const c = this._textures;
+    if (!c) {
+      this.loadTextures();
+      return html`<p class="muted">${this.t("editor.library_loading")}</p>`;
+    }
+    if ("error" in c) return html`<p class="muted">${this.t("editor.library_polyhaven_error", { error: c.error })}</p>`;
+    const words = this._textureFilter.trim().toLowerCase().split(/\s+/).filter(Boolean);
+    const list = c.filter((t) => t.on.includes(surface) && words.every((w) => `${t.name} ${t.tags.join(" ")} ${t.categories.join(" ")}`.toLowerCase().includes(w)));
+    return html`<p class="muted credit">${this.t("editor.texture_polyhaven_credit")} <a href="https://polyhaven.com/textures" target="_blank" rel="noopener">polyhaven.com</a></p>
+      <input class="texture-search" type="search" placeholder=${this.t("editor.library_search")} aria-label=${this.t("editor.library_search")} .value=${this._textureFilter}
+        @input=${(e: Event) => (this._textureFilter = (e.target as HTMLInputElement).value)} />
+      <div class="finish-grid">
+        ${list.slice(0, 60).map((t) => {
+          const ref = `polyhaven:${t.id}`;
+          return html`<button class="finish ${current === ref ? "active" : ""}" data-finish=${ref} title=${t.name} ?disabled=${this._textureBusy === t.id}
+            @click=${async (e: Event) => {
+              const target = e.currentTarget as HTMLElement;
+              this._textureBusy = t.id;
+              try {
+                await this._hass!.callWS({ type: "homeslice/assets/textures/fetch", asset: t.id });
+                choose({ currentTarget: target } as unknown as Event, ref);
+              } catch (err) {
+                this._error = String((err as { message?: string }).message ?? err);
+              } finally {
+                this._textureBusy = null;
+              }
+            }}>${this.finishSwatch(ref)}<span>${this._textureBusy === t.id ? this.t("editor.texture_loading") : t.name}</span></button>`;
+        })}
+      </div>
+      ${list.length > 60 ? html`<p class="muted">${this.t("editor.texture_more", { count: list.length - 60 })}</p>` : nothing}`;
+  }
+
+  private finishName(id: string): string {
+    if (!id.startsWith("polyhaven:")) return this.t(`surface.${id}` as StringKey);
+    const t = this._textures && !("error" in this._textures) ? this._textures.find((x) => `polyhaven:${x.id}` === id) : undefined;
+    return `Poly Haven · ${t?.name ?? humanize(id.slice(10))}`;
   }
 
   private finishSwatch(id: string | undefined) {
@@ -3715,6 +3774,16 @@ export class HomeslicePanel extends LitElement {
     const polyhaven = source === "polyhaven" && this._polyhaven && !("error" in this._polyhaven) ? this._polyhaven.find((a) => a.id === id)?.name : undefined;
     return `${this.t(`editor.library_${source}` as StringKey)} · ${custom ?? polyhaven ?? humanize(id)}`;
   }
+
+  private loadTextures() {
+    if (this._textures || this.texturesRequest || !this._hass) return;
+    this.texturesRequest = this._hass
+      .callWS<PolyhavenTexture[]>({ type: "homeslice/assets/textures" })
+      .then((c) => (this._textures = c))
+      .catch((e: { message?: string }) => (this._textures = { error: e?.message ?? String(e) }))
+      .finally(() => (this.texturesRequest = null));
+  }
+  private texturesRequest: Promise<unknown> | null = null;
 
   private loadPolyhaven() {
     if (this._polyhaven || this.polyhavenRequest || !this._hass) return;

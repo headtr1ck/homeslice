@@ -1263,5 +1263,8 @@
   "editor.surface_plain": "Plain",
   "editor.surface_facade": "Facade",
   "editor.surface_facade_hint": "The outside of the exterior walls.",
-  "surface.none": "No floor"
+  "surface.none": "No floor",
+  "editor.texture_polyhaven_credit": "Photo textures, free (CC0), from Poly Haven. Home Assistant downloads a texture once, when you pick it.",
+  "editor.texture_loading": "Downloading…",
+  "editor.texture_more": "{count} more: search to find them."
 }

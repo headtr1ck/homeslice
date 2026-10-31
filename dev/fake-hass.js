@@ -70,6 +70,17 @@ export function makeHass(fixture, onChange) {
           { id: "potted_plant_01", name: "Potted Plant 01", categories: ["plants", "potted plants"], tags: [], dimensions: [0.5, 0.5, 1.2], thumbnail: null },
           { id: "modern_ceiling_lamp_01", name: "Modern Ceiling Lamp 01", categories: ["lighting"], tags: ["hanging"], dimensions: [0.4, 0.4, 0.6], thumbnail: null },
         ];
+      // textures: a tiny catalogue, "downloaded" at once
+      if (msg.type === "homeslice/assets/textures")
+        return [
+          { id: "wood_floor", name: "Wood Floor", categories: ["wood", "floor"], tags: ["planks"], size: [2, 2], on: ["floor"], thumbnail: null },
+          { id: "red_brick", name: "Red Brick", categories: ["brick", "wall"], tags: [], size: [3, 3], on: ["wall"], thumbnail: null },
+          { id: "plaster_grey", name: "Grey Plaster", categories: ["plaster-concrete"], tags: [], size: [2, 2], on: ["floor", "wall"], thumbnail: null },
+        ];
+      if (msg.type === "homeslice/assets/textures/fetch") {
+        hass.fetched.push(`texture:${msg.asset}`);
+        return { url: `/homeslice_assets/textures/${msg.asset}/${msg.asset}_diff_1k.jpg`, size: [2, 2] };
+      }
       if (msg.type === "homeslice/assets/polyhaven/fetch") {
         hass.fetched.push(msg.asset);
         return { url: `/homeslice_assets/polyhaven/${msg.asset}/${msg.asset}_1k.gltf` };

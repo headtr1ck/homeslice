@@ -30,7 +30,7 @@ def _assets(hass: HomeAssistant) -> Assets:
 @callback
 def async_register_websocket(hass: HomeAssistant) -> None:
     """Register the websocket commands."""
-    for command in (ws_list, ws_get_model, ws_subscribe, ws_save, ws_delete, ws_import_files, ws_underlay_get, ws_underlay_set, ws_underlay_delete, ws_polyhaven_catalog, ws_polyhaven_fetch, ws_custom_list, ws_custom_upload, ws_custom_delete, ws_guide, ws_validate, ws_restore):
+    for command in (ws_list, ws_get_model, ws_subscribe, ws_save, ws_delete, ws_import_files, ws_underlay_get, ws_underlay_set, ws_underlay_delete, ws_polyhaven_catalog, ws_polyhaven_fetch, ws_texture_catalog, ws_texture_fetch, ws_custom_list, ws_custom_upload, ws_custom_delete, ws_guide, ws_validate, ws_restore):
         websocket_api.async_register_command(hass, command)
 
 
@@ -188,6 +188,28 @@ async def ws_polyhaven_fetch(hass: HomeAssistant, connection: websocket_api.Acti
     """Downloads a Poly Haven model into Home Assistant (once) and returns its URL."""
     try:
         connection.send_result(msg["id"], {"url": await _assets(hass).async_polyhaven(msg["asset"])})
+    except AssetError as err:
+        connection.send_error(msg["id"], "unavailable", str(err))
+
+
+@websocket_api.websocket_command({vol.Required("type"): "homeslice/assets/textures"})
+@websocket_api.require_admin
+@websocket_api.async_response
+async def ws_texture_catalog(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
+    """Poly Haven's textures for floors and walls (admins only: the editor's finish picker)."""
+    try:
+        connection.send_result(msg["id"], await _assets(hass).async_texture_catalog())
+    except (AssetError, OSError, TimeoutError) as err:
+        connection.send_error(msg["id"], "unavailable", f"Poly Haven is not reachable: {err}")
+
+
+@websocket_api.websocket_command({vol.Required("type"): "homeslice/assets/textures/fetch", vol.Required("asset"): str})
+@websocket_api.require_admin
+@websocket_api.async_response
+async def ws_texture_fetch(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
+    """Downloads a Poly Haven texture into Home Assistant (once): its URL and size in metres."""
+    try:
+        connection.send_result(msg["id"], await _assets(hass).async_texture(msg["asset"]))
     except AssetError as err:
         connection.send_error(msg["id"], "unavailable", str(err))
 

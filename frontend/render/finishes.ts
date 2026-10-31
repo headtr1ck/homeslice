@@ -496,6 +496,54 @@ function slats(c: Ctx, px: (m: number) => number, b: THREE.Color, rnd: () => num
 
 const materials = new Map<string, { map: THREE.Texture | null; color: string }>();
 
+/** Poly Haven textures, downloaded into Home Assistant (see assets.py). */
+const TEXTURES = "/homeslice_assets/textures";
+const loaded = new Set<() => void>();
+/** Called whenever a downloaded texture has arrived (cards redraw then). */
+export function onFinishLoaded(callback: () => void): () => void {
+  loaded.add(callback);
+  return () => loaded.delete(callback);
+}
+
+/** A Poly Haven texture: grey at first, its picture at its real size once loaded. */
+function polyhavenLook(id: string): { map: THREE.Texture | null; color: string } {
+  if (typeof document === "undefined") return { map: null, color: "#c8c8c8" };
+  const placeholder = document.createElement("canvas");
+  placeholder.width = placeholder.height = 2;
+  const pc = placeholder.getContext("2d")!;
+  pc.fillStyle = "#c8c8c8";
+  pc.fillRect(0, 0, 2, 2);
+  const map = new THREE.Texture<HTMLCanvasElement | HTMLImageElement>(placeholder);
+  map.wrapS = map.wrapT = THREE.RepeatWrapping;
+  map.colorSpace = THREE.SRGBColorSpace;
+  map.anisotropy = 4;
+  map.repeat.set(0.5, 0.5);
+  map.needsUpdate = true;
+  const base = `${TEXTURES}/${id}`;
+  fetch(`${base}/info.json`)
+    .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`${r.status}`))))
+    .then(
+      (info: { size?: [number, number] }) =>
+        new Promise<void>((resolve, reject) => {
+          const img = new Image();
+          img.onload = () => {
+            const [w, h] = info.size ?? [2, 2];
+            map.image = img;
+            map.repeat.set(1 / (w || 2), 1 / (h || 2));
+            map.needsUpdate = true;
+            for (const cb of loaded) cb();
+            resolve();
+          };
+          img.onerror = () => reject(new Error("image"));
+          img.src = `${base}/${id}_diff_1k.jpg`;
+        }),
+    )
+    .catch(() => {
+      // not downloaded (yet): it stays grey, the editor fetches it when it is picked
+    });
+  return { map, color: "#ffffff" };
+}
+
 /**
  * How a finish looks: a texture in metres (null for plain paint or without a canvas) and
  * the colour to draw it with (white under a texture, the paint's colour without one).
@@ -503,6 +551,11 @@ const materials = new Map<string, { map: THREE.Texture | null; color: string }>(
 export function finishLook(id: string): { map: THREE.Texture | null; color: string } {
   let look = materials.get(id);
   if (look) return look;
+  if (id.startsWith("polyhaven:")) {
+    look = polyhavenLook(id.slice(10));
+    materials.set(id, look);
+    return look;
+  }
   const finish = FINISHES_BY_ID[id];
   const color = finish?.color ?? "#eeeae3";
   const paint = PAINTERS[id];
@@ -528,6 +581,7 @@ export function finishLook(id: string): { map: THREE.Texture | null; color: stri
 const previews = new Map<string, string | null>();
 /** A small picture of a finish for the editor (null for plain paint or without a canvas). */
 export function finishPreview(id: string): string | null {
+  if (id.startsWith("polyhaven:")) return `https://cdn.polyhaven.com/asset_img/thumbs/${id.slice(10)}.png?width=64&height=64`;
   if (previews.has(id)) return previews.get(id)!;
   const look = finishLook(id);
   let url: string | null = null;

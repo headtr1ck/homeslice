@@ -48,6 +48,19 @@ export interface PolyhavenAsset {
   thumbnail: string | null;
 }
 
+/** A Poly Haven texture for floors and walls, as the integration sends it. */
+export interface PolyhavenTexture {
+  id: string;
+  name: string;
+  categories: string[];
+  tags: string[];
+  /** Metres one copy of it covers. */
+  size: [number, number];
+  /** Where it can go. */
+  on: ("floor" | "wall")[];
+  thumbnail: string | null;
+}
+
 /** An uploaded model, as the integration sends it. */
 export interface CustomAsset {
   id: string;

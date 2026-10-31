@@ -63,6 +63,8 @@ repository itself doesn't contain the built frontend; build it with `npm run bui
      own or switched to *open* (e.g. an open kitchen). Stairs: `S`.
      Select a room to give its floor and walls a finish (wood, tiles, stone, paint,
      acoustic panels, brick…), one wall a different one, and the outline for the facade.
+     Besides the built-in finishes, the picker offers Poly Haven's photo textures (CC0),
+     which Home Assistant downloads once when you pick one.
    - **2. Doors & windows:** click a wall to add a window, link its blind and contact.
    - **3. Objects & entities:** lights are placed automatically and can be dragged;
      drag furniture from the library (wall pieces go against a wall; `R` to turn); place solar, battery, grid and power-measured
