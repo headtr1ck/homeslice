@@ -1124,6 +1124,12 @@ console.log("editor");
     assert(!(await room("kitchen")).furniture && (await room("living")).furniture?.[0]?.type === "table", "table not moved into the living room");
     await page.keyboard.press("r");
     assert((await room("living")).furniture[0].rotation === 90, "not turned");
+    // Ctrl+D: a second one right next to it (turned: to the south), selected
+    await page.keyboard.press("Control+d");
+    const pair = (await room("living")).furniture;
+    assert(pair.length === 2 && pair[1].rotation === 90 && Math.abs(pair[1].at[1] - pair[0].at[1] - 1.6) < 1e-6, `duplicate: ${JSON.stringify(pair)}`);
+    await page.keyboard.press("Delete");
+    await page.evaluate(() => (window.panel._furn = { room: "living", index: 0 }));
     await shot(page, "editor-furniture");
     await page.keyboard.press("Delete");
     assert(!(await room("living")).furniture, "not deleted");
@@ -1137,6 +1143,11 @@ console.log("editor");
     await page.locator("homeslice-panel .modes button", { hasText: "Objects" }).click();
     const groups = await page.locator("homeslice-panel .inspector h4").allTextContents();
     assert(groups[0] === "Living" && groups.includes("Bathroom") && groups.includes("Lighting"), `groups: ${groups.join(", ")}`);
+    // searching narrows the library down
+    await page.locator("homeslice-panel .inspector input.library-search").fill("tree");
+    const found = await page.locator("homeslice-panel .inspector .library button").evaluateAll((b) => b.map((x) => x.dataset.type));
+    assert(JSON.stringify(found) === '["tree","tree_small"]', `search: ${found}`);
+    await page.locator("homeslice-panel .inspector input.library-search").fill("");
     // every type has its picture
     await page.locator("homeslice-panel .inspector .library").last().scrollIntoViewIfNeeded();
     await page.waitForFunction(() => [...window.panel.shadowRoot.querySelectorAll(".library img")].every((i) => i.complete && i.naturalWidth > 0), null, { timeout: 10000 });

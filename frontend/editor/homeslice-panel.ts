@@ -282,6 +282,7 @@ export class HomeslicePanel extends LitElement {
     _freeWall: { state: true },
     _linkEnd: { state: true },
     _robotPlace: { state: true },
+    _libraryFilter: { state: true },
     _robotSel: { state: true },
     _robotCalib: { state: true },
   };
@@ -344,6 +345,8 @@ export class HomeslicePanel extends LitElement {
   private _robotCalib: { index: number; reading: Vec2 } | null = null;
   /** While connecting two energy items: the free end of the line (plan metres). */
   private _linkEnd: Vec2 | null = null;
+  /** Filter text of the furniture library. */
+  private _libraryFilter = "";
   /** Furniture type being dragged from the library onto the plan. */
   private libraryDrag: FurnitureType | null = null;
   /** Selected piece of furniture (objects mode). */
@@ -647,6 +650,9 @@ export class HomeslicePanel extends LitElement {
     } else if ((e.key === "Delete" || e.key === "Backspace") && this._furn && this._model && this._mode === "objects") {
       this.commit(deleteFurniture(this._model, this._level, this._furn.room, this._furn.index));
       this._furn = null;
+    } else if (mod && e.key.toLowerCase() === "d" && this._furn && this._model && this._mode === "objects") {
+      e.preventDefault();
+      this.duplicateFurniture();
     } else if (e.key === "r" && !mod && this._furn && this._model && this._mode === "objects") {
       this.rotateFurniture(e.shiftKey ? -90 : 90);
     } else if ((e.key === "Delete" || e.key === "Backspace") && this._robotSel !== null && this._model && this._mode === "objects") {
@@ -1996,6 +2002,7 @@ export class HomeslicePanel extends LitElement {
         <button title=${this.t("editor.turn_left")} @click=${() => this.rotateFurniture(-90)}>⟲ 90°</button>
         <button title=${this.t("editor.turn_right")} @click=${() => this.rotateFurniture(90)}>⟳ 90°</button>
       </div>
+      <button @click=${() => this.duplicateFurniture()}>${this.t("editor.furniture_duplicate")}</button>
       <button class="danger" @click=${() => {
         this.commit(deleteFurniture(m, this._level, r.id, sel.index));
         this._furn = null;
@@ -3061,9 +3068,15 @@ export class HomeslicePanel extends LitElement {
    * click it to put it into the selected room.
    */
   private renderLibrary(room: RoomInput | null) {
+    const q = this._libraryFilter.trim().toLowerCase();
+    const matches = (t: FurnitureType) => !q || this.t(`furniture.${t}` as StringKey).toLowerCase().includes(q) || t.includes(q);
+    const groups = FURNITURE_GROUPS.map((g) => ({ ...g, types: g.types.filter(matches) })).filter((g) => g.types.length);
     return html`<h3>${this.t("editor.library")}</h3>
       <p class="muted">${this.t(room ? "editor.library_hint_room" : "editor.library_hint", { room: room ? this.roomName(room) : "" })}</p>
-      ${FURNITURE_GROUPS.map(
+      <input class="library-search" type="search" placeholder=${this.t("editor.library_search")} aria-label=${this.t("editor.library_search")} .value=${this._libraryFilter}
+        @input=${(e: Event) => (this._libraryFilter = (e.target as HTMLInputElement).value)} />
+      ${groups.length ? nothing : html`<p class="muted">${this.t("editor.library_none")}</p>`}
+      ${groups.map(
         (g) => html`<h4>${this.t(`furniture.group_${g.id}` as StringKey)}</h4>
           <div class="library">
             ${g.types.map(
@@ -3113,6 +3126,20 @@ export class HomeslicePanel extends LitElement {
     });
   }
 
+  /** A copy of the selected piece, right next to it (to its east, or south if it is turned). */
+  private duplicateFurniture() {
+    const m = this._model!;
+    const sel = this._furn;
+    const f = sel ? this.levelInput?.rooms.find((r) => r.id === sel.room)?.furniture?.[sel.index] : undefined;
+    if (!sel || !f) return;
+    const [w] = f.size ?? FURNITURE[f.type].size;
+    const turned = ((f.rotation ?? 0) / 90) % 2 === 1;
+    const at: [number, number] = turned ? [f.at[0], f.at[1] + w] : [f.at[0] + w, f.at[1]];
+    const { model, index } = addFurniture(m, this._level, sel.room, { ...f, at });
+    this.commit(model);
+    this._furn = { room: sel.room, index };
+  }
+
   /** Changes how a piece is mounted; on a wall it moves against the nearest one. */
   private setMount(room: RoomInput, index: number, mount: FurnitureMount) {
     const m = this._model!;
@@ -3160,6 +3187,7 @@ export class HomeslicePanel extends LitElement {
       ["W", "editor.key_wall"],
       ["M", "editor.key_measure"],
       ["R (" + this.t("editor.mode_objects") + ")", "editor.key_turn"],
+      ["Ctrl+D", "editor.key_duplicate"],
       ["Del", "editor.key_delete"],
       ["Esc", "editor.key_escape"],
       ["Ctrl+Z / Ctrl+Shift+Z", "editor.key_undo"],
@@ -3823,6 +3851,11 @@ export class HomeslicePanel extends LitElement {
       min-height: 0;
       text-align: left;
       cursor: pointer;
+    }
+    .library-search {
+      width: 100%;
+      box-sizing: border-box;
+      margin-bottom: 4px;
     }
     .library {
       display: grid;
