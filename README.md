@@ -175,6 +175,7 @@ levels:
     openings:
       # at = metres from the room's west end (north/south sides) or north end (east/west sides)
       - { room: living, side: south, at: 1, width: 2.4, cover: cover.living_room }
+      - { room: living, side: south, at: 5, width: 0.9, type: door, hinge: right, swing: out }  # style: double, sliding, fixed, arch
       - { room: kitchen, side: north, at: 1.5, width: 1, type: door }
   - id: first
     floor_id: first_floor

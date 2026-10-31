@@ -426,5 +426,21 @@
   "editor.show_devices": "Show energy items and robots",
   "editor.show_below": "Show the floor below",
   "editor.furniture_mirror_h": "Mirror left–right",
-  "editor.furniture_mirror_v": "Mirror top–bottom"
+  "editor.furniture_mirror_v": "Mirror top–bottom",
+  "editor.opening_window": "Window",
+  "editor.opening_window_small": "Small window",
+  "editor.opening_window_floor": "Floor-to-ceiling window",
+  "editor.opening_door": "Door",
+  "editor.opening_door_double": "Double door",
+  "editor.opening_garage_door": "Garage door",
+  "editor.opening_opening": "Opening",
+  "editor.opening_library_hint": "Pick one and click a wall, or drag one onto a wall. Drag a door or window along its wall; Delete removes it.",
+  "editor.hinge_left": "Hinges left",
+  "editor.hinge_right": "Hinges right",
+  "editor.swing_in": "Opens inwards",
+  "editor.swing_out": "Opens outwards",
+  "editor.opening_window_double": "Double window",
+  "editor.opening_window_fixed": "Fixed window",
+  "editor.opening_door_sliding": "Sliding door",
+  "editor.opening_opening_arch": "Arched opening"
 }

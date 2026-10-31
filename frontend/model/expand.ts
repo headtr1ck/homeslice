@@ -13,6 +13,7 @@ import type {
   Issue,
   Level,
   Opening,
+  OpeningStyle,
   OpeningType,
   Robot,
   Room,
@@ -42,6 +43,14 @@ const OPENING_TYPES = Object.keys(DEFAULTS.opening);
 export interface ExpandResult {
   house: House | null;
   issues: Issue[];
+}
+
+/** An opening's kind and the way it opens, with the defaults per type. */
+function look(o: { style?: OpeningStyle; hinge?: "left" | "right"; swing?: "in" | "out"; width: number }, type: OpeningType): Pick<Opening, "style" | "hinge" | "swing"> {
+  // wide windows and doors have two leaves unless they say otherwise
+  const fallback: OpeningStyle = type === "opening" ? "square" : (type === "window" && o.width > 1.3) || (type === "door" && o.width > 1.4) ? "double" : "single";
+  const styles: OpeningStyle[] = ["single", "double", "fixed", "sliding", "square", "arch"];
+  return { style: o.style && styles.includes(o.style) ? o.style : fallback, hinge: o.hinge === "right" ? "right" : "left", swing: o.swing === "out" ? "out" : "in" };
 }
 
 const energySlug = (text: string) =>
@@ -174,6 +183,7 @@ export function expandHouse(input: unknown): ExpandResult {
         type,
         sill: oi.sill ?? d.sill,
         height: oi.height ?? d.height,
+        ...look(oi, type),
         cover: oi.cover,
         contact: oi.contact,
       });
@@ -276,6 +286,7 @@ export function expandHouse(input: unknown): ExpandResult {
         type,
         sill: fi.sill ?? d.sill,
         height: fi.height ?? d.height,
+        ...look(fi, type),
         cover: fi.covers?.[levelId],
         contact: fi.contacts?.[levelId],
       });

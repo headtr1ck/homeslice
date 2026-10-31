@@ -980,6 +980,51 @@ console.log("editor");
     await page.keyboard.press("Escape");
   });
 
+  await test("doors & windows library: pick a double door, add it to a wall, see how it opens; change its kind", async () => {
+    await page.keyboard.press("Escape");
+    await page.locator('homeslice-panel aside.tools button.tool[data-tool="opening"]').click();
+    await page.locator('homeslice-panel .inspector .library button[data-preset="door_double"]').click();
+    // the wall between hall and kitchen
+    const hit = await page.evaluate(() => {
+      const l = [...window.panel.shadowRoot.querySelectorAll("svg.plan line.wall-hit[data-addwall]")].find((x) => JSON.parse(x.dataset.addwall).rooms.sort().join() === "hall,kitchen");
+      const r = l.getBoundingClientRect();
+      return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+    });
+    await page.mouse.click(hit.x, hit.y);
+    const added = () => model().then((m) => m.levels[0].openings.at(-1));
+    let o = await added();
+    assert(o.type === "door" && o.style === "double" && o.width === 1.6, `added: ${JSON.stringify(o)}`);
+    // a double door swings with two leaves
+    assert((await page.locator("homeslice-panel svg.plan polyline.swing").count()) >= 2, "no swing arcs");
+    await shot(page, "editor-door-double");
+    await page.locator("homeslice-panel .inspector button", { hasText: "Opens inwards" }).click();
+    assert((await added()).swing === "out", "swing not changed");
+    await page.locator('homeslice-panel .inspector .opening-kinds button[data-preset="opening_arch"]').click();
+    o = await added();
+    assert(o.type === "opening" && o.style === "arch" && o.width === 1.2, `arch: ${JSON.stringify(o)}`);
+    // dragging a sliding door onto a wall (the library shows when nothing is selected)
+    await page.keyboard.press("Escape");
+    const drop = await page.evaluate((hit) => {
+      const root = window.panel.shadowRoot;
+      const dt = new DataTransfer();
+      root.querySelector('.library button[data-preset="door_sliding"]').dispatchEvent(new DragEvent("dragstart", { bubbles: true, composed: true, dataTransfer: dt }));
+      const plan = root.querySelector("svg.plan");
+      const at = { bubbles: true, composed: true, cancelable: true, dataTransfer: dt, clientX: hit.x, clientY: hit.y + 50 };
+      const over = new DragEvent("dragover", at);
+      plan.dispatchEvent(over);
+      plan.dispatchEvent(new DragEvent("drop", at));
+      return over.defaultPrevented;
+    }, hit);
+    assert(drop, "drop refused");
+    o = await added();
+    assert(o.type === "door" && o.style === "sliding", `dropped: ${JSON.stringify(o)}`);
+    await page.keyboard.press("Control+z");
+    await page.keyboard.press("Control+z");
+    await page.keyboard.press("Control+z");
+    await page.keyboard.press("Control+z");
+    await page.keyboard.press("Escape");
+  });
+
   await test("doors & windows: house-wide defaults for sill and height", async () => {
     await page.keyboard.press("Escape");
     await page.locator('homeslice-panel aside.tools button.tool[data-tool="opening"]').click();
@@ -1124,6 +1169,7 @@ console.log("editor");
   await test("doors & windows: click a wall to add a window, drag it, link a blind, delete it", async () => {
     await page.keyboard.press("Escape");
     await page.locator('homeslice-panel aside.tools button.tool[data-tool="opening"]').click();
+    await page.locator('homeslice-panel .inspector .library button[data-preset="window"]').click();
     const before = (await model()).levels[0].openings.length;
     // a free stretch of the kitchen's north wall (x = 6.8; an earlier step moved the kitchen to x = 3.5 … 8)
     const at = await page.evaluate(() => {

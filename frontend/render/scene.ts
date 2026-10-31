@@ -118,6 +118,7 @@ const COLORS = {
   steel: "#3b4046",
   glass: "#9cc8ee",
   glassOpen: "#ffb05c",
+  door: "#a77b55",
   garageDoor: "#7d858d",
   shutter: "#5d666f",
   shutterBox: "#4a5159",
@@ -449,6 +450,7 @@ export class HouseRenderer {
     const wallMat = this.lambert(COLORS.wall);
     const glass = this.lambert(COLORS.glass, { transparent: true, opacity: 0.45 });
     const garage = this.lambert(COLORS.garageDoor);
+    const doorLeaf = this.lambert(COLORS.door);
     for (const w of walls) {
       if (w.type === "open") continue; // rooms open to each other: no wall
       // outer walls are split at the cut height; the upper part hides while it faces a low camera
@@ -472,12 +474,35 @@ export class HouseRenderer {
         box(cursor, o.start, 0, H, wallMat);
         box(o.start, o.end, 0, o.sill, wallMat);
         box(o.start, o.end, o.sill + o.height, H, wallMat);
-        if (o.type === "window") {
+        const top = o.sill + o.height;
+        const mid = (o.start + o.end) / 2;
+        // a bar in the middle (double windows, sliding doors)
+        const bar = () => box(mid - 0.03, mid + 0.03, o.sill, top, wallMat, 0.07);
+        if (o.type === "window" || (o.type === "door" && o.style === "sliding")) {
           const mat = o.contact ? this.lambert(COLORS.glass, { transparent: true, opacity: 0.45 }) : glass;
           if (o.contact) this.glasses.set(o.id, mat);
-          box(o.start, o.end, o.sill, o.sill + o.height, mat, 0.03);
+          box(o.start, o.end, o.sill, top, mat, 0.03);
+          if (o.style === "double" || o.style === "sliding") bar();
+        } else if (o.type === "door") {
+          // closed leaves: one, or two meeting in the middle
+          if (o.style === "double") {
+            box(o.start, mid - 0.005, o.sill, top, doorLeaf, 0.045);
+            box(mid + 0.005, o.end, o.sill, top, doorLeaf, 0.045);
+          } else box(o.start, o.end, o.sill, top, doorLeaf, 0.045);
+        } else if (o.type === "opening" && o.style === "arch") {
+          // the wall fills the corners above a round arch (in steps)
+          const r = Math.min((o.end - o.start) / 2, o.height);
+          const zc = top - r;
+          const steps = 10;
+          for (let k = 0; k < steps; k++) {
+            const z0 = zc + (r * k) / steps;
+            const z1 = zc + (r * (k + 1)) / steps;
+            const half = Math.sqrt(Math.max(0, r * r - ((z0 + z1) / 2 - zc) ** 2));
+            box(o.start, mid - half, z0, z1, wallMat);
+            box(mid + half, o.end, z0, z1, wallMat);
+          }
         }
-        if (o.type === "garage_door") box(o.start, o.end, o.sill, o.sill + o.height, garage, 0.06);
+        if (o.type === "garage_door") box(o.start, o.end, o.sill, top, garage, 0.06);
         if (o.cover) this.addCover(g, w, o, cutAt, cuttable);
         cursor = o.end;
       }

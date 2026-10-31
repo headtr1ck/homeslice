@@ -10,6 +10,7 @@ export type Coord = number | string;
 export type Side = "north" | "south" | "east" | "west";
 export type RoomKind = "room" | "outdoor" | "void";
 export type OpeningType = "window" | "door" | "garage_door" | "opening";
+export type OpeningStyle = "single" | "double" | "fixed" | "sliding" | "square" | "arch";
 /** `open`: a boundary between two rooms that are open to each other (no wall is built). */
 export type WallType = "exterior" | "party" | "interior" | "open";
 
@@ -137,6 +138,16 @@ export interface OpeningInput {
   type?: OpeningType;
   sill?: number;
   height?: number;
+  /**
+   * The kind: windows single, double or fixed; doors single, double or sliding (default:
+   * double when wider than 1.3 m for windows, 1.4 m for doors, else single); openings
+   * square (default) or arch.
+   */
+  style?: OpeningStyle;
+  /** Doors and windows that open: the side of the hinges, seen from the room (default left). */
+  hinge?: "left" | "right";
+  /** Into the room (default) or out of it. */
+  swing?: "in" | "out";
   cover?: string;
   contact?: string;
 }
@@ -176,6 +187,16 @@ export interface FacadeOpeningInput {
   type?: OpeningType;
   sill?: number;
   height?: number;
+  /**
+   * The kind: windows single, double or fixed; doors single, double or sliding (default:
+   * double when wider than 1.3 m for windows, 1.4 m for doors, else single); openings
+   * square (default) or arch.
+   */
+  style?: OpeningStyle;
+  /** Doors and windows that open: the side of the hinges, seen from the room (default left). */
+  hinge?: "left" | "right";
+  /** Into the room (default) or out of it. */
+  swing?: "in" | "out";
   /** Cover per level id. */
   covers?: Record<string, string>;
   /** Contact sensor per level id. */
@@ -335,6 +356,9 @@ export interface Opening {
   type: OpeningType;
   sill: number;
   height: number;
+  style: OpeningStyle;
+  hinge: "left" | "right";
+  swing: "in" | "out";
   cover?: string;
   contact?: string;
 }

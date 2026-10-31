@@ -426,5 +426,21 @@
   "editor.show_devices": "Energie und Roboter anzeigen",
   "editor.show_below": "Etage darunter anzeigen",
   "editor.furniture_mirror_h": "Links–rechts spiegeln",
-  "editor.furniture_mirror_v": "Oben–unten spiegeln"
+  "editor.furniture_mirror_v": "Oben–unten spiegeln",
+  "editor.opening_window": "Fenster",
+  "editor.opening_window_small": "Kleines Fenster",
+  "editor.opening_window_floor": "Bodentiefes Fenster",
+  "editor.opening_door": "Tür",
+  "editor.opening_door_double": "Doppeltür",
+  "editor.opening_garage_door": "Garagentor",
+  "editor.opening_opening": "Durchgang",
+  "editor.opening_library_hint": "Eins auswählen und auf eine Wand klicken, oder auf eine Wand ziehen. Türen und Fenster lassen sich entlang der Wand ziehen; Entf entfernt sie.",
+  "editor.hinge_left": "Bänder links",
+  "editor.hinge_right": "Bänder rechts",
+  "editor.swing_in": "Öffnet nach innen",
+  "editor.swing_out": "Öffnet nach außen",
+  "editor.opening_window_double": "Zweiflügliges Fenster",
+  "editor.opening_window_fixed": "Festverglasung",
+  "editor.opening_door_sliding": "Schiebetür",
+  "editor.opening_opening_arch": "Rundbogen"
 }

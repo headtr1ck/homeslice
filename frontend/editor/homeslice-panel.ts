@@ -3,6 +3,8 @@
 // Homeslice's storage, where every card picks them up at once.
 
 import { LitElement, css, html, nothing, svg, type PropertyValues } from "lit";
+import { unsafeSVG } from "lit/directives/unsafe-svg.js";
+import { OPENING_PRESETS, applyPreset, presetOf, type OpeningPreset } from "./openings";
 import { GLTFExporter } from "three/examples/jsm/exporters/GLTFExporter.js";
 import { parse as parseYaml, stringify as toYaml } from "yaml";
 import { areaEntities, type Hass } from "../ha/hass";
@@ -10,7 +12,7 @@ import { localize, type StringKey } from "../i18n/localize";
 import { DEFAULTS, expandHouse } from "../model/expand";
 import { bbox, labelPoint, pointInPolygon } from "../model/geometry";
 import type { EnergyInput, FurnitureInput, FurnitureMount, FurnitureType, HouseInput, Issue, OpeningInput, OpeningSource, OpeningType, RoomInput, Side, Vec2, Vertical } from "../model/types";
-import { deriveWalls, innerPolygon, sideOfRoom, type Wall } from "../model/walls";
+import { deriveWalls, innerPolygon, sideOfRoom, type Wall, type WallOpening } from "../model/walls";
 import { HouseRenderer } from "../render/scene";
 import { stairFrame, stairHole } from "../model/stairs";
 import { misalignedWalls } from "../model/checks";
@@ -330,6 +332,7 @@ export class HomeslicePanel extends LitElement {
     _robotPlace: { state: true },
     _libraryFilter: { state: true },
     _checklist: { state: true },
+    _openingPreset: { state: true },
     _robotSel: { state: true },
     _robotCalib: { state: true },
   };
@@ -396,6 +399,10 @@ export class HomeslicePanel extends LitElement {
   private checkCache: { model: HouseInput; states: unknown; items: CheckItem[] } | null = null;
   /** Filter text of the furniture library. */
   private _libraryFilter = "";
+  /** What a click on a wall adds with the door & window tool. */
+  private _openingPreset = "window";
+  /** Door or window being dragged from the library onto a wall. */
+  private openingDrag: string | null = null;
   /** Furniture type being dragged from the library onto the plan. */
   private libraryDrag: FurnitureType | null = null;
   /** Selected piece of furniture (objects mode). */
@@ -1870,11 +1877,24 @@ export class HomeslicePanel extends LitElement {
       @dblclick=${this.onPlanDoubleClick}
       @wheel=${this.onPlanWheel}
       @dragover=${(e: DragEvent) => {
-        if (!this.libraryDrag) return;
+        if (!this.libraryDrag && !this.openingDrag) return;
         e.preventDefault();
         if (e.dataTransfer) e.dataTransfer.dropEffect = "copy";
       }}
       @drop=${(e: DragEvent) => {
+        const preset = this.openingDrag;
+        this.openingDrag = null;
+        if (preset) {
+          // dropped on a wall: a door or window right there
+          e.preventDefault();
+          // the wall under the drop, also beneath doors and windows already there
+          const wall = ((this.renderRoot as ShadowRoot).elementsFromPoint(e.clientX, e.clientY).find((el) => el.closest("[data-addwall]"))?.closest("[data-addwall]") ?? null) as SVGElement | null;
+          if (wall) {
+            this.clearSelection();
+            this.addOpeningAt(JSON.parse(wall.dataset.addwall!), this.eventWorld(e as unknown as PointerEvent), preset);
+          }
+          return;
+        }
         const type = this.libraryDrag;
         this.libraryDrag = null;
         if (!type) return;
@@ -1904,15 +1924,21 @@ export class HomeslicePanel extends LitElement {
         .sort((a, b) => Number(a.type === "exterior" || a.type === "party") - Number(b.type === "exterior" || b.type === "party"))
         .map((w) => this.renderWall(w))}
       ${l?.rooms.map((r) => {
+        const lamps = this.levelLamps();
         // names on top of the walls, so long ones aren't cut off
         const poly = this.inner(r, walls);
         const at = this.toScreen(labelPoint(poly));
-        // lamps sit at the room's centre: the name goes below them, broken into lines that fit
+        // the name, broken into lines that fit, and the area: centred on the room, or below
+        // a lamp drawn at its centre
         const { min, max } = bbox(poly);
         const lines = wrapWords(this.roomName(r), ((max[0] - min[0]) * this._view.scale * 0.9) / 7.2);
+        const centre = labelPoint(poly);
+        const lampThere = this._show.lights && lamps.some((x) => x.roomId === r.id && Math.hypot(x.at[0] - centre[0], x.at[1] - centre[1]) * this._view.scale < 18);
+        const height = lines.length * 14 + 13;
+        const top = lampThere ? at[1] + 16 : at[1] - height / 2;
         return svg`<g class="room-label">
-          <text class="room-name" x=${at[0]} y=${at[1] + 26} text-anchor="middle">${lines.map((line, i) => svg`<tspan x=${at[0]} dy=${i ? 14 : 0}>${line}</tspan>`)}</text>
-          <text class="room-area" x=${at[0]} y=${at[1] + 40 + (lines.length - 1) * 14} text-anchor="middle">${area(poly).toFixed(1)} m²</text></g>`;
+          <text class="room-name" x=${at[0]} y=${top + 11} text-anchor="middle">${lines.map((line, i) => svg`<tspan x=${at[0]} dy=${i ? 14 : 0}>${line}</tspan>`)}</text>
+          <text class="room-area" x=${at[0]} y=${top + lines.length * 14 + 10} text-anchor="middle">${area(poly).toFixed(1)} m²</text></g>`;
       })}
       ${(house?.vertical ?? [])
         // the hole where a stair arrives; where a flight starts, its footprint and the way up
@@ -2412,6 +2438,7 @@ export class HomeslicePanel extends LitElement {
           const selected = !!this._opening && JSON.stringify(this._opening.src) === JSON.stringify(o.source);
           return svg`<line class="opening-gap" x1=${x1} y1=${y1} x2=${x2} y2=${y2} stroke-width=${width + 1}></line>
             <line class="opening type-${o.type} ${selected ? "selected" : ""}" x1=${x1} y1=${y1} x2=${x2} y2=${y2}></line>
+            ${this.openingSymbol(w, o)}
             <line class="opening-hit" data-opening=${JSON.stringify({ src: o.source, room: o.room })} x1=${x1} y1=${y1} x2=${x2} y2=${y2} stroke-width=${Math.max(16, width + 6)}></line>`;
         })}`;
     }
@@ -2436,8 +2463,61 @@ export class HomeslicePanel extends LitElement {
         const selected = !!this._opening && JSON.stringify(this._opening.src) === JSON.stringify(o.source);
         return svg`<line class="opening-gap" x1=${x1} y1=${y1} x2=${x2} y2=${y2} stroke-width=${width + 1}></line>
           <line class="opening type-${o.type} ${selected ? "selected" : ""}" x1=${x1} y1=${y1} x2=${x2} y2=${y2}></line>
+          ${this.openingSymbol(w, o)}
           <line class="opening-hit" data-opening=${JSON.stringify({ src: o.source, room: o.room })} x1=${x1} y1=${y1} x2=${x2} y2=${y2} stroke-width=${Math.max(16, width + 6)}></line>`;
       })}`;
+  }
+
+  /**
+   * How a door or window opens, as in a floor plan: a door's leaf and its swing, dashed for
+   * windows; two of them for double ones; two offset panels for sliding doors.
+   */
+  private openingSymbol(w: Wall, o: WallOpening) {
+    const fixed = o.style === "fixed" || o.type === "garage_door" || o.type === "opening";
+    if (fixed) return nothing;
+    const len = Math.hypot(w.b[0] - w.a[0], w.b[1] - w.a[1]) || 1;
+    const u: Vec2 = [(w.b[0] - w.a[0]) / len, (w.b[1] - w.a[1]) / len];
+    const at = (t: number): Vec2 => [w.a[0] + u[0] * t, w.a[1] + u[1] * t];
+    // which side of the wall its room is on
+    const n: Vec2 = [-u[1], u[0]];
+    const room = this.levelInputRoomPolygon(o.room);
+    const m = at((o.start + o.end) / 2);
+    const inward: Vec2 = room && pointInPolygon([m[0] + n[0] * 0.3, m[1] + n[1] * 0.3], room) ? n : [-n[0], -n[1]];
+    const swing: Vec2 = o.swing === "out" ? [-inward[0], -inward[1]] : inward;
+    const face = (p: Vec2): Vec2 => [p[0] + (swing[0] * w.thickness) / 2, p[1] + (swing[1] * w.thickness) / 2];
+    const cls = o.type === "window" ? "swing window" : "swing";
+    if (o.style === "sliding") {
+      // two panels, overlapping in the middle
+      const off = w.thickness / 5;
+      const panel = (t0: number, t1: number, side: number) => {
+        const [a, b] = [at(t0), at(t1)].map((p) => this.toScreen([p[0] + inward[0] * off * side, p[1] + inward[1] * off * side]));
+        return svg`<line class="sliding" x1=${a[0]} y1=${a[1]} x2=${b[0]} y2=${b[1]}></line>`;
+      };
+      const span = o.end - o.start;
+      return svg`${panel(o.start, o.start + span * 0.55, 1)}${panel(o.end - span * 0.55, o.end, -1)}`;
+    }
+    // hinges: seen from the room (facing the wall), on its left or right end
+    const facing: Vec2 = [-inward[0], -inward[1]];
+    const left: Vec2 = [facing[1], -facing[0]];
+    const [s0, s1] = [at(o.start), at(o.end)];
+    const leftEnd = s0[0] * left[0] + s0[1] * left[1] > s1[0] * left[0] + s1[1] * left[1] ? 0 : 1;
+    const leaf = (hinge: Vec2, other: Vec2) => {
+      const r = Math.hypot(other[0] - hinge[0], other[1] - hinge[1]);
+      const tip: Vec2 = [hinge[0] + swing[0] * r, hinge[1] + swing[1] * r];
+      const arc = Array.from({ length: 13 }, (_, i) => {
+        const t = (i / 12) * (Math.PI / 2);
+        return this.toScreen([hinge[0] + (tip[0] - hinge[0]) * Math.cos(t) + (other[0] - hinge[0]) * Math.sin(t), hinge[1] + (tip[1] - hinge[1]) * Math.cos(t) + (other[1] - hinge[1]) * Math.sin(t)]);
+      });
+      const [h, e] = [this.toScreen(hinge), this.toScreen(tip)];
+      return svg`<line class="${cls} leaf" x1=${h[0]} y1=${h[1]} x2=${e[0]} y2=${e[1]}></line><polyline class=${cls} points=${arc.map((p) => p.join(",")).join(" ")}></polyline>`;
+    };
+    const ends = [face(s0), face(s1)];
+    if (o.style === "double") {
+      const middle = face(at((o.start + o.end) / 2));
+      return svg`${leaf(ends[0], middle)}${leaf(ends[1], middle)}`;
+    }
+    const hinge = o.hinge === "right" ? 1 - leftEnd : leftEnd;
+    return leaf(ends[hinge], ends[1 - hinge]);
   }
 
   /** Registers a length that can be clicked and typed; returns its key for `data-dimedit`. */
@@ -2646,7 +2726,25 @@ export class HomeslicePanel extends LitElement {
     if (this._energySel !== null && this._model?.energy?.[this._energySel]) return this.renderEnergyInspector(this._energySel);
     if (this._robotSel !== null && this._model?.robots?.[this._robotSel]) return this.renderRobotInspector(this._robotSel);
     if (this._opening) return this.renderOpeningInspector(this._opening);
-    if (this._tool === "opening") return html`<h2>${this.t("editor.tool_opening")}</h2><p class="muted">${this.t("editor.help_opening")}</p>${this.renderOpeningDefaults()}`;
+    if (this._tool === "opening")
+      return html`<h2>${this.t("editor.tool_opening")}</h2>
+        <p class="muted">${this.t("editor.opening_library_hint")}</p>
+        <div class="library openings">
+          ${OPENING_PRESETS.map(
+            (p) => html`<button class="piece ${this._openingPreset === p.id ? "active" : ""}" draggable="true" data-preset=${p.id} aria-pressed=${this._openingPreset === p.id}
+              @dragstart=${(e: DragEvent) => {
+                this.openingDrag = p.id;
+                e.dataTransfer?.setData("text/plain", p.id);
+                if (e.dataTransfer) e.dataTransfer.effectAllowed = "copy";
+              }}
+              @dragend=${() => (this.openingDrag = null)}
+              @click=${() => (this._openingPreset = p.id)}>
+              ${this.openingIcon(p)}
+              <span>${this.t(`editor.opening_${p.id}` as StringKey)}</span>
+            </button>`,
+          )}
+        </div>
+        ${this.renderOpeningDefaults()}`;
     if (this._tool === "furniture") {
       const room = l.rooms.find((x) => x.id === this._room) ?? null;
       return html`<h2>${this.t("editor.furniture")}</h2>${this.renderLibrary(room)}`;
@@ -2814,16 +2912,19 @@ export class HomeslicePanel extends LitElement {
   }
 
   /** Adds a 1 m window centred on the clicked spot of a wall. */
-  private addOpeningAt(hit: { line: [Vec2, Vec2]; rooms: string[] }, world: Vec2) {
+  /** Adds a door or window (a library preset) centred on the clicked spot of a wall. */
+  private addOpeningAt(hit: { line: [Vec2, Vec2]; rooms: string[] }, world: Vec2, presetId = this._openingPreset) {
     const room = hit.rooms[0];
     const poly = room ? this.levelInputRoomPolygon(room) : null;
     const side = poly ? sideOfRoom(poly, hit.line[0], hit.line[1]) : null;
     if (!poly || !side) return;
+    const preset = OPENING_PRESETS.find((p) => p.id === presetId) ?? OPENING_PRESETS[0];
     const axis = side === "north" || side === "south" ? 0 : 1;
-    const width = 1;
+    const width = preset.width;
     const min = Math.min(...poly.map((p) => p[axis]));
     const at = Math.max(0, Math.round((world[axis] - min - width / 2) / 0.05) * 0.05);
-    const { model, source } = addOpening(this._model!, this._level, { room, side, at: Math.round(at * 100) / 100, width });
+    const look = Object.fromEntries(Object.entries(applyPreset(preset)).filter(([, v]) => v !== undefined));
+    const { model, source } = addOpening(this._model!, this._level, { room, side, at: Math.round(at * 100) / 100, ...look, width });
     this.commit(model);
     this._opening = { src: source, room };
   }
@@ -2841,15 +2942,24 @@ export class HomeslicePanel extends LitElement {
     const areaId = roomInput?.area_id;
     const states = this._hass?.states ?? {};
     const shared = sel.src.kind === "facade" ? m.facade_openings?.[sel.src.index]?.levels ?? [] : [];
-    const types: OpeningType[] = ["window", "door", "garage_door", "opening"];
     return html`<h2>${this.t(`editor.type_${o.type ?? "window"}` as StringKey)}</h2>
       <p class="muted">${roomInput ? this.roomName(roomInput) : ""} · ${this.t(`editor.side_${o.side}` as StringKey)}</p>
       ${shared.length ? html`<p class="muted">${this.t("editor.opening_shared", { levels: shared.join(", ") })}</p>` : nothing}
-      <label>${this.t("editor.opening_type")}
-        <select @change=${(e: Event) => set({ type: (e.target as HTMLSelectElement).value as OpeningType })}>
-          ${types.map((t) => html`<option value=${t} ?selected=${(o.type ?? "window") === t}>${this.t(`editor.type_${t}` as StringKey)}</option>`)}
-        </select>
-      </label>
+      <div class="opening-kinds" role="radiogroup" aria-label=${this.t("editor.opening_type")}>
+        ${OPENING_PRESETS.map((p) => {
+          const current = presetOf(o)?.id === p.id;
+          return html`<button class="kind ${current ? "active" : ""}" role="radio" aria-checked=${current} data-preset=${p.id} title=${this.t(`editor.opening_${p.id}` as StringKey)}
+            @click=${() => set(applyPreset(p))}>${this.openingIcon(p)}</button>`;
+        })}
+      </div>
+      ${(o.type ?? "window") === "door" || (o.type ?? "window") === "window"
+        ? o.style === "fixed" || o.style === "sliding"
+          ? nothing
+          : html`<div class="row">
+              <button @click=${() => set({ hinge: o.hinge === "right" ? undefined : "right" })}>⇄ ${this.t(o.hinge === "right" ? "editor.hinge_right" : "editor.hinge_left")}</button>
+              <button @click=${() => set({ swing: o.swing === "out" ? undefined : "out" })}>⇅ ${this.t(o.swing === "out" ? "editor.swing_out" : "editor.swing_in")}</button>
+            </div>`
+        : nothing}
       <div class="row">
         <label>${this.t("editor.opening_at_label")}<input type="number" step="0.05" .value=${String(o.at)} @change=${num("at")} /></label>
         <label>${this.t("editor.opening_width")}<input type="number" step="0.05" .value=${String(o.width)} @change=${num("width")} /></label>
@@ -2941,6 +3051,10 @@ export class HomeslicePanel extends LitElement {
           </li>`,
         )}
       </ul>`;
+  }
+
+  private openingIcon(p: OpeningPreset) {
+    return html`<svg class="opening-icon" viewBox="0 0 64 64" aria-hidden="true">${unsafeSVG(p.icon)}</svg>`;
   }
 
   /** Outside doors and windows: the other floors the same one is on (stacked façade windows). */
@@ -3723,6 +3837,24 @@ export class HomeslicePanel extends LitElement {
     .wall-hit.add {
       cursor: copy;
     }
+    .swing {
+      fill: none;
+      stroke: #4a4f55;
+      stroke-width: 1;
+      pointer-events: none;
+    }
+    .swing.leaf {
+      stroke-width: 2;
+    }
+    .swing.window {
+      stroke-dasharray: 3 3;
+      stroke: #3b82b8;
+    }
+    .sliding {
+      stroke: #3b82b8;
+      stroke-width: 2.5;
+      pointer-events: none;
+    }
     .opening-hit {
       stroke: transparent;
       cursor: ew-resize;
@@ -4080,6 +4212,56 @@ export class HomeslicePanel extends LitElement {
     }
     ul.checklist li .name {
       white-space: normal;
+    }
+    .opening-icon {
+      width: 48px;
+      height: 48px;
+    }
+    .opening-icon .frame {
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 2.5;
+    }
+    .opening-icon .glass {
+      fill: #9ad3f5;
+    }
+    .opening-icon .leaf {
+      fill: #c8a27a;
+      stroke: #8a6a4a;
+      stroke-width: 1;
+    }
+    .opening-icon .floor {
+      stroke: currentColor;
+      stroke-width: 2;
+      opacity: 0.4;
+    }
+    .opening-icon .handle {
+      fill: #555;
+      stroke: #555;
+      stroke-width: 2;
+    }
+    .library .piece.active {
+      border-color: var(--accent);
+      box-shadow: inset 0 0 0 1px var(--accent);
+    }
+    .opening-kinds {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+    }
+    .opening-kinds .kind {
+      padding: 2px;
+      min-height: 0;
+      display: grid;
+      place-items: center;
+    }
+    .opening-kinds .kind .opening-icon {
+      width: 36px;
+      height: 36px;
+    }
+    .opening-kinds .kind.active {
+      border-color: var(--accent);
+      box-shadow: inset 0 0 0 1px var(--accent);
     }
     .library-search {
       width: 100%;
