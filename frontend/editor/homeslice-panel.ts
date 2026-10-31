@@ -351,6 +351,7 @@ export class HomeslicePanel extends LitElement {
     _linkEnd: { state: true },
     _robotPlace: { state: true },
     _libraryFilter: { state: true },
+    _snapPieces: { state: true },
     _librarySource: { state: true },
     _polyhaven: { state: true },
     _customModels: { state: true },
@@ -429,6 +430,8 @@ export class HomeslicePanel extends LitElement {
   private checkCache: { model: HouseInput; states: unknown; items: CheckItem[] } | null = null;
   /** Filter text of the furniture library. */
   private _libraryFilter = "";
+  /** Pieces snap to walls (wall pieces hang on them) and to each other; off: placed freely. */
+  private _snapPieces = readPref("homeslice-snap-pieces") !== "off";
   /** Tools whose hint was dismissed. */
   private _hintsHidden: string[] = (() => {
     try {
@@ -1252,23 +1255,26 @@ export class HomeslicePanel extends LitElement {
       if (!piece || !target) return;
       const mount = mountOf(piece);
       const size = piece.size ?? FURNITURE[piece.type].size;
+      const loose = free || !this._snapPieces;
       let at = p;
       let guides: { x?: number; y?: number } = {};
       let rotation: number | undefined;
-      if (mount === "wall") {
+      if (loose) {
+        // placed freely: no walls, no neighbours, no grid
+      } else if (mount === "wall") {
         // wall pieces slide along the walls, their back against them
         const onWall = wallSnap(this.inner(target), p, size[1]);
         if (onWall) [at, rotation] = [onWall.at, onWall.rotation];
       } else {
         const half = footprintHalf(size, piece.rotation ?? 0);
-        if (half && !free) {
+        if (half) {
           // floor pieces snap to walls and to each other; ceiling pieces to each other and the room's middle
           const inner = this.inner(target);
           const walls = mount === "floor" ? inner.map((q, i) => [q, inner[(i + 1) % inner.length]] as [Vec2, Vec2]) : [];
           const snappedPiece = snapFurniture({ c: p, half }, walls, this.footprints(drag.room, drag.index, mount), mount === "ceiling" ? [labelPoint(inner)] : [], 10 / this._view.scale);
           at = snappedPiece.c;
           guides = snappedPiece.guide;
-        } else if (!free) at = snapped(p, { ...this.snapContext(), points: [] }).p;
+        } else at = snapped(p, { ...this.snapContext(), points: [] }).p;
       }
       let moved = moveFurniture(drag.origin, this._level, drag.room, drag.index, at, into);
       if (rotation !== undefined) moved = { ...moved, model: updateFurniture(moved.model, this._level, moved.room, moved.index, { rotation }) };
@@ -2206,11 +2212,6 @@ export class HomeslicePanel extends LitElement {
           </div>`
         : nothing}
       <div class="row">
-        <label>${this.t("editor.furniture_mount")}
-          <select @change=${(e: Event) => this.setMount(r, sel.index, (e.target as HTMLSelectElement).value as FurnitureMount)}>
-            ${(["floor", "wall", "ceiling"] as FurnitureMount[]).map((x) => html`<option value=${x} ?selected=${mountOf(f) === x}>${this.t(`editor.mount_${x}` as StringKey)}</option>`)}
-          </select>
-        </label>
         ${mountOf(f) === "wall"
           ? html`<label>${this.t("editor.furniture_elevation")}
               <input type="number" min="0" max="4" step="0.05" .value=${String(f.elevation ?? FURNITURE[f.type].elevation ?? 1.2)} @change=${(e: Event) => {
@@ -2221,6 +2222,7 @@ export class HomeslicePanel extends LitElement {
           : nothing}
       </div>
       <p class="muted">${this.t(`editor.mount_${mountOf(f)}_hint` as StringKey)}</p>
+      ${this.renderSnapPieces()}
       ${this.linkSelect(r.area_id, f.entity, (entity) => set({ entity }))}
       <p class="muted">${this.t("editor.furniture_entity_hint")}</p>
       <div class="row">
@@ -3598,6 +3600,7 @@ export class HomeslicePanel extends LitElement {
       </div>
       ${credit}
       <p class="muted">${this.t(room ? "editor.library_hint_room" : "editor.library_hint", { room: room ? this.roomName(room) : "" })}</p>
+      ${this.renderSnapPieces()}
       ${source === "custom"
         ? html`<label class="file upload-model"
             >${this.t("editor.library_upload")}<input type="file" accept=".glb,model/gltf-binary" @change=${(e: Event) => this.uploadModel(e)}
@@ -3731,7 +3734,7 @@ export class HomeslicePanel extends LitElement {
     const { min } = bbox(roomPolygon(m, room));
     const def = FURNITURE[type];
     const depth = size?.[1] ?? def.size[1];
-    const onWall = (item.mount ?? def.mount) === "wall" ? wallSnap(this.inner(room), world, depth) : null;
+    const onWall = (item.mount ?? def.mount) === "wall" && this._snapPieces ? wallSnap(this.inner(room), world, depth) : null;
     const p = onWall?.at ?? world;
     const at: [number, number] = [Math.round((p[0] - min[0]) * 100) / 100, Math.round((p[1] - min[1]) * 100) / 100];
     const piece: FurnitureInput = { type, at, model: item.model, ...(onWall?.rotation ? { rotation: onWall.rotation } : {}) };
@@ -3789,22 +3792,13 @@ export class HomeslicePanel extends LitElement {
     </label>`;
   }
 
-  /** Changes how a piece is mounted; on a wall it moves against the nearest one. */
-  private setMount(room: RoomInput, index: number, mount: FurnitureMount) {
-    const m = this._model!;
-    const f = room.furniture?.[index];
-    if (!f) return;
-    const patch: Partial<FurnitureInput> = { mount: mount === (FURNITURE[f.type].mount ?? "floor") ? undefined : mount };
-    if (mount !== "wall") patch.elevation = undefined;
-    else {
-      const { min } = bbox(roomPolygon(m, room));
-      const snapped = wallSnap(this.inner(room), [min[0] + f.at[0], min[1] + f.at[1]], (f.size ?? FURNITURE[f.type].size)[1]);
-      if (snapped) {
-        patch.at = [snapped.at[0] - min[0], snapped.at[1] - min[1]];
-        patch.rotation = snapped.rotation;
-      }
-    }
-    this.commit(updateFurniture(m, this._level, room.id, index, patch));
+  /** The switch between snapping pieces into place and placing them freely. */
+  private renderSnapPieces() {
+    return html`<label class="check snap-pieces"
+      ><input type="checkbox" .checked=${this._snapPieces} @change=${(e: Event) => {
+        this._snapPieces = (e.target as HTMLInputElement).checked;
+        writePref("homeslice-snap-pieces", this._snapPieces ? "on" : "off");
+      }} />${this.t("editor.snap_pieces")}</label>`;
   }
 
   /** The house as a binary glTF file: floors stacked as built, with the roof. */

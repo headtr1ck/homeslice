@@ -1283,6 +1283,202 @@ const BUILDERS: Record<string, Build> = {
     for (let i = 0; i < 2; i++) b.box(0.006, r * 2, 0.006, cx, cy - r, d / 2 - 0.04, mat(C.steel))!.rotation.z = (i * Math.PI) / 2;
     b.box(w * 0.18, 0.06, 0.01, w * 0.32, h * 0.8, d / 2 - 0.045, mat(C.steel));
   },
+  // ----- kitchen, piece by piece (fronts in the finish, the worktop in the accent) -----
+  kitchen_base: (b, w, d, h, f, _c, a) => {
+    const u = kitchenBase(b, w, d, h, a);
+    const n = Math.max(1, Math.round(w / 0.6));
+    fronts(b, -w / 2, w, u.y1 - 0.17, 0.17, u.fz, n, f, 1, "bar");
+    fronts(b, -w / 2, w, u.y0, u.y1 - u.y0 - 0.17, u.fz, n, f, 1, "bar");
+  },
+  kitchen_drawers: (b, w, d, h, f, _c, a) => {
+    const u = kitchenBase(b, w, d, h, a);
+    const n = Math.max(1, Math.round(w / 0.9));
+    const rows = [0.17, 0.27, u.y1 - u.y0 - 0.44];
+    let y = u.y1;
+    for (const rh of rows) {
+      y -= rh;
+      fronts(b, -w / 2, w, y, rh, u.fz, n, f, 1, "bar");
+    }
+  },
+  kitchen_sink_unit: (b, w, d, h, f, _c, a) => {
+    const u = kitchenBase(b, w, d, h, a);
+    fronts(b, -w / 2, w, u.y0, u.y1 - u.y0, u.fz, Math.max(1, Math.round(w / 0.45)), f, 1, "bar");
+    const bw = Math.min(w - 0.16, 0.7);
+    const steel = mat(C.steel, { metalness: 0.6, roughness: 0.3 });
+    b.box(bw + 0.04, 0.006, d - 0.2, 0, h, 0.03, steel, 0.01);
+    b.box(bw, 0.004, d - 0.26, 0, h + 0.002, 0.03, mat("#6d7277", { metalness: 0.5, roughness: 0.4 }), 0.03);
+    b.cyl(0.025, 0.025, 0.004, 0, h + 0.006, 0.03, mat("#3a3d41"), 16);
+    tapGooseneck(b, 0, h, back(d) + 0.07, mat(C.chrome, { metalness: 0.85, roughness: 0.2 }));
+  },
+  kitchen_hob_gas: (b, w, d, h, f, _c, a) => {
+    const u = kitchenBase(b, w, d, h, a);
+    oven(b, w, u, f);
+    const steel = mat(C.steel, { metalness: 0.6, roughness: 0.35 });
+    const iron = mat("#1f2023", { roughness: 0.6 });
+    b.box(w - 0.06, 0.008, d - 0.1, 0, h, 0, steel, 0.004);
+    const pw = w - 0.12;
+    for (const [dx, dz, r] of [[-0.25, -0.22, 0.05], [0.25, -0.22, 0.04], [-0.25, 0.22, 0.04], [0.25, 0.22, 0.06]] as const) {
+      const x = dx * pw;
+      const z = dz * (d - 0.1);
+      b.cyl(r * 1.4, r * 1.5, 0.012, x, h + 0.008, z, mat("#2b2c2e"), 20);
+      b.cyl(r, r, 0.012, x, h + 0.02, z, iron, 20);
+      for (let k = 0; k < 4; k++) {
+        const ang = (k / 4) * Math.PI * 2 + Math.PI / 4;
+        b.rod(v(x + Math.cos(ang) * r * 0.9, h + 0.04, z + Math.sin(ang) * r * 0.9), v(x + Math.cos(ang) * r * 2.1, h + 0.04, z + Math.sin(ang) * r * 2.1), 0.005, iron, 4);
+      }
+      b.add(new THREE.TorusGeometry(r * 2.1, 0.005, 4, 20), iron, x, h + 0.04, z).rotation.x = Math.PI / 2;
+    }
+  },
+  kitchen_hob_electric: (b, w, d, h, f, _c, a) => {
+    // the old kind: four cast-iron plates with chrome rims, knobs on the front
+    const u = kitchenBase(b, w, d, h, a);
+    oven(b, w, u, f, true);
+    b.box(w - 0.06, 0.012, d - 0.1, 0, h, 0, mat(C.ceramic, { roughness: 0.4 }), 0.006);
+    const pw = w - 0.12;
+    for (const [dx, dz, r] of [[-0.25, -0.22, 0.09], [0.25, -0.22, 0.072], [-0.25, 0.22, 0.072], [0.25, 0.22, 0.09]] as const) {
+      const x = dx * pw;
+      const z = dz * (d - 0.1);
+      b.cyl(r, r, 0.016, x, h + 0.012, z, mat("#2a2b2e", { roughness: 0.7 }), 24);
+      b.add(new THREE.TorusGeometry(r, 0.005, 4, 24), mat(C.chrome, { metalness: 0.8, roughness: 0.25 }), x, h + 0.026, z).rotation.x = Math.PI / 2;
+      b.cyl(0.012, 0.012, 0.004, x, h + 0.028, z, mat("#d23a2a"), 8);
+    }
+  },
+  kitchen_hob_ceran: (b, w, d, h, f, _c, a) => {
+    const u = kitchenBase(b, w, d, h, a);
+    oven(b, w, u, f);
+    b.box(w - 0.04, 0.006, d - 0.06, 0, h, 0, mat(C.screen, { roughness: 0.08, metalness: 0.2 }), 0.004);
+    const pw = w - 0.12;
+    for (const [dx, dz, r] of [[-0.25, -0.22, 0.09], [0.25, -0.22, 0.075], [-0.25, 0.22, 0.075], [0.25, 0.22, 0.1]] as const)
+      for (const k of [1, 0.6]) b.add(new THREE.RingGeometry(r * k - 0.003, r * k, 32), mat("#6a6d72"), dx * pw, h + 0.007, dz * (d - 0.1)).rotation.x = -Math.PI / 2;
+    for (let i = 0; i < 6; i++) b.add(new THREE.CircleGeometry(0.006, 8), mat("#c9cdd1", { emissive: "#c9cdd1", emissiveIntensity: 0.3 }), -0.08 + i * 0.032, h + 0.007, d / 2 - 0.07).rotation.x = -Math.PI / 2;
+  },
+  kitchen_oven: (b, w, d, h, f, _c, a) => {
+    const u = kitchenBase(b, w, d, h, a);
+    oven(b, w, u, f);
+  },
+  kitchen_dishwasher: (b, w, d, h, f, _c, a) => {
+    const u = kitchenBase(b, w, d, h, a);
+    fronts(b, -w / 2, w, u.y0, u.y1 - u.y0, u.fz, 1, f, 1, "bar");
+  },
+  kitchen_corner: (b, w, d, h, f, _c, a) => {
+    // the blind corner of an L: the worktop runs on, a door on the open part
+    const t = 0.04;
+    b.box(w - 0.05, 0.1, d - 0.05, -0.025, 0, -0.025, mat(C.black));
+    b.box(w - 0.02, h - t - 0.1, d - 0.02, -0.01, 0.1, -0.01, mat("#e8e6e1"));
+    b.box(w, t, d, 0, h - t, 0, a, 0.004);
+    const open = Math.max(0.3, w - 0.62);
+    fronts(b, -w / 2, open, 0.1, h - t - 0.1, d / 2 - 0.02, 1, f, 1, "bar");
+    fronts(b, -w / 2, open, 0.1, 0, d / 2 - 0.02, 1, f, 1);
+    const side = b.box(Math.max(0.3, d - 0.62), h - t - 0.1, 0.018, 0, 0.1, 0, f, 0.003);
+    side?.position.set(w / 2 - 0.009 + 0.001, 0.1 + (h - t - 0.1) / 2, -d / 2 + Math.max(0.3, d - 0.62) / 2);
+    side?.rotation.set(0, Math.PI / 2, 0);
+  },
+  kitchen_pantry: (b, w, d, h, f) => tallUnit(b, w, d, h, f, [0.45, 0.55]),
+  kitchen_pantry_mid: (b, w, d, h, f) => tallUnit(b, w, d, h, f, [0.6, 0.4]),
+  kitchen_tall_fridge: (b, w, d, h, f) => tallUnit(b, w, d, h, f, [0.33, 0.47, 0.2]),
+  kitchen_tall_oven: (b, w, d, h, f) => {
+    // drawers, an oven at eye height, a microwave over it, a door on top
+    const z = d / 2 - 0.03;
+    tallUnit(b, w, d, h, f, []);
+    const y0 = 0.1;
+    fronts(b, -w / 2, w, y0, 0.6, z, 1, f, 2, "bar");
+    const oy = y0 + 0.62;
+    applianceFront(b, w, oy, 0.6, z, "oven");
+    applianceFront(b, w, oy + 0.62, 0.38, z, "microwave");
+    fronts(b, -w / 2, w, oy + 1.02, h - (oy + 1.02), z, 1, f, 1, "bar");
+  },
+  kitchen_upper_glass: (b, w, d, h, f) => {
+    const n = Math.max(1, Math.round(w / 0.5));
+    b.box(w, h, d - 0.02, 0, 0, back(d) + (d - 0.02) / 2, mat("#e8e6e1"));
+    for (let s = 1; s < 3; s++) b.box(w - 0.04, 0.015, d - 0.06, 0, (h * s) / 3, back(d) + (d - 0.04) / 2, mat("#f3f1ec"));
+    for (let s = 0; s < 3; s++) for (let i = 0; i < Math.floor((w - 0.06) / 0.12); i++) b.cyl(0.05, 0.04, 0.03, -w / 2 + 0.09 + i * 0.12, (h * s) / 3 + 0.02, -0.03, mat(C.ceramic), 14);
+    const cw = w / n;
+    for (let i = 0; i < n; i++) {
+      const x = -w / 2 + cw * (i + 0.5);
+      for (const [fx, fy, fw, fh] of [[0, 0, cw - 0.004, 0.05], [0, h - 0.05, cw - 0.004, 0.05], [-(cw / 2 - 0.027), 0, 0.05, h], [cw / 2 - 0.027, 0, 0.05, h]]) b.box(fw, fh, 0.018, x + fx, fy, d / 2 - 0.011, f);
+      b.box(cw - 0.1, h - 0.1, 0.006, x, 0.05, d / 2 - 0.012, glass());
+    }
+  },
+  kitchen_upper_open: (b, w, d, h, f) => {
+    const rand = random(139);
+    const shelves2 = Math.max(1, Math.round(h / 0.35));
+    for (let s = 0; s < shelves2; s++) {
+      const y = (s * h) / shelves2 + (s ? 0 : 0);
+      b.box(w, 0.03, d, 0, y, 0, f, 0.004);
+      let x = -w / 2 + 0.06;
+      while (x < w / 2 - 0.1) {
+        const kind = rand();
+        if (kind < 0.4) b.cyl(0.045, 0.045, 0.14, x + 0.045, y + 0.03, 0, glass(), 12);
+        else if (kind < 0.7) for (let k = 0; k < 4; k++) b.cyl(0.11, 0.1, 0.015, x + 0.11, y + 0.03 + k * 0.016, 0, mat(C.ceramic), 18);
+        else b.cyl(0.04, 0.035, 0.09, x + 0.04, y + 0.03, 0, mat(C.book[Math.floor(rand() * C.book.length)]), 12);
+        x += kind < 0.4 ? 0.12 : kind < 0.7 ? 0.25 : 0.11;
+      }
+    }
+    b.box(w, 0.03, d, 0, h - 0.03, 0, f, 0.004);
+  },
+  kitchen_hood: (b, w, d, h, f) => {
+    // a chimney hood: a sloped canopy and the duct to the ceiling
+    const canopy = Math.min(0.25, h * 0.3);
+    const geo = new THREE.CylinderGeometry(Math.SQRT1_2 * 0.35, Math.SQRT1_2, canopy, 4, 1, false, Math.PI / 4);
+    geo.scale(w, 1, d);
+    geo.translate(0, canopy / 2, 0);
+    b.add(geo, f);
+    b.box(w * 0.42, h - canopy, d * 0.42, 0, canopy, back(d) + d * 0.21, f);
+    b.box(w - 0.04, 0.006, d - 0.04, 0, -0.003, 0, mat("#55595e", { metalness: 0.5, roughness: 0.5 }));
+    for (const sx of [-1, 1]) b.add(new THREE.CircleGeometry(0.02, 12), mat("#fff3d6", { emissive: "#ffe8b8", emissiveIntensity: 0.7 }), sx * w * 0.3, -0.004, 0.05).rotation.x = Math.PI / 2;
+  },
+  fridge_freestanding: (b, w, d, h, f) => {
+    b.box(w, h - 0.03, d - 0.05, 0, 0.03, -0.025, f, 0.03);
+    const split = h * 0.62;
+    b.box(w - 0.004, split - 0.04, 0.05, 0, h - split, d / 2 - 0.03, f, 0.02);
+    b.box(w - 0.004, h - split - 0.06, 0.05, 0, 0.03, d / 2 - 0.03, f, 0.02);
+    const handle = mat(C.chrome, { metalness: 0.8, roughness: 0.25 });
+    b.box(0.02, 0.4, 0.03, w / 2 - 0.06, h - split + 0.05, d / 2 + 0.01, handle, 0.008);
+    b.box(0.02, 0.3, 0.03, w / 2 - 0.06, h - split - 0.4, d / 2 + 0.01, handle, 0.008);
+    for (const sx of [-1, 1]) b.cyl(0.02, 0.02, 0.03, sx * (w / 2 - 0.05), 0, d / 2 - 0.08, mat(C.black), 8);
+  },
+  fridge_double: (b, w, d, h, f) => {
+    // side by side, with ice and water in the left door
+    b.box(w, h - 0.03, d - 0.06, 0, 0.03, -0.03, f, 0.03);
+    const handle = mat(C.chrome, { metalness: 0.8, roughness: 0.25 });
+    for (const sx of [-1, 1]) {
+      const dw = sx < 0 ? w * 0.42 : w * 0.58;
+      const x = sx < 0 ? -w / 2 + dw / 2 : w / 2 - dw / 2;
+      b.box(dw - 0.006, h - 0.05, 0.06, x, 0.04, d / 2 - 0.035, f, 0.02);
+      b.box(0.022, h * 0.55, 0.035, sx < 0 ? -w / 2 + dw - 0.04 : w / 2 - dw + 0.04, h * 0.25, d / 2 + 0.01, handle, 0.008);
+    }
+    b.box(w * 0.2, 0.28, 0.01, -w / 2 + w * 0.21, h * 0.55, d / 2 + 0.002, mat("#2b2d31"), 0.01);
+    b.box(w * 0.08, 0.02, 0.012, -w / 2 + w * 0.21, h * 0.55 + 0.23, d / 2 + 0.004, mat("#7fc7f0", { emissive: "#7fc7f0", emissiveIntensity: 0.5 }));
+  },
+  microwave: (b, w, d, h, f) => {
+    b.box(w, h, d, 0, 0, 0, f, 0.015);
+    b.box(w * 0.68, h * 0.75, 0.006, -w * 0.12, h * 0.12, d / 2, mat(C.screen, { roughness: 0.1 }), 0.006);
+    b.box(w * 0.18, h * 0.2, 0.006, w * 0.33, h * 0.68, d / 2, mat("#0f1a14", { emissive: "#3fd27a", emissiveIntensity: 0.15 }));
+    for (let i = 0; i < 2; i++) b.cyl(0.018, 0.018, 0.015, w * 0.33, h * (0.22 + i * 0.22), d / 2 + 0.007, mat(C.steel), 14).rotation.x = Math.PI / 2;
+  },
+  coffee_capsule: (b, w, d, h, f) => {
+    // a slim capsule machine: water tank at the back, a lever on top, a cup under the spout
+    b.box(w, h * 0.85, d * 0.62, 0, 0, d * 0.19, f, 0.02);
+    b.box(w * 0.9, h * 0.8, d * 0.36, 0, 0, -d * 0.31, glass(), 0.015);
+    b.box(w * 0.9, 0.02, d * 0.75, 0, 0, d * 0.12, mat(C.steel, { metalness: 0.6, roughness: 0.3 }));
+    b.box(w * 0.7, 0.04, 0.14, 0, h * 0.85, d * 0.2, mat(C.chrome, { metalness: 0.8, roughness: 0.2 }), 0.015)?.rotation.set(-0.3, 0, 0);
+    b.cyl(0.035, 0.03, 0.07, 0, 0.02, d * 0.36, mat(C.ceramic), 14);
+  },
+  coffee_portafilter: (b, w, d, h, f) => {
+    // a dual-boiler style espresso machine: steel body, group head, portafilter, steam wand, cups on top
+    const steel = mat(C.chrome, { metalness: 0.8, roughness: 0.22 });
+    b.box(w, h * 0.82, d * 0.8, 0, 0.04, -d * 0.1, f, 0.015);
+    legs(b, w * 0.9, d * 0.7, 0.04, 0.02, 0.012, mat(C.black));
+    b.box(w * 0.9, 0.02, d * 0.25, 0, 0.04, d * 0.36, steel);
+    b.cyl(0.04, 0.045, 0.06, -w * 0.08, h * 0.5, d * 0.32, steel, 18);
+    b.cyl(0.035, 0.035, 0.03, -w * 0.08, h * 0.5 - 0.035, d * 0.34, steel, 18);
+    b.rod(v(-w * 0.08, h * 0.5 - 0.02, d * 0.34), v(-w * 0.08, h * 0.5 - 0.03, d * 0.5 + 0.08), 0.012, mat(C.black), 8);
+    b.rod(v(w * 0.32, h * 0.62, d * 0.32), v(w * 0.36, h * 0.25, d * 0.4), 0.006, steel, 6);
+    b.cyl(0.03, 0.03, 0.006, w * 0.25, h * 0.7, d * 0.31, mat("#f4f4f4"), 18).rotation.x = Math.PI / 2;
+    b.cyl(0.03, 0.03, 0.006, -w * 0.32, h * 0.7, d * 0.31, mat("#f4f4f4"), 18).rotation.x = Math.PI / 2;
+    for (let i = 0; i < 3; i++) b.cyl(0.03, 0.025, 0.05, -w * 0.25 + i * w * 0.25, h * 0.86, -d * 0.1, mat(C.ceramic), 12);
+    b.cyl(0.035, 0.03, 0.06, -w * 0.08, 0.06, d * 0.36, mat(C.ceramic), 14);
+  },
   // ----- vehicles -----
   car_hatchback: (b, w, d, h, _f, color) => car(b, w, d, h, color, "hatchback"),
   car_estate: (b, w, d, h, _f, color) => car(b, w, d, h, color, "estate"),
@@ -1389,6 +1585,57 @@ function car(b: Builder, w: number, d: number, h: number, color: string, style: 
     b.box(w * 0.18, 0.07, 0.03, sx * w * 0.36, prof.body[1][1] * h - 0.14, -d / 2 + 0.005, mat("#b3261e", { emissive: "#7a120d", emissiveIntensity: 0.4 }), 0.01);
   }
   b.box(w * 0.5, 0.11, 0.02, 0, 0.3, -d / 2 + 0.002, mat(C.ceramic), 0.005);
+}
+
+/** A kitchen base unit: plinth, carcass and worktop; where its fronts go. */
+function kitchenBase(b: Builder, w: number, d: number, h: number, top: THREE.Material) {
+  const t = 0.04;
+  b.box(w - 0.02, 0.1, d - 0.08, 0, 0, back(d) + (d - 0.08) / 2, mat(C.black));
+  b.box(w, h - t - 0.1, d - 0.03, 0, 0.1, back(d) + (d - 0.03) / 2, mat("#e8e6e1"));
+  b.box(w, t, d, 0, h - t, 0, top, 0.004);
+  return { y0: 0.1, y1: h - t, fz: d / 2 - 0.03 };
+}
+
+/** An appliance front: an oven (glass door, handle, controls) or a microwave. */
+function applianceFront(b: Builder, w: number, y: number, h: number, z: number, kind: "oven" | "microwave", knobs = false) {
+  b.box(w - 0.006, h - 0.004, 0.02, 0, y + 0.002, z + 0.01, mat(C.screen, { roughness: 0.15, metalness: 0.2 }), 0.004);
+  const steel = mat(C.chrome, { metalness: 0.8, roughness: 0.25 });
+  if (kind === "oven") {
+    b.box(w - 0.006, 0.09, 0.022, 0, y + h - 0.09, z + 0.011, mat(C.steel, { metalness: 0.6, roughness: 0.35 }), 0.003);
+    b.rod(v(-w * 0.38, y + h - 0.13, z + 0.05), v(w * 0.38, y + h - 0.13, z + 0.05), 0.01, steel, 8);
+    b.box(w * 0.6, h * 0.5, 0.004, 0, y + h * 0.15, z + 0.022, mat("#2f3a40", { roughness: 0.05 }), 0.01);
+    if (knobs) for (let i = 0; i < 5; i++) b.cyl(0.018, 0.018, 0.02, -w * 0.36 + (i * w * 0.72) / 4, y + h - 0.045, z + 0.03, mat(C.black), 12).rotation.x = Math.PI / 2;
+  } else {
+    b.box(w * 0.55, h * 0.7, 0.004, -w * 0.12, y + h * 0.15, z + 0.022, mat("#2f3a40", { roughness: 0.05 }), 0.01);
+    b.box(0.012, h * 0.5, 0.02, w * 0.22, y + h * 0.25, z + 0.03, steel, 0.004);
+  }
+}
+
+/** The oven under a hob or worktop, with a drawer below. */
+function oven(b: Builder, w: number, u: { y0: number; y1: number; fz: number }, f: THREE.Material, knobs = false) {
+  const oh = Math.min(0.6, u.y1 - u.y0 - 0.12);
+  applianceFront(b, w, u.y1 - oh - 0.01, oh, u.fz, "oven", knobs);
+  fronts(b, -w / 2, w, u.y0, u.y1 - oh - 0.01 - u.y0, u.fz, 1, f, 1, "bar");
+}
+
+/** A tall unit with doors stacked by the given shares of its height. */
+function tallUnit(b: Builder, w: number, d: number, h: number, f: THREE.Material, shares: number[]) {
+  b.box(w - 0.02, 0.1, d - 0.08, 0, 0, back(d) + (d - 0.08) / 2, mat(C.black));
+  b.box(w, h - 0.1, d - 0.03, 0, 0.1, back(d) + (d - 0.03) / 2, mat("#e8e6e1"));
+  let y = 0.1;
+  for (const s of shares) {
+    const dh = (h - 0.1) * s;
+    fronts(b, -w / 2, w, y, dh, d / 2 - 0.03, Math.max(1, Math.round(w / 0.6)), f, 1, "bar");
+    y += dh;
+  }
+}
+
+/** A tall kitchen tap, curving over the sink. */
+function tapGooseneck(b: Builder, x: number, y: number, z: number, m: THREE.Material) {
+  b.cyl(0.022, 0.025, 0.06, x, y, z, m, 14);
+  const curve = new THREE.CatmullRomCurve3([v(x, y + 0.05, z), v(x, y + 0.3, z), v(x, y + 0.36, z + 0.08), v(x, y + 0.28, z + 0.18)]);
+  b.add(new THREE.TubeGeometry(curve, 16, 0.012, 8), m);
+  b.rod(v(x + 0.025, y + 0.04, z), v(x + 0.07, y + 0.08, z + 0.02), 0.006, m, 6);
 }
 
 function tvPanel(b: Builder, w: number, h: number, y: number, z: number) {

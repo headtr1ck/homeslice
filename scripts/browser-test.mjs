@@ -1420,14 +1420,21 @@ console.log("editor");
     const mirror = (await room("hall")).furniture?.find((f) => f.type === "mirror");
     // the hall's inside face of the west wall is 0.36 m from the room's corner; a 3 cm mirror sits 1.5 cm in front
     assert(mirror && mirror.rotation === 270 && Math.abs(mirror.at[0] - 0.38) < 0.011, `mirror: ${JSON.stringify(mirror)}`);
-    assert((await page.locator("homeslice-panel .inspector label", { hasText: "Mounted" }).locator("select").inputValue()) === "wall", "mirror not shown as on a wall");
-    // a table can go on the wall too… and back
+    assert((await page.locator("homeslice-panel .inspector label", { hasText: "Above the floor" }).count()) === 1, "a wall piece's height above the floor is not offered");
+    // with snapping off, the mirror goes where it is dropped, not onto the wall
+    const snapBox = page.locator("homeslice-panel .inspector label.snap-pieces input");
+    await snapBox.uncheck();
+    const mirrorBox = await page.locator("homeslice-panel svg.plan g.furniture.selected rect").boundingBox();
+    await page.mouse.move(mirrorBox.x + mirrorBox.width / 2, mirrorBox.y + mirrorBox.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(mirrorBox.x + 60, mirrorBox.y + mirrorBox.height / 2, { steps: 6 });
+    await page.mouse.up();
+    const loose = (await room("hall")).furniture.find((f) => f.type === "mirror");
+    assert(loose.rotation === 270 && loose.at[0] > 0.6, `mirror should move freely: ${JSON.stringify(loose)}`);
+    await snapBox.check();
+    await page.keyboard.press("Control+z");
     const sofaIndex = (await room("living")).furniture.findIndex((f) => f.type === "sofa");
     await page.evaluate((i) => (window.panel._furn = { room: "living", index: i }), sofaIndex);
-    await page.locator("homeslice-panel .inspector label", { hasText: "Mounted" }).locator("select").selectOption("ceiling");
-    assert((await room("living")).furniture[sofaIndex].mount === "ceiling", "mount not set");
-    await page.locator("homeslice-panel .inspector label", { hasText: "Mounted" }).locator("select").selectOption("floor");
-    assert((await room("living")).furniture[sofaIndex].mount === undefined, "floor is the default and not written");
     // mirrored left–right, then top–bottom (that one also turns it half way)
     await page.locator("homeslice-panel .inspector button", { hasText: "left–right" }).click();
     assert((await room("living")).furniture[sofaIndex].mirror === true, "not mirrored");

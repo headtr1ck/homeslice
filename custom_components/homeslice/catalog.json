@@ -1311,6 +1311,482 @@
    ]
   },
   {
+   "model": "modern:kitchen_base",
+   "name": "Base unit, drawer and door",
+   "group": "kitchen",
+   "type": "kitchen",
+   "size": [
+    0.6,
+    0.62,
+    0.91
+   ],
+   "finishes": [
+    "white",
+    "anthracite",
+    "oak",
+    "green",
+    "blue",
+    "black",
+    "walnut"
+   ],
+   "accents": [
+    "marble",
+    "concrete",
+    "white",
+    "oak",
+    "black",
+    "anthracite"
+   ]
+  },
+  {
+   "model": "modern:kitchen_drawers",
+   "name": "Base unit, drawers",
+   "group": "kitchen",
+   "type": "kitchen",
+   "size": [
+    0.6,
+    0.62,
+    0.91
+   ],
+   "finishes": [
+    "white",
+    "anthracite",
+    "oak",
+    "green",
+    "blue",
+    "black",
+    "walnut"
+   ],
+   "accents": [
+    "marble",
+    "concrete",
+    "white",
+    "oak",
+    "black",
+    "anthracite"
+   ]
+  },
+  {
+   "model": "modern:kitchen_sink_unit",
+   "name": "Sink unit",
+   "group": "kitchen",
+   "type": "kitchen",
+   "size": [
+    0.8,
+    0.62,
+    0.91
+   ],
+   "finishes": [
+    "white",
+    "anthracite",
+    "oak",
+    "green",
+    "blue",
+    "black",
+    "walnut"
+   ],
+   "accents": [
+    "marble",
+    "concrete",
+    "white",
+    "oak",
+    "black",
+    "anthracite"
+   ]
+  },
+  {
+   "model": "modern:kitchen_hob_gas",
+   "name": "Gas hob with oven",
+   "group": "kitchen",
+   "type": "kitchen",
+   "size": [
+    0.6,
+    0.62,
+    0.91
+   ],
+   "finishes": [
+    "white",
+    "anthracite",
+    "oak",
+    "green",
+    "blue",
+    "black",
+    "walnut"
+   ],
+   "accents": [
+    "marble",
+    "concrete",
+    "white",
+    "oak",
+    "black",
+    "anthracite"
+   ]
+  },
+  {
+   "model": "modern:kitchen_hob_ceran",
+   "name": "Ceramic hob with oven",
+   "group": "kitchen",
+   "type": "kitchen",
+   "size": [
+    0.6,
+    0.62,
+    0.91
+   ],
+   "finishes": [
+    "white",
+    "anthracite",
+    "oak",
+    "green",
+    "blue",
+    "black",
+    "walnut"
+   ],
+   "accents": [
+    "marble",
+    "concrete",
+    "white",
+    "oak",
+    "black",
+    "anthracite"
+   ]
+  },
+  {
+   "model": "modern:kitchen_hob_electric",
+   "name": "Electric hob (plates) with oven",
+   "group": "kitchen",
+   "type": "kitchen",
+   "size": [
+    0.6,
+    0.62,
+    0.91
+   ],
+   "finishes": [
+    "white",
+    "anthracite",
+    "oak",
+    "green",
+    "blue",
+    "black",
+    "walnut"
+   ],
+   "accents": [
+    "marble",
+    "concrete",
+    "white",
+    "oak",
+    "black",
+    "anthracite"
+   ]
+  },
+  {
+   "model": "modern:kitchen_oven",
+   "name": "Oven under the worktop",
+   "group": "kitchen",
+   "type": "kitchen",
+   "size": [
+    0.6,
+    0.62,
+    0.91
+   ],
+   "finishes": [
+    "white",
+    "anthracite",
+    "oak",
+    "green",
+    "blue",
+    "black",
+    "walnut"
+   ],
+   "accents": [
+    "marble",
+    "concrete",
+    "white",
+    "oak",
+    "black",
+    "anthracite"
+   ]
+  },
+  {
+   "model": "modern:kitchen_dishwasher",
+   "name": "Dishwasher, integrated",
+   "group": "kitchen",
+   "type": "kitchen",
+   "size": [
+    0.6,
+    0.62,
+    0.91
+   ],
+   "finishes": [
+    "white",
+    "anthracite",
+    "oak",
+    "green",
+    "blue",
+    "black",
+    "walnut"
+   ],
+   "accents": [
+    "marble",
+    "concrete",
+    "white",
+    "oak",
+    "black",
+    "anthracite"
+   ]
+  },
+  {
+   "model": "modern:kitchen_corner",
+   "name": "Corner unit",
+   "group": "kitchen",
+   "type": "kitchen",
+   "size": [
+    1,
+    1,
+    0.91
+   ],
+   "finishes": [
+    "white",
+    "anthracite",
+    "oak",
+    "green",
+    "blue",
+    "black",
+    "walnut"
+   ],
+   "accents": [
+    "marble",
+    "concrete",
+    "white",
+    "oak",
+    "black",
+    "anthracite"
+   ]
+  },
+  {
+   "model": "modern:kitchen_pantry",
+   "name": "Tall cupboard",
+   "group": "kitchen",
+   "type": "kitchen",
+   "size": [
+    0.6,
+    0.62,
+    2.2
+   ],
+   "finishes": [
+    "white",
+    "anthracite",
+    "oak",
+    "green",
+    "blue",
+    "black",
+    "walnut"
+   ]
+  },
+  {
+   "model": "modern:kitchen_pantry_mid",
+   "name": "Mid-height cupboard",
+   "group": "kitchen",
+   "type": "kitchen",
+   "size": [
+    0.6,
+    0.62,
+    1.45
+   ],
+   "finishes": [
+    "white",
+    "anthracite",
+    "oak",
+    "green",
+    "blue",
+    "black",
+    "walnut"
+   ]
+  },
+  {
+   "model": "modern:kitchen_tall_fridge",
+   "name": "Tall unit with fridge",
+   "group": "kitchen",
+   "type": "fridge",
+   "size": [
+    0.6,
+    0.62,
+    2.2
+   ],
+   "finishes": [
+    "white",
+    "anthracite",
+    "oak",
+    "green",
+    "blue",
+    "black",
+    "walnut"
+   ]
+  },
+  {
+   "model": "modern:kitchen_tall_oven",
+   "name": "Tall unit with oven and microwave",
+   "group": "kitchen",
+   "type": "kitchen",
+   "size": [
+    0.6,
+    0.62,
+    2.2
+   ],
+   "finishes": [
+    "white",
+    "anthracite",
+    "oak",
+    "green",
+    "blue",
+    "black",
+    "walnut"
+   ]
+  },
+  {
+   "model": "modern:kitchen_upper_glass",
+   "name": "Wall unit, glass doors",
+   "group": "kitchen",
+   "type": "kitchen_upper",
+   "size": [
+    0.8,
+    0.35,
+    0.72
+   ],
+   "finishes": [
+    "white",
+    "anthracite",
+    "oak",
+    "green",
+    "blue",
+    "black",
+    "walnut"
+   ],
+   "mount": "wall",
+   "elevation": 1.45
+  },
+  {
+   "model": "modern:kitchen_upper_open",
+   "name": "Open wall shelf",
+   "group": "kitchen",
+   "type": "kitchen_upper",
+   "size": [
+    0.8,
+    0.25,
+    0.72
+   ],
+   "finishes": [
+    "oak",
+    "white",
+    "black",
+    "walnut"
+   ],
+   "mount": "wall",
+   "elevation": 1.45
+  },
+  {
+   "model": "modern:kitchen_hood",
+   "name": "Chimney hood",
+   "group": "kitchen",
+   "type": "kitchen_upper",
+   "size": [
+    0.9,
+    0.5,
+    1
+   ],
+   "finishes": [
+    "silver",
+    "black",
+    "white"
+   ],
+   "mount": "wall",
+   "elevation": 1.55
+  },
+  {
+   "model": "modern:fridge_freestanding",
+   "name": "Fridge, free-standing",
+   "group": "kitchen",
+   "type": "fridge",
+   "size": [
+    0.6,
+    0.66,
+    1.85
+   ],
+   "finishes": [
+    "silver",
+    "white",
+    "black",
+    "anthracite",
+    "blue",
+    "red"
+   ]
+  },
+  {
+   "model": "modern:fridge_double",
+   "name": "Side-by-side fridge",
+   "group": "kitchen",
+   "type": "fridge",
+   "size": [
+    0.91,
+    0.72,
+    1.78
+   ],
+   "finishes": [
+    "silver",
+    "black",
+    "white"
+   ]
+  },
+  {
+   "model": "modern:microwave",
+   "name": "Microwave",
+   "group": "kitchen",
+   "type": "item",
+   "size": [
+    0.48,
+    0.38,
+    0.28
+   ],
+   "finishes": [
+    "silver",
+    "black",
+    "white"
+   ]
+  },
+  {
+   "model": "modern:coffee_capsule",
+   "name": "Capsule coffee machine",
+   "group": "kitchen",
+   "type": "item",
+   "size": [
+    0.14,
+    0.38,
+    0.27
+   ],
+   "finishes": [
+    "black",
+    "red",
+    "white",
+    "silver"
+   ]
+  },
+  {
+   "model": "modern:coffee_portafilter",
+   "name": "Espresso machine (portafilter)",
+   "group": "kitchen",
+   "type": "item",
+   "size": [
+    0.38,
+    0.42,
+    0.4
+   ],
+   "finishes": [
+    "silver",
+    "black",
+    "white",
+    "red"
+   ]
+  },
+  {
    "model": "modern:bed",
    "name": "Double bed",
    "group": "bedroom",

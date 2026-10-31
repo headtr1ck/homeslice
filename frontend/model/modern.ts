@@ -43,6 +43,8 @@ const WOOD = ["oak", "white", "walnut", "black", "anthracite"];
 const FABRIC = ["grey", "beige", "anthracite", "green", "blue", "terracotta", "pink"];
 const LAMP = ["black", "white", "oak", "sand"];
 const POT = ["white", "terracotta", "anthracite", "concrete"];
+const FRONTS = ["white", "anthracite", "oak", "green", "blue", "black", "walnut"];
+const WORKTOP = ["marble", "concrete", "white", "oak", "black", "anthracite"];
 const PAINT = ["silver", "white", "black", "anthracite", "blue", "red", "green"];
 
 const k = (id: string, type: FurnitureType, size: [number, number, number], finishes: string[], more: Partial<ModernKind> = {}): ModernKind => ({ id, type, size, finishes, ...more });
@@ -105,6 +107,27 @@ export const MODERN_GROUPS: { id: string; kinds: ModernKind[] }[] = [
       k("kitchen_island", "kitchen", [2.4, 1.0, 0.92], ["white", "anthracite", "oak", "green", "blue", "black"], { accents: ["marble", "concrete", "white", "oak", "black"] }),
       k("kitchen_upper", "kitchen_upper", [2.4, 0.35, 0.72], ["white", "anthracite", "oak", "green", "blue", "black"], { mount: "wall", elevation: 1.45 }),
       k("kitchen_tall", "fridge", [0.6, 0.62, 2.2], ["white", "anthracite", "oak", "green", "blue", "black"]),
+      k("kitchen_base", "kitchen", [0.6, 0.62, 0.91], FRONTS, { accents: WORKTOP }),
+      k("kitchen_drawers", "kitchen", [0.6, 0.62, 0.91], FRONTS, { accents: WORKTOP }),
+      k("kitchen_sink_unit", "kitchen", [0.8, 0.62, 0.91], FRONTS, { accents: WORKTOP }),
+      k("kitchen_hob_gas", "kitchen", [0.6, 0.62, 0.91], FRONTS, { accents: WORKTOP }),
+      k("kitchen_hob_ceran", "kitchen", [0.6, 0.62, 0.91], FRONTS, { accents: WORKTOP }),
+      k("kitchen_hob_electric", "kitchen", [0.6, 0.62, 0.91], FRONTS, { accents: WORKTOP }),
+      k("kitchen_oven", "kitchen", [0.6, 0.62, 0.91], FRONTS, { accents: WORKTOP }),
+      k("kitchen_dishwasher", "kitchen", [0.6, 0.62, 0.91], FRONTS, { accents: WORKTOP }),
+      k("kitchen_corner", "kitchen", [1.0, 1.0, 0.91], FRONTS, { accents: WORKTOP }),
+      k("kitchen_pantry", "kitchen", [0.6, 0.62, 2.2], FRONTS),
+      k("kitchen_pantry_mid", "kitchen", [0.6, 0.62, 1.45], FRONTS),
+      k("kitchen_tall_fridge", "fridge", [0.6, 0.62, 2.2], FRONTS),
+      k("kitchen_tall_oven", "kitchen", [0.6, 0.62, 2.2], FRONTS),
+      k("kitchen_upper_glass", "kitchen_upper", [0.8, 0.35, 0.72], FRONTS, { mount: "wall", elevation: 1.45 }),
+      k("kitchen_upper_open", "kitchen_upper", [0.8, 0.25, 0.72], ["oak", "white", "black", "walnut"], { mount: "wall", elevation: 1.45 }),
+      k("kitchen_hood", "kitchen_upper", [0.9, 0.5, 1.0], ["silver", "black", "white"], { mount: "wall", elevation: 1.55 }),
+      k("fridge_freestanding", "fridge", [0.6, 0.66, 1.85], ["silver", "white", "black", "anthracite", "blue", "red"]),
+      k("fridge_double", "fridge", [0.91, 0.72, 1.78], ["silver", "black", "white"]),
+      k("microwave", "item", [0.48, 0.38, 0.28], ["silver", "black", "white"]),
+      k("coffee_capsule", "item", [0.14, 0.38, 0.27], ["black", "red", "white", "silver"]),
+      k("coffee_portafilter", "item", [0.38, 0.42, 0.4], ["silver", "black", "white", "red"]),
     ],
   },
   {
