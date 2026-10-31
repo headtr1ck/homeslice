@@ -108,3 +108,58 @@ export function labelPoint(poly: Vec2[]): Vec2 {
   }
   return best;
 }
+
+/** Whether a polygon is convex (either orientation). */
+export function isConvex(poly: Vec2[]): boolean {
+  let sign = 0;
+  for (let i = 0; i < poly.length; i++) {
+    const [a, b, c] = [poly[i], poly[(i + 1) % poly.length], poly[(i + 2) % poly.length]];
+    const cross = (b[0] - a[0]) * (c[1] - b[1]) - (b[1] - a[1]) * (c[0] - b[0]);
+    if (Math.abs(cross) < 1e-9) continue;
+    if (sign === 0) sign = Math.sign(cross);
+    else if (Math.sign(cross) !== sign) return false;
+  }
+  return true;
+}
+
+/** `subject` clipped to the convex polygon `clip` (Sutherland–Hodgman): their intersection. */
+export function clipConvex(subject: Vec2[], clip: Vec2[]): Vec2[] {
+  const c = signedArea(clip) < 0 ? [...clip].reverse() : clip;
+  const inside = (p: Vec2, a: Vec2, b: Vec2) => (b[0] - a[0]) * (p[1] - a[1]) - (b[1] - a[1]) * (p[0] - a[0]) >= -1e-9;
+  const cut = (p: Vec2, q: Vec2, a: Vec2, b: Vec2): Vec2 => {
+    const [x1, y1, x2, y2, x3, y3, x4, y4] = [p[0], p[1], q[0], q[1], a[0], a[1], b[0], b[1]];
+    const d = (x1 - x2) * (y3 - y4) - (y1 - y2) * (x3 - x4) || 1e-12;
+    const t = ((x1 - x3) * (y3 - y4) - (y1 - y3) * (x3 - x4)) / d;
+    return [x1 + t * (x2 - x1), y1 + t * (y2 - y1)];
+  };
+  let out = subject;
+  for (let i = 0; i < c.length && out.length; i++) {
+    const [a, b] = [c[i], c[(i + 1) % c.length]];
+    const input = out;
+    out = [];
+    input.forEach((p, j) => {
+      const q = input[(j + 1) % input.length];
+      const pin = inside(p, a, b);
+      const qin = inside(q, a, b);
+      if (pin) out.push(p);
+      if (pin !== qin) out.push(cut(p, q, a, b));
+    });
+  }
+  return out;
+}
+
+/**
+ * The part of `hole` that lies inside `poly` (for cutting a stairwell out of a room's
+ * floor, also where it only reaches into the room). One of the two must be convex;
+ * otherwise the hole counts only when its middle is inside.
+ */
+export function overlap(hole: Vec2[], poly: Vec2[]): Vec2[] | null {
+  let part: Vec2[];
+  if (isConvex(poly)) part = clipConvex(hole, poly);
+  else if (isConvex(hole)) part = clipConvex(poly, hole);
+  else {
+    const [cx, cy] = hole.reduce((s, p) => [s[0] + p[0] / hole.length, s[1] + p[1] / hole.length], [0, 0]);
+    return pointInPolygon([cx, cy], poly) ? hole : null;
+  }
+  return part.length >= 3 && Math.abs(signedArea(part)) > 1e-4 ? part : null;
+}

@@ -415,3 +415,18 @@ describe("furniture linked to entities", () => {
     expect(expandHouse(input([2, 3])).house!.levels[0].rooms[0].lights[0].at).toEqual([2, 3]);
   });
 });
+
+describe("stairwells in floors", () => {
+  it("cut the part of the stairwell that reaches into a room", async () => {
+    const { overlap } = await import("./geometry");
+    const room: [number, number][] = [[0, 0], [4, 0], [4, 3], [0, 3]];
+    // half in, half out
+    const part = overlap([[3, 1], [5, 1], [5, 2], [3, 2]], room)!;
+    const xs = part.map((p) => p[0]);
+    expect([Math.min(...xs), Math.max(...xs)]).toEqual([3, 4]);
+    expect(overlap([[5, 1], [6, 1], [6, 2], [5, 2]], room)).toBeNull();
+    // an L-shaped room and a rectangular stairwell
+    const l: [number, number][] = [[0, 0], [4, 0], [4, 2], [2, 2], [2, 4], [0, 4]];
+    expect(overlap([[1, 1], [3, 1], [3, 3], [1, 3]], l)!.length).toBeGreaterThanOrEqual(5);
+  });
+});
