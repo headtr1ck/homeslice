@@ -32,6 +32,7 @@ import {
   updateFreeWall,
   wallSnap,
   connectEnergy,
+  setCoverInverted,
   addOpening,
   addRoom,
   addFurniture,
@@ -2422,15 +2423,7 @@ export class HomeslicePanel extends LitElement {
       </label>
       ${(r.kind ?? "room") === "outdoor"
         ? html`${this.entitySelect(this.t("editor.awning"), "cover", r.area_id, r.awning, (awning) => set({ awning }))}
-            ${r.awning
-              ? html`<label>${this.t("editor.awning_open")}
-                  <select @change=${(e: Event) => set({ awning_open: ((e.target as HTMLSelectElement).value || undefined) as RoomInput["awning_open"] })}>
-                    <option value="" ?selected=${!r.awning_open}>${this.t(this._hass?.states[r.awning]?.attributes.device_class === "awning" ? "editor.awning_open_auto_extended" : "editor.awning_open_auto_retracted")}</option>
-                    <option value="extended" ?selected=${r.awning_open === "extended"}>${this.t("editor.awning_open_extended")}</option>
-                    <option value="retracted" ?selected=${r.awning_open === "retracted"}>${this.t("editor.awning_open_retracted")}</option>
-                  </select>
-                </label>`
-              : nothing}
+            ${r.awning ? this.invertedToggle(r.awning, "editor.awning_inverted") : nothing}
             <p class="muted">${this.t("editor.awning_hint")}</p>`
         : nothing}
       <button class="danger" @click=${() => {
@@ -2554,6 +2547,7 @@ export class HomeslicePanel extends LitElement {
         <label>${this.t("editor.opening_height")}<input type="number" step="0.05" placeholder=${this.t("editor.default")} .value=${o.height === undefined ? "" : String(o.height)} @change=${num("height")} /></label>
       </div>
       ${this.entitySelect(this.t("editor.opening_cover"), "cover", areaId, o.cover, (cover) => set({ cover }))}
+      ${o.cover ? this.invertedToggle(o.cover, "editor.cover_inverted") : nothing}
       ${this.entitySelect(this.t("editor.opening_contact"), "binary_sensor", areaId, o.contact, (contact) => set({ contact }), (id) =>
         ["door", "window", "opening", "garage_door"].includes(String(states[id]?.attributes.device_class)),
       )}
@@ -2601,6 +2595,14 @@ export class HomeslicePanel extends LitElement {
             return html`${this.cmInput(this.t("editor.wall_thickness"), own, house, (v) => this.commit(setBoundaryThickness(m, this._level, sel.a, sel.b, sel.side, v)))}
               <p class="muted">${this.t("editor.wall_thickness_hint", { cm: cm(house) })}</p>`;
           })()}`;
+  }
+
+  /** "Inverted" for a cover that reports its position the other way round (house-wide, by entity). */
+  private invertedToggle(cover: string, label: StringKey) {
+    const m = this._model!;
+    const on = !!m.inverted_covers?.includes(cover);
+    return html`<label class="check"><input type="checkbox" .checked=${on} @change=${(e: Event) => this.commit(setCoverInverted(m, cover, (e.target as HTMLInputElement).checked))} />
+      ${this.t(label)}</label>`;
   }
 
   /** A thickness in centimetres (stored in metres); empty means `fallback`. */

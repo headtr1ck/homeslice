@@ -817,6 +817,21 @@ console.log("editor");
     await page.keyboard.press("Escape");
   });
 
+  await test("doors & windows: a blind that reports the other way round can be marked inverted", async () => {
+    const hit = await page.evaluate(() => {
+      const l = [...window.panel.shadowRoot.querySelectorAll("svg.plan line.opening-hit")].find((x) => JSON.parse(x.dataset.opening).room === "kitchen");
+      const r = l.getBoundingClientRect();
+      return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+    });
+    await page.mouse.click(hit.x, hit.y);
+    await page.locator("homeslice-panel .inspector label.check", { hasText: "Inverted" }).locator("input").check();
+    assert(JSON.stringify((await model()).inverted_covers) === '["cover.kitchen"]', `inverted: ${JSON.stringify((await model()).inverted_covers)}`);
+    await page.evaluate(() => window.panel.shadowRoot.activeElement?.blur());
+    await page.keyboard.press("Control+z");
+    assert(!(await model()).inverted_covers, "undo did not clear it");
+    await page.keyboard.press("Escape");
+  });
+
   await test("doors & windows: house-wide defaults for sill and height", async () => {
     const sill = page.locator('homeslice-panel .inspector input[aria-label="Window Sill (m)"]');
     await sill.fill("0");

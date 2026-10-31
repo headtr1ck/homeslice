@@ -93,6 +93,7 @@ name: Home
 outline: { rect: [0, 0, 10, 8] }       # outer face of the exterior walls, shared by all levels
 party_walls: [west]                     # walls shared with a neighbour
 roof: { ridge: east_west, pitch: 35 }   # optional; drawn by cards with view.roof
+inverted_covers: [cover.awning]         # optional: covers that report open/closed the other way round
 opening_defaults:                       # optional, house-wide per opening type
   window: { sill: 0, height: 2.2 }      # e.g. floor-to-ceiling windows
 facade_openings:                        # windows stacked on several floors, defined once

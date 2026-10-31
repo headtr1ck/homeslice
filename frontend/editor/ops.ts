@@ -348,6 +348,16 @@ export function setBoundaryThickness(model: HouseInput, levelId: string, a: stri
   return m;
 }
 
+/** Marks a cover as reporting its position the other way round (or not). */
+export function setCoverInverted(model: HouseInput, cover: string, inverted: boolean): HouseInput {
+  const m = clone(model);
+  const list = (m.inverted_covers ?? []).filter((c) => c !== cover);
+  if (inverted) list.push(cover);
+  if (list.length) m.inverted_covers = list;
+  else delete m.inverted_covers;
+  return m;
+}
+
 /** House-wide wall thicknesses (metres); undefined: the default. */
 export function setWallThickness(model: HouseInput, patch: Partial<WallThickness>): HouseInput {
   const m = clone(model);

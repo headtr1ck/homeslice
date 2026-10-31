@@ -151,10 +151,6 @@ export function expandHouse(input: unknown): ExpandResult {
       });
       const room: Room = { id: ri.id, areaId: ri.area_id, name: ri.name, kind, floor: ri.floor ?? DEFAULTS.floor[kind], polygon, lights, furniture };
       if (ri.awning) room.awning = ri.awning;
-      if (ri.awning_open !== undefined) {
-        if (!["extended", "retracted"].includes(ri.awning_open)) err(`${rp}.awning_open`, `awning_open must be extended or retracted, got ${JSON.stringify(ri.awning_open)}.`);
-        else room.awningOpen = ri.awning_open;
-      }
       rooms.push(room);
     });
 
@@ -361,5 +357,8 @@ export function expandHouse(input: unknown): ExpandResult {
   }
 
   if (issues.some((i) => i.severity === "error")) return { house: null, issues };
-  return { house: { id: h.id, name: h.name ?? h.id, walls, levels, vertical, roof, energy }, issues };
+  if (h.inverted_covers !== undefined && !(Array.isArray(h.inverted_covers) && h.inverted_covers.every((c) => typeof c === "string")))
+    err("inverted_covers", "inverted_covers must be a list of cover entities.");
+  const invertedCovers = Array.isArray(h.inverted_covers) ? h.inverted_covers.filter((c) => typeof c === "string") : [];
+  return { house: { id: h.id, name: h.name ?? h.id, walls, levels, vertical, roof, energy, invertedCovers }, issues };
 }

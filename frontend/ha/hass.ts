@@ -72,23 +72,13 @@ export function lightsLook(hass: Hass, entities: string[]): RoomLight | null {
 }
 
 /** How far a cover is open, 0..1; null when unknown or unavailable. */
-export function coverOpen(hass: Hass, entityId: string): number | null {
+export function coverOpen(hass: Hass, entityId: string, inverted = false): number | null {
   const s = hass.states[entityId];
   if (!s || s.state === "unavailable" || s.state === "unknown") return null;
   const position = s.attributes.current_position;
-  if (typeof position === "number") return Math.min(1, Math.max(0, position / 100));
-  return s.state === "closed" ? 0 : 1;
-}
-
-/**
- * How far an awning is extended (0..1). HA's awning device class means "open" =
- * extended; other covers used as awnings (shutters, shades) are open when rolled up.
- */
-export function awningExtended(hass: Hass, entityId: string, open?: "extended" | "retracted"): number | null {
-  const k = coverOpen(hass, entityId);
-  if (k === null) return null;
-  const meaning = open ?? (hass.states[entityId]?.attributes.device_class === "awning" ? "extended" : "retracted");
-  return meaning === "extended" ? k : 1 - k;
+  const open = typeof position === "number" ? Math.min(1, Math.max(0, position / 100)) : s.state === "closed" ? 0 : 1;
+  // a cover that reports the other way round
+  return inverted ? 1 - open : open;
 }
 
 /** Whether a door/window contact reports open. */
