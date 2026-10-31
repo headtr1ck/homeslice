@@ -6458,6 +6458,95 @@
    ]
   },
   {
+   "model": "modern:radiator_panel",
+   "name": "Radiator",
+   "group": "utility",
+   "type": "item",
+   "size": [
+    1,
+    0.1,
+    0.6
+   ],
+   "finishes": [
+    "white",
+    "anthracite",
+    "black"
+   ],
+   "mount": "wall",
+   "elevation": 0.15
+  },
+  {
+   "model": "modern:ac_split",
+   "name": "Air conditioner (indoor unit)",
+   "group": "utility",
+   "type": "item",
+   "size": [
+    0.9,
+    0.25,
+    0.3
+   ],
+   "finishes": [
+    "white",
+    "silver",
+    "black"
+   ],
+   "mount": "wall",
+   "elevation": 2
+  },
+  {
+   "model": "modern:fan_standing",
+   "name": "Standing fan",
+   "group": "utility",
+   "type": "item",
+   "size": [
+    0.45,
+    0.45,
+    1.3
+   ],
+   "finishes": [
+    "white",
+    "black",
+    "silver"
+   ],
+   "accents": [
+    "white",
+    "black",
+    "silver"
+   ]
+  },
+  {
+   "model": "modern:air_purifier",
+   "name": "Air purifier",
+   "group": "utility",
+   "type": "item",
+   "size": [
+    0.3,
+    0.3,
+    0.6
+   ],
+   "finishes": [
+    "white",
+    "anthracite",
+    "sand"
+   ]
+  },
+  {
+   "model": "modern:dehumidifier",
+   "name": "Dehumidifier",
+   "group": "utility",
+   "type": "item",
+   "size": [
+    0.35,
+    0.25,
+    0.55
+   ],
+   "finishes": [
+    "white",
+    "grey",
+    "black"
+   ]
+  },
+  {
    "model": "modern:ironing_board",
    "name": "Ironing board",
    "group": "utility",
@@ -6644,6 +6733,366 @@
     "blue",
     "red",
     "silver"
+   ]
+  },
+  {
+   "model": "modern:treadmill",
+   "name": "Treadmill",
+   "group": "hobby",
+   "type": "item",
+   "size": [
+    0.8,
+    1.9,
+    1.4
+   ],
+   "finishes": [
+    "black",
+    "anthracite",
+    "white"
+   ],
+   "accents": [
+    "silver",
+    "black"
+   ]
+  },
+  {
+   "model": "modern:exercise_bike",
+   "name": "Exercise bike",
+   "group": "hobby",
+   "type": "item",
+   "size": [
+    0.55,
+    1.15,
+    1.25
+   ],
+   "finishes": [
+    "black",
+    "red",
+    "silver"
+   ],
+   "accents": [
+    "anthracite",
+    "white",
+    "black"
+   ]
+  },
+  {
+   "model": "modern:rowing_machine",
+   "name": "Rowing machine",
+   "group": "hobby",
+   "type": "item",
+   "size": [
+    0.55,
+    2.3,
+    0.6
+   ],
+   "finishes": [
+    "black",
+    "oak",
+    "silver"
+   ],
+   "accents": [
+    "silver",
+    "oak",
+    "black"
+   ]
+  },
+  {
+   "model": "modern:weight_bench",
+   "name": "Weight bench",
+   "group": "hobby",
+   "type": "item",
+   "size": [
+    0.6,
+    1.25,
+    0.45
+   ],
+   "finishes": [
+    "black",
+    "red",
+    "grey"
+   ],
+   "accents": [
+    "black",
+    "silver"
+   ]
+  },
+  {
+   "model": "modern:dumbbell_rack",
+   "name": "Dumbbell rack",
+   "group": "hobby",
+   "type": "item",
+   "size": [
+    1.2,
+    0.45,
+    0.8
+   ],
+   "finishes": [
+    "black",
+    "anthracite",
+    "red"
+   ],
+   "accents": [
+    "black",
+    "silver"
+   ]
+  },
+  {
+   "model": "modern:yoga_mat",
+   "name": "Yoga mat",
+   "group": "hobby",
+   "type": "rug",
+   "size": [
+    0.62,
+    1.85,
+    0.006
+   ],
+   "finishes": [
+    "green",
+    "blue",
+    "pink",
+    "terracotta",
+    "anthracite"
+   ]
+  },
+  {
+   "model": "modern:punching_bag",
+   "name": "Punching bag",
+   "group": "hobby",
+   "type": "item",
+   "size": [
+    0.38,
+    0.38,
+    1.8
+   ],
+   "finishes": [
+    "black",
+    "red",
+    "sand"
+   ],
+   "mount": "ceiling"
+  },
+  {
+   "model": "modern:billiard_table",
+   "name": "Billiard table",
+   "group": "hobby",
+   "type": "table",
+   "size": [
+    1.4,
+    2.5,
+    0.8
+   ],
+   "finishes": [
+    "walnut",
+    "oak",
+    "black"
+   ],
+   "accents": [
+    "oak",
+    "walnut",
+    "black"
+   ]
+  },
+  {
+   "model": "modern:table_tennis",
+   "name": "Table tennis table",
+   "group": "hobby",
+   "type": "table",
+   "size": [
+    1.52,
+    2.74,
+    0.76
+   ],
+   "finishes": [
+    "blue",
+    "green"
+   ]
+  },
+  {
+   "model": "modern:foosball",
+   "name": "Table football",
+   "group": "hobby",
+   "type": "table",
+   "size": [
+    0.75,
+    1.4,
+    0.92
+   ],
+   "finishes": [
+    "oak",
+    "black",
+    "white",
+    "red"
+   ],
+   "accents": [
+    "black",
+    "red"
+   ]
+  },
+  {
+   "model": "modern:dartboard",
+   "name": "Dartboard",
+   "group": "hobby",
+   "type": "item",
+   "size": [
+    0.45,
+    0.04,
+    0.45
+   ],
+   "finishes": [
+    "black"
+   ],
+   "mount": "wall",
+   "elevation": 1.5
+  },
+  {
+   "model": "modern:projector_screen",
+   "name": "Projector screen",
+   "group": "hobby",
+   "type": "tv",
+   "size": [
+    2.4,
+    0.08,
+    1.6
+   ],
+   "finishes": [
+    "white",
+    "black"
+   ],
+   "mount": "wall",
+   "elevation": 0.8
+  },
+  {
+   "model": "modern:guitar_stand",
+   "name": "Guitar on a stand",
+   "group": "hobby",
+   "type": "item",
+   "size": [
+    0.4,
+    0.35,
+    1.05
+   ],
+   "finishes": [
+    "walnut",
+    "oak",
+    "red",
+    "black",
+    "sand"
+   ],
+   "accents": [
+    "black",
+    "silver"
+   ]
+  },
+  {
+   "model": "modern:drum_kit",
+   "name": "Drum kit",
+   "group": "hobby",
+   "type": "item",
+   "size": [
+    1.6,
+    1.3,
+    1.1
+   ],
+   "finishes": [
+    "red",
+    "black",
+    "blue",
+    "walnut",
+    "white"
+   ],
+   "accents": [
+    "chrome",
+    "black"
+   ]
+  },
+  {
+   "model": "modern:keyboard_stand",
+   "name": "Keyboard on a stand",
+   "group": "hobby",
+   "type": "item",
+   "size": [
+    1.3,
+    0.4,
+    0.95
+   ],
+   "finishes": [
+    "black",
+    "white",
+    "red"
+   ],
+   "accents": [
+    "black",
+    "silver"
+   ]
+  },
+  {
+   "model": "modern:cat_tree",
+   "name": "Cat tree",
+   "group": "hobby",
+   "type": "item",
+   "size": [
+    0.6,
+    0.6,
+    1.6
+   ],
+   "finishes": [
+    "beige",
+    "grey",
+    "white",
+    "anthracite"
+   ]
+  },
+  {
+   "model": "modern:dog_bed",
+   "name": "Dog bed",
+   "group": "hobby",
+   "type": "item",
+   "size": [
+    0.9,
+    0.7,
+    0.25
+   ],
+   "finishes": [
+    "grey",
+    "beige",
+    "anthracite",
+    "green",
+    "blue",
+    "terracotta"
+   ]
+  },
+  {
+   "model": "modern:pet_bowls",
+   "name": "Pet bowls",
+   "group": "hobby",
+   "type": "item",
+   "size": [
+    0.35,
+    0.2,
+    0.07
+   ],
+   "finishes": [
+    "white",
+    "black",
+    "silver",
+    "terracotta"
+   ]
+  },
+  {
+   "model": "modern:bird_cage",
+   "name": "Bird cage",
+   "group": "hobby",
+   "type": "item",
+   "size": [
+    0.45,
+    0.45,
+    0.8
+   ],
+   "finishes": [
+    "white",
+    "black",
+    "brass"
    ]
   },
   {

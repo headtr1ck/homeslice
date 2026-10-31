@@ -33,6 +33,8 @@ const SPAN: Record<string, number> = {
   carpet_grey: 1,
   gravel: 1,
   lawn: 1.5,
+  bark: 0.6,
+  bark_birch: 1,
   cobbles: 1,
 };
 
@@ -467,6 +469,35 @@ const PAINTERS: Record<string, Painter> = {
     speckle(c, b, rnd, 9000, 0.08, 1.2);
   },
   render_grey: (c, px, b, rnd) => PAINTERS.render_white(c, px, b, rnd),
+  bark: (c, _px, b, rnd) => {
+    // furrows running up the trunk (v), ridges between them
+    c.fillStyle = b.getStyle();
+    c.fillRect(0, 0, SIZE, SIZE);
+    for (let i = 0; i < 90; i++) {
+      const x = rnd() * SIZE;
+      c.strokeStyle = tone(b, rnd() > 0.5 ? -0.4 : 0.12);
+      c.lineWidth = 2 + rnd() * 5;
+      c.beginPath();
+      let y = 0;
+      let xx = x;
+      c.moveTo(xx, y);
+      while (y < SIZE) {
+        y += 12 + rnd() * 20;
+        xx += (rnd() - 0.5) * 10;
+        c.lineTo(xx, y);
+      }
+      c.stroke();
+    }
+  },
+  bark_birch: (c, _px, b, rnd) => {
+    c.fillStyle = b.getStyle();
+    c.fillRect(0, 0, SIZE, SIZE);
+    for (let i = 0; i < 60; i++) {
+      c.fillStyle = tone(new THREE.Color("#2b2b2b"), rnd() * 0.3);
+      c.fillRect(rnd() * SIZE, rnd() * SIZE, 10 + rnd() * 50, 2 + rnd() * 6);
+    }
+    speckle(c, b, rnd, 2000, 0.1, 1.5);
+  },
 };
 
 function speckle2(c: Ctx, b: THREE.Color, rnd: () => number, x: number, y: number, w: number, h: number) {

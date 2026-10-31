@@ -81,6 +81,9 @@ export const FINISH_LIST: Finish[] = [
   f("decking", "outside", FLOOR, "#8e6a4a"),
   f("cobbles", "outside", FLOOR, "#86807a"),
   f("render_white", "outside", WALL, "#efede8"),
+  // bark: for trees only (no surface offers it)
+  f("bark", "outside", [], "#6a4e39"),
+  f("bark_birch", "outside", [], "#e6e2da"),
   f("render_grey", "outside", WALL, "#a9aaa8"),
 ];
 
