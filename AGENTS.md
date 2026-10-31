@@ -84,6 +84,11 @@ in `frontend/model/validation.test.ts`, `UPDATE_CASES=1 …`, both test suites.
 **A card option.** `HomesliceCardConfig` in `homeslice-card.ts` (doc comment), its control
 in `homeslice-card-editor.ts`, `cardeditor.*` texts, the README's card section.
 
+**A release.** Bump `version` in `package.json` and `custom_components/homeslice/manifest.json`,
+let CI pass, then publish a GitHub release with tag `vX.Y.Z` and title `Homeslice X.Y.Z`
+(notes: what's new for users, then changes that need attention). `release.yml` attaches
+`homeslice.zip`.
+
 **A websocket command.** `websocket.py` (admins only if it changes anything), a Python
 test in `tests/test_init.py`, and the fake in `dev/fake-hass.js` if the frontend uses it.
 
