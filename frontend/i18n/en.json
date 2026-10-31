@@ -324,7 +324,7 @@
   "furniture.group_living": "Living",
   "furniture.group_dining": "Dining",
   "furniture.group_kitchen": "Kitchen",
-  "furniture.group_bedroom": "Bedroom & study",
+  "furniture.group_bedroom": "Bedroom",
   "furniture.group_bathroom": "Bathroom",
   "furniture.group_utility": "Utility",
   "furniture.group_lighting": "Lighting",
@@ -1181,5 +1181,7 @@
   "alias.rug_berber": "berber rug, moroccan rug, beni ourain",
   "alias.floor_lamp_reading": "reading lamp, floor lamp",
   "alias.table_lamp_glass": "glass lamp, table lamp",
-  "alias.pendant_bell": "bell pendant, metal pendant, kitchen light"
+  "alias.pendant_bell": "bell pendant, metal pendant, kitchen light",
+  "furniture.group_office": "Office",
+  "furniture.group_kids": "Kids"
 }

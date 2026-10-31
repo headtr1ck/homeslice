@@ -324,7 +324,7 @@
   "furniture.group_living": "Wohnen",
   "furniture.group_dining": "Essen",
   "furniture.group_kitchen": "Küche",
-  "furniture.group_bedroom": "Schlafen & Arbeiten",
+  "furniture.group_bedroom": "Schlafzimmer",
   "furniture.group_bathroom": "Bad",
   "furniture.group_utility": "Hauswirtschaft",
   "furniture.group_lighting": "Beleuchtung",
@@ -1181,5 +1181,7 @@
   "alias.rug_berber": "Berberteppich, marokkanischer Teppich",
   "alias.floor_lamp_reading": "Leselampe, Stehlampe",
   "alias.table_lamp_glass": "Glaslampe, Tischlampe",
-  "alias.pendant_bell": "Glockenleuchte, Pendelleuchte"
+  "alias.pendant_bell": "Glockenleuchte, Pendelleuchte",
+  "furniture.group_office": "Büro",
+  "furniture.group_kids": "Kinderzimmer"
 }

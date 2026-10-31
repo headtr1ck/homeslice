@@ -2708,23 +2708,6 @@
    ]
   },
   {
-   "model": "modern:bunk_bed",
-   "name": "Bunk bed",
-   "group": "bedroom",
-   "type": "bed_single",
-   "size": [
-    1,
-    2.05,
-    1.6
-   ],
-   "finishes": [
-    "oak",
-    "white",
-    "walnut",
-    "black"
-   ]
-  },
-  {
    "model": "modern:bed_storage",
    "name": "Bed with drawers",
    "group": "bedroom",
@@ -2809,47 +2792,6 @@
    ]
   },
   {
-   "model": "modern:crib",
-   "name": "Cot",
-   "group": "bedroom",
-   "type": "bed_single",
-   "size": [
-    0.68,
-    1.28,
-    0.95
-   ],
-   "finishes": [
-    "white",
-    "oak",
-    "green",
-    "pink",
-    "blue"
-   ]
-  },
-  {
-   "model": "modern:changing_table",
-   "name": "Changing table",
-   "group": "bedroom",
-   "type": "shelf",
-   "size": [
-    0.8,
-    0.55,
-    1
-   ],
-   "finishes": [
-    "white",
-    "oak",
-    "green",
-    "pink",
-    "blue"
-   ],
-   "accents": [
-    "oak",
-    "white",
-    "black"
-   ]
-  },
-  {
    "model": "modern:dressing_table",
    "name": "Dressing table",
    "group": "bedroom",
@@ -2870,81 +2812,6 @@
     "black",
     "oak",
     "white"
-   ]
-  },
-  {
-   "model": "modern:toy_box",
-   "name": "Toy box",
-   "group": "bedroom",
-   "type": "item",
-   "size": [
-    0.8,
-    0.42,
-    0.45
-   ],
-   "finishes": [
-    "white",
-    "blue",
-    "green",
-    "pink",
-    "oak"
-   ]
-  },
-  {
-   "model": "modern:rocking_horse",
-   "name": "Rocking horse",
-   "group": "bedroom",
-   "type": "item",
-   "size": [
-    0.32,
-    0.85,
-    0.72
-   ],
-   "finishes": [
-    "oak",
-    "white",
-    "walnut"
-   ]
-  },
-  {
-   "model": "modern:teepee",
-   "name": "Play tent",
-   "group": "bedroom",
-   "type": "item",
-   "size": [
-    1.3,
-    1.3,
-    1.8
-   ],
-   "finishes": [
-    "beige",
-    "white",
-    "grey",
-    "pink",
-    "green"
-   ]
-  },
-  {
-   "model": "modern:kids_table",
-   "name": "Kids' table and chairs",
-   "group": "bedroom",
-   "type": "table",
-   "size": [
-    1.1,
-    0.6,
-    0.52
-   ],
-   "finishes": [
-    "white",
-    "oak",
-    "green",
-    "pink",
-    "blue"
-   ],
-   "accents": [
-    "oak",
-    "white",
-    "black"
    ]
   },
   {
@@ -3326,7 +3193,7 @@
   {
    "model": "modern:desk",
    "name": "Desk",
-   "group": "bedroom",
+   "group": "office",
    "type": "desk",
    "size": [
     1.4,
@@ -3347,76 +3214,9 @@
    ]
   },
   {
-   "model": "modern:laptop",
-   "name": "Laptop",
-   "group": "bedroom",
-   "type": "item",
-   "size": [
-    0.32,
-    0.22,
-    0.2
-   ],
-   "finishes": [
-    "silver",
-    "black",
-    "white"
-   ]
-  },
-  {
-   "model": "modern:monitor",
-   "name": "Computer monitor",
-   "group": "bedroom",
-   "type": "tv",
-   "size": [
-    0.62,
-    0.2,
-    0.48
-   ],
-   "finishes": [
-    "black",
-    "white",
-    "silver"
-   ]
-  },
-  {
-   "model": "modern:books",
-   "name": "Books",
-   "group": "bedroom",
-   "type": "item",
-   "size": [
-    0.4,
-    0.22,
-    0.25
-   ],
-   "finishes": [
-    "white"
-   ]
-  },
-  {
-   "model": "modern:chair_office",
-   "name": "Office chair",
-   "group": "bedroom",
-   "type": "chair",
-   "size": [
-    0.6,
-    0.6,
-    1.05
-   ],
-   "finishes": [
-    "black",
-    "grey",
-    "white"
-   ],
-   "accents": [
-    "black",
-    "chrome",
-    "white"
-   ]
-  },
-  {
    "model": "modern:desk_drawers",
    "name": "Desk with drawers",
-   "group": "bedroom",
+   "group": "office",
    "type": "desk",
    "size": [
     1.4,
@@ -3440,7 +3240,7 @@
   {
    "model": "modern:desk_standing",
    "name": "Standing desk",
-   "group": "bedroom",
+   "group": "office",
    "type": "desk",
    "size": [
     1.6,
@@ -3462,7 +3262,7 @@
   {
    "model": "modern:desk_corner",
    "name": "Corner desk",
-   "group": "bedroom",
+   "group": "office",
    "type": "desk",
    "size": [
     1.6,
@@ -3482,9 +3282,54 @@
    ]
   },
   {
+   "model": "modern:chair_office",
+   "name": "Office chair",
+   "group": "office",
+   "type": "chair",
+   "size": [
+    0.6,
+    0.6,
+    1.05
+   ],
+   "finishes": [
+    "black",
+    "grey",
+    "white"
+   ],
+   "accents": [
+    "black",
+    "chrome",
+    "white"
+   ]
+  },
+  {
+   "model": "modern:gaming_chair",
+   "name": "Gaming chair",
+   "group": "office",
+   "type": "chair",
+   "size": [
+    0.7,
+    0.7,
+    1.35
+   ],
+   "finishes": [
+    "black",
+    "red",
+    "blue",
+    "grey",
+    "white"
+   ],
+   "accents": [
+    "black",
+    "red",
+    "white",
+    "blue"
+   ]
+  },
+  {
    "model": "modern:drawer_unit",
    "name": "Drawer unit on castors",
-   "group": "bedroom",
+   "group": "office",
    "type": "shelf",
    "size": [
     0.42,
@@ -3506,9 +3351,41 @@
    ]
   },
   {
+   "model": "modern:laptop",
+   "name": "Laptop",
+   "group": "office",
+   "type": "item",
+   "size": [
+    0.32,
+    0.22,
+    0.2
+   ],
+   "finishes": [
+    "silver",
+    "black",
+    "white"
+   ]
+  },
+  {
+   "model": "modern:monitor",
+   "name": "Computer monitor",
+   "group": "office",
+   "type": "tv",
+   "size": [
+    0.62,
+    0.2,
+    0.48
+   ],
+   "finishes": [
+    "black",
+    "white",
+    "silver"
+   ]
+  },
+  {
    "model": "modern:printer",
    "name": "Printer",
-   "group": "bedroom",
+   "group": "office",
    "type": "item",
    "size": [
     0.45,
@@ -3522,27 +3399,150 @@
    ]
   },
   {
-   "model": "modern:gaming_chair",
-   "name": "Gaming chair",
-   "group": "bedroom",
-   "type": "chair",
+   "model": "modern:books",
+   "name": "Books",
+   "group": "office",
+   "type": "item",
    "size": [
-    0.7,
-    0.7,
-    1.35
+    0.4,
+    0.22,
+    0.25
    ],
    "finishes": [
-    "black",
-    "red",
-    "blue",
-    "grey",
     "white"
+   ]
+  },
+  {
+   "model": "modern:crib",
+   "name": "Cot",
+   "group": "kids",
+   "type": "bed_single",
+   "size": [
+    0.68,
+    1.28,
+    0.95
+   ],
+   "finishes": [
+    "white",
+    "oak",
+    "green",
+    "pink",
+    "blue"
+   ]
+  },
+  {
+   "model": "modern:bunk_bed",
+   "name": "Bunk bed",
+   "group": "kids",
+   "type": "bed_single",
+   "size": [
+    1,
+    2.05,
+    1.6
+   ],
+   "finishes": [
+    "oak",
+    "white",
+    "walnut",
+    "black"
+   ]
+  },
+  {
+   "model": "modern:changing_table",
+   "name": "Changing table",
+   "group": "kids",
+   "type": "shelf",
+   "size": [
+    0.8,
+    0.55,
+    1
+   ],
+   "finishes": [
+    "white",
+    "oak",
+    "green",
+    "pink",
+    "blue"
    ],
    "accents": [
-    "black",
-    "red",
+    "oak",
     "white",
+    "black"
+   ]
+  },
+  {
+   "model": "modern:toy_box",
+   "name": "Toy box",
+   "group": "kids",
+   "type": "item",
+   "size": [
+    0.8,
+    0.42,
+    0.45
+   ],
+   "finishes": [
+    "white",
+    "blue",
+    "green",
+    "pink",
+    "oak"
+   ]
+  },
+  {
+   "model": "modern:rocking_horse",
+   "name": "Rocking horse",
+   "group": "kids",
+   "type": "item",
+   "size": [
+    0.32,
+    0.85,
+    0.72
+   ],
+   "finishes": [
+    "oak",
+    "white",
+    "walnut"
+   ]
+  },
+  {
+   "model": "modern:teepee",
+   "name": "Play tent",
+   "group": "kids",
+   "type": "item",
+   "size": [
+    1.3,
+    1.3,
+    1.8
+   ],
+   "finishes": [
+    "beige",
+    "white",
+    "grey",
+    "pink",
+    "green"
+   ]
+  },
+  {
+   "model": "modern:kids_table",
+   "name": "Kids' table and chairs",
+   "group": "kids",
+   "type": "table",
+   "size": [
+    1.1,
+    0.6,
+    0.52
+   ],
+   "finishes": [
+    "white",
+    "oak",
+    "green",
+    "pink",
     "blue"
+   ],
+   "accents": [
+    "oak",
+    "white",
+    "black"
    ]
   },
   {
