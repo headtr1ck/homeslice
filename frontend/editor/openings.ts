@@ -48,3 +48,19 @@ export function presetOf(o: Pick<OpeningInput, "type" | "style" | "width" | "sil
 export function applyPreset(p: OpeningPreset): Partial<OpeningInput> {
   return { type: p.type === "window" ? undefined : p.type, style: p.style, width: p.width, sill: p.sill, height: p.height };
 }
+
+/** An opening's kind, like the library's presets name it (e.g. "window_double"). */
+export function kindOf(o: Pick<OpeningInput, "type" | "style" | "width">): string {
+  const type = o.type ?? "window";
+  const style = o.style ?? (type === "opening" ? "square" : (type === "window" && o.width > 1.3) || (type === "door" && o.width > 1.4) ? "double" : "single");
+  if (type === "garage_door") return "garage_door";
+  if (type === "opening") return style === "arch" ? "opening_arch" : "opening";
+  return style === "single" ? type : `${type}_${style}`;
+}
+
+/** The library's groups: windows, doors (and garage doors), openings. */
+export const OPENING_GROUPS: { id: "windows" | "doors" | "openings"; presets: OpeningPreset[] }[] = [
+  { id: "windows", presets: OPENING_PRESETS.filter((p) => p.type === "window") },
+  { id: "doors", presets: OPENING_PRESETS.filter((p) => p.type === "door" || p.type === "garage_door") },
+  { id: "openings", presets: OPENING_PRESETS.filter((p) => p.type === "opening") },
+];

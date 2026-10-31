@@ -444,5 +444,9 @@
   "editor.opening_door_sliding": "Sliding door",
   "editor.opening_opening_arch": "Arched opening",
   "editor.furniture_entity": "Linked to",
-  "editor.furniture_entity_hint": "The entity this piece is: a floor lamp's light glows where the lamp stands; a TV or washing machine shows in the room's popup."
+  "editor.furniture_entity_hint": "The entity this piece is: a floor lamp's light glows where the lamp stands; a TV or washing machine shows in the room's popup.",
+  "editor.opening_group_windows": "Windows",
+  "editor.opening_group_doors": "Doors",
+  "editor.opening_group_openings": "Openings",
+  "editor.opening_change_kind": "Change it to another kind, also a door or an opening:"
 }

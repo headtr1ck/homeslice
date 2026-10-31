@@ -4,7 +4,7 @@
 
 import { LitElement, css, html, nothing, svg, type PropertyValues } from "lit";
 import { unsafeSVG } from "lit/directives/unsafe-svg.js";
-import { OPENING_PRESETS, applyPreset, presetOf, type OpeningPreset } from "./openings";
+import { OPENING_GROUPS, OPENING_PRESETS, applyPreset, kindOf, presetOf, type OpeningPreset } from "./openings";
 import { GLTFExporter } from "three/examples/jsm/exporters/GLTFExporter.js";
 import { parse as parseYaml, stringify as toYaml } from "yaml";
 import { areaEntities, type Hass } from "../ha/hass";
@@ -2732,8 +2732,10 @@ export class HomeslicePanel extends LitElement {
     if (this._tool === "opening")
       return html`<h2>${this.t("editor.tool_opening")}</h2>
         <p class="muted">${this.t("editor.opening_library_hint")}</p>
+        ${OPENING_GROUPS.map(
+          (g) => html`<h4>${this.t(`editor.opening_group_${g.id}` as StringKey)}</h4>
         <div class="library openings">
-          ${OPENING_PRESETS.map(
+          ${g.presets.map(
             (p) => html`<button class="piece ${this._openingPreset === p.id ? "active" : ""}" draggable="true" data-preset=${p.id} aria-pressed=${this._openingPreset === p.id}
               @dragstart=${(e: DragEvent) => {
                 this.openingDrag = p.id;
@@ -2746,7 +2748,8 @@ export class HomeslicePanel extends LitElement {
               <span>${this.t(`editor.opening_${p.id}` as StringKey)}</span>
             </button>`,
           )}
-        </div>
+        </div>`,
+        )}
         ${this.renderOpeningDefaults()}`;
     if (this._tool === "furniture") {
       const room = l.rooms.find((x) => x.id === this._room) ?? null;
@@ -2945,16 +2948,21 @@ export class HomeslicePanel extends LitElement {
     const areaId = roomInput?.area_id;
     const states = this._hass?.states ?? {};
     const shared = sel.src.kind === "facade" ? m.facade_openings?.[sel.src.index]?.levels ?? [] : [];
-    return html`<h2>${this.t(`editor.type_${o.type ?? "window"}` as StringKey)}</h2>
+    // its kind (e.g. "Double window"); the tiles below change it, also into a door
+    return html`<h2>${this.t(`editor.opening_${kindOf(o)}` as StringKey)}</h2>
       <p class="muted">${roomInput ? this.roomName(roomInput) : ""} · ${this.t(`editor.side_${o.side}` as StringKey)}</p>
       ${shared.length ? html`<p class="muted">${this.t("editor.opening_shared", { levels: shared.join(", ") })}</p>` : nothing}
-      <div class="opening-kinds" role="radiogroup" aria-label=${this.t("editor.opening_type")}>
-        ${OPENING_PRESETS.map((p) => {
-          const current = presetOf(o)?.id === p.id;
-          return html`<button class="kind ${current ? "active" : ""}" role="radio" aria-checked=${current} data-preset=${p.id} title=${this.t(`editor.opening_${p.id}` as StringKey)}
-            @click=${() => set(applyPreset(p))}>${this.openingIcon(p)}</button>`;
-        })}
-      </div>
+      <p class="muted">${this.t("editor.opening_change_kind")}</p>
+      ${OPENING_GROUPS.map(
+        (g) => html`<h4>${this.t(`editor.opening_group_${g.id}` as StringKey)}</h4>
+          <div class="opening-kinds" role="radiogroup" aria-label=${this.t(`editor.opening_group_${g.id}` as StringKey)}>
+            ${g.presets.map((p) => {
+              const current = presetOf(o)?.id === p.id;
+              return html`<button class="kind ${current ? "active" : ""}" role="radio" aria-checked=${current} data-preset=${p.id} title=${this.t(`editor.opening_${p.id}` as StringKey)}
+                @click=${() => set(applyPreset(p))}>${this.openingIcon(p)}</button>`;
+            })}
+          </div>`,
+      )}
       ${(o.type ?? "window") === "door" || (o.type ?? "window") === "window"
         ? o.style === "fixed" || o.style === "sliding"
           ? nothing
