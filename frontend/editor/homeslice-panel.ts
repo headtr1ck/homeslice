@@ -4080,9 +4080,13 @@ export class HomeslicePanel extends LitElement {
       stroke-width: 3px;
       stroke-linejoin: round;
     }
+    /* no outline: just the piece; outlined when selected, faintly under the mouse */
     .furniture rect {
       fill: transparent;
-      stroke: rgba(60, 64, 70, 0.6);
+      stroke: none;
+    }
+    .furniture.editable:hover rect {
+      stroke: rgba(60, 64, 70, 0.5);
       stroke-width: 1;
     }
     .furniture image {
