@@ -689,32 +689,26 @@ const BUILDERS: Record<string, Build> = {
     b.box(0.3, 0.02, 0.2, 0, 0, 0, f);
     letterBox(b, w, d, bh, h - bh, f);
   },
-  toilet_wall: (b, w, d, h, f, _c, a) => {
-    // a hanging bowl and the flush plate in the wall
-    const ceramic = f;
-    const bowl = b.add(new THREE.SphereGeometry(0.5, 24, 12), ceramic, 0, 0.33, 0.02);
-    bowl.scale.set(w, 0.28, d * 0.95);
-    b.box(w * 0.82, 0.2, 0.12, 0, 0.22, back(d) + 0.06, ceramic, 0.04);
-    b.box(w * 0.95, 0.025, d * 0.9, 0, 0.4, 0.02, mat(C.ceramic), 0.01);
-    b.box(0.24, 0.16, 0.012, 0, Math.min(h, 1.05) - 0.16, back(d) + 0.006, a, 0.004);
-  },
-  bidet: (b, w, d, _h, f, _c, a) => {
-    const bowl = b.add(new THREE.SphereGeometry(0.5, 24, 12), f, 0, 0.3, 0.02);
-    bowl.scale.set(w, 0.3, d * 0.95);
-    b.box(w * 0.82, 0.2, 0.12, 0, 0.2, back(d) + 0.06, f, 0.04);
-    b.box(w * 0.92, 0.03, d * 0.88, 0, 0.4, 0.02, f, 0.012);
-    b.box(w * 0.7, 0.004, d * 0.62, 0, 0.43, 0.05, mat("#d8d8d4"), 0.01);
-    b.cyl(0.012, 0.012, 0.1, 0, 0.43, back(d) + 0.12, a, 10);
-  },
+  toilet_wall: (b, w, d, _h, f, _c, a) => toiletBowl(b, w, d, back(d), f, a),
+  bidet: (b, w, d, _h, f, _c, a) => bidet(b, w, d, f, a, {}),
+  bidet_square: (b, w, d, _h, f, _c, a) => bidet(b, w, d, f, a, { square: true }),
+  bidet_floor: (b, w, d, _h, f, _c, a) => bidet(b, w, d, f, a, { floor: true, open: true }),
+  toilet_wall_square: (b, w, d, _h, f, _c, a) => toiletBowl(b, w, d, back(d), f, a, { square: true }),
+  toilet_floor: (b, w, d, _h, f, _c, a) => toiletBowl(b, w, d, back(d), f, a, { floor: true }),
+  toilet_floor_square: (b, w, d, _h, f, _c, a) => toiletBowl(b, w, d, back(d), f, a, { floor: true, square: true }),
   vanity: (b, w, d, h, f, _c, a) => vanity(b, w, d, h, f, Math.max(1, Math.round(w / 0.75)), a),
   vanity_double: (b, w, d, h, f, _c, a) => vanity(b, w, d, h, f, Math.max(2, Math.round(w / 0.7)), a),
   sink_large: (b, w, d, h, f, _c, a) => {
-    // a long washbasin on a shelf
-    b.box(w, 0.04, d, 0, h - 0.18, 0, mat("#c9a47c"), 0.006);
-    b.box(w * 0.9, 0.14, d * 0.85, 0, h - 0.14, 0.02, f, 0.03);
-    b.box(w * 0.82, 0.004, d * 0.65, 0, h, 0.04, mat("#d8d8d4"));
-    const tap = a;
-    for (const x of w > 0.9 ? [-w / 4, w / 4] : [0]) b.rod(v(x, h + 0.02, back(d) + 0.05), v(x, h + 0.2, back(d) + 0.05), 0.01, tap);
+    // one or two bowls on a wooden shelf
+    const top = h - 0.14;
+    b.box(w, 0.04, d, 0, top - 0.04, 0, surface("oak", 0.7), 0.006);
+    const n = w > 0.9 ? 2 : 1;
+    for (let i = 0; i < n; i++) {
+      const x = -w / 2 + (w / n) * (i + 0.5);
+      vessel(b, Math.min(0.48, w / n - 0.08), d * 0.78, top, f);
+      tapBasin(b, x, top, back(d) + 0.05, a, 0.26);
+      if (n > 1) b.g.children.at(-4)?.position.setX(x);
+    }
   },
   mirror_cabinet: (b, w, d, h, f) => {
     b.box(w, h, d - 0.02, 0, 0, back(d) + (d - 0.02) / 2, f, 0.004);
@@ -733,13 +727,12 @@ const BUILDERS: Record<string, Build> = {
     b.rod(v(-w / 2 + 0.35, h - 0.1, back(d) + 0.03), v(-w / 2 + 0.35, h - 0.1, back(d) + 0.2), 0.01, chrome);
   },
   bathtub: (b, w, d, h, f, _c, a) => {
-    // freestanding: a rounded tub, white inside
+    // freestanding: a soft block, an oval basin inside
     b.box(w, h, d, 0, 0, 0, f, Math.min(0.2, d * 0.3));
-    b.box(w - 0.12, 0.004, d - 0.12, 0, h - 0.004, 0, mat(C.ceramic), 0.004);
-    b.box(w - 0.16, 0.004, d - 0.16, 0, h - 0.002, 0, mat("#cfe0e6", { roughness: 0.2 }), 0.004);
-    const chrome = a;
-    b.cyl(0.015, 0.015, h + 0.35, w / 2 + 0.12, 0, 0, chrome, 10);
-    b.rod(v(w / 2 + 0.12, h + 0.35, 0), v(w / 2 - 0.05, h + 0.3, 0), 0.012, chrome);
+    const inner = new THREE.CircleGeometry(0.5, 40);
+    inner.scale(w - 0.14, d - 0.14, 1);
+    b.add(inner, mat("#dfe9ec", { roughness: 0.2 }), 0, h + 0.002, 0).rotation.x = -Math.PI / 2;
+    floorTap(b, w / 2 + 0.15, h, 0, a);
   },
   towel_radiator: (b, w, d, h, f) => {
     for (const sx of [-1, 1]) b.cyl(0.015, 0.015, h, sx * (w / 2 - 0.02), 0, back(d) + 0.035, f, 10);
@@ -1479,6 +1472,182 @@ const BUILDERS: Record<string, Build> = {
     for (let i = 0; i < 3; i++) b.cyl(0.03, 0.025, 0.05, -w * 0.25 + i * w * 0.25, h * 0.86, -d * 0.1, mat(C.ceramic), 12);
     b.cyl(0.035, 0.03, 0.06, -w * 0.08, 0.06, d * 0.36, mat(C.ceramic), 14);
   },
+  // ----- bathroom, more and rounder (ceramics in the finish, taps and frames in the accent) -----
+  sink_wall: (b, w, d, h, f, _c, a) => {
+    basin(b, w, d, h, f, 0.16);
+    // a bottle trap under it
+    b.cyl(0.02, 0.02, 0.12, 0, h - 0.3, -0.02, a, 12);
+    b.sphere(0.035, 0, h - 0.33, -0.02, a, 1, 1.2, 1, 12);
+    b.rod(v(0, h - 0.38, -0.02), v(0, h - 0.38, back(d)), 0.016, a, 8);
+    tapBasin(b, 0, h, back(d) + 0.06, a);
+  },
+  sink_wall_square: (b, w, d, h, f, _c, a) => {
+    basin(b, w, d, h, f, 0.12, true);
+    b.box(0.05, 0.12, 0.05, 0, h - 0.24, -0.02, a, 0.01);
+    b.rod(v(0, h - 0.2, -0.02), v(0, h - 0.2, back(d)), 0.016, a, 8);
+    tapBasin(b, 0, h, back(d) + 0.06, a);
+  },
+  sink_pedestal: (b, w, d, h, f, _c, a) => {
+    // standing: a rounded basin on a column
+    basin(b, w, d, h, f, 0.16);
+    const col = new THREE.LatheGeometry([[0.001, 0], [0.12, 0], [0.09, 0.15], [0.08, 0.8], [0.13, 1], [0.001, 1]].map(([r, y]) => new THREE.Vector2(r, y)), 24);
+    col.scale(1, h - 0.16, 0.8);
+    b.add(col, f, 0, 0, -0.04);
+    tapBasin(b, 0, h, back(d) + 0.06, a);
+  },
+  vanity_square: (b, w, d, h, f, _c, a) => vanity(b, w, d, h, f, Math.max(1, Math.round(w / 0.75)), a, true),
+  sink_counter_square: (b, w, d, h, f, _c, a) => {
+    // a rectangular bowl on a wall shelf
+    const top = h - 0.13;
+    b.box(w, 0.04, d, 0, top - 0.04, 0, surface("oak", 0.7), 0.006);
+    const bw = Math.min(0.55, w - 0.1);
+    b.box(bw, 0.13, d * 0.78, 0, top, 0.02, f, 0.015);
+    flat(b, bw - 0.06, d * 0.78 - 0.06, h + 0.002, 0.02, mat("#dcdcd8", { roughness: 0.3 }), true);
+    tapBasin(b, bw / 2 + 0.08 > w / 2 ? 0 : bw / 2 + 0.06, top, back(d) + 0.05, a, 0.26);
+  },
+  sink_wall_small: (b, w, d, h, f, _c, a) => {
+    basin(b, w, d, h, f, 0.13);
+    b.cyl(0.018, 0.018, 0.1, 0, h - 0.24, -0.02, a, 12);
+    b.rod(v(0, h - 0.28, -0.02), v(0, h - 0.28, back(d)), 0.014, a, 8);
+    tapBasin(b, -w * 0.25, h, back(d) + 0.05, a);
+  },
+  vanity_floor: (b, w, d, h, f, _c, a) => {
+    // a standing washstand: open shelf below, a bowl on top
+    const top = h - 0.14;
+    legs(b, w, d, top - 0.03, 0.03, 0.015, a, true);
+    b.box(w, 0.03, d, 0, top - 0.03, 0, f, 0.005);
+    b.box(w - 0.06, 0.02, d - 0.06, 0, 0.18, 0, f, 0.004);
+    for (let i = 0; i < 3; i++) b.box(0.32, 0.06, d * 0.6, -w / 4, 0.2 + i * 0.065, 0, mat(i % 2 ? C.linen : "#cfd8dc", { roughness: 1 }), 0.02);
+    vessel(b, Math.min(0.5, w * 0.55), d * 0.75, top, mat(C.ceramic, { roughness: 0.3 }));
+    tapBasin(b, 0, top, back(d) + 0.05, a, 0.28);
+  },
+  toilet_prewall: (b, w, d, h, f, _c, a) => {
+    // a pre-wall box across the niche with a ledge, the bowl hung in front of it
+    const pd = 0.2;
+    b.box(w, h, pd, 0, 0, back(d) + pd / 2, mat("#e9e7e2"), 0.006);
+    b.box(w + 0.02, 0.02, pd + 0.02, 0, h, back(d) + pd / 2, mat("#f1efea"), 0.004);
+    flushPlate(b, 0, Math.min(h, 1.05) - 0.12, back(d) + pd, a);
+    toiletBowl(b, Math.min(0.37, w), d - pd, back(d) + pd, f, a);
+  },
+  shower_walk_in: (b, w, d, h, f, _c, a) => walkIn(b, w, d, h, f, a, false),
+  shower_large: (b, w, d, h, f, _c, a) => walkIn(b, w, d, h, f, a, true),
+  shower_niche: (b, w, d, h, f, _c, a) => {
+    // between three walls: a tray and a hinged glass door across the front
+    b.box(w, 0.04, d, 0, 0, 0, mat(C.ceramic), 0.01);
+    b.box(w * 0.5, 0.004, 0.05, 0, 0.04, back(d) + 0.1, mat("#999"));
+    b.box(w - 0.04, h - 0.06, 0.008, 0, 0.05, d / 2 - 0.02, glass());
+    for (const sx of [-1, 1]) b.box(0.025, h - 0.04, 0.03, sx * (w / 2 - 0.0125), 0.04, d / 2 - 0.02, f);
+    b.box(w, 0.025, 0.03, 0, h - 0.025, d / 2 - 0.02, f);
+    b.box(0.015, 0.3, 0.03, w / 2 - 0.1, h * 0.45, d / 2 + 0.005, f, 0.005);
+    showerSet(b, 0, h, back(d), a, false);
+  },
+  shower_corner: (b, w, d, h, f, _c, a) => {
+    // two glass sides on a square tray, the door at the front
+    b.box(w, 0.04, d, 0, 0, 0, mat(C.ceramic), 0.01);
+    b.cyl(0.04, 0.04, 0.005, 0, 0.04, 0, mat("#999"), 16);
+    b.box(w - 0.02, h - 0.06, 0.008, 0, 0.05, d / 2 - 0.02, glass());
+    b.box(0.008, h - 0.06, d - 0.02, w / 2 - 0.02, 0.05, 0, glass());
+    b.box(0.03, h - 0.04, 0.03, w / 2 - 0.02, 0.04, d / 2 - 0.02, f);
+    b.box(w, 0.02, 0.025, 0, h - 0.02, d / 2 - 0.02, f);
+    b.box(0.025, 0.02, d, w / 2 - 0.02, h - 0.02, 0, f);
+    b.box(0.015, 0.3, 0.03, 0, h * 0.45, d / 2 + 0.005, f, 0.005);
+    showerSet(b, -w / 2 + 0.05, h, back(d), a, true);
+  },
+  shower_quadrant: (b, w, d, h, f, _c, a) => {
+    // a quarter circle in the corner (back left), curved sliding glass
+    const tray = new THREE.CylinderGeometry(1, 1, 0.04, 24, 1, false, 0, Math.PI / 2);
+    tray.scale(w, 1, d);
+    tray.translate(-w / 2, 0.02, -d / 2);
+    b.add(tray, mat(C.ceramic));
+    const curved = new THREE.CylinderGeometry(1, 1, h - 0.06, 24, 1, true, 0, Math.PI / 2);
+    curved.scale(w - 0.02, 1, d - 0.02);
+    curved.translate(-w / 2, 0.05 + (h - 0.06) / 2, -d / 2);
+    b.add(curved, mat("#cfe3ea", { transparent: true, opacity: 0.3, roughness: 0.1, side: THREE.DoubleSide }));
+    const rail = new THREE.TorusGeometry(1, 0.012, 4, 24, Math.PI / 2);
+    rail.rotateX(Math.PI / 2);
+    rail.rotateY(Math.PI / 2);
+    rail.scale(w - 0.02, 1, d - 0.02);
+    for (const y of [0.05, h - 0.02]) b.add(rail.clone(), f, -w / 2, y, -d / 2);
+    showerSet(b, -w / 2 + 0.04, h, -d / 2 + 0.25, a, true);
+  },
+  bathtub_oval: (b, w, d, h, f, _c, a) => {
+    tubLathe(b, w, d, h, f, 0.5);
+    floorTap(b, w / 2 + 0.15, h, 0, a);
+  },
+  bathtub_round: (b, w, d, h, f, _c, a) => {
+    tubLathe(b, w, d, h, f, 0.5);
+    floorTap(b, Math.min(w, d) / 2 + 0.12, h, 0, a);
+  },
+  bathtub_square: (b, w, d, h, f, _c, a) => {
+    // crisp, slightly rounded block; a soft rectangle of water-white inside
+    b.box(w, h, d, 0, 0, 0, f, 0.05);
+    const inner = new THREE.Shape();
+    const iw = w - 0.16;
+    const id = d - 0.16;
+    const r = Math.min(0.18, id / 2 - 0.01);
+    inner.moveTo(-iw / 2 + r, -id / 2);
+    inner.lineTo(iw / 2 - r, -id / 2);
+    inner.quadraticCurveTo(iw / 2, -id / 2, iw / 2, -id / 2 + r);
+    inner.lineTo(iw / 2, id / 2 - r);
+    inner.quadraticCurveTo(iw / 2, id / 2, iw / 2 - r, id / 2);
+    inner.lineTo(-iw / 2 + r, id / 2);
+    inner.quadraticCurveTo(-iw / 2, id / 2, -iw / 2, id / 2 - r);
+    inner.lineTo(-iw / 2, -id / 2 + r);
+    inner.quadraticCurveTo(-iw / 2, -id / 2, -iw / 2 + r, -id / 2);
+    b.add(new THREE.ShapeGeometry(inner, 6), mat("#dfe9ec", { roughness: 0.2 }), 0, h + 0.002, 0).rotation.x = -Math.PI / 2;
+    floorTap(b, w / 2 + 0.15, h, 0, a);
+  },
+  bathtub_built_in: (b, w, d, h, f, _c, a) => {
+    // a tiled apron, the tub's rim on top, taps and a hand shower on the wall
+    b.box(w, h - 0.03, d, 0, 0, 0, tileMaterial(), 0);
+    b.box(w, 0.03, d, 0, h - 0.03, 0, f, 0.01);
+    const oval = new THREE.CircleGeometry(0.5, 32);
+    oval.scale(w - 0.2, d - 0.16, 1);
+    b.add(oval, mat("#dfe9ec", { roughness: 0.2 }), 0, h + 0.002, 0.01).rotation.x = -Math.PI / 2;
+    b.box(0.2, 0.06, 0.06, 0, h + 0.15, back(d) + 0.03, a, 0.015);
+    b.rod(v(0, h + 0.15, back(d) + 0.06), v(0, h + 0.12, back(d) + 0.16), 0.012, a);
+    b.rod(v(w * 0.3, h + 0.25, back(d) + 0.02), v(w * 0.3, h + 0.85, back(d) + 0.02), 0.01, a);
+  },
+  bathtub_corner: (b, w, d, h, f, _c, a) => {
+    // a quarter-round front, the bath turned towards the room
+    const s = new THREE.Shape();
+    s.moveTo(-w / 2, -d / 2);
+    s.lineTo(w / 2, -d / 2);
+    s.lineTo(w / 2, -d / 2 + d * 0.35);
+    s.quadraticCurveTo(w / 2 - w * 0.1, d / 2 - d * 0.1, -w / 2 + w * 0.35, d / 2);
+    s.lineTo(-w / 2, d / 2);
+    s.lineTo(-w / 2, -d / 2);
+    const geo = new THREE.ExtrudeGeometry(s, { depth: h, bevelEnabled: true, bevelSize: 0.02, bevelThickness: 0.02, bevelSegments: 2, curveSegments: 12 });
+    geo.rotateX(Math.PI / 2);
+    geo.translate(0, h, 0);
+    b.add(geo, f);
+    const oval = new THREE.CircleGeometry(0.5, 32);
+    oval.scale(Math.hypot(w, d) * 0.62, Math.min(w, d) * 0.55, 1);
+    const m = b.add(oval, mat("#dfe9ec", { roughness: 0.2 }), -w * 0.03, h + 0.023, -d * 0.03);
+    m.rotation.set(-Math.PI / 2, 0, Math.PI / 4);
+    b.cyl(0.02, 0.02, 0.1, -w / 2 + 0.12, h, -d / 2 + 0.12, a, 10);
+    b.rod(v(-w / 2 + 0.12, h + 0.1, -d / 2 + 0.12), v(-w / 2 + 0.22, h + 0.08, -d / 2 + 0.22), 0.012, a);
+  },
+  whirlpool: (b, w, d, h, f, _c, a) => {
+    // a square spa: clad shell, cushioned rim, seats and jets under the water
+    b.box(w, h - 0.1, d, 0, 0, 0, f, 0.04);
+    const rim = mat("#d8d6d2", { roughness: 0.6 });
+    for (const sz of [-1, 1]) b.box(w, 0.06, 0.14, 0, h - 0.06, sz * (d / 2 - 0.07), rim, 0.03);
+    for (const sx of [-1, 1]) b.box(0.14, 0.06, d - 0.2, sx * (w / 2 - 0.07), h - 0.06, 0, rim, 0.03);
+    b.box(w - 0.1, 0.01, d - 0.1, 0, h - 0.1, 0, mat("#bfe6ef", { roughness: 0.3 }));
+    b.box(w - 0.12, 0.01, d - 0.12, 0, h - 0.075, 0, mat("#3fa4c8", { transparent: true, opacity: 0.55, roughness: 0.05 }));
+    for (const sx of [-1, 1]) b.box(0.14, 0.04, d - 0.2, sx * (w / 2 - 0.07), h - 0.1, 0, f, 0.01);
+    const rand = random(151);
+    for (let i = 0; i < 18; i++) {
+      const side = i % 4;
+      const t = (rand() - 0.5) * 0.7;
+      const x = side < 2 ? t * w : (side === 2 ? -1 : 1) * (w / 2 - 0.13);
+      const z = side >= 2 ? t * d : (side === 0 ? -1 : 1) * (d / 2 - 0.13);
+      b.cyl(0.018, 0.018, 0.012, x, h - 0.2, z, a, 10);
+    }
+    for (const sx of [-1, 1]) b.box(0.28, 0.08, 0.14, sx * (w / 2 - 0.3), h - 0.04, back(d) + 0.08, mat(C.black, { roughness: 1 }), 0.03);
+    b.box(0.6, 0.18, 0.3, 0, 0, d / 2 + 0.15, f, 0.02);
+  },
   // ----- vehicles -----
   car_hatchback: (b, w, d, h, _f, color) => car(b, w, d, h, color, "hatchback"),
   car_estate: (b, w, d, h, _f, color) => car(b, w, d, h, color, "estate"),
@@ -1638,6 +1807,206 @@ function tapGooseneck(b: Builder, x: number, y: number, z: number, m: THREE.Mate
   b.rod(v(x + 0.025, y + 0.04, z), v(x + 0.07, y + 0.08, z + 0.02), 0.006, m, 6);
 }
 
+/** How a toilet or bidet looks: oval or squared, hung on the wall or standing. */
+interface BowlStyle {
+  square?: boolean;
+  floor?: boolean;
+  /** A bidet: no cistern. */
+  open?: boolean;
+}
+
+/** A rounded rectangle, centred, for seats, lids and basins. */
+function roundedRect(w: number, d: number, r: number): THREE.Shape {
+  const s = new THREE.Shape();
+  const rr = Math.min(r, w / 2 - 0.001, d / 2 - 0.001);
+  s.moveTo(-w / 2 + rr, -d / 2);
+  s.lineTo(w / 2 - rr, -d / 2);
+  s.quadraticCurveTo(w / 2, -d / 2, w / 2, -d / 2 + rr);
+  s.lineTo(w / 2, d / 2 - rr);
+  s.quadraticCurveTo(w / 2, d / 2, w / 2 - rr, d / 2);
+  s.lineTo(-w / 2 + rr, d / 2);
+  s.quadraticCurveTo(-w / 2, d / 2, -w / 2, d / 2 - rr);
+  s.lineTo(-w / 2, -d / 2 + rr);
+  s.quadraticCurveTo(-w / 2, -d / 2, -w / 2 + rr, -d / 2);
+  return s;
+}
+
+/** A flat oval or rounded rectangle lying at y (seats, lids, basins' insides). */
+function flat(b: Builder, w: number, d: number, y: number, z: number, m: THREE.Material, square: boolean, thick = 0) {
+  if (thick > 0) {
+    const geo = square
+      ? new THREE.ExtrudeGeometry(roundedRect(w, d, 0.07), { depth: thick, bevelEnabled: false, curveSegments: 6 }).rotateX(-Math.PI / 2)
+      : new THREE.CylinderGeometry(0.5, 0.5, thick, 36).scale(w, 1, d).translate(0, thick / 2, 0);
+    return b.add(geo, m, 0, y, z);
+  }
+  const geo = square ? new THREE.ShapeGeometry(roundedRect(w, d, 0.06), 6) : new THREE.CircleGeometry(0.5, 36).scale(w, d, 1);
+  const mesh = b.add(geo, m, 0, y, z);
+  mesh.rotation.x = -Math.PI / 2;
+  return mesh;
+}
+
+/** A ceramic toilet: the bowl, a closed seat and lid; standing ones get a cistern. */
+function toiletBowl(b: Builder, w: number, d: number, zBack: number, f: THREE.Material, hinge: THREE.Material, style: BowlStyle = {}) {
+  const front = bowlShape(b, w, d, zBack, f, style);
+  const seatM = mat(C.ceramic, { roughness: 0.35 });
+  flat(b, w * 1.02, front.L * 1.02, 0.4, front.z, seatM, !!style.square, 0.022);
+  if (style.square) flat(b, w * 0.98, front.L * 0.98, 0.422, front.z, seatM, true, 0.02);
+  else {
+    const lid = new THREE.SphereGeometry(0.5, 32, 6, 0, Math.PI * 2, 0, Math.PI / 2);
+    lid.scale(w, 0.05, front.L * 0.98);
+    b.add(lid, seatM, 0, 0.42, front.z);
+  }
+  for (const sx of [-1, 1]) b.box(0.03, 0.025, 0.04, sx * w * 0.25, 0.41, front.z0 + 0.02, hinge, 0.008);
+}
+
+/**
+ * The bowl: narrow at its foot, wide at the seat (oval or squared); hung ones are joined to
+ * the wall, standing ones reach the floor and have a cistern behind.
+ */
+function bowlShape(b: Builder, w: number, d: number, zBack: number, f: THREE.Material, style: BowlStyle = {}) {
+  const cistern = style.floor && !style.open ? 0.18 : 0;
+  const z0 = zBack + 0.06 + cistern;
+  const L = d - 0.06 - cistern;
+  const y0 = style.floor ? 0 : 0.16;
+  const shape = style.floor
+    ? style.square
+      ? [[0.001, 0], [0.3, 0], [0.32, 0.4], [0.44, 0.7], [0.5, 1]]
+      : [[0.001, 0], [0.22, 0], [0.24, 0.3], [0.34, 0.55], [0.46, 0.85], [0.5, 1]]
+    : style.square
+      ? [[0.001, 0], [0.4, 0], [0.45, 0.25], [0.49, 0.65], [0.5, 1]]
+      : [[0.001, 0], [0.3, 0], [0.38, 0.2], [0.45, 0.55], [0.49, 0.85], [0.5, 1]];
+  const profile = shape.map(([r, y]) => new THREE.Vector2(r, y));
+  const bowl = style.square ? new THREE.LatheGeometry(profile, 4, Math.PI / 4) : new THREE.LatheGeometry(profile, 32);
+  const k = style.square ? Math.SQRT2 : 1;
+  bowl.scale(w * k, 0.4 - y0, L * k);
+  b.add(bowl, f, 0, y0, z0 + L / 2);
+  if (cistern) {
+    b.box(w * 0.92, 0.38, cistern, 0, 0.42, zBack + cistern / 2, f, style.square ? 0.015 : 0.05);
+    b.box(w * 0.94, 0.03, cistern + 0.01, 0, 0.8, zBack + cistern / 2, f, 0.012);
+    b.cyl(0.025, 0.025, 0.008, 0, 0.83, zBack + cistern / 2, mat(C.chrome, { metalness: 0.8, roughness: 0.2 }), 14);
+    b.box(w * 0.5, 0.42, 0.12, 0, 0, zBack + cistern + 0.04, f, 0.04);
+  } else if (style.floor) b.box(w * 0.5, 0.4, 0.14, 0, 0, zBack + 0.07, f, 0.04);
+  else b.box(w * 0.7, 0.22, 0.16, 0, 0.18, zBack + 0.08, f, style.square ? 0.02 : 0.06);
+  return { L, z: z0 + L / 2, z0 };
+}
+
+/** An open bidet: its bowl (no seat), the rim and a tap. */
+function bidet(b: Builder, w: number, d: number, f: THREE.Material, tap: THREE.Material, style: BowlStyle) {
+  const bowl = bowlShape(b, w, d, back(d), f, style);
+  flat(b, w * 0.72, bowl.L * 0.7, 0.402, bowl.z, mat("#d6d6d2", { roughness: 0.3 }), !!style.square);
+  if (style.square) {
+    const ring = new THREE.ExtrudeGeometry(roundedRect(w, bowl.L, 0.06), { depth: 0.02, bevelEnabled: false });
+    ring.translate(0, 0, -0.02);
+    ring.rotateX(Math.PI / 2);
+    b.add(ring, f, 0, 0.4, bowl.z);
+    flat(b, w * 0.72, bowl.L * 0.7, 0.402, bowl.z, mat("#d6d6d2", { roughness: 0.3 }), true);
+  } else {
+    const rim = new THREE.RingGeometry(0.36, 0.5, 32);
+    rim.scale(w, bowl.L, 1);
+    b.add(rim, f, 0, 0.4, bowl.z).rotation.x = -Math.PI / 2;
+  }
+  tapBasin(b, 0, 0.4, bowl.z0 + 0.04, tap, 0.1);
+}
+
+/** A wall-hung basin: a soft slab (or a crisp one), an oval (or squared) bowl in it, the drain. */
+function basin(b: Builder, w: number, d: number, h: number, f: THREE.Material, depth: number, square = false) {
+  b.box(w, depth, d, 0, h - depth, 0, f, square ? 0.012 : Math.min(depth / 2 - 0.01, 0.06));
+  flat(b, w - 0.12, d - 0.16, h + 0.002, 0.03, mat("#dcdcd8", { roughness: 0.3 }), square);
+  b.cyl(0.02, 0.02, 0.003, 0, h + 0.003, 0.03, mat(C.steel), 12);
+}
+
+/** A bowl standing on a top at y. */
+function vessel(b: Builder, w: number, d: number, y: number, f: THREE.Material) {
+  const profile = [[0.001, 0], [0.26, 0], [0.42, 0.3], [0.5, 1], [0.47, 1], [0.39, 0.35], [0.23, 0.09], [0.001, 0.09]].map(([r, yy]) => new THREE.Vector2(r, yy));
+  const geo = new THREE.LatheGeometry(profile, 36);
+  geo.scale(w, 0.14, d);
+  b.add(geo, f, 0, y, 0.02);
+}
+
+/** A basin mixer: a column, its spout and lever. */
+function tapBasin(b: Builder, x: number, y: number, z: number, m: THREE.Material, h = 0.16) {
+  b.cyl(0.018, 0.02, h, x, y, z, m, 14);
+  b.rod(v(x, y + h - 0.012, z), v(x, y + h - 0.025, z + 0.13), 0.011, m, 8);
+  b.rod(v(x, y + h + 0.005, z - 0.005), v(x, y + h + 0.02, z - 0.07), 0.006, m, 6);
+}
+
+/** The flush plate in the wall with its two buttons. */
+function flushPlate(b: Builder, x: number, y: number, z: number, m: THREE.Material) {
+  b.box(0.24, 0.16, 0.012, x, y, z + 0.006, m, 0.004);
+  b.box(0.1, 0.12, 0.006, x - 0.055, y + 0.02, z + 0.014, m, 0.004);
+  b.box(0.1, 0.12, 0.006, x + 0.055, y + 0.02, z + 0.014, m, 0.004);
+}
+
+/** Overhead rain shower on an arm, a mixer, and optionally a hand shower on a rail. */
+function showerSet(b: Builder, x: number, h: number, z: number, m: THREE.Material, hand: boolean) {
+  b.rod(v(x, h - 0.1, z), v(x, h - 0.1, z + 0.3), 0.01, m, 8);
+  b.cyl(0.13, 0.13, 0.012, x, h - 0.12, z + 0.3, m, 32);
+  b.cyl(0.035, 0.035, 0.05, x, 1.05, z + 0.02, m, 14).rotation.x = Math.PI / 2;
+  if (hand) {
+    b.rod(v(x + 0.25, 0.9, z + 0.025), v(x + 0.25, 1.7, z + 0.025), 0.01, m, 8);
+    b.cyl(0.03, 0.022, 0.2, x + 0.25, 1.35, z + 0.05, m, 12);
+  }
+}
+
+/** A walk-in shower: flush tiled floor, linear drain, one glass panel, its brace. */
+function walkIn(b: Builder, w: number, d: number, h: number, f: THREE.Material, a: THREE.Material, large: boolean) {
+  b.box(w, 0.02, d, 0, 0, 0, tileMaterial(), 0);
+  b.box(w - 0.2, 0.004, 0.06, 0, 0.02, back(d) + 0.08, mat("#8e9398", { metalness: 0.5, roughness: 0.4 }));
+  const gw = w * (large ? 0.5 : 0.62);
+  b.box(gw, h - 0.02, 0.01, -w / 2 + gw / 2, 0.02, d / 2 - 0.02, glass());
+  b.box(gw, 0.02, 0.02, -w / 2 + gw / 2, 0.02, d / 2 - 0.02, f);
+  b.box(0.02, 0.02, 0.02, -w / 2 + gw, h - 0.3, d / 2 - 0.02, f);
+  b.rod(v(-w / 2 + gw - 0.01, h - 0.1, d / 2 - 0.02), v(-w / 2 + gw - 0.01, h - 0.1, back(d)), 0.01, f, 6);
+  showerSet(b, -w / 4, h, back(d), a, true);
+  if (large) {
+    showerSet(b, w / 4, h, back(d), a, false);
+    b.box(0.4, 0.45, d - 0.1, w / 2 - 0.22, 0.02, 0, surface("oak", 0.7), 0.02);
+  }
+}
+
+/** A freestanding tub turned on a lathe: the shell in the finish, white inside. */
+function tubLathe(b: Builder, w: number, d: number, h: number, f: THREE.Material, _r: number) {
+  const outer = [[0.001, 0], [0.36, 0], [0.45, 0.3], [0.5, 1], [0.475, 1.0]].map(([r, y]) => new THREE.Vector2(r, y));
+  const inner = [[0.475, 1.0], [0.43, 0.4], [0.35, 0.14], [0.001, 0.12]].map(([r, y]) => new THREE.Vector2(r, y));
+  const o = new THREE.LatheGeometry(outer, 40);
+  o.scale(w, h, d);
+  b.add(o, f);
+  const i = new THREE.LatheGeometry(inner, 40);
+  i.scale(w, h, d);
+  b.add(i, mat(C.ceramic, { roughness: 0.3, side: THREE.DoubleSide }));
+}
+
+/** A floor-standing bath mixer at the tub's end. */
+function floorTap(b: Builder, x: number, h: number, z: number, m: THREE.Material) {
+  b.cyl(0.05, 0.05, 0.01, x, 0, z, m, 16);
+  b.cyl(0.018, 0.018, h + 0.32, x, 0, z, m, 12);
+  const curve = new THREE.CatmullRomCurve3([v(x, h + 0.3, z), v(x, h + 0.38, z), v(x - 0.1, h + 0.37, z), v(x - 0.18, h + 0.3, z)]);
+  b.add(new THREE.TubeGeometry(curve, 12, 0.012, 8), m);
+  b.cyl(0.025, 0.02, 0.18, x + 0.03, h + 0.05, z, m, 10);
+}
+
+/** Small square tiles with grout, for showers and tub aprons. */
+let tiles: THREE.MeshStandardMaterial | undefined;
+function tileMaterial(): THREE.MeshStandardMaterial {
+  if (tiles) return tiles;
+  if (typeof document === "undefined") return mat("#d9dad6", { roughness: 0.5 });
+  const c = document.createElement("canvas");
+  c.width = c.height = 128;
+  const ctx = c.getContext("2d")!;
+  ctx.fillStyle = "#bdbfbb";
+  ctx.fillRect(0, 0, 128, 128);
+  for (let i = 0; i < 4; i++) for (let j = 0; j < 4; j++) {
+    ctx.fillStyle = (i + j) % 3 ? "#dcddd9" : "#d6d7d3";
+    ctx.fillRect(i * 32 + 1, j * 32 + 1, 30, 30);
+  }
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  tex.repeat.set(4, 4);
+  tiles = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.5 });
+  return tiles;
+}
+
 function tvPanel(b: Builder, w: number, h: number, y: number, z: number) {
   b.box(w, h, 0.03, 0, y, z, mat(C.black, { roughness: 0.4 }), 0.004);
   b.box(w - 0.016, h - 0.016, 0.002, 0, y + 0.008, z + 0.016, mat(C.screen, { roughness: 0.15, metalness: 0.2 }));
@@ -1661,16 +2030,16 @@ function bed(b: Builder, w: number, d: number, h: number, f: THREE.Material, leg
   legs(b, w, d - 0.08, 0.06, 0.08, 0.02, legM);
 }
 
-function vanity(b: Builder, w: number, d: number, h: number, f: THREE.Material, basins: number, tap: THREE.Material) {
+function vanity(b: Builder, w: number, d: number, h: number, f: THREE.Material, basins: number, tap: THREE.Material, square = false) {
   // a cabinet on the wall and basins in a ceramic top
   b.box(w, 0.42, d - 0.02, 0, h - 0.47, back(d) + (d - 0.02) / 2, f, 0.006);
   fronts(b, -w / 2, w, h - 0.47, 0.42, d / 2 - 0.02, basins, f, 2, "bar");
   b.box(w + 0.01, 0.05, d, 0, h - 0.05, 0, mat(C.ceramic), 0.01);
   for (let i = 0; i < basins; i++) {
     const x = -w / 2 + (w / basins) * (i + 0.5);
-    b.box(Math.min(0.5, w / basins - 0.12), 0.004, d - 0.16, x, h, 0.03, mat("#dcdcd8"), 0.01);
-    b.cyl(0.014, 0.014, 0.16, x, h, back(d) + 0.05, tap, 10);
-    b.rod(v(x, h + 0.16, back(d) + 0.05), v(x, h + 0.14, back(d) + 0.15), 0.01, tap);
+    flat(b, Math.min(0.5, w / basins - 0.12), d - 0.18, h + 0.002, 0.03, mat("#dcdcd8", { roughness: 0.3 }), square).position.x = x;
+    b.cyl(0.02, 0.02, 0.003, x, h + 0.003, 0.03, mat(C.steel), 12);
+    tapBasin(b, x, h, back(d) + 0.06, tap);
   }
 }
 

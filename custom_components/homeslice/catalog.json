@@ -2300,6 +2300,505 @@
    ]
   },
   {
+   "model": "modern:toilet_wall_square",
+   "name": "Wall-hung toilet, squared",
+   "group": "bathroom",
+   "type": "toilet",
+   "size": [
+    0.36,
+    0.54,
+    0.8
+   ],
+   "finishes": [
+    "white",
+    "black"
+   ],
+   "accents": [
+    "chrome",
+    "black",
+    "brass"
+   ]
+  },
+  {
+   "model": "modern:toilet_floor",
+   "name": "Standing toilet with cistern",
+   "group": "bathroom",
+   "type": "toilet",
+   "size": [
+    0.38,
+    0.68,
+    0.84
+   ],
+   "finishes": [
+    "white",
+    "black"
+   ],
+   "accents": [
+    "chrome",
+    "black",
+    "brass"
+   ]
+  },
+  {
+   "model": "modern:toilet_floor_square",
+   "name": "Standing toilet, squared",
+   "group": "bathroom",
+   "type": "toilet",
+   "size": [
+    0.36,
+    0.66,
+    0.84
+   ],
+   "finishes": [
+    "white",
+    "black"
+   ],
+   "accents": [
+    "chrome",
+    "black",
+    "brass"
+   ]
+  },
+  {
+   "model": "modern:bidet_square",
+   "name": "Bidet, squared",
+   "group": "bathroom",
+   "type": "toilet",
+   "size": [
+    0.36,
+    0.53,
+    0.4
+   ],
+   "finishes": [
+    "white",
+    "black"
+   ],
+   "accents": [
+    "chrome",
+    "black",
+    "brass"
+   ]
+  },
+  {
+   "model": "modern:bidet_floor",
+   "name": "Standing bidet",
+   "group": "bathroom",
+   "type": "toilet",
+   "size": [
+    0.36,
+    0.56,
+    0.4
+   ],
+   "finishes": [
+    "white",
+    "black"
+   ],
+   "accents": [
+    "chrome",
+    "black",
+    "brass"
+   ]
+  },
+  {
+   "model": "modern:sink_wall_square",
+   "name": "Wall-hung basin, squared",
+   "group": "bathroom",
+   "type": "sink",
+   "size": [
+    0.6,
+    0.45,
+    0.86
+   ],
+   "finishes": [
+    "white",
+    "black",
+    "concrete"
+   ],
+   "accents": [
+    "chrome",
+    "black",
+    "brass"
+   ]
+  },
+  {
+   "model": "modern:sink_pedestal",
+   "name": "Basin on a pedestal",
+   "group": "bathroom",
+   "type": "sink",
+   "size": [
+    0.6,
+    0.47,
+    0.86
+   ],
+   "finishes": [
+    "white",
+    "black"
+   ],
+   "accents": [
+    "chrome",
+    "black",
+    "brass"
+   ]
+  },
+  {
+   "model": "modern:vanity_square",
+   "name": "Vanity unit, squared basin",
+   "group": "bathroom",
+   "type": "sink",
+   "size": [
+    0.8,
+    0.47,
+    0.85
+   ],
+   "finishes": [
+    "oak",
+    "white",
+    "walnut",
+    "black",
+    "anthracite"
+   ],
+   "accents": [
+    "chrome",
+    "black",
+    "brass"
+   ]
+  },
+  {
+   "model": "modern:sink_counter_square",
+   "name": "Square bowl on a shelf",
+   "group": "bathroom",
+   "type": "sink",
+   "size": [
+    1,
+    0.45,
+    0.9
+   ],
+   "finishes": [
+    "white",
+    "black",
+    "concrete"
+   ],
+   "accents": [
+    "chrome",
+    "black",
+    "brass"
+   ]
+  },
+  {
+   "model": "modern:sink_wall",
+   "name": "Wall-hung basin",
+   "group": "bathroom",
+   "type": "sink",
+   "size": [
+    0.6,
+    0.46,
+    0.86
+   ],
+   "finishes": [
+    "white",
+    "black",
+    "concrete"
+   ],
+   "accents": [
+    "chrome",
+    "black",
+    "brass"
+   ]
+  },
+  {
+   "model": "modern:sink_wall_small",
+   "name": "Small wall-hung basin",
+   "group": "bathroom",
+   "type": "sink",
+   "size": [
+    0.45,
+    0.32,
+    0.86
+   ],
+   "finishes": [
+    "white",
+    "black",
+    "concrete"
+   ],
+   "accents": [
+    "chrome",
+    "black",
+    "brass"
+   ]
+  },
+  {
+   "model": "modern:vanity_floor",
+   "name": "Washstand with a bowl",
+   "group": "bathroom",
+   "type": "sink",
+   "size": [
+    0.8,
+    0.47,
+    0.9
+   ],
+   "finishes": [
+    "oak",
+    "walnut",
+    "black",
+    "white"
+   ],
+   "accents": [
+    "black",
+    "chrome",
+    "brass"
+   ]
+  },
+  {
+   "model": "modern:toilet_prewall",
+   "name": "Toilet with pre-wall and ledge",
+   "group": "bathroom",
+   "type": "toilet",
+   "size": [
+    1,
+    0.75,
+    1.2
+   ],
+   "finishes": [
+    "white",
+    "black"
+   ],
+   "accents": [
+    "chrome",
+    "black",
+    "brass"
+   ]
+  },
+  {
+   "model": "modern:shower_walk_in",
+   "name": "Walk-in shower",
+   "group": "bathroom",
+   "type": "shower",
+   "size": [
+    1.6,
+    0.9,
+    2.1
+   ],
+   "finishes": [
+    "black",
+    "chrome",
+    "white"
+   ],
+   "accents": [
+    "chrome",
+    "black",
+    "brass"
+   ]
+  },
+  {
+   "model": "modern:shower_large",
+   "name": "Large walk-in shower with bench",
+   "group": "bathroom",
+   "type": "shower",
+   "size": [
+    1.8,
+    1.2,
+    2.2
+   ],
+   "finishes": [
+    "black",
+    "chrome",
+    "white"
+   ],
+   "accents": [
+    "chrome",
+    "black",
+    "brass"
+   ]
+  },
+  {
+   "model": "modern:shower_niche",
+   "name": "Shower in a niche, glass door",
+   "group": "bathroom",
+   "type": "shower",
+   "size": [
+    1,
+    0.9,
+    2.1
+   ],
+   "finishes": [
+    "black",
+    "chrome",
+    "white"
+   ],
+   "accents": [
+    "chrome",
+    "black",
+    "brass"
+   ]
+  },
+  {
+   "model": "modern:shower_corner",
+   "name": "Corner shower",
+   "group": "bathroom",
+   "type": "shower",
+   "size": [
+    0.9,
+    0.9,
+    2
+   ],
+   "finishes": [
+    "black",
+    "chrome",
+    "white"
+   ],
+   "accents": [
+    "chrome",
+    "black",
+    "brass"
+   ]
+  },
+  {
+   "model": "modern:shower_quadrant",
+   "name": "Quadrant shower",
+   "group": "bathroom",
+   "type": "shower",
+   "size": [
+    0.9,
+    0.9,
+    2
+   ],
+   "finishes": [
+    "chrome",
+    "black",
+    "white"
+   ],
+   "accents": [
+    "chrome",
+    "black",
+    "brass"
+   ]
+  },
+  {
+   "model": "modern:bathtub_oval",
+   "name": "Freestanding oval bathtub",
+   "group": "bathroom",
+   "type": "bathtub",
+   "size": [
+    1.7,
+    0.8,
+    0.6
+   ],
+   "finishes": [
+    "white",
+    "black",
+    "concrete",
+    "green"
+   ],
+   "accents": [
+    "chrome",
+    "black",
+    "brass"
+   ]
+  },
+  {
+   "model": "modern:bathtub_round",
+   "name": "Round bathtub",
+   "group": "bathroom",
+   "type": "bathtub",
+   "size": [
+    1.5,
+    1.5,
+    0.6
+   ],
+   "finishes": [
+    "white",
+    "black",
+    "concrete"
+   ],
+   "accents": [
+    "chrome",
+    "black",
+    "brass"
+   ]
+  },
+  {
+   "model": "modern:bathtub_square",
+   "name": "Freestanding square bathtub",
+   "group": "bathroom",
+   "type": "bathtub",
+   "size": [
+    1.7,
+    0.8,
+    0.58
+   ],
+   "finishes": [
+    "white",
+    "black",
+    "concrete"
+   ],
+   "accents": [
+    "chrome",
+    "black",
+    "brass"
+   ]
+  },
+  {
+   "model": "modern:bathtub_built_in",
+   "name": "Built-in bathtub",
+   "group": "bathroom",
+   "type": "bathtub",
+   "size": [
+    1.8,
+    0.8,
+    0.58
+   ],
+   "finishes": [
+    "white",
+    "black"
+   ],
+   "accents": [
+    "chrome",
+    "black",
+    "brass"
+   ]
+  },
+  {
+   "model": "modern:bathtub_corner",
+   "name": "Corner bathtub",
+   "group": "bathroom",
+   "type": "bathtub",
+   "size": [
+    1.4,
+    1.4,
+    0.58
+   ],
+   "finishes": [
+    "white"
+   ],
+   "accents": [
+    "chrome",
+    "black",
+    "brass"
+   ]
+  },
+  {
+   "model": "modern:whirlpool",
+   "name": "Whirlpool",
+   "group": "bathroom",
+   "type": "bathtub",
+   "size": [
+    2,
+    2,
+    0.9
+   ],
+   "finishes": [
+    "grey",
+    "anthracite",
+    "oak",
+    "white"
+   ],
+   "accents": [
+    "chrome",
+    "black",
+    "brass"
+   ]
+  },
+  {
    "model": "modern:towel_radiator",
    "name": "Towel radiator",
    "group": "bathroom",

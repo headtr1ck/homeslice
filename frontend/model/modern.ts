@@ -45,6 +45,7 @@ const LAMP = ["black", "white", "oak", "sand"];
 const POT = ["white", "terracotta", "anthracite", "concrete"];
 const FRONTS = ["white", "anthracite", "oak", "green", "blue", "black", "walnut"];
 const WORKTOP = ["marble", "concrete", "white", "oak", "black", "anthracite"];
+const TAPS = ["chrome", "black", "brass"];
 const PAINT = ["silver", "white", "black", "anthracite", "blue", "red", "green"];
 
 const k = (id: string, type: FurnitureType, size: [number, number, number], finishes: string[], more: Partial<ModernKind> = {}): ModernKind => ({ id, type, size, finishes, ...more });
@@ -77,7 +78,7 @@ export const MODERN_GROUPS: { id: string; kinds: ModernKind[] }[] = [
       k("bookshelf_grid", "shelf", [1.5, 0.35, 1.8], WOOD),
       k("bookshelf_ladder", "shelf", [0.7, 0.42, 1.8], ["oak", "white", "black", "walnut"]),
       k("bookshelf_wall", "shelf", [1.2, 0.22, 0.9], ["oak", "white", "black", "walnut"], { mount: "wall", elevation: 1.0 }),
-      k("floor_lamp_arc", "floor_lamp", [1.3, 0.4, 2.0], LAMP, { accents: ["chrome", "black", "brass"] }),
+      k("floor_lamp_arc", "floor_lamp", [1.3, 0.4, 2.0], LAMP, { accents: TAPS }),
       k("floor_lamp_tripod", "floor_lamp", [0.55, 0.55, 1.55], LAMP, { accents: ["black", "brass", "chrome"] }),
       k("floor_lamp_globe", "floor_lamp", [0.3, 0.3, 1.45], LAMP, { accents: ["black", "brass", "chrome", "white"] }),
       k("table_lamp", "table_lamp", [0.3, 0.3, 0.5], LAMP, { accents: ["black", "brass", "chrome"] }),
@@ -160,14 +161,38 @@ export const MODERN_GROUPS: { id: string; kinds: ModernKind[] }[] = [
   {
     id: "bathroom",
     kinds: [
-      k("toilet_wall", "toilet", [0.37, 0.55, 0.8], ["white", "black"], { accents: ["chrome", "black", "brass"] }),
-      k("bidet", "toilet", [0.37, 0.54, 0.4], ["white", "black"], { accents: ["chrome", "black", "brass"] }),
-      k("vanity", "sink", [0.8, 0.47, 0.85], WOOD, { accents: ["chrome", "black", "brass"] }),
-      k("vanity_double", "sink", [1.4, 0.47, 0.85], WOOD, { accents: ["chrome", "black", "brass"] }),
-      k("sink_large", "sink", [1.0, 0.5, 0.9], ["white", "concrete", "marble", "black"], { accents: ["chrome", "black", "brass"] }),
+      k("toilet_wall", "toilet", [0.37, 0.55, 0.8], ["white", "black"], { accents: TAPS }),
+      k("bidet", "toilet", [0.37, 0.54, 0.4], ["white", "black"], { accents: TAPS }),
+      k("vanity", "sink", [0.8, 0.47, 0.85], WOOD, { accents: TAPS }),
+      k("vanity_double", "sink", [1.4, 0.47, 0.85], WOOD, { accents: TAPS }),
+      k("sink_large", "sink", [1.0, 0.5, 0.9], ["white", "concrete", "marble", "black"], { accents: TAPS }),
       k("mirror_cabinet", "mirror", [0.8, 0.15, 0.7], ["white", "black", "oak"], { mount: "wall", elevation: 1.25 }),
-      k("shower_glass", "shower", [1.2, 0.9, 2.1], ["black", "white"], { accents: ["chrome", "black", "brass"] }),
-      k("bathtub", "bathtub", [1.8, 0.8, 0.58], ["white", "black", "concrete"], { accents: ["chrome", "black", "brass"] }),
+      k("shower_glass", "shower", [1.2, 0.9, 2.1], ["black", "white"], { accents: TAPS }),
+      k("bathtub", "bathtub", [1.8, 0.8, 0.58], ["white", "black", "concrete"], { accents: TAPS }),
+      k("toilet_wall_square", "toilet", [0.36, 0.54, 0.8], ["white", "black"], { accents: TAPS }),
+      k("toilet_floor", "toilet", [0.38, 0.68, 0.84], ["white", "black"], { accents: TAPS }),
+      k("toilet_floor_square", "toilet", [0.36, 0.66, 0.84], ["white", "black"], { accents: TAPS }),
+      k("bidet_square", "toilet", [0.36, 0.53, 0.4], ["white", "black"], { accents: TAPS }),
+      k("bidet_floor", "toilet", [0.36, 0.56, 0.4], ["white", "black"], { accents: TAPS }),
+      k("sink_wall_square", "sink", [0.6, 0.45, 0.86], ["white", "black", "concrete"], { accents: TAPS }),
+      k("sink_pedestal", "sink", [0.6, 0.47, 0.86], ["white", "black"], { accents: TAPS }),
+      k("vanity_square", "sink", [0.8, 0.47, 0.85], WOOD, { accents: TAPS }),
+      k("sink_counter_square", "sink", [1.0, 0.45, 0.9], ["white", "black", "concrete"], { accents: TAPS }),
+      k("sink_wall", "sink", [0.6, 0.46, 0.86], ["white", "black", "concrete"], { accents: TAPS }),
+      k("sink_wall_small", "sink", [0.45, 0.32, 0.86], ["white", "black", "concrete"], { accents: TAPS }),
+      k("vanity_floor", "sink", [0.8, 0.47, 0.9], ["oak", "walnut", "black", "white"], { accents: ["black", "chrome", "brass"] }),
+      k("toilet_prewall", "toilet", [1.0, 0.75, 1.2], ["white", "black"], { accents: TAPS }),
+      k("shower_walk_in", "shower", [1.6, 0.9, 2.1], ["black", "chrome", "white"], { accents: TAPS }),
+      k("shower_large", "shower", [1.8, 1.2, 2.2], ["black", "chrome", "white"], { accents: TAPS }),
+      k("shower_niche", "shower", [1.0, 0.9, 2.1], ["black", "chrome", "white"], { accents: TAPS }),
+      k("shower_corner", "shower", [0.9, 0.9, 2.0], ["black", "chrome", "white"], { accents: TAPS }),
+      k("shower_quadrant", "shower", [0.9, 0.9, 2.0], ["chrome", "black", "white"], { accents: TAPS }),
+      k("bathtub_oval", "bathtub", [1.7, 0.8, 0.6], ["white", "black", "concrete", "green"], { accents: TAPS }),
+      k("bathtub_round", "bathtub", [1.5, 1.5, 0.6], ["white", "black", "concrete"], { accents: TAPS }),
+      k("bathtub_square", "bathtub", [1.7, 0.8, 0.58], ["white", "black", "concrete"], { accents: TAPS }),
+      k("bathtub_built_in", "bathtub", [1.8, 0.8, 0.58], ["white", "black"], { accents: TAPS }),
+      k("bathtub_corner", "bathtub", [1.4, 1.4, 0.58], ["white"], { accents: TAPS }),
+      k("whirlpool", "bathtub", [2.0, 2.0, 0.9], ["grey", "anthracite", "oak", "white"], { accents: TAPS }),
       k("towel_radiator", "item", [0.5, 0.06, 1.2], ["white", "black", "anthracite"], { mount: "wall", elevation: 0.2 }),
     ],
   },
