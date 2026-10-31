@@ -250,6 +250,15 @@ export class HomeslicePanel extends LitElement {
 
   override connectedCallback() {
     super.connectedCallback();
+    // HA may create the element and set hass before this bundle has defined it: those
+    // values then sit on the instance and hide the setters, so pass them on now
+    for (const key of ["hass", "narrow"] as const) {
+      if (Object.prototype.hasOwnProperty.call(this, key)) {
+        const value = (this as Record<string, unknown>)[key];
+        delete (this as Record<string, unknown>)[key];
+        (this as Record<string, unknown>)[key] = value;
+      }
+    }
     window.addEventListener("keydown", this.onKey);
   }
 
