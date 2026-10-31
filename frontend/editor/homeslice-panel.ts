@@ -1341,20 +1341,24 @@ export class HomeslicePanel extends LitElement {
       ${below ? below.rooms.map((r) => svg`<polygon class="ghost" points=${pts(roomPolygon(m, r))}></polygon>`) : nothing}
       ${l?.rooms.map((r) => {
         const poly = this.inner(r, walls);
-        const at = this.toScreen(labelPoint(poly));
         return svg`<g data-room=${r.id}>
           <polygon class="room ${r.kind ?? "room"} ${r.id === this._room ? "selected" : ""}" points=${pts(poly)} fill=${PLAN_COLORS[r.floor ?? (r.kind === "outdoor" ? "lawn" : "wood")] ?? PLAN_COLORS.wood}></polygon>
-          ${this._mode === "objects"
-            ? // lamps sit at the room's centre: the name goes below them
-              svg`<text class="room-name" x=${at[0]} y=${at[1] + 26} text-anchor="middle">${this.roomName(r)}</text>`
-            : svg`<text class="room-name" x=${at[0]} y=${at[1] - 2} text-anchor="middle">${this.roomName(r)}</text>
-                <text class="room-area" x=${at[0]} y=${at[1] + 13} text-anchor="middle">${area(poly).toFixed(1)} m²</text>`}
         </g>`;
       })}
       ${[...walls]
         // inner walls first, so their ends disappear under the outer walls
         .sort((a, b) => Number(a.type === "exterior" || a.type === "party") - Number(b.type === "exterior" || b.type === "party"))
         .map((w) => this.renderWall(w))}
+      ${l?.rooms.map((r) => {
+        // names on top of the walls, so long ones aren't cut off
+        const poly = this.inner(r, walls);
+        const at = this.toScreen(labelPoint(poly));
+        return svg`<g class="room-label">${this._mode === "objects"
+          ? // lamps sit at the room's centre: the name goes below them
+            svg`<text class="room-name" x=${at[0]} y=${at[1] + 26} text-anchor="middle">${this.roomName(r)}</text>`
+          : svg`<text class="room-name" x=${at[0]} y=${at[1] - 2} text-anchor="middle">${this.roomName(r)}</text>
+              <text class="room-area" x=${at[0]} y=${at[1] + 13} text-anchor="middle">${area(poly).toFixed(1)} m²</text>`}</g>`;
+      })}
       ${(house?.vertical ?? [])
         // the hole where a stair arrives; where a flight starts, its footprint and the way up
         .filter((v) => idx >= v.from && idx <= v.to)
@@ -2449,6 +2453,16 @@ export class HomeslicePanel extends LitElement {
       opacity: 0;
       cursor: pointer;
     }
+    .room-label {
+      pointer-events: none;
+    }
+    .room-label text {
+      paint-order: stroke;
+      /* room fills are always light: a light halo keeps names readable over walls */
+      stroke: rgba(255, 255, 255, 0.75);
+      stroke-width: 3px;
+      stroke-linejoin: round;
+    }
     .lamp-marker {
       cursor: grab;
     }
@@ -2582,7 +2596,8 @@ export class HomeslicePanel extends LitElement {
       font-size: 11px;
       fill: var(--primary-text-color, #eee);
       paint-order: stroke;
-      stroke: var(--primary-background-color, #111);
+      /* room fills are always light: a light halo keeps names readable over walls */
+      stroke: rgba(255, 255, 255, 0.75);
       stroke-width: 3px;
       pointer-events: none;
     }
