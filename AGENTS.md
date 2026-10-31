@@ -32,6 +32,7 @@ npm run test:browser     # build, then the card and editor in headless Chromium 
 node scripts/thumbnails.mjs   # after changing furniture: library pictures
 node scripts/catalog.mjs      # after changing types, kinds, models: custom_components/homeslice/catalog.json
 UPDATE_CASES=1 npx vitest run frontend/model/validation.test.ts   # after changing a rule
+npm run showcase         # the README's pictures (docs/images/): after changing how things look
 ```
 
 ## Rules

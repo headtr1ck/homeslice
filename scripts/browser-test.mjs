@@ -292,6 +292,9 @@ console.log("demo house");
 
   await test("a room without devices shows a hint", async () => {
     await act(page, () => page.locator("homeslice-card nav.levels button", { hasText: "First Floor" }).click());
+    // one floor on its own: the ground floor has sunk away and is not drawn at all
+    await page.waitForFunction(() => !window.card.renderer.levels[0].group.visible, null, { timeout: 5000 });
+    assert(await page.evaluate(() => window.card.renderer.levels[0].lift < -1), "the floor below did not sink away");
     await page.locator("homeslice-card .label button.name", { hasText: "Bathroom" }).click();
     const text = await page.locator("homeslice-card .popup .empty").textContent();
     assert(text.includes("Nothing in this room"), `empty popup text: ${text}`);
@@ -316,7 +319,7 @@ console.log("demo house");
     assert(o.elevation === 38 && o.azimuth === 250 && o.fov === 3, `overview camera ${JSON.stringify(o)}`);
   });
 
-  await test("hovering a floor highlights it and fades the floors above", async () => {
+  await test("hovering a floor highlights it; the floors above slide away and fade out", async () => {
     // find a canvas spot where the ground floor is the first thing hit
     const spot = await page.evaluate(() => {
       const canvas = window.card.shadowRoot.querySelector("canvas");
@@ -328,13 +331,14 @@ console.log("demo house");
     });
     assert(spot, "no visible spot on the ground floor");
     await page.mouse.move(spot.x, spot.y);
-    await page.waitForFunction(() => Math.abs(window.card.renderer.levels[1].hoverOpacity - 0.18) < 1e-6, null, { timeout: 10000 });
+    await page.waitForFunction(() => window.card.renderer.levels[1].hoverOpacity === 0, null, { timeout: 10000 });
     const state = await page.evaluate(() => ({
       hover: window.card.renderer.hoveredIndex,
       above: window.card.renderer.levels[1].hoverOpacity,
       below: window.card.renderer.levels[0].hoverOpacity,
     }));
-    assert(state.hover === 0 && Math.abs(state.above - 0.18) < 1e-6 && state.below === 1, `hover state ${JSON.stringify(state)}`);
+    assert(state.hover === 0 && state.above === 0 && state.below === 1, `hover state ${JSON.stringify(state)}`);
+    assert(await page.evaluate(() => !window.card.renderer.levels[1].group.visible && window.card.renderer.levels[1].hoverLift > 0.5), "the floor above is not lifted away and hidden");
     // what the GPU drew, not just the settings: a pixel of the faded floor must be darker
     const pixel = await page.evaluate(() => {
       const r = window.card.renderer;
@@ -535,6 +539,9 @@ console.log("demo house, roof");
     await shot(page, "demo-lamp-linked");
     await page.mouse.click(at.x, at.y);
     await page.waitForFunction((b) => window.card.hass.states["light.reading_lamp"].state === b, before, { timeout: 3000 });
+    // the pointer off the house again (hovering a level hides the roof)
+    await page.mouse.move(5, 5);
+    await page.waitForTimeout(400);
   });
   await test("simple furniture when the card asks for it", async () => {
     await page.evaluate(() => {

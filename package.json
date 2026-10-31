@@ -14,7 +14,8 @@
     "test:browser": "vite build && node scripts/browser-test.mjs",
     "pull": "node scripts/pull-house.mjs",
     "check": "npm run typecheck && npm test && npm run test:browser && (test -x .venv/bin/python && .venv/bin/python -m pytest -q || echo 'Python tests skipped: no .venv (see CONTRIBUTING.md)')",
-    "dev": "vite build && echo 'Card: http://localhost:8123/dev/harness.html?demo=card  Editor: …?demo=editor' && python3 -m http.server 8123"
+    "dev": "vite build && echo 'Card: http://localhost:8123/dev/harness.html?demo=card  Editor: \u2026?demo=editor' && python3 -m http.server 8123",
+    "showcase": "vite build && node scripts/showcase.mjs"
   },
   "dependencies": {
     "lit": "^3.3.3",
@@ -22,6 +23,7 @@
     "yaml": "^2.9.1"
   },
   "devDependencies": {
+    "@mdi/js": "^7.4.47",
     "@types/node": "^26.6.6",
     "@types/three": "^0.187.0",
     "playwright-core": "1.60",

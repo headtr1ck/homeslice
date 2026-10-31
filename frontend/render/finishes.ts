@@ -32,6 +32,7 @@ const SPAN: Record<string, number> = {
   carpet: 1,
   carpet_grey: 1,
   gravel: 1,
+  lawn: 1.5,
   cobbles: 1,
 };
 
@@ -394,18 +395,43 @@ const PAINTERS: Record<string, Painter> = {
   brick_red: (c, px, b, rnd) => tiles(c, px, b, rnd, 0.225, 0.075, "#cfc8bc", 0.5, 0.14),
   brick_white: (c, px, b, rnd) => tiles(c, px, b, rnd, 0.225, 0.075, "#bdb8ae", 0.5, 0.05),
   brick_grey: (c, px, b, rnd) => tiles(c, px, b, rnd, 0.225, 0.075, "#a9a49c", 0.5, 0.12),
-  lawn: (c, _px, b, rnd) => {
+  lawn: (c, px, b, rnd) => {
+    // a mown lawn: soft lighter and darker patches, faint mowing stripes, dense blades
     c.fillStyle = b.getStyle();
     c.fillRect(0, 0, SIZE, SIZE);
-    for (let i = 0; i < 9000; i++) {
+    for (let i = 0; i < 70; i++) {
+      c.fillStyle = tone(b, (rnd() - 0.5) * 0.22);
+      c.globalAlpha = 0.35;
+      c.beginPath();
+      c.ellipse(rnd() * SIZE, rnd() * SIZE, px(0.1 + rnd() * 0.35), px(0.08 + rnd() * 0.25), rnd() * 3, 0, Math.PI * 2);
+      c.fill();
+    }
+    const stripe = SIZE / 4;
+    for (let k = 0; k < 4; k += 2) {
+      c.fillStyle = tone(b, 0.08);
+      c.globalAlpha = 0.25;
+      c.fillRect(k * stripe, 0, stripe, SIZE);
+    }
+    c.globalAlpha = 1;
+    const blades = [tone(b, -0.28), tone(b, -0.12), tone(b, 0.1), tone(b, 0.25), "#9aa85a"];
+    for (let i = 0; i < 22000; i++) {
       const x = rnd() * SIZE;
       const y = rnd() * SIZE;
-      c.strokeStyle = tone(b, (rnd() - 0.45) * 0.4);
-      c.lineWidth = 1;
+      const len = 2 + rnd() * 5;
+      const lean = (rnd() - 0.5) * 2.5;
+      c.strokeStyle = blades[Math.floor(rnd() * (i % 40 === 0 ? 5 : 4))];
+      c.lineWidth = 0.8 + rnd() * 0.6;
       c.beginPath();
       c.moveTo(x, y);
-      c.lineTo(x + (rnd() - 0.5) * 3, y - 2 - rnd() * 5);
+      c.quadraticCurveTo(x + lean * 0.4, y - len * 0.6, x + lean, y - len);
       c.stroke();
+    }
+    // a few clover leaves and specks of soil
+    for (let i = 0; i < 60; i++) {
+      c.fillStyle = rnd() > 0.3 ? tone(b, 0.18) : "#5a4632";
+      c.beginPath();
+      c.arc(rnd() * SIZE, rnd() * SIZE, 1 + rnd() * 1.5, 0, Math.PI * 2);
+      c.fill();
     }
   },
   paving: (c, px, b, rnd) => tiles(c, px, b, rnd, 0.4, 0.4, tone(b, -0.3), 0, 0.1, (x, y, w, h) => speckle2(c, b, rnd, x, y, w, h)),

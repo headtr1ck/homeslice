@@ -1105,8 +1105,9 @@ export class HomesliceCard extends LitElement {
     .label {
       transition: opacity 0.16s;
     }
+    /* labels of the floors that slid away while one below is hovered */
     .label.faded {
-      opacity: 0.2;
+      opacity: 0;
     }
     .label.faded button {
       pointer-events: none;

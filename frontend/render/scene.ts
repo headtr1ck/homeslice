@@ -178,10 +178,11 @@ interface Flow {
   /** Watts towards `to` (negative: away from it). */
   watts: number;
 }
-const FOCUS_MS = 450;
+const FOCUS_MS = 600;
 const HOVER_MS = 160;
 /** Opacity of the levels above a hovered level. */
-const HOVER_FADE = 0.18;
+/** Hovered: the floors above slide up out of the way and fade out completely (no ghosts). */
+const HOVER_FADE = 0;
 const HOVER_TINT = new THREE.Color(0x1d3047);
 const SHUTTER_DEPTH = 0.05;
 
@@ -217,6 +218,9 @@ function holesFor(level: Level, vertical: Vertical[]): Vec2[][] {
   return vertical.filter((v) => level.index > v.from && level.index <= v.to).map(stairHole);
 }
 
+/** Lamps lighting the scene at once (a fixed number: changing it would rebuild every shader). */
+const LIGHT_POOL = 8;
+
 interface LevelState {
   group: THREE.Group;
   baseY: number;
@@ -227,6 +231,8 @@ interface LevelState {
   opacity: number;
   lift: number;
   hoverOpacity: number;
+  /** Metres the level is lifted out of the way while a level below it is hovered. */
+  hoverLift: number;
 }
 
 /**
@@ -264,6 +270,14 @@ export class HouseRenderer {
   private lamps = new Map<string, THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>[]>();
   /** The glowing parts (bulbs, shades, opal glass) of pieces linked to a light, by light. */
   private pieceGlows = new Map<string, THREE.MeshLambertMaterial[]>();
+  /**
+   * Real light from the lamps that are on: a fixed pool (the shaders never change), given
+   * to the brightest lamps on the levels in view. Where each lamp is: level and plan point.
+   */
+  private lightPool: THREE.PointLight[] = [];
+  private lampPlaces = new Map<string, { level: number; at: Vec2 }[]>();
+  /** 0 by day … 1 at night: lamps light the rooms more when it is dark. */
+  private night = 0;
   /** Each light's last look, for pieces that finish loading later. */
   private lampLooks = new Map<string, LightLook | null>();
   /** Pieces linked to an entity, for taps. */
@@ -324,6 +338,11 @@ export class HouseRenderer {
     this.sun.shadow.mapSize.set(2048, 2048);
     this.sun.shadow.bias = -0.0005;
     this.scene.add(this.sun, this.sun.target);
+    for (let i = 0; i < LIGHT_POOL; i++) {
+      const light = new THREE.PointLight(0xffe4b8, 0, 7, 2);
+      this.lightPool.push(light);
+      this.scene.add(light);
+    }
     // a downloaded floor or wall texture arrived: draw again
     this.stopFinishes = onFinishLoaded(() => this.onChange?.());
   }
@@ -352,7 +371,7 @@ export class HouseRenderer {
       this.root.add(group);
       const floorMaterials = new Set(level.rooms.map((r) => this.floors.get(`${level.id}/${r.id}`)?.material));
       const tintable = [...materials].filter((m): m is THREE.MeshLambertMaterial => m instanceof THREE.MeshLambertMaterial && !floorMaterials.has(m));
-      this.levels.push({ group, baseY, materials, tintable, opacity: 1, lift: 0, hoverOpacity: 1 });
+      this.levels.push({ group, baseY, materials, tintable, opacity: 1, lift: 0, hoverOpacity: 1, hoverLift: 0 });
       this.levelOutlines.push(level.outline);
       this.levelHeights.push(level.height);
       this.levelRooms.push(level.rooms.filter((r) => r.kind === "room").map((r) => r.polygon));
@@ -443,7 +462,8 @@ export class HouseRenderer {
       // its finish: a texture in plan metres, or a colour
       const { map, color } = finishLook(room.floor);
       // outdoor areas reach over the floors below in the exploded view: keep them see-through
-      const material = room.kind === "outdoor" ? this.lambert(color, { map, transparent: true, opacity: 0.55, depthWrite: false }) : this.lambert(color, { map });
+      // (on the lowest level nothing is below: solid there)
+      const material = room.kind === "outdoor" && level.index > 0 ? this.lambert(color, { map, transparent: true, opacity: 0.55, depthWrite: false }) : this.lambert(color, { map });
       const floor = this.mesh(geo, material, false);
       floor.userData.room = `${level.id}/${room.id}`;
       floor.userData.outdoor = room.kind === "outdoor";
@@ -775,6 +795,7 @@ export class HouseRenderer {
     }
     this.lampObjects = [];
     this.lamps.clear();
+    this.lampPlaces.clear();
     this.glowTexture ??= glowTexture();
     for (const lamp of lamps) {
       const i = this.levelIds.indexOf(lamp.levelId);
@@ -795,6 +816,9 @@ export class HouseRenderer {
       const list = this.lamps.get(lamp.entity) ?? [];
       list.push(glow);
       this.lamps.set(lamp.entity, list);
+      const places = this.lampPlaces.get(lamp.entity) ?? [];
+      places.push({ level: i, at: lamp.at });
+      this.lampPlaces.set(lamp.entity, places);
     }
   }
 
@@ -843,7 +867,8 @@ export class HouseRenderer {
         continue;
       }
       const c = new THREE.Color().setRGB(light.rgb[0] / 255, light.rgb[1] / 255, light.rgb[2] / 255, THREE.SRGBColorSpace);
-      glow.material.color.copy(c).multiplyScalar(0.35 + 0.65 * light.brightness);
+      // by day the room's real light does most of it: the pool on the floor stays soft
+      glow.material.color.copy(c).multiplyScalar((0.35 + 0.65 * light.brightness) * (0.4 + 0.6 * this.night));
       glow.visible = true;
     }
   }
@@ -1388,7 +1413,10 @@ export class HouseRenderer {
     const to = {
       camera: this.cameraFor(index),
       box: this.boxFor(index),
-      levels: this.levels.map((_, i) => (index !== null && i > index ? { opacity: 0, lift: this.view.explode * 1.5 } : { opacity: 1, lift: 0 })),
+      // one floor on its own: the floors above rise away, the floors below sink away
+      levels: this.levels.map((_, i) =>
+        index === null || i === index ? { opacity: 1, lift: 0 } : i > index ? { opacity: 0, lift: this.view.explode * 1.5 + 1 } : { opacity: 0, lift: -(this.view.explode + 1.5) },
+      ),
     };
     // turn the short way round
     if (to.camera.azimuth - from.camera.azimuth > 180) from.camera.azimuth += 360;
@@ -1439,7 +1467,7 @@ export class HouseRenderer {
   }
 
   private applyLevel(l: LevelState) {
-    l.group.position.y = l.baseY + l.lift;
+    l.group.position.y = l.baseY + l.lift + l.hoverLift;
     // the roof belongs to the overview only
     if (this.roof && l === this.levels[this.levels.length - 1]) this.roof.visible = this.focus === null && this.hover === null;
     const opacity = l.opacity * l.hoverOpacity;
@@ -1492,15 +1520,17 @@ export class HouseRenderer {
     this.levels.forEach((l, i) => {
       for (const m of l.tintable) m.emissive.copy(i === index ? HOVER_TINT : new THREE.Color(0));
     });
-    const from = this.levels.map((l) => l.hoverOpacity);
-    const to = this.levels.map((_, i) => (index !== null && i > index ? HOVER_FADE : 1));
+    const from = this.levels.map((l) => ({ opacity: l.hoverOpacity, lift: l.hoverLift }));
+    const to = this.levels.map((_, i) => (index !== null && i > index ? { opacity: HOVER_FADE, lift: this.view.explode * 0.6 + 0.8 } : { opacity: 1, lift: 0 }));
     cancelAnimationFrame(this.hoverAnimation);
     return new Promise((resolve) => {
       const start = performance.now();
       const frame = (now: number) => {
         const t = Math.min(1, (now - start) / HOVER_MS);
+        const e = 1 - (1 - t) ** 3;
         this.levels.forEach((l, i) => {
-          l.hoverOpacity = from[i] + (to[i] - from[i]) * t;
+          l.hoverOpacity = t >= 1 ? to[i].opacity : from[i].opacity + (to[i].opacity - from[i].opacity) * e;
+          l.hoverLift = t >= 1 ? to[i].lift : from[i].lift + (to[i].lift - from[i].lift) * e;
           this.applyLevel(l);
         });
         this.draw();
@@ -1618,6 +1648,7 @@ export class HouseRenderer {
     this.sky.intensity = 0.55 + 0.85 * day;
     this.sky.color.set(day > 0.5 ? 0xffffff : 0xb8c4ff);
     this.ambient.intensity = 0.2 + 0.15 * day;
+    this.night = 1 - day;
     this.placeSun();
   }
 
@@ -1715,9 +1746,40 @@ export class HouseRenderer {
     this.draw();
   }
 
+  /**
+   * Gives the pool's lights to the lamps that are on: the brightest, on levels in view
+   * (the focused one first), placed under the ceiling where each lamp is.
+   */
+  private placeLights() {
+    const candidates: { score: number; pos: THREE.Vector3; look: LightLook }[] = [];
+    for (const [entity, places] of this.lampPlaces) {
+      const look = this.lampLooks.get(entity);
+      if (!look) continue;
+      for (const p of places) {
+        const level = this.levels[p.level];
+        if (!level?.group.visible || level.opacity < 0.5) continue;
+        const pos = level.group.localToWorld(new THREE.Vector3(p.at[0], (this.levelHeights[p.level] ?? 2.6) * 0.78, p.at[1]));
+        candidates.push({ score: look.brightness + (this.focus === p.level ? 2 : 0), pos, look });
+      }
+    }
+    candidates.sort((a, b) => b.score - a.score);
+    this.lightPool.forEach((light, i) => {
+      const c = candidates[i];
+      if (!c) {
+        light.intensity = 0;
+        return;
+      }
+      light.position.copy(c.pos);
+      light.color.setRGB(c.look.rgb[0] / 255, c.look.rgb[1] / 255, c.look.rgb[2] / 255, THREE.SRGBColorSpace);
+      // stronger at night, when it is what lights the room
+      light.intensity = (2.5 + 7 * this.night) * (0.3 + 0.7 * c.look.brightness);
+    });
+  }
+
   /** Draws a frame at the current size and camera. */
   draw(now = performance.now()) {
     this.fitCamera();
+    this.placeLights();
     if (this.flows.length) this.updateFlows(now);
     this.applyCuts();
     this.renderer.render(this.scene, this.camera);

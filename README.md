@@ -15,14 +15,25 @@ Model your house once — floors, rooms, walls, windows, devices — linked to H
 own floors, areas and entities, and show it as an interactive, exploded isometric 3D view
 on your dashboards.
 
+| The card: your house in 3D | At night, with its lights on |
+|---|---|
+| ![The demo house as the card shows it: two floors, furnished, the garden](docs/images/card-3d.jpg) | ![The same house at night, lamps lighting the rooms](docs/images/card-3d-night.jpg) |
+| **One floor on its own** (the others slide away) | **The 2D plan** (`mode: plan`) |
+| ![The ground floor picked: herringbone floor, acoustic panels, kitchen, dining table](docs/images/card-floor-night.jpg) | ![The ground floor as a flat plan](docs/images/card-plan.jpg) |
+
+![The editor: the plan of the ground floor, the 3D preview and the living room's finishes](docs/images/editor.jpg)
+
+*The demo house (`npm run dev`); pictures made by `node scripts/showcase.mjs`.*
+
 ## Status
 
 Alpha: card and editor work and are used daily on one house, but nothing is stable yet.
 
-- **Card:** exploded 3D view with live lights (a pool of light per lamp), blinds, window
-  contacts, temperatures and awnings; floor focus and hover; room popups (a bottom sheet
-  on phones); optional roof and energy overlay (solar, battery, grid and devices with
-  animated power flows).
+- **Card:** exploded 3D view with live lights (lamps light their rooms, more so at night;
+  a linked lamp lights up itself), blinds, window contacts, temperatures and awnings; one
+  floor on its own (the others slide away) and hover; tap a linked piece to switch it;
+  room popups (a bottom sheet on phones); optional roof and energy overlay (solar,
+  battery, grid and devices with animated power flows).
 - **Editor** (admin sidebar page *Homeslice*): start a house from Home Assistant's floors
   and areas, trace rooms over a floor plan image, drag walls and corners with snapping,
   doors and windows with their blinds, stairs, lights and energy devices; undo/redo;
