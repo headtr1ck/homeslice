@@ -68,7 +68,8 @@ repository itself doesn't contain the built frontend; build it with `npm run bui
      shapes, lightest), **Modern** (86 pieces drawn by Homeslice to their size, with
      finishes: sofas, wardrobes, kitchens, bathroom, lamps, plants, garden…), **Kenney** (low-poly models, included), **Poly Haven** (realistic
      models, downloaded into Home Assistant once when placed) and **Custom** (upload your
-     own `.glb`).
+     own `.glb`; it has to be self-contained: models that load textures or data from
+     other websites are refused, so no screen showing your house contacts a stranger).
    - Save (`Ctrl+S`). Cards update at once.
 4. Add a **Homeslice** card to a dashboard. Its visual editor shows a small preview: turn
    it into the angle you want, then pick the look.

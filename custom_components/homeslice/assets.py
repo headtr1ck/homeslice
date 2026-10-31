@@ -13,6 +13,7 @@ import json
 import logging
 import re
 import secrets
+import struct
 import time
 from pathlib import Path, PurePosixPath
 from typing import Any
@@ -50,6 +51,45 @@ class AssetError(ValueError):
     """A model that can't be fetched or stored."""
 
 
+# the only files a Poly Haven model may bring: they are served from Home Assistant's own
+# address, so nothing a browser would run (HTML, SVG, scripts)
+POLYHAVEN_SUFFIXES = {".gltf", ".bin", ".jpg", ".jpeg", ".png", ".webp"}
+# where the names of uploaded models are kept: outside the served folder
+CUSTOM_INDEX = "custom_models.json"
+
+
+def glb_json(blob: bytes) -> Any:
+    """The JSON part of a .glb; AssetError if it isn't one."""
+    if len(blob) < 20 or blob[:4] != b"glTF":
+        raise AssetError("This is not a .glb file")
+    length, kind = struct.unpack_from("<I4s", blob, 12)
+    if kind != b"JSON" or 20 + length > len(blob):
+        raise AssetError("This is not a .glb file")
+    try:
+        return json.loads(blob[20 : 20 + length])
+    except ValueError as err:
+        raise AssetError("This is not a .glb file") from err
+
+
+def check_links(gltf: Any, files: bool = False) -> None:
+    """Refuse models that load files from elsewhere.
+
+    A glTF's buffers and images may name any URL; the browser of every screen showing the
+    house would fetch it (telling a stranger's server when and where the house is shown).
+    Only embedded data is allowed, and with `files` files next to the model.
+    """
+    if not isinstance(gltf, dict):
+        raise AssetError("This is not a glTF model")
+    for key in ("buffers", "images"):
+        for item in gltf.get(key) or []:
+            uri = item.get("uri") if isinstance(item, dict) else None
+            if uri is None or (isinstance(uri, str) and uri.startswith("data:")):
+                continue
+            path = PurePosixPath(uri) if isinstance(uri, str) else None
+            if not files or path is None or ":" in uri or uri.startswith(("/", "\\")) or "\\" in uri or ".." in path.parts:
+                raise AssetError("The model loads files from elsewhere; only self-contained models are allowed")
+
+
 class Assets:
     """Downloaded and uploaded models."""
 
@@ -63,6 +103,15 @@ class Assets:
         """Create the folders (blocking)."""
         (self.root / "polyhaven").mkdir(parents=True, exist_ok=True)
         (self.root / "custom").mkdir(parents=True, exist_ok=True)
+        # the index used to live in the served folder, where anyone could read it
+        old = self.root / "custom" / "index.json"
+        if old.exists() and not self._index_path.exists():
+            old.replace(self._index_path)
+        old.unlink(missing_ok=True)
+
+    @property
+    def _index_path(self) -> Path:
+        return self.root.parent / CUSTOM_INDEX
 
     # ----- Poly Haven -----
 
@@ -142,12 +191,16 @@ class Assets:
         blobs: dict[Path, bytes] = {}
         for rel, url in wanted.items():
             path = PurePosixPath(rel)
-            if path.is_absolute() or ".." in path.parts or not url.startswith(POLYHAVEN_FILES):
+            if path.is_absolute() or ".." in path.parts or path.suffix.lower() not in POLYHAVEN_SUFFIXES or not url.startswith(POLYHAVEN_FILES):
                 raise AssetError("Unexpected file in the model")
             async with session.get(url, headers={"User-Agent": USER_AGENT}, timeout=120) as resp:
                 if resp.status != 200:
                     raise AssetError(f"Poly Haven answered {resp.status}")
                 blobs[target / path] = await resp.read()
+        try:
+            check_links(json.loads(blobs[target / f"{asset_id}_{RESOLUTION}.gltf"]), files=True)
+        except ValueError as err:
+            raise AssetError(f"Unusable model: {err}") from err
 
         def write() -> None:
             # the .gltf last: it marks the model as complete
@@ -169,7 +222,7 @@ class Assets:
     # ----- custom models -----
 
     def _custom_index(self) -> dict[str, Any]:
-        index = self.root / "custom" / "index.json"
+        index = self._index_path
         return json.loads(index.read_text()) if index.exists() else {}
 
     async def async_custom_list(self) -> list[dict[str, Any]]:
@@ -184,8 +237,7 @@ class Assets:
         if len(data) > MAX_UPLOAD_CHARS:
             raise AssetError("The model is too large (12 MB at most)")
         blob = base64.b64decode(data.split(",", 1)[1])
-        if blob[:4] != b"glTF":
-            raise AssetError("This is not a .glb file")
+        check_links(glb_json(blob))
         asset_id = secrets.token_hex(12)
         name = (name or "Model").strip()[:80] or "Model"
 
@@ -193,7 +245,7 @@ class Assets:
             (self.root / "custom" / f"{asset_id}.glb").write_bytes(blob)
             index = self._custom_index()
             index[asset_id] = {"name": name, "bytes": len(blob)}
-            (self.root / "custom" / "index.json").write_text(json.dumps(index, indent=1))
+            self._index_path.write_text(json.dumps(index, indent=1))
             return index[asset_id]
 
         meta = await self.hass.async_add_executor_job(write)
@@ -207,7 +259,7 @@ class Assets:
             (self.root / "custom" / f"{asset_id}.glb").unlink(missing_ok=True)
             index = self._custom_index()
             if index.pop(asset_id, None) is not None:
-                (self.root / "custom" / "index.json").write_text(json.dumps(index, indent=1))
+                self._index_path.write_text(json.dumps(index, indent=1))
 
         await self.hass.async_add_executor_job(remove)
 

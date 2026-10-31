@@ -52,6 +52,9 @@ UPDATE_CASES=1 npx vitest run frontend/model/validation.test.ts   # after changi
 - **Generated files are committed** and checked: `assets/thumbs`, `assets/plan`,
   `frontend/editor/kenney-sizes.json`, `custom_components/homeslice/catalog.json`,
   `tests/validation_cases.json`.
+- **Models never load from other sites.** Uploads and Poly Haven downloads are checked
+  (`assets.py`: `check_links`, allowed file types), the browser's loader refuses other
+  origins (`allowedModelUrl`), and shipped models are tested in CI.
 - **Workflows with write rights never run pull-request code** (see
   `library-preview-comment.yml`).
 - The house format is for people and language models: short, slug ids, defaults,
@@ -69,6 +72,8 @@ build it at several sizes, check its box, triangles and pictures).
 
 **A Kenney model.** Put the `.glb` (CC0, from the Kenney kits) into `assets/models/`, list
 it in `frontend/editor/kenney.ts` with its type, run the thumbnails and catalogue scripts.
+`tests/test_shipped_assets.py` checks every shipped model like an upload: no links to
+other sites, no decoders we don't bundle, at most 1 MB and 20,000 triangles.
 
 **A door or window kind.** `OpeningStyle` in `types.ts`, the style lists in `expand.ts`,
 `validate.py` and `catalog.ts`, the 3D look in `scene.ts` (walls around openings), the plan

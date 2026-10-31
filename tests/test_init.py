@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import base64
 from datetime import timedelta
 from pathlib import Path
+import struct
 from typing import Any
 
 import pytest
@@ -194,7 +196,14 @@ async def test_underlays_are_stored_per_level_admin_only(
     assert (await client.receive_json())["result"] == {"levels": []}
 
 
-GLB = "data:model/gltf-binary;base64,Z2xURgIAAAAMAAAA"  # just the header
+def _glb(gltf: str) -> str:
+    """A .glb with just its JSON part, as the editor uploads it (a data: URL)."""
+    data = gltf.encode() + b" " * (-len(gltf) % 4)
+    blob = b"glTF" + struct.pack("<II", 2, 20 + len(data)) + struct.pack("<I4s", len(data), b"JSON") + data
+    return "data:model/gltf-binary;base64," + base64.b64encode(blob).decode()
+
+
+GLB = _glb('{"asset":{"version":"2.0"}}')
 
 
 async def test_custom_models_upload_list_delete(hass: HomeAssistant, setup, hass_ws_client, tmp_path: Path) -> None:
@@ -205,8 +214,12 @@ async def test_custom_models_upload_list_delete(hass: HomeAssistant, setup, hass
     asset_id = msg["result"]["id"]
     assert msg["result"]["url"] == f"/homeslice_assets/custom/{asset_id}.glb"
     assert (tmp_path / "homeslice" / "assets" / "custom" / f"{asset_id}.glb").read_bytes().startswith(b"glTF")
-    await client.send_json_auto_id({"type": "homeslice/assets/custom/upload", "name": "x", "data": "data:model/gltf-binary;base64,AAAA"})
-    assert not (await client.receive_json())["success"]
+    # the names are kept outside the served folder
+    assert not (tmp_path / "homeslice" / "assets" / "custom" / "index.json").exists()
+    assert "Our sofa" in (tmp_path / "homeslice" / "custom_models.json").read_text()
+    for bad in ("data:model/gltf-binary;base64,AAAA", _glb('{"images":[{"uri":"https://tracker.example/p.png"}]}')):
+        await client.send_json_auto_id({"type": "homeslice/assets/custom/upload", "name": "x", "data": bad})
+        assert not (await client.receive_json())["success"]
     await client.send_json_auto_id({"type": "homeslice/assets/custom"})
     assert [m["name"] for m in (await client.receive_json())["result"]] == ["Our sofa"]
     await client.send_json_auto_id({"type": "homeslice/assets/custom/delete", "asset": asset_id})
@@ -237,6 +250,38 @@ async def test_polyhaven_models_are_downloaded_once(hass: HomeAssistant, setup, 
     assert all(dict(call[3] or {}).get("User-Agent", "").startswith("Homeslice") for call in aioclient_mock.mock_calls)
     await client.send_json_auto_id({"type": "homeslice/assets/polyhaven/fetch", "asset": "../etc"})
     assert not (await client.receive_json())["success"]
+
+
+@pytest.mark.parametrize(
+    ("include", "gltf"),
+    [
+        ({"page.html": {"url": "https://dl.polyhaven.org/m/page.html", "size": 3}}, "{}"),  # served from HA's address
+        ({}, '{"images":[{"uri":"https://elsewhere.example/t.jpg"}]}'),
+    ],
+)
+async def test_polyhaven_models_with_odd_files_are_refused(hass: HomeAssistant, setup, hass_ws_client, aioclient_mock, tmp_path: Path, include, gltf) -> None:
+    aioclient_mock.get(
+        "https://api.polyhaven.com/files/Odd",
+        json={"gltf": {"1k": {"gltf": {"url": "https://dl.polyhaven.org/m/Odd_1k.gltf", "size": 10, "include": include}}}},
+    )
+    aioclient_mock.get("https://dl.polyhaven.org/m/Odd_1k.gltf", text=gltf)
+    aioclient_mock.get("https://dl.polyhaven.org/m/page.html", text="<script>")
+    client = await hass_ws_client(hass)
+    await client.send_json_auto_id({"type": "homeslice/assets/polyhaven/fetch", "asset": "Odd"})
+    assert not (await client.receive_json())["success"]
+    assert not (tmp_path / "homeslice" / "assets" / "polyhaven" / "Odd").exists()
+
+
+async def test_old_custom_index_moves_out_of_the_served_folder(hass: HomeAssistant, tmp_path: Path, monkeypatch) -> None:
+    from custom_components.homeslice.assets import Assets
+
+    monkeypatch.setattr("custom_components.homeslice.assets.MODEL_DIR", str(tmp_path / "homeslice"))
+    assets = Assets(hass)
+    (assets.root / "custom").mkdir(parents=True)
+    (assets.root / "custom" / "index.json").write_text('{"abc": {"name": "Old", "bytes": 1}}')
+    await hass.async_add_executor_job(assets.ensure_dirs)
+    assert not (assets.root / "custom" / "index.json").exists()
+    assert [m["name"] for m in await assets.async_custom_list()] == ["Old"]
 
 
 async def test_polyhaven_catalog_keeps_home_categories(hass: HomeAssistant, setup, hass_ws_client, aioclient_mock) -> None:

@@ -143,6 +143,30 @@ export function modelUrl(key: string): string {
   return new URL(`${id}.glb`, BASE).href;
 }
 
+/**
+ * What a model may load: files of this page's own server (or the bundle's) and embedded
+ * data. A model naming another site would make every screen showing the house contact
+ * it; the integration refuses such models, this also covers files that got there anyway.
+ */
+export function allowedModelUrl(url: string, origins = [location.origin, BASE.origin]): boolean {
+  if (/^(data|blob):/.test(url)) return true;
+  try {
+    return origins.includes(new URL(url, globalThis.location?.href ?? origins[0]).origin);
+  } catch {
+    return false;
+  }
+}
+
+let manager: THREE.LoadingManager | undefined;
+function loadingManager(): THREE.LoadingManager {
+  if (!manager) {
+    manager = new THREE.LoadingManager();
+    // an empty data: URL fails to load like a missing file
+    manager.setURLModifier((url) => (allowedModelUrl(url) ? url : "data:,"));
+  }
+  return manager;
+}
+
 const cache = new Map<string, Promise<THREE.Object3D | null>>();
 
 /** A model, loaded once per page; null if it can't be loaded. */
@@ -151,7 +175,7 @@ export function loadModel(file: string): Promise<THREE.Object3D | null> {
   if (!p) {
     // the loader is only fetched by cards that show detailed furniture
     p = import("three/examples/jsm/loaders/GLTFLoader.js")
-      .then(({ GLTFLoader }) => new GLTFLoader().loadAsync(modelUrl(file)))
+      .then(({ GLTFLoader }) => new GLTFLoader(loadingManager()).loadAsync(modelUrl(file)))
       .then((gltf) => {
         gltf.scene.traverse((o) => (o.userData.shared = true));
         return gltf.scene;
