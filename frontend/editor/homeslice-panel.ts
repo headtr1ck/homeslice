@@ -2520,7 +2520,9 @@ export class HomeslicePanel extends LitElement {
       const [h, e] = [this.toScreen(hinge), this.toScreen(tip)];
       return svg`<line class="${cls} leaf" x1=${h[0]} y1=${h[1]} x2=${e[0]} y2=${e[1]}></line><polyline class=${cls} points=${arc.map((p) => p.join(",")).join(" ")}></polyline>`;
     };
-    const ends = [face(s0), face(s1)];
+    // an entrance door with a side panel: the leaf takes about three quarters of the width
+    const leafEnd = o.style === "entrance_sidelight" ? at(o.start + (o.end - o.start) * 0.72) : s1;
+    const ends = [face(s0), face(leafEnd)];
     if (o.style === "double" || o.style === "glass_double" || o.style === "split") {
       const middle = face(at((o.start + o.end) / 2));
       return svg`${leaf(ends[0], middle)}${leaf(ends[1], middle)}`;
@@ -4285,6 +4287,16 @@ export class HomeslicePanel extends LitElement {
       stroke: currentColor;
       stroke-width: 2;
       opacity: 0.4;
+    }
+    .opening-icon .white {
+      fill: #f4f4f2;
+      stroke: #9a9a96;
+      stroke-width: 1;
+    }
+    .opening-icon .frosted {
+      fill: #dbe5ec;
+      stroke: #b8c4cc;
+      stroke-width: 0.6;
     }
     .opening-icon .handle {
       fill: #555;

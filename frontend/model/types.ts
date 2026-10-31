@@ -10,7 +10,7 @@ export type Coord = number | string;
 export type Side = "north" | "south" | "east" | "west";
 export type RoomKind = "room" | "outdoor" | "void";
 export type OpeningType = "window" | "door" | "garage_door" | "opening";
-export type OpeningStyle = "single" | "double" | "fixed" | "split" | "split_single" | "sliding" | "sliding_glass" | "glass" | "glass_double" | "square" | "arch";
+export type OpeningStyle = "single" | "double" | "fixed" | "split" | "split_single" | "sliding" | "sliding_glass" | "glass" | "glass_double" | "entrance_strip" | "entrance_panes" | "entrance_sidelight" | "square" | "arch";
 /** `open`: a boundary between two rooms that are open to each other (no wall is built). */
 export type WallType = "exterior" | "party" | "interior" | "open";
 
@@ -146,7 +146,9 @@ export interface OpeningInput {
   /**
    * The kind: windows single, double, fixed, split (a double window over a fixed pane) or
    * split_single (a single window over a fixed pane);
-   * doors single, double, sliding, sliding_glass, glass or glass_double (glass doors) (default:
+   * doors single, double, sliding, sliding_glass, glass or glass_double (glass doors),
+   * entrance_strip, entrance_panes or entrance_sidelight (white entrance doors with
+   * frosted glass) (default:
    * double when wider than 1.3 m for windows, 1.4 m for doors, else single); openings
    * square (default) or arch.
    */
@@ -199,7 +201,9 @@ export interface FacadeOpeningInput {
   /**
    * The kind: windows single, double, fixed, split (a double window over a fixed pane) or
    * split_single (a single window over a fixed pane);
-   * doors single, double, sliding, sliding_glass, glass or glass_double (glass doors) (default:
+   * doors single, double, sliding, sliding_glass, glass or glass_double (glass doors),
+   * entrance_strip, entrance_panes or entrance_sidelight (white entrance doors with
+   * frosted glass) (default:
    * double when wider than 1.3 m for windows, 1.4 m for doors, else single); openings
    * square (default) or arch.
    */

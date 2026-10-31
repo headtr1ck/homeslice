@@ -455,5 +455,8 @@
   "editor.opening_split": "Fixed pane's height (m)",
   "editor.opening_group_openings": "Openings",
   "editor.opening_group_other": "Other",
-  "editor.opening_window_split_single": "Window over a fixed pane"
+  "editor.opening_window_split_single": "Window over a fixed pane",
+  "editor.opening_door_entrance_strip": "Entrance door, glass strip",
+  "editor.opening_door_entrance_panes": "Entrance door, small panes",
+  "editor.opening_door_entrance_sidelight": "Entrance door with side panel"
 }

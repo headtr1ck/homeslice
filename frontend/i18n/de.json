@@ -455,5 +455,8 @@
   "editor.opening_split": "Höhe der Festverglasung (m)",
   "editor.opening_group_openings": "Durchgänge",
   "editor.opening_group_other": "Sonstiges",
-  "editor.opening_window_split_single": "Fenster über Festverglasung"
+  "editor.opening_window_split_single": "Fenster über Festverglasung",
+  "editor.opening_door_entrance_strip": "Haustür mit Glasstreifen",
+  "editor.opening_door_entrance_panes": "Haustür mit Glasfeldern",
+  "editor.opening_door_entrance_sidelight": "Haustür mit Seitenteil"
 }

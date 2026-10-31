@@ -19,6 +19,8 @@ const glass = (x: number, y: number, w: number, h: number) => `<rect x="${x}" y=
 const leaf = (x: number, y: number, w: number, h: number) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" class="leaf"/>`;
 const knob = (x: number, y: number) => `<circle cx="${x}" cy="${y}" r="1.6" class="handle"/>`;
 const floor = `<line x1="2" y1="60" x2="62" y2="60" class="floor"/>`;
+const white = (x: number, y: number, w: number, h: number) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" class="white"/>`;
+const frosted = (x: number, y: number, w: number, h: number) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" class="frosted"/>`;
 
 export const OPENING_PRESETS: OpeningPreset[] = [
   { id: "window", type: "window", width: 1.0, icon: `${floor}${frame(21, 16, 22, 26)}${glass(24, 19, 16, 20)}${knob(37, 29)}` },
@@ -32,6 +34,9 @@ export const OPENING_PRESETS: OpeningPreset[] = [
   { id: "door_double", type: "door", style: "double", width: 1.6, icon: `${floor}${frame(12, 8, 40, 52)}${leaf(14, 10, 17.5, 50)}${leaf(32.5, 10, 17.5, 50)}${knob(29, 36)}${knob(35, 36)}` },
   { id: "door_glass", type: "door", style: "glass", width: 1.0, icon: `${floor}${frame(20, 6, 24, 54)}${glass(23, 9, 18, 48)}${knob(38, 34)}` },
   { id: "door_glass_double", type: "door", style: "glass_double", width: 1.6, icon: `${floor}${frame(12, 6, 40, 54)}${glass(15, 9, 16, 48)}${glass(33, 9, 16, 48)}${knob(29, 34)}${knob(35, 34)}` },
+  { id: "door_entrance_strip", type: "door", style: "entrance_strip", width: 1.0, icon: `${floor}${frame(21, 6, 22, 54)}${white(23, 8, 18, 52)}${frosted(27, 14, 4, 40)}${knob(38, 34)}` },
+  { id: "door_entrance_panes", type: "door", style: "entrance_panes", width: 1.0, icon: `${floor}${frame(21, 6, 22, 54)}${white(23, 8, 18, 52)}${[0, 1, 2, 3].map((i) => frosted(29.5, 12 + i * 8, 5, 5)).join("")}${knob(38, 38)}` },
+  { id: "door_entrance_sidelight", type: "door", style: "entrance_sidelight", width: 1.4, icon: `${floor}${frame(14, 6, 36, 54)}${white(16, 8, 23, 52)}${frosted(41, 9, 7, 50)}${knob(35, 34)}` },
   { id: "door_sliding", type: "door", style: "sliding", width: 1.0, icon: `${floor}${frame(14, 8, 36, 52)}${leaf(26, 10, 22, 50)}<path d="M18 33h6" class="handle"/>` },
   { id: "door_sliding_glass", type: "door", style: "sliding_glass", width: 2.4, icon: `${floor}${frame(4, 6, 56, 54)}${glass(7, 9, 24, 48)}${glass(33, 9, 24, 48)}<path d="M14 33h10M50 33h-10" class="handle"/>` },
   { id: "garage_door", type: "garage_door", width: 2.5, icon: `${floor}${frame(4, 14, 56, 46)}${[0, 1, 2, 3, 4].map((i) => leaf(6, 16 + i * 8.8, 52, 7.6)).join("")}` },

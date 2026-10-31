@@ -119,6 +119,8 @@ const COLORS = {
   glass: "#9cc8ee",
   glassOpen: "#ffb05c",
   door: "#a77b55",
+  entranceDoor: "#f3f3f0",
+  frosted: "#dde7ee",
   garageDoor: "#7d858d",
   shutter: "#5d666f",
   shutterBox: "#4a5159",
@@ -451,6 +453,8 @@ export class HouseRenderer {
     const glass = this.lambert(COLORS.glass, { transparent: true, opacity: 0.45 });
     const garage = this.lambert(COLORS.garageDoor);
     const doorLeaf = this.lambert(COLORS.door);
+    const whiteLeaf = this.lambert(COLORS.entranceDoor);
+    const frosted = this.lambert(COLORS.frosted, { transparent: true, opacity: 0.85 });
     for (const w of walls) {
       if (w.type === "open") continue; // rooms open to each other: no wall
       // outer walls are split at the cut height; the upper part hides while it faces a low camera
@@ -490,6 +494,15 @@ export class HouseRenderer {
             box(o.start, o.end, at - 0.03, at + 0.03, wallMat, 0.07);
             if (o.style === "split") box(mid - 0.03, mid + 0.03, at, top, wallMat, 0.07);
           }
+        } else if (o.type === "door" && o.style.startsWith("entrance")) {
+          // white entrance doors with frosted glass: a strip, small panes, or a side panel
+          const w = o.end - o.start;
+          const leafEnd = o.style === "entrance_sidelight" ? o.start + w * 0.72 : o.end;
+          box(o.start, leafEnd, o.sill, top, whiteLeaf, 0.045);
+          const pane = (s0: number, s1: number, z0: number, z1: number) => box(s0, s1, z0, z1, frosted, 0.055);
+          if (o.style === "entrance_sidelight") pane(leafEnd + 0.04, o.end, o.sill + 0.05, top - 0.05);
+          else if (o.style === "entrance_strip") pane(o.start + w * 0.3 - 0.06, o.start + w * 0.3 + 0.06, o.sill + 0.3, top - 0.3);
+          else for (let i = 0; i < 4; i++) pane(mid - 0.09, mid + 0.09, o.sill + 1.05 + i * 0.27, o.sill + 1.23 + i * 0.27);
         } else if (o.type === "door") {
           // closed leaves: one, or two meeting in the middle
           if (o.style === "double") {
