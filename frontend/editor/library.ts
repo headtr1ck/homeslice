@@ -1,18 +1,17 @@
-// The editor's furniture library and its sources: the built-in shapes, Kenney's models
-// in the bundle, Poly Haven's (downloaded into Home Assistant when placed) and models
-// uploaded to Home Assistant. Every item is placed as a furniture type (its plan symbol,
+// The editor's furniture library and its sources: Homeslice's own pieces (drawn in code),
+// Poly Haven's models (downloaded into Home Assistant when placed) and models uploaded
+// to Home Assistant. Every item is placed as a furniture type (its plan symbol,
 // lights and defaults) with the model that shows it.
 
 import { FURNITURE, FURNITURE_GROUPS } from "../model/furniture";
-import { MODERN_GROUPS } from "../model/modern";
+import { MODERN_GROUPS, defaultKind } from "../model/modern";
 import type { FurnitureMount, FurnitureType } from "../model/types";
-import { KENNEY_GROUPS, kenneySize } from "./kenney";
 
-export type LibrarySource = "builtin" | "kenney" | "polyhaven" | "custom";
-export const LIBRARY_SOURCES: LibrarySource[] = ["builtin", "kenney", "polyhaven", "custom"];
+export type LibrarySource = "builtin" | "polyhaven" | "custom";
+export const LIBRARY_SOURCES: LibrarySource[] = ["builtin", "polyhaven", "custom"];
 
 export interface LibraryItem {
-  /** Unique within the library, e.g. `kenney:loungeSofa`. */
+  /** Unique within the library, e.g. `modern:sofa`. */
   key: string;
   type: FurnitureType;
   /** FurnitureInput.model */
@@ -106,16 +105,6 @@ export function modernGroups(): LibraryGroup[] {
   }));
 }
 
-export function kenneyGroups(): LibraryGroup[] {
-  return KENNEY_GROUPS.map((g) => ({
-    id: g.id,
-    items: g.items.map((i) => {
-      const s = kenneySize(i.file);
-      return { key: `kenney:${i.file}`, type: i.type, model: `kenney:${i.file}`, name: humanize(i.file), thumb: asset(`thumbs/kenney/${i.file}.png`), ...(s ? { size: s.size, height: s.height } : {}) };
-    }),
-  }));
-}
-
 const has = (a: PolyhavenAsset, re: RegExp) => re.test(`${a.id} ${a.name} ${a.tags.join(" ")}`.toLowerCase());
 
 /** The furniture type a Poly Haven model is (from its categories, name and tags). */
@@ -205,10 +194,12 @@ export function filterGroups(groups: LibraryGroup[], query: string, typeName: (t
   return groups.map((g) => ({ ...g, items: g.items.filter(matches) })).filter((g) => g.items.length);
 }
 
-/** A placed piece seen from straight above (assets/plan): its Kenney model's, else its type's. */
-export function planPicture(f: { type: FurnitureType; model?: string }): string {
-  if (f.model?.startsWith("kenney:")) return asset(`plan/kenney/${f.model.slice(7)}.png`);
+/** A placed piece seen from straight above (assets/plan): its own piece's, else its type's. */
+export function planPicture(f: { type: FurnitureType; model?: string; mount?: FurnitureMount }): string {
   if (f.model === "builtin") return asset(`plan/builtin/${f.type}.png`);
   if (f.model?.startsWith("modern:")) return asset(`plan/modern/${f.model.slice(7)}.png`);
+  // no model or a Kenney one (no longer bundled): the type's own piece
+  const kind = !f.model || f.model.startsWith("kenney:") ? defaultKind(f.type, f.mount) : undefined;
+  if (kind) return asset(`plan/modern/${kind}.png`);
   return asset(`plan/${FURNITURE[f.type] ? f.type : "item"}.png`);
 }

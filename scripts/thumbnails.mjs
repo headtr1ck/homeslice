@@ -23,10 +23,10 @@ const chrome = process.env.CHROME_PATH ?? join(dir, readdirSync(dir).filter((d) 
 const browser = await chromium.launch({ executablePath: existsSync(chrome) ? chrome : undefined, args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"] });
 const page = await browser.newPage();
 page.on("pageerror", (e) => console.error(e.message));
-// a fake origin serving the bundle and the models next to it
+// a fake origin serving the bundle
 await page.route("http://thumbs.local/**", (route) => {
   const path = decodeURIComponent(new URL(route.request().url()).pathname);
-  const file = path === "/" ? null : path.startsWith("/models/") ? join(root, "assets", path) : join(out, path);
+  const file = path === "/" ? null : join(out, path);
   if (!file) return route.fulfill({ contentType: "text/html", body: '<script type="module" src="/thumbnails.js"></script>' });
   if (!existsSync(file)) return route.fulfill({ status: 404, body: "" });
   const type = file.endsWith(".js") ? "text/javascript" : file.endsWith(".png") ? "image/png" : "application/octet-stream";
@@ -48,5 +48,3 @@ for (const [folder, set] of [["thumbs", images.thumbs], ["plan", images.plans]])
   }
   console.log(`${Object.keys(set).length} pictures in assets/${folder}/`);
 }
-writeFileSync(join(root, "frontend/editor/kenney-sizes.json"), JSON.stringify(images.sizes, null, 1) + "\n");
-console.log(`${Object.keys(images.sizes).length} Kenney sizes in frontend/editor/kenney-sizes.json`);

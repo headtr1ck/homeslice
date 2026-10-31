@@ -105,10 +105,11 @@ export interface FurnitureInput {
   /** Flipped left to right, e.g. a corner sofa with its long side on the other end. */
   mirror?: boolean;
   /**
-   * Which model shows the piece: `builtin` (the simple shapes), `kenney:<name>` (Kenney's
-   * models in the bundle), `polyhaven:<id>` (downloaded from Poly Haven into Home
-   * Assistant), `custom:<id>` (an uploaded .glb) or `modern:<kind>` (drawn by Homeslice to
-   * the piece's size). Default: the card's furniture style.
+   * Which model shows the piece: `modern:<kind>` (a built-in piece, drawn by Homeslice to
+   * the piece's size), `polyhaven:<id>` (downloaded from Poly Haven into Home Assistant),
+   * `custom:<id>` (an uploaded .glb) or `builtin` (the simple shapes). Default: the card's
+   * furniture style (detailed: the type's default piece). `kenney:<name>` from older
+   * houses shows the type's default piece.
    */
   model?: string;
   /** Modern pieces: the finish, the main colour or material (e.g. oak, white, grey; see model/modern.ts). */

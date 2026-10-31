@@ -35,7 +35,7 @@ export default defineConfig({
   build: {
     minify: true,
     outDir: OUT,
-    // assets/ (the furniture models) is copied next to the bundles
+    // assets/ (the library's pictures) is copied next to the bundles
     copyPublicDir: true,
     emptyOutDir: true,
     sourcemap: true,

@@ -118,12 +118,11 @@ def catalog_text() -> str:
     for t, d in c["furniture_types"].items():
         mount = f", {d['mount']}" if d.get("mount") else ""
         lines.append(f"- {t}: {d['name']}, {d['size'][0]} × {d['size'][1]} × {d['height']}{mount}")
-    lines += ["", "Modern models (model: modern:<kind>; type; size; finishes; accents if it has a second colour; the first is the default):"]
+    lines += ["", "Built-in pieces (model: modern:<kind>; type; size; finishes; accents if it has a second colour; the first is the default):"]
     for m in c["modern"]:
         mount = f", {m['mount']} at {m.get('elevation', 0)} m" if m.get("mount") else ""
         accents = f"; accent {', '.join(m['accents'])}" if m.get("accents") else ""
         lines.append(f"- {m['model']} ({m['name']}): type {m['type']}, {m['size'][0]} × {m['size'][1]} × {m['size'][2]}{mount}; {', '.join(m['finishes'])}{accents}")
-    lines += ["", "Kenney models (model: kenney:<name>): " + ", ".join(k["model"][7:] for k in c["kenney"]) + "."]
     return "\n".join(lines)
 
 

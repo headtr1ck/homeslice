@@ -163,6 +163,15 @@ console.log("demo house");
   });
 
   await test("unrelated state changes don't redraw anything", async () => {
+    // first let the card settle (pieces still being drawn redraw it once)
+    await page.evaluate(async () => {
+      await window.card.renderer.modelsReady();
+      let last = performance.now();
+      const seen = () => (last = performance.now());
+      window.card.addEventListener("homeslice-rendered", seen);
+      while (performance.now() - last < 600) await new Promise((r) => setTimeout(r, 100));
+      window.card.removeEventListener("homeslice-rendered", seen);
+    });
     const draws = await page.evaluate(async () => {
       let n = 0;
       const count = () => n++;
@@ -436,7 +445,7 @@ console.log("demo house, roof");
     const after = await page.evaluate(() => window.card.renderer.renderer.info.render.triangles);
     assert(after > before + 50, `triangles ${before} → ${after}`);
   });
-  await test("detailed furniture: every type gets its model, long pieces repeat units", async () => {
+  await test("detailed furniture: every type gets its built-in piece, drawn to its size", async () => {
     const types = ["sofa", "armchair", "table", "chair", "bed", "bed_single", "desk", "wardrobe", "shelf", "kitchen", "tv", "bathtub", "shower", "toilet", "sink", "plant", "car", "washer", "dryer", "fridge"];
     await act(page, async () => {
       await page.evaluate((types) => {
@@ -449,13 +458,18 @@ console.log("demo house, roof");
     const pieces = await page.evaluate(() => {
       const out = [];
       const level = window.card.renderer.object.getObjectByName("ground");
-      for (const g of level.children) if (g.children[0]?.userData.detailed) out.push({ holders: g.children[0].children.length });
+      for (const g of level.children)
+        if (g.children[0]?.userData.detailed) {
+          let meshes = 0;
+          g.children[0].traverse((o) => o.isMesh && meshes++);
+          out.push({ meshes });
+        }
       return out;
     });
     // the demo garden has four pieces of its own
     assert(pieces.length === types.length + 4, `${pieces.length} of ${types.length} + 4 pieces detailed`);
-    // the 2.4 m kitchen counter is a row of cabinets, not one stretched cabinet
-    assert(pieces[types.indexOf("kitchen")].holders >= 4, `kitchen units: ${pieces[types.indexOf("kitchen")].holders}`);
+    // the 2.4 m kitchen counter is a row of units with fronts, a sink and a hob
+    assert(pieces[types.indexOf("kitchen")].meshes >= 12, `kitchen parts: ${pieces[types.indexOf("kitchen")].meshes}`);
     await shot(page, "demo-furniture-detailed");
   });
   await test("simple furniture when the card asks for it", async () => {
@@ -1459,11 +1473,11 @@ console.log("editor");
     assert(errors.length === 0, errors.join(" | "));
   });
 
-  await test("library sources: Kenney's models at their size, Poly Haven's fetched into HA, uploaded models", async () => {
+  await test("library sources: built-in pieces with finishes, Poly Haven's fetched into HA, uploaded models", async () => {
     await page.keyboard.press("Escape");
     await page.keyboard.press("Escape");
     // Home Assistant serves downloaded and uploaded models; here any model is a chair
-    await page.route("**/homeslice_assets/**", (route) => route.fulfill({ contentType: "model/gltf-binary", body: readFileSync(join(root, "assets/models/chair.glb")) }));
+    await page.route("**/homeslice_assets/**", (route) => route.fulfill({ contentType: "model/gltf-binary", body: readFileSync(join(root, "dev/fixtures/chair.glb")) }));
     await page.locator('homeslice-panel aside.tools button.tool[data-tool="furniture"]').click();
     const dropKey = (key, x, y) =>
       page.evaluate(({ key, x, y }) => {
@@ -1502,14 +1516,7 @@ console.log("editor");
     await page.keyboard.press("Control+z");
     await page.keyboard.press("Control+z");
 
-    await source("kenney");
-    await dropKey("kenney:loungeDesignSofa", ...spot);
-    const sizes = JSON.parse(readFileSync(join(root, "frontend/editor/kenney-sizes.json"), "utf8")).loungeDesignSofa;
-    let f = await last();
-    assert(f.model === "kenney:loungeDesignSofa" && f.type === "sofa" && JSON.stringify(f.size) === JSON.stringify(sizes.slice(0, 2)) && f.height === sizes[2], `kenney: ${JSON.stringify(f)}`);
-    assert((await page.locator("homeslice-panel .inspector p", { hasText: "Model:" }).textContent()).includes("Kenney · Lounge design sofa"), "model not named");
-    await page.keyboard.press("Escape");
-
+    let f;
     await source("polyhaven");
     await page.locator('homeslice-panel .inspector .library button[data-key="polyhaven:Sofa_01"]').waitFor();
     assert((await page.locator("homeslice-panel .inspector .credit").textContent()).includes("Poly Haven"), "no credit for Poly Haven");
@@ -1517,7 +1524,7 @@ console.log("editor");
     assert(JSON.stringify(groups) === '["Seating","Lighting","Plants"]', `groups: ${groups}`);
     await shot(page, "editor-library-polyhaven");
     await dropKey("polyhaven:Sofa_01", ...spot);
-    await page.waitForFunction((n) => window.panel._model.levels[0].rooms.find((r) => r.id === "living").furniture?.length === n, start + 2);
+    await page.waitForFunction((n) => window.panel._model.levels[0].rooms.find((r) => r.id === "living").furniture?.length === n, start + 1);
     f = await last();
     assert(f.model === "polyhaven:Sofa_01" && f.type === "sofa" && JSON.stringify(f.size) === "[1.571,0.658]" && f.height === 0.796, `polyhaven: ${JSON.stringify(f)}`);
     assert(JSON.stringify(await page.evaluate(() => window.panel.hass.fetched)) === '["Sofa_01"]', "not fetched into HA first");
@@ -1525,14 +1532,14 @@ console.log("editor");
 
     await source("custom");
     assert((await page.locator("homeslice-panel .inspector p", { hasText: "No models uploaded yet" }).count()) === 1, "no empty note");
-    await page.locator("homeslice-panel .inspector label.upload-model input").setInputFiles({ name: "Our chair.glb", mimeType: "model/gltf-binary", buffer: readFileSync(join(root, "assets/models/chair.glb")) });
+    await page.locator("homeslice-panel .inspector label.upload-model input").setInputFiles({ name: "Our chair.glb", mimeType: "model/gltf-binary", buffer: readFileSync(join(root, "dev/fixtures/chair.glb")) });
     await page.locator('homeslice-panel .inspector .library button[data-key="custom:m1"]').waitFor();
     await dropKey("custom:m1", ...spot);
-    await page.waitForFunction((n) => window.panel._model.levels[0].rooms.find((r) => r.id === "living").furniture?.length === n, start + 3);
+    await page.waitForFunction((n) => window.panel._model.levels[0].rooms.find((r) => r.id === "living").furniture?.length === n, start + 2);
     f = await last();
     assert(f.model === "custom:m1" && f.type === "item" && f.size?.[0] > 0 && f.height > 0, `custom: ${JSON.stringify(f)}`);
     await shot(page, "editor-library-custom");
-    for (let i = 0; i < 3; i++) await page.keyboard.press("Control+z");
+    for (let i = 0; i < 2; i++) await page.keyboard.press("Control+z");
     assert((await count()) === start, "not undone");
     await page.keyboard.press("Escape");
     await page.locator('homeslice-panel aside.tools button.tool[data-tool="select"]').click();

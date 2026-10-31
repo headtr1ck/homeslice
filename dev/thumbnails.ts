@@ -1,32 +1,17 @@
 // Renders the editor's library pictures (scripts/thumbnails.mjs runs this in headless
-// Chromium): every furniture type as the cards draw it by default, as built-in shapes,
-// and every Kenney model of the library, each also from straight above (for the plan),
-// plus the Kenney models' sizes in metres.
+// Chromium): every furniture type as the cards draw it by default and as simple shapes,
+// and every built-in piece, each also from straight above (for the plan).
 import * as THREE from "three";
 import { FURNITURE, FURNITURE_TYPES } from "../frontend/model/furniture";
-import type { FurnitureType } from "../frontend/model/types";
-import { KENNEY_ITEMS } from "../frontend/editor/kenney";
-import { buildPiece, loadModel, modelColor, modelFiles } from "../frontend/render/models";
+import { modelColor } from "../frontend/render/models";
 import { simplePiece } from "../frontend/render/simple";
 import { buildModern } from "../frontend/render/modern";
-import { MODERN_GROUPS } from "../frontend/model/modern";
+import { MODERN_GROUPS, defaultKind } from "../frontend/model/modern";
 
 const SIZE = 160;
 
 /** Pixels per metre of the top-down pictures the editor's plan draws pieces with. */
 const PLAN_PX = 64;
-
-/**
- * Kenney's kits each have their own scale. Furniture: one known size for the whole kit;
- * nature models (whose kit mixes scales) as tall as their type usually is; cars at a
- * normal car's width and height.
- */
-const CARS = new Set(["sedan", "suv", "suv-luxury", "hatchback-sports", "van", "delivery", "taxi", "police"]);
-const kitOf = (file: string) => (CARS.has(file) ? "car" : file.includes("_") ? "nature" : "furniture");
-const REFERENCE: Record<string, { file: string; metres: number; along: "long" | "height" }> = {
-  furniture: { file: "bedDouble", metres: 2.05, along: "long" },
-  car: { file: "sedan", metres: 4.6, along: "long" },
-};
 
 const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
 renderer.setClearColor(0x000000, 0);
@@ -78,11 +63,14 @@ function shoot(piece: THREE.Object3D, size: [number, number]): { thumb: string; 
   return { thumb, plan: renderer.domElement.toDataURL("image/png") };
 }
 
-async function piece(type: FurnitureType, size: [number, number], height: number, model?: string) {
-  const mount = FURNITURE[type].mount ?? "floor";
-  const files = modelFiles(type, mount, model);
-  const models = new Map(await Promise.all(files.map(async (f) => [f, await loadModel(f)] as const)));
-  return buildPiece(type, mount, size, height, models, convert, model);
+/** A built-in piece with the cards' materials. */
+function modern(kind: string, size: [number, number], height: number) {
+  const p = buildModern(kind, size, height);
+  if (!p) throw new Error(`no built-in piece ${kind}`);
+  p.traverse((o) => {
+    if (o instanceof THREE.Mesh) o.material = convert(o.material as THREE.Material);
+  });
+  return p;
 }
 
 async function render() {
@@ -94,44 +82,14 @@ async function render() {
   };
   for (const type of FURNITURE_TYPES) {
     const def = FURNITURE[type];
-    // as cards draw it by default (the detailed model where there is one)
-    const detailed = await piece(type, def.size, def.height);
-    add(type, shoot(detailed ?? simplePiece({ type, size: def.size, height: def.height, mount: def.mount }, simpleMaterial, (g, m) => new THREE.Mesh(g, m)), def.size));
-    add(`builtin/${type}`, shoot(simplePiece({ type, size: def.size, height: def.height, mount: def.mount }, simpleMaterial, (g, m) => new THREE.Mesh(g, m)), def.size));
+    const simple = () => simplePiece({ type, size: def.size, height: def.height, mount: def.mount }, simpleMaterial, (g, m) => new THREE.Mesh(g, m));
+    // as cards draw it in detail by default: its built-in piece at the type's size
+    const kind = defaultKind(type, def.mount);
+    add(type, shoot(kind ? modern(kind, def.size, def.height) : simple(), def.size));
+    add(`builtin/${type}`, shoot(simple(), def.size));
   }
-  // Kenney's models at their own size
-  const scale: Record<string, number> = {};
-  for (const [kit, ref] of Object.entries(REFERENCE)) {
-    const model = await loadModel(ref.file);
-    if (!model) throw new Error(`no ${ref.file}`);
-    const s = new THREE.Box3().setFromObject(model).getSize(new THREE.Vector3());
-    scale[kit] = ref.metres / (ref.along === "height" ? s.y : Math.max(s.x, s.z));
-  }
-  const sizes: Record<string, [number, number, number]> = {};
-  for (const item of KENNEY_ITEMS) {
-    if (sizes[item.file]) continue;
-    const model = await loadModel(item.file);
-    if (!model) throw new Error(`no model ${item.file}`);
-    const s = new THREE.Box3().setFromObject(model).getSize(new THREE.Vector3());
-    const kit = kitOf(item.file);
-    const k = kit === "nature" ? FURNITURE[item.type].height / s.y : scale[kit];
-    const round = (v: number) => Math.max(0.02, Math.round(v * k * 100) / 100);
-    sizes[item.file] = kit === "car" ? [FURNITURE.car.size[0], round(Math.max(s.x, s.z)), FURNITURE.car.height] : [round(s.x), round(s.z), round(s.y)];
-    const [w, d, h] = sizes[item.file];
-    const p = await piece(item.type, [w, d], h, `kenney:${item.file}`);
-    if (p) add(`kenney/${item.file}`, shoot(p, [w, d]));
-  }
-  // the Modern pieces, as drawn in code (with the cards' materials)
-  for (const g of MODERN_GROUPS)
-    for (const k of g.kinds) {
-      const p = buildModern(k.id, [k.size[0], k.size[1]], k.size[2]);
-      if (!p) throw new Error(`no modern piece ${k.id}`);
-      p.traverse((o) => {
-        if (o instanceof THREE.Mesh) o.material = convert(o.material as THREE.Material);
-      });
-      add(`modern/${k.id}`, shoot(p, [k.size[0], k.size[1]]));
-    }
-  return { thumbs, plans, sizes };
+  for (const g of MODERN_GROUPS) for (const k of g.kinds) add(`modern/${k.id}`, shoot(modern(k.id, [k.size[0], k.size[1]], k.size[2]), [k.size[0], k.size[1]]));
+  return { thumbs, plans };
 }
 
 (window as unknown as { thumbnails: Promise<unknown> }).thumbnails = render();

@@ -280,7 +280,7 @@ def validate(house: Any) -> list[dict[str, str]]:
                     continue
                 model = get(fi, "model")
                 if model is not MISSING and not (isinstance(model, str) and MODEL_REF.match(model)):
-                    err(fp, f"model must be builtin, kenney:<name>, polyhaven:<id>, custom:<id> or modern:<kind>, got {stringify(model)}.")
+                    err(fp, f"model must be modern:<kind>, polyhaven:<id>, custom:<id> or builtin, got {stringify(model)}.")
                     continue
                 finish = get(fi, "finish")
                 if finish is not MISSING and not isinstance(finish, str):

@@ -1,22 +1,17 @@
 // Checks on every piece in the furniture library, so new ones (e.g. from a pull request)
 // can't break the editor or the cards: it builds, fits its box, stays light enough for a
-// wall tablet, has its pictures and names, and every model file is used and valid.
-import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
+// wall tablet, has its pictures and names, and every type has a piece to draw.
+import { existsSync } from "node:fs";
 import * as THREE from "three";
 import { describe, expect, it } from "vitest";
-import { KENNEY_ITEMS } from "./editor/kenney";
-import SIZES from "./editor/kenney-sizes.json";
 import en from "./i18n/en.json";
 import de from "./i18n/de.json";
 import { FURNITURE, FURNITURE_TYPES } from "./model/furniture";
-import { FINISHES, MODERN, MODERN_GROUPS } from "./model/modern";
-import { MODELS, WALL_MODELS } from "./render/models";
+import { FINISHES, MODERN, MODERN_GROUPS, defaultKind } from "./model/modern";
 import { buildModern } from "./render/modern";
 
 /** Triangles a single piece may have (a garden of trees must still run on a tablet). */
 const MAX_TRIANGLES = 40_000;
-/** A bundled model file at most (bytes). */
-const MAX_MODEL_BYTES = 400_000;
 
 const triangles = (o: THREE.Object3D) => {
   let n = 0;
@@ -80,34 +75,6 @@ describe("Modern pieces", () => {
   });
 });
 
-describe("Kenney's models", () => {
-  /** The texture files a .glb points to. */
-  const images = (file: string): string[] => {
-    const b = readFileSync(`assets/models/${file}.glb`);
-    expect(b.subarray(0, 4).toString(), `${file}.glb is not a binary glTF`).toBe("glTF");
-    const json = JSON.parse(b.subarray(20, 20 + b.readUInt32LE(12)).toString());
-    return (json.images ?? []).map((i: { uri?: string }) => i.uri).filter(Boolean);
-  };
-
-  it("every library item has its file, size, pictures and a known type", () => {
-    for (const item of KENNEY_ITEMS) {
-      expect(FURNITURE[item.type], item.file).toBeDefined();
-      expect(existsSync(`assets/models/${item.file}.glb`), `${item.file}.glb`).toBe(true);
-      expect(statSync(`assets/models/${item.file}.glb`).size, `${item.file}.glb is too large`).toBeLessThan(MAX_MODEL_BYTES);
-      for (const uri of images(item.file)) expect(existsSync(`assets/models/${uri}`), `${item.file}: ${uri}`).toBe(true);
-      expect((SIZES as Record<string, number[]>)[item.file], `${item.file}: size (run node scripts/thumbnails.mjs)`).toHaveLength(3);
-      expect(picture(`thumbs/kenney/${item.file}`), `thumbs/kenney/${item.file}.png`).toBe(true);
-      expect(picture(`plan/kenney/${item.file}`), `plan/kenney/${item.file}.png`).toBe(true);
-    }
-  });
-
-  it("every bundled file is used", () => {
-    const used = new Set([...KENNEY_ITEMS.map((i) => i.file), ...[...Object.values(MODELS), ...Object.values(WALL_MODELS)].flatMap((parts) => (parts ?? []).flatMap((p) => p.files))]);
-    const files = readdirSync("assets/models").filter((f) => f.endsWith(".glb"));
-    expect(files.filter((f) => !used.has(f.slice(0, -4)))).toEqual([]);
-  });
-});
-
 describe("furniture types", () => {
   it("each has its pictures and a name", () => {
     for (const t of FURNITURE_TYPES) {
@@ -115,5 +82,15 @@ describe("furniture types", () => {
       expect(picture(`thumbs/builtin/${t}`) && picture(`plan/builtin/${t}`), `builtin ${t}`).toBe(true);
       expect((en as Record<string, string>)[`furniture.${t}`], t).toBeTruthy();
     }
+  });
+
+  it("each has a built-in piece the cards draw in detail (except item), of its own type", () => {
+    for (const t of FURNITURE_TYPES) {
+      if (t === "item") continue;
+      const kind = defaultKind(t);
+      expect(kind && MODERN[kind], t).toBeTruthy();
+      expect(MODERN[kind!].type, `${t}: ${kind}`).toBe(t === "bench" || t === "tv" ? MODERN[kind!].type : t);
+    }
+    expect(MODERN[defaultKind("tv", "wall")!]).toBeTruthy();
   });
 });

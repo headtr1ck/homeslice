@@ -27,7 +27,6 @@ import {
   customGroups,
   filterGroups,
   humanize,
-  kenneyGroups,
   planPicture,
   polyhavenGroups,
   type CustomAsset,
@@ -3575,7 +3574,6 @@ export class HomeslicePanel extends LitElement {
         ...g,
         items: g.items.map((i) => (i.nameKey ? { ...i, name: this.t(i.nameKey as StringKey), tags: [...(i.tags ?? []), ...this.aliases(i.key.slice(7)), this.t(`furniture.group_${g.id}` as StringKey)] } : i)),
       }));
-    else if (source === "kenney") groups = kenneyGroups();
     else if (source === "polyhaven") {
       const c = this._polyhaven;
       if (!c) {
@@ -3591,9 +3589,7 @@ export class HomeslicePanel extends LitElement {
     const credit =
       source === "polyhaven"
         ? html`<p class="muted credit">${this.t("editor.library_polyhaven_credit")} <a href="https://polyhaven.com" target="_blank" rel="noopener">polyhaven.com</a></p>`
-        : source === "kenney"
-          ? html`<p class="muted credit">${this.t("editor.library_kenney_credit")} <a href="https://kenney.nl" target="_blank" rel="noopener">kenney.nl</a></p>`
-          : nothing;
+        : nothing;
     return html`<div class="library-sources" role="tablist">
         ${LIBRARY_SOURCES.map(
           (s) => html`<button role="tab" class=${s === source ? "active" : ""} aria-selected=${s === source} data-source=${s}
@@ -3645,14 +3641,15 @@ export class HomeslicePanel extends LitElement {
       )}`;
   }
 
-  /** Where a piece's model is from and its name, e.g. "Kenney · Lounge design sofa". */
   /** Other words for a piece, in every language (people search in the words they think in). */
   private aliases(kind: string): string[] {
     return [en, de].map((l) => (l as Record<string, string>)[`alias.${kind}`] ?? "").filter(Boolean);
   }
 
+  /** Where a piece's model is from and its name, e.g. "Poly Haven · Sofa 01". */
   private modelName(model: string): string {
     const [source, id] = model.includes(":") ? model.split(":", 2) : [model, ""];
+    if (source === "kenney") return this.t("editor.library_builtin");
     if (source === "builtin") return `${this.t("editor.library_builtin")} · ${this.t("editor.library_simple")}`;
     if (source === "modern") return `${this.t("editor.library_builtin")} · ${this.t(`modern.${id}` as StringKey)}`;
     const custom = source === "custom" ? this._customModels?.find((m) => m.id === id)?.name : undefined;

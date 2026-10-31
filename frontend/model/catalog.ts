@@ -3,7 +3,6 @@
 // (written by scripts/catalog.mjs; a test checks it is up to date), so its validator
 // and the AI guide never drift from the editor.
 
-import { KENNEY_ITEMS } from "../editor/kenney";
 import { FURNITURE } from "./furniture";
 import { FINISHES, MODERN_GROUPS } from "./modern";
 import en from "../i18n/en.json";
@@ -31,7 +30,6 @@ export function catalog() {
       g.kinds.map((k) => ({ model: `modern:${k.id}`, name: name(`modern.${k.id}`), group: g.id, type: k.type, size: k.size, finishes: k.finishes, ...(k.accents ? { accents: k.accents } : {}), ...(k.mount ? { mount: k.mount } : {}), ...(k.elevation !== undefined ? { elevation: k.elevation } : {}) })),
     ),
     finishes: Object.keys(FINISHES),
-    kenney: KENNEY_ITEMS.map((i) => ({ model: `kenney:${i.file}`, type: i.type })),
     energy_kinds: ["solar", "battery", "grid", "inverter", "device"],
   };
 }

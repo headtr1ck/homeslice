@@ -22,7 +22,7 @@ await build({
     rollupOptions: { input: join(root, "dev/library-entry.ts"), output: { entryFileNames: "entry.mjs", format: "es" } },
   },
 });
-const { MODERN_GROUPS, KENNEY_GROUPS, FURNITURE_GROUPS, FURNITURE, SIZES, en } = await import(join(out, "entry.mjs"));
+const { MODERN_GROUPS, FURNITURE_GROUPS, FURNITURE, en } = await import(join(out, "entry.mjs"));
 
 const img = (path) => {
   const file = join(root, "assets", `${path}.png`);
@@ -48,13 +48,6 @@ const modern = MODERN_GROUPS.map((g) => ({
     note: `${k.id}${k.mount ? ` · ${k.mount}` : ""} · ${k.finishes.join(", ")}`,
   })),
 }));
-const kenney = KENNEY_GROUPS.map((g) => ({
-  id: g.id,
-  items: g.items.map((i) => {
-    const s = SIZES[i.file];
-    return { name: i.file, type: i.type, size: s ? `${m(s[0])} × ${m(s[1])} × ${m(s[2])} m` : "⚠ no size", thumb: img(`thumbs/kenney/${i.file}`), plan: img(`plan/kenney/${i.file}`) };
-  }),
-}));
 const builtin = FURNITURE_GROUPS.map((g) => ({
   id: g.id,
   items: g.types.map((t) => ({ name: en[`furniture.${t}`] ?? t, type: t, size: `${m(FURNITURE[t].size[0])} × ${m(FURNITURE[t].size[1])} × ${m(FURNITURE[t].height)} m`, thumb: img(`thumbs/builtin/${t}`), plan: img(`plan/builtin/${t}`) })),
@@ -72,7 +65,7 @@ const html = `<!doctype html><meta charset="utf-8"><title>Homeslice furniture li
 </style>
 <h1>Homeslice furniture library</h1>
 <p>Every piece with its picture and its plan picture (from above, at its size). Built by <code>scripts/library-sheet.mjs</code>.</p>
-${section("Modern (drawn in code)", modern)}${section("Kenney (bundled models)", kenney)}${section("Built-in shapes", builtin)}`;
+${section("Built-in pieces (drawn in code)", modern)}${section("Simple shapes", builtin)}`;
 mkdirSync(join(root, "test-results"), { recursive: true });
 writeFileSync(join(root, "test-results/library.html"), html);
-console.log(`test-results/library.html: ${modern.flatMap((g) => g.items).length} modern, ${kenney.flatMap((g) => g.items).length} Kenney, ${builtin.flatMap((g) => g.items).length} built-in pieces`);
+console.log(`test-results/library.html: ${modern.flatMap((g) => g.items).length} built-in pieces, ${builtin.flatMap((g) => g.items).length} simple shapes`);

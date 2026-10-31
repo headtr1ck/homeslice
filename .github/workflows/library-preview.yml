@@ -6,13 +6,11 @@ name: Library preview
 on:
   pull_request:
     paths:
-      - "assets/models/**"
       - "frontend/model/modern.ts"
       - "frontend/model/furniture.ts"
       - "frontend/render/modern.ts"
       - "frontend/render/models.ts"
       - "frontend/render/simple.ts"
-      - "frontend/editor/kenney.ts"
       - "dev/thumbnails.ts"
       - "scripts/thumbnails.mjs"
 

@@ -37,6 +37,7 @@ export const FINISHES: Record<string, string> = {
   silver: "#b9bdc2",
   brass: "#b5955a",
   chrome: "#c9cdd1",
+  autumn: "#c98a3a",
 };
 
 const WOOD = ["oak", "white", "walnut", "black", "anthracite"];
@@ -144,6 +145,9 @@ export const MODERN_GROUPS: { id: string; kinds: ModernKind[] }[] = [
       k("microwave", "item", [0.48, 0.38, 0.28], ["silver", "black", "white"]),
       k("coffee_capsule", "item", [0.14, 0.38, 0.27], ["black", "red", "white", "silver"]),
       k("coffee_portafilter", "item", [0.38, 0.42, 0.4], ["silver", "black", "white", "red"]),
+      k("toaster", "item", [0.3, 0.18, 0.2], ["silver", "black", "white", "red", "green"]),
+      k("kettle", "item", [0.22, 0.17, 0.25], ["silver", "black", "white", "red", "green"]),
+      k("kitchen_bin", "item", [0.3, 0.3, 0.65], ["silver", "black", "white"]),
     ],
   },
   {
@@ -151,6 +155,8 @@ export const MODERN_GROUPS: { id: string; kinds: ModernKind[] }[] = [
     kinds: [
       k("bed", "bed", [1.8, 2.1, 1.0], ["beige", "grey", "anthracite", "green", "blue", "pink", "oak"], { accents: ["black", "oak", "brass", "chrome"] }),
       k("bed_single", "bed_single", [0.9, 2.05, 0.9], ["beige", "grey", "anthracite", "green", "blue", "pink", "oak"], { accents: ["black", "oak", "brass", "chrome"] }),
+      k("bunk_bed", "bed_single", [1.0, 2.05, 1.6], ["oak", "white", "walnut", "black"]),
+      k("bed_storage", "bed", [1.6, 2.1, 0.95], WOOD, { accents: HANDLES }),
       k("nightstand", "nightstand", [0.45, 0.38, 0.5], WOOD, { accents: ["black", "oak", "brass"] }),
       k("nightstand_wall", "nightstand", [0.45, 0.32, 0.18], WOOD, { mount: "wall", elevation: 0.45 }),
       k("wardrobe", "wardrobe", [2.0, 0.6, 2.2], WOOD, { accents: HANDLES }),
@@ -168,6 +174,9 @@ export const MODERN_GROUPS: { id: string; kinds: ModernKind[] }[] = [
       k("wardrobe_open", "wardrobe", [1.6, 0.55, 2.0], ["black", "oak", "white"]),
       k("dresser", "shelf", [1.2, 0.48, 0.8], WOOD, { accents: ["black", "oak", "brass"] }),
       k("desk", "desk", [1.4, 0.7, 0.75], ["oak", "white", "walnut", "black"], { accents: ["black", "white", "chrome", "oak"] }),
+      k("laptop", "item", [0.32, 0.22, 0.2], ["silver", "black", "white"]),
+      k("monitor", "tv", [0.62, 0.2, 0.48], ["black", "white", "silver"]),
+      k("books", "item", [0.4, 0.22, 0.25], ["white"]),
       k("chair_office", "chair", [0.6, 0.6, 1.05], ["black", "grey", "white"], { accents: ["black", "chrome", "white"] }),
     ],
   },
@@ -250,7 +259,12 @@ export const MODERN_GROUPS: { id: string; kinds: ModernKind[] }[] = [
   {
     id: "outside",
     kinds: [
-      k("tree_deciduous", "tree", [4.5, 4.5, 6.5], ["green"]),
+      k("tree_deciduous", "tree", [4.5, 4.5, 6.5], ["green", "autumn"]),
+      k("tree_palm", "tree", [3.5, 3.5, 5], ["green"]),
+      k("tree_pine", "pine", [3, 3, 9], ["green"]),
+      k("tree_stump", "item", [0.5, 0.5, 0.4], ["oak"]),
+      k("log_stack", "item", [1.2, 0.4, 0.8], ["oak"]),
+      k("flower_pots", "flower_bed", [0.9, 0.3, 0.5], POT),
       k("tree_birch", "tree_small", [2.4, 2.4, 6], ["green"]),
       k("tree_conifer", "pine", [2.6, 2.6, 7], ["green"]),
       k("tree_fruit", "tree_small", [3, 3, 3.6], ["green"]),
@@ -268,6 +282,11 @@ export const MODERN_GROUPS: { id: string; kinds: ModernKind[] }[] = [
       k("deck_chair", "chair", [0.6, 1.0, 0.9], ["blue", "terracotta", "green", "beige"], { accents: ["oak", "walnut", "black"] }),
       k("hammock", "item", [3.4, 1.0, 1.3], ["beige", "terracotta", "blue", "green"], { accents: ["oak", "walnut", "black"] }),
       k("fence_slats", "fence", [3.0, 0.08, 1.8], ["anthracite", "oak", "walnut", "grey"], { accents: ["black", "anthracite", "silver"] }),
+      k("fence_picket", "fence", [2.4, 0.06, 1.0], ["white", "oak", "green", "anthracite"]),
+      k("fence_planks", "fence", [3.0, 0.1, 1.8], ["oak", "walnut", "anthracite", "grey"]),
+      k("garden_gate", "fence", [1.2, 0.1, 1.2], ["oak", "white", "anthracite", "green"], { accents: ["black", "silver"] }),
+      k("path_paving", "garden_path", [1.2, 3.0, 0.04], ["concrete", "grey", "sand", "anthracite", "terracotta"]),
+      k("path_boardwalk", "garden_path", [1.0, 3.0, 0.05], ["oak", "walnut", "grey"]),
       k("garden_light", "floor_lamp", [0.16, 0.16, 0.6], ["anthracite", "black", "silver"]),
     ],
   },
@@ -333,6 +352,7 @@ export const MODERN_GROUPS: { id: string; kinds: ModernKind[] }[] = [
       k("car_hatchback", "car", [1.8, 4.1, 1.48], PAINT),
       k("car_estate", "car", [1.85, 4.8, 1.5], PAINT),
       k("car_suv", "car", [1.95, 4.7, 1.7], PAINT),
+      k("car_sports", "car", [1.9, 4.4, 1.25], PAINT),
       k("car_van", "car", [2.0, 5.0, 1.98], PAINT),
       k("bicycle", "item", [0.6, 1.75, 1.05], ["black", "red", "blue", "silver", "green"]),
       k("bike_rack", "item", [1.6, 0.5, 0.8], ["silver", "anthracite"]),
@@ -342,3 +362,58 @@ export const MODERN_GROUPS: { id: string; kinds: ModernKind[] }[] = [
 ];
 
 export const MODERN: Record<string, ModernKind> = Object.fromEntries(MODERN_GROUPS.flatMap((g) => g.kinds.map((x) => [x.id, x])));
+
+/**
+ * The piece a card draws for a type when it shows detailed furniture and the piece names
+ * no model (or names one of the Kenney models Homeslice once bundled).
+ */
+export const DEFAULT_KIND: Partial<Record<FurnitureType, string>> = {
+  sofa: "sofa",
+  sofa_corner: "sofa_corner",
+  armchair: "armchair",
+  coffee_table: "coffee_table",
+  side_table: "side_table",
+  tv: "tv_stand",
+  shelf: "bookshelf",
+  rug: "rug",
+  floor_lamp: "floor_lamp_tripod",
+  table_lamp: "table_lamp",
+  plant: "monstera",
+  table: "dining_table",
+  chair: "chair_wood",
+  stool: "stool_wood",
+  kitchen: "kitchen",
+  kitchen_upper: "kitchen_upper",
+  fridge: "fridge_freestanding",
+  bed: "bed",
+  bed_single: "bed_single",
+  nightstand: "nightstand",
+  wardrobe: "wardrobe",
+  desk: "desk",
+  bathtub: "bathtub",
+  shower: "shower_glass",
+  toilet: "toilet_wall",
+  sink: "vanity",
+  mirror: "mirror_wall",
+  washer: "washer",
+  dryer: "dryer",
+  wall_lamp: "wall_sconce",
+  ceiling_lamp: "pendant_dome",
+  ceiling_fan: "ceiling_fan",
+  tree: "tree_deciduous",
+  tree_small: "tree_fruit",
+  pine: "tree_conifer",
+  bush: "shrub",
+  hedge: "hedge_leafy",
+  flower_bed: "flower_bed",
+  fence: "fence_slats",
+  garden_path: "path_paving",
+  bench: "dining_bench",
+  car: "car_estate",
+};
+
+/** The default piece for a type as mounted (a TV on a wall has no stand). */
+export function defaultKind(type: FurnitureType, mount = "floor"): string | undefined {
+  if (type === "tv" && mount === "wall") return "tv_wall";
+  return DEFAULT_KIND[type];
+}

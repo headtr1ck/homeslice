@@ -5,7 +5,7 @@
 
 import * as THREE from "three";
 import { simplePiece } from "./simple";
-import { buildPiece, loadModel, modelColor, modelFiles, partsFor } from "./models";
+import { detailFor, fitModel, loadModel, modelColor } from "./models";
 import { nearestCorner, offsetPolygon, perimeterPath } from "../model/route";
 import { floorTexture } from "./textures";
 import { Line2 } from "three/examples/jsm/lines/Line2.js";
@@ -1111,7 +1111,7 @@ export class HouseRenderer {
     // mirrored in its own frame, before turning
     if (f.mirror) g.scale.x = -1;
     g.traverse((o) => (o.userData.outdoor = true)); // not a tap target: taps go to the room
-    if (this.view.furniture === "detailed" && (partsFor(f.type, f.mount, f.model) || f.model?.startsWith("modern:"))) this.detail(g, f);
+    if (this.view.furniture === "detailed" && detailFor(f)) this.detail(g, f);
     return g;
   }
 
@@ -1136,18 +1136,17 @@ export class HouseRenderer {
       }
       return m;
     };
-    const files = modelFiles(f.type, f.mount, f.model);
-    // Modern pieces are drawn in code (their module loads with the first one)
-    const modern = f.model?.startsWith("modern:") ? import("./modern") : null;
-    const done = Promise.all([modern, ...files.map(async (file) => [file, await loadModel(file)] as const)]).then(([mod, ...loaded]) => {
+    const how = detailFor(f)!;
+    // built-in pieces are drawn in code (their module loads with the first one)
+    const done = Promise.all(["kind" in how ? import("./modern") : null, "file" in how ? loadModel(how.file) : null]).then(([mod, model]) => {
       if (generation !== this.generation) return;
-      let piece: THREE.Group | null;
-      if (mod) {
-        piece = mod.buildModern(f.model!.slice(7), f.size, f.height, f.finish, f.accent);
+      let piece: THREE.Group | null = null;
+      if (mod && "kind" in how) {
+        piece = mod.buildModern(how.kind, f.size, f.height, f.finish, f.accent);
         piece?.traverse((o) => {
           if (o instanceof THREE.Mesh) o.material = Array.isArray(o.material) ? o.material.map(convert) : convert(o.material);
         });
-      } else piece = buildPiece(f.type, f.mount, f.size, f.height, new Map(loaded as [string, THREE.Object3D | null][]), convert, f.model);
+      } else if (model) piece = fitModel(model, f.size, f.height, convert);
       if (!piece) return; // keep the simple shapes
       for (const child of [...g.children]) {
         g.remove(child);

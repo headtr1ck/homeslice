@@ -1,7 +1,8 @@
-"""The models the repository ships pass the same checks as uploaded ones, and stay light.
+"""Models in the repository pass the same checks as uploaded ones, and stay light.
 
-They are served to every screen that shows a house, so a model added in a pull request
-must not load files from elsewhere, need decoders we don't bundle or weigh down a tablet.
+Homeslice draws its own pieces in code; a model added in a pull request (a test fixture,
+or one shipped again one day) must not load files from elsewhere, need decoders we don't
+bundle or weigh down a tablet.
 """
 
 from __future__ import annotations
@@ -14,7 +15,7 @@ import pytest
 from custom_components.homeslice.assets import POLYHAVEN_SUFFIXES, AssetError, check_links, glb_json
 
 ROOT = Path(__file__).parent.parent
-MODELS = sorted(p for p in ROOT.glob("assets/**/*") if p.suffix.lower() in {".glb", ".gltf"})
+MODELS = sorted(p for folder in ("assets", "dev", "custom_components") for p in (ROOT / folder).glob("**/*") if p.suffix.lower() in {".glb", ".gltf"})
 
 MAX_BYTES = 1_000_000
 MAX_TRIANGLES = 20_000
@@ -32,8 +33,8 @@ def triangles(gltf: dict) -> int:
     return total
 
 
-def test_there_are_models() -> None:
-    assert len(MODELS) > 100
+def test_the_fixture_is_checked() -> None:
+    assert any(p.name == "chair.glb" for p in MODELS)
 
 
 @pytest.mark.parametrize("path", MODELS, ids=lambda p: str(p.relative_to(ROOT)))

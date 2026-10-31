@@ -64,9 +64,9 @@ repository itself doesn't contain the built frontend; build it with `npm run bui
    - **2. Doors & windows:** click a wall to add a window, link its blind and contact.
    - **3. Objects & entities:** lights are placed automatically and can be dragged;
      drag furniture from the library (wall pieces go against a wall; `R` to turn); place solar, battery, grid and power-measured
-     devices for the energy overlay. The library has four sources: **Built-in** (pieces
+     devices for the energy overlay. The library has three sources: **Built-in** (pieces
      drawn by Homeslice to their size, with a finish and often a second colour: sofas,
-     wardrobes, kitchens, bathroom, lamps, plants, garden, play, cars and bikes…), **Kenney** (low-poly models, included), **Poly Haven** (realistic
+     wardrobes, kitchens, bathroom, lamps, plants, garden, play, cars and bikes…), **Poly Haven** (realistic
      models, downloaded into Home Assistant once when placed) and **Custom** (upload your
      own `.glb`; it has to be self-contained: models that load textures or data from
      other websites are refused, so no screen showing your house contacts a stranger).
@@ -207,7 +207,7 @@ levels:
           - { type: sofa_corner, at: [2, 3], mirror: true }                    # flipped left to right
           - { type: sofa, at: [3, 4], model: polyhaven:Sofa_01, size: [1.57, 0.66], height: 0.8 }
           - { type: wardrobe, at: [5, 0.4], model: modern:wardrobe_sliding, finish: walnut, accent: black, size: [2, 0.65], height: 2.2 }
-          # model: builtin | modern:<kind> | kenney:<name> | polyhaven:<id> | custom:<id> (default: the card's style)
+          # model: modern:<kind> | polyhaven:<id> | custom:<id> | builtin (default: the card's style)
       - { id: kitchen, area_id: kitchen, rect: [6, 0, 4, 8], floor: tile }
       - { id: garden, area_id: garden, kind: outdoor, rect: [0, 8, 10, 6], awning: cover.awning }
     walls:
@@ -263,16 +263,15 @@ uv pip install --python .venv/bin/python pytest-homeassistant-custom-component h
 ## Adding furniture
 
 Library pieces are checked automatically (`npm test`, `frontend/assets.test.ts`): each
-Modern piece builds at several sizes, fits its box, stays under a triangle budget and
-has its names and pictures; every bundled model is valid, small, used and pictured.
-After adding or changing a piece, run `node scripts/thumbnails.mjs` (pictures and
-Kenney sizes) and `node scripts/library-sheet.mjs` for an overview page
+built-in piece builds at several sizes, fits its box, stays under a triangle budget and
+has its names, aliases and pictures; every type has a default piece.
+After adding or changing a piece, run `node scripts/thumbnails.mjs` (pictures) and `node scripts/library-sheet.mjs` for an overview page
 (`test-results/library.html`).
 
 ## License
 
-MIT. The furniture models in `assets/models/` are by [Kenney](https://kenney.nl)
-(Furniture Kit, Nature Kit and Car Kit, CC0). A card loads only the models its house uses.
+MIT. Every built-in piece is drawn in code by Homeslice; a card loads that code only
+when its house shows detailed furniture.
 
 The editor's Poly Haven library uses the [Poly Haven](https://polyhaven.com) API; its
 models are CC0. Home Assistant downloads a model (1k textures) into

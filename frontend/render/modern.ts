@@ -852,7 +852,7 @@ const BUILDERS: Record<string, Build> = {
     grass(b, random(29), w - 0.1, d - 0.1, h - bh, bh - 0.04, 140, ["#6f8f48", "#8aa35a", "#a6b46a"]);
   },
   // ----- outside -----
-  tree_deciduous: (b, w, d, h) => tree(b, w, d, h, 41, "round"),
+  tree_deciduous: (b, w, d, h, _f, color) => tree(b, w, d, h, 41, color === "autumn" ? "autumn" : "round"),
   tree_fruit: (b, w, d, h) => tree(b, w, d, h, 43, "fruit"),
   tree_birch: (b, w, d, h) => tree(b, w, d, h, 47, "birch"),
   tree_conifer: (b, w, d, h) => {
@@ -2221,6 +2221,195 @@ const BUILDERS: Record<string, Build> = {
       for (let l = 0; l < 5; l++) b.batch(leafGeometry(0.12, 0.045, 0.15), leafMat(l % 2 ? C.leaf : C.leafLight), matrix(tip.x, tip.y, tip.z, -0.9, -a - Math.PI / 2 + (l - 2) * 0.45, 0));
     }
   },
+  // ----- the rest of what Kenney's kits had, redrawn -----
+  laptop: (b, w, d, _h, f) => {
+    b.box(w, 0.015, d * 0.95, 0, 0, d * 0.025, f, 0.004);
+    b.box(w * 0.86, 0.002, d * 0.45, 0, 0.015, d * 0.12, mat("#2a2c30"));
+    b.box(w * 0.3, 0.001, d * 0.2, 0, 0.015, d * 0.38, mat("#3a3d42"));
+    const lid = b.box(w, d * 0.9, 0.008, 0, 0, 0, f, 0.004);
+    lid?.position.set(0, d * 0.42, -d / 2 + 0.08);
+    lid?.rotation.set(-0.3, 0, 0);
+    const screen = b.box(w * 0.92, d * 0.8, 0.002, 0, 0, 0, mat(C.screen, { emissive: "#24303c", emissiveIntensity: 0.4 }));
+    screen?.position.set(0, d * 0.42, -d / 2 + 0.085);
+    screen?.rotation.set(-0.3, 0, 0);
+  },
+  monitor: (b, w, d, h, f) => {
+    b.box(w * 0.3, 0.012, d * 0.9, 0, 0, 0, f, 0.006);
+    b.box(0.04, h * 0.5, 0.02, 0, 0.012, -d * 0.2, f, 0.006);
+    b.box(w, h * 0.62, 0.025, 0, h * 0.36, -d * 0.1, f, 0.008);
+    b.box(w - 0.02, h * 0.62 - 0.03, 0.002, 0, h * 0.36 + 0.02, -d * 0.1 + 0.0135, mat(C.screen, { emissive: "#24303c", emissiveIntensity: 0.4 }));
+  },
+  books: (b, w, d, h) => {
+    const rand = random(251);
+    books(b, rand, -w / 2, w * 0.1, 0, h, d, 0);
+    let y = 0;
+    while (y < h * 0.5) {
+      const bh = 0.025 + rand() * 0.02;
+      b.box(w * 0.38, bh, d * (0.8 + rand() * 0.2), w * 0.3, y, 0, mat(C.book[Math.floor(rand() * C.book.length)]), 0.003)?.rotation.set(0, (rand() - 0.5) * 0.3, 0);
+      y += bh;
+    }
+  },
+  toaster: (b, w, d, h, f) => {
+    b.box(w, h, d, 0, 0, 0, f, Math.min(0.04, d / 3));
+    for (const sx of [-1, 1]) b.box(w * 0.6, 0.004, 0.025, 0, h, sx * d * 0.18, mat("#1c1d20"));
+    b.box(0.02, 0.03, 0.03, w / 2 - 0.05, h * 0.55, d / 2 + 0.01, mat(C.black), 0.005);
+  },
+  kettle: (b, w, d, h, f) => {
+    const r = Math.min(w, d) * 0.4;
+    b.cyl(r * 1.05, r * 1.1, 0.02, 0, 0, 0, mat(C.black), 20);
+    b.add(new THREE.LatheGeometry([[0.001, 0], [1, 0], [1.02, 0.5], [0.85, 0.92], [0.4, 1], [0.001, 1]].map(([x, y]) => new THREE.Vector2(x * r, y * (h - 0.04))), 28), f, 0, 0.02, 0);
+    b.rod(v(0, h * 0.85, -r * 0.5), v(0, h - 0.01, -r * 1.2), 0.012, f, 6);
+    b.rod(v(0, h - 0.01, -r * 1.2), v(0, h * 0.35, -r * 1.25), 0.014, mat(C.black), 6);
+    b.rod(v(0, h * 0.55, r * 0.9), v(0, h * 0.82, r * 1.35), 0.018, f, 8);
+  },
+  kitchen_bin: (b, w, d, h, f) => {
+    const r = Math.min(w, d) / 2;
+    b.cyl(r, r * 0.96, h - 0.04, 0, 0, 0, f, 28);
+    b.add(new THREE.SphereGeometry(r, 28, 6, 0, Math.PI * 2, 0, Math.PI / 2), f, 0, h - 0.04, 0).scale.y = 0.12 / r;
+    b.box(0.08, 0.02, 0.06, 0, 0.01, r, mat(C.black), 0.006);
+  },
+  bunk_bed: (b, w, d, h, f) => {
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) b.box(0.06, h, 0.06, sx * (w / 2 - 0.03), 0, sz * (d / 2 - 0.03), f, 0.01);
+    for (const y of [0.2, h * 0.58]) {
+      b.box(w, 0.06, d, 0, y, 0, f, 0.01);
+      b.box(w - 0.08, 0.16, d - 0.1, 0, y + 0.06, 0, mat(C.mattress), 0.04);
+      b.box(w - 0.06, 0.05, d * 0.62, 0, y + 0.22, d * 0.16, mat(C.linen, { roughness: 1 }), 0.025);
+      b.box(w * 0.6, 0.1, 0.3, 0, y + 0.22, -d / 2 + 0.22, mat(C.pillow), 0.04);
+    }
+    for (const sz of [-1, 1]) b.box(w, 0.04, 0.025, 0, h - 0.12, sz * (d / 2 - 0.03), f, 0.006);
+    b.box(0.025, 0.04, d * 0.6, w / 2 - 0.03, h - 0.12, -d * 0.15, f, 0.006);
+    // the ladder at the foot end
+    for (const sx of [-0.2, 0.2]) b.box(0.04, h * 0.8, 0.04, sx, 0, d / 2 + 0.02, f, 0.006);
+    for (let i = 1; i < 5; i++) b.box(0.4, 0.03, 0.03, 0, (i * h * 0.8) / 5, d / 2 + 0.02, f, 0.006);
+  },
+  bed_storage: (b, w, d, h, f, _c, a) => {
+    // a box bed with drawers under it and a panel headboard
+    b.box(w, 0.36, d, 0, 0, 0, f, 0.008);
+    for (const sx of [-1, 1]) fronts(b, sx < 0 ? -w / 2 + 0.1 : 0.1, w / 2 - 0.2, 0.04, 0.26, d / 2, 1, f, 1, "bar", a);
+    b.box(w + 0.04, h, 0.06, 0, 0, -d / 2 + 0.03, f, 0.01);
+    b.box(w - 0.06, 0.2, d - 0.1, 0, 0.36, 0.03, mat(C.mattress), 0.05);
+    b.box(w - 0.02, 0.07, (d - 0.12) * 0.66, 0, 0.54, d / 2 - ((d - 0.12) * 0.66) / 2 - 0.02, mat(C.linen, { roughness: 1 }), 0.035);
+    const n = w > 1.2 ? 2 : 1;
+    for (let i = 0; i < n; i++) b.box(w / n - 0.14, 0.13, 0.36, -w / 2 + (w / n) * (i + 0.5), 0.54, -d / 2 + 0.3, mat(C.pillow), 0.06);
+  },
+  fence_picket: (b, w, d, h, f) => {
+    const n = Math.max(2, Math.round(w / 0.12));
+    for (let i = 0; i < n; i++) {
+      const x = -w / 2 + (w / n) * (i + 0.5);
+      b.box(0.07, h - 0.06, Math.min(0.02, d), x, 0, 0.02, f);
+      b.add(new THREE.ConeGeometry(0.05, 0.08, 4).rotateY(Math.PI / 4).scale(1, 1, 0.3), f, x, h - 0.02, 0.02);
+    }
+    for (const y of [0.15, h - 0.25]) b.box(w, 0.07, 0.025, 0, y, -0.005, f);
+  },
+  fence_planks: (b, w, d, h, f) => {
+    const n = Math.max(1, Math.round(w / 1.8));
+    for (let i = 0; i <= n; i++) b.box(0.09, h + 0.05, 0.09, -w / 2 + 0.045 + (i * (w - 0.09)) / n, 0, -0.02, f);
+    const boards = Math.max(4, Math.round(w / 0.14));
+    for (let i = 0; i < boards; i++) b.box(w / boards - 0.012, h - 0.05, Math.min(0.02, d), -w / 2 + (w / boards) * (i + 0.5), 0.05, 0.035, f);
+  },
+  garden_gate: (b, w, d, h, f, _c, a) => {
+    for (const sx of [-1, 1]) b.box(0.1, h + 0.1, 0.1, sx * (w / 2 - 0.05), 0, 0, mat(C.black));
+    const gw = w - 0.24;
+    const boards = Math.max(4, Math.round(gw / 0.12));
+    for (let i = 0; i < boards; i++) b.box(gw / boards - 0.01, h - 0.1, 0.022, -gw / 2 + (gw / boards) * (i + 0.5), 0.06, 0.03, f);
+    for (const y of [0.2, h - 0.25]) b.box(gw, 0.08, 0.025, 0, y, 0.005, f);
+    b.rod(v(-gw / 2 + 0.05, 0.25, 0.01), v(gw / 2 - 0.05, h - 0.2, 0.01), 0.02, f, 6);
+    b.box(0.03, 0.12, 0.03, gw / 2 - 0.06, h * 0.55, 0.06, a, 0.006);
+    void d;
+  },
+  path_paving: (b, w, d, h, f) => {
+    // slabs in a running bond: every other row shifted by half a slab, cut at the edges
+    const rows = Math.max(1, Math.round(d / 0.4));
+    const sw = w / Math.max(1, Math.round(w / 0.6));
+    for (let r = 0; r < rows; r++) {
+      const z = -d / 2 + (d / rows) * (r + 0.5);
+      for (let x0 = -w / 2 - (r % 2 ? sw / 2 : 0); x0 < w / 2 - 0.01; x0 += sw) {
+        const a = Math.max(x0, -w / 2);
+        const c = Math.min(x0 + sw, w / 2);
+        if (c - a > 0.05) b.box(c - a - 0.012, h, d / rows - 0.012, (a + c) / 2, 0, z, f, 0.004);
+      }
+    }
+  },
+  path_boardwalk: (b, w, d, h, f) => {
+    const n = Math.max(2, Math.round(d / 0.15));
+    for (let i = 0; i < n; i++) b.box(w, h, d / n - 0.01, 0, 0, -d / 2 + (d / n) * (i + 0.5), f, 0.004);
+  },
+  log_stack: (b, w, d, h) => {
+    const rand = random(257);
+    const r = 0.08;
+    const rows = Math.max(1, Math.floor(h / (r * 1.8)));
+    for (let row = 0; row < rows; row++) {
+      const n = Math.max(1, Math.floor(w / (r * 2.05)) - (row % 2));
+      for (let i = 0; i < n; i++) {
+        const x = -w / 2 + r + (row % 2) * r + i * r * 2.05;
+        const log = b.add(new THREE.CylinderGeometry(r * (0.85 + rand() * 0.15), r * (0.85 + rand() * 0.15), d, 10), mat(i % 2 ? C.trunk : "#7a5a43"), x, r + row * r * 1.75, 0);
+        log.rotation.x = Math.PI / 2;
+        b.add(new THREE.CircleGeometry(r * 0.8, 10), mat("#c9a77c"), x, r + row * r * 1.75, d / 2 + 0.001);
+      }
+    }
+  },
+  tree_stump: (b, w, d, h) => {
+    const r = Math.min(w, d) / 2;
+    b.add(new THREE.LatheGeometry([[0.001, 0], [1, 0], [0.75, 0.25], [0.68, 1], [0.001, 1]].map(([x, y]) => new THREE.Vector2(x * r, y * h)), 14), mat(C.trunk, { roughness: 1 }));
+    b.add(new THREE.CircleGeometry(r * 0.66, 14), mat("#c9a77c"), 0, h + 0.001, 0).rotation.x = -Math.PI / 2;
+    for (let i = 1; i < 4; i++) b.add(new THREE.RingGeometry(r * 0.15 * i, r * 0.15 * i + 0.006, 14), mat("#a8845a"), 0, h + 0.002, 0).rotation.x = -Math.PI / 2;
+  },
+  tree_palm: (b, w, d, h) => {
+    // a curved ringed trunk, a crown of long fronds
+    const rand = random(263);
+    const top = v(w * 0.12, h * 0.85, 0);
+    const curve = new THREE.QuadraticBezierCurve3(v(0, 0, 0), v(-w * 0.05, h * 0.45, 0), top);
+    b.add(new THREE.TubeGeometry(curve, 16, 0.11, 8), mat("#8a7458", { roughness: 1 }));
+    for (let i = 1; i < 14; i++) {
+      const p = curve.getPoint(i / 14);
+      b.add(new THREE.TorusGeometry(0.11, 0.015, 4, 10), mat("#6d5a43"), p.x, p.y, p.z).rotation.x = Math.PI / 2;
+    }
+    for (let s = 0; s < 11; s++) {
+      const a = (s / 11) * Math.PI * 2 + rand() * 0.3;
+      const out = Math.min(w, d) * (0.4 + rand() * 0.1);
+      const frond = new THREE.QuadraticBezierCurve3(top, top.clone().add(v(Math.cos(a) * out * 0.5, h * 0.12, Math.sin(a) * out * 0.5)), top.clone().add(v(Math.cos(a) * out, -h * 0.12, Math.sin(a) * out)));
+      for (let k = 2; k < 18; k++) {
+        const t = k / 18;
+        const p = frond.getPoint(t);
+        for (const side of [-1, 1]) b.batch(leafGeometry(0.5 * (1 - t * 0.5), 0.05, 0.6), leafMat(k % 2 ? C.leaf : C.leafDark), matrix(p.x, p.y, p.z, -1.5 - t * 0.5, -a - Math.PI / 2 + side * 1.1, side * 0.5));
+      }
+    }
+  },
+  tree_pine: (b, w, d, h) => {
+    // a tall Scots pine: bare trunk, a flat-topped crown of needle clumps
+    const rand = random(269);
+    const crownY = h * 0.6;
+    b.cyl(0.1, 0.16, h * 0.9, 0, 0, 0, mat("#9a5f3c", { roughness: 1 }), 10);
+    for (let i = 0; i < 9; i++) {
+      const a = (i / 9) * Math.PI * 2 + rand();
+      const c = v(Math.cos(a) * w * 0.24, crownY + rand() * (h - crownY) * 0.75, Math.sin(a) * d * 0.24);
+      b.rod(v(0, c.y - 0.3, 0), c, 0.04, mat("#7a4a32"), 5);
+      foliage(b, rand, c.x, c.y, c.z, w * 0.26, (h - crownY) * 0.22, d * 0.26, 140, 0.14, [C.leafDark, "#2f5a33", "#3d6b3a"]);
+    }
+  },
+  car_sports: (b, w, d, h, _f, color) => car(b, w, d, h, color, "sports"),
+  flower_pots: (b, w, d, h, f) => {
+    const rand = random(271);
+    const n = Math.max(1, Math.round(w / 0.32));
+    const petals = ["#d4553a", "#e8a33d", "#f2d14b", "#e58fb0", "#8a74b8", "#f4f2ec"];
+    for (let i = 0; i < n; i++) {
+      const x = -w / 2 + (w / n) * (i + 0.5);
+      const r = Math.min(w / n, d) * 0.4;
+      const ph = h * 0.45;
+      const g = new Builder();
+      pot(g, r, ph, f);
+      const pg = g.done();
+      pg.position.x = x;
+      b.g.add(pg);
+      for (let k = 0; k < 12; k++) {
+        const a = rand() * Math.PI * 2;
+        const rr = rand() * r * 0.7;
+        const y = ph + (h - ph) * (0.5 + rand() * 0.5);
+        stem(b, v(x + Math.cos(a) * rr * 0.4, ph * 0.9, Math.sin(a) * rr * 0.4), v(x + Math.cos(a) * rr, y, Math.sin(a) * rr), 0.004, C.leaf);
+        b.batch(new THREE.CircleGeometry(0.03, 6), leafMat(petals[(i * 3 + k) % petals.length]), matrix(x + Math.cos(a) * rr, y, Math.sin(a) * rr, -Math.PI / 2 + (rand() - 0.5) * 0.6, rand() * 6, 0));
+      }
+    }
+  },
   // ----- vehicles -----
   car_hatchback: (b, w, d, h, _f, color) => car(b, w, d, h, color, "hatchback"),
   car_estate: (b, w, d, h, _f, color) => car(b, w, d, h, color, "estate"),
@@ -2292,6 +2481,7 @@ const CAR_PROFILES: Record<string, { body: [number, number][]; cabin: [number, n
   hatchback: { body: [[0, 0.17], [0, 0.58], [0.04, 0.62], [0.72, 0.62], [0.95, 0.52], [1, 0.42], [1, 0.17]], cabin: [[0.03, 0.62], [0.08, 0.97], [0.5, 1], [0.73, 0.62]] },
   estate: { body: [[0, 0.17], [0, 0.56], [0.03, 0.6], [0.75, 0.6], [0.96, 0.5], [1, 0.4], [1, 0.17]], cabin: [[0.02, 0.6], [0.04, 0.95], [0.6, 0.98], [0.77, 0.6]] },
   suv: { body: [[0, 0.17], [0, 0.6], [0.03, 0.64], [0.76, 0.64], [0.96, 0.57], [1, 0.47], [1, 0.17]], cabin: [[0.02, 0.64], [0.04, 0.97], [0.64, 0.99], [0.78, 0.64]] },
+  sports: { body: [[0, 0.16], [0, 0.5], [0.05, 0.56], [0.62, 0.56], [0.9, 0.45], [1, 0.36], [1, 0.16]], cabin: [[0.12, 0.56], [0.3, 0.92], [0.52, 0.95], [0.7, 0.56]] },
   van: { body: [[0, 0.14], [0, 0.97], [0.03, 1], [0.8, 1], [0.86, 0.62], [1, 0.5], [1, 0.4], [1, 0.14]], cabin: [[0.79, 0.95], [0.85, 0.62], [0.95, 0.6], [0.83, 0.97]] },
 };
 function car(b: Builder, w: number, d: number, h: number, color: string, style: string) {
@@ -2788,7 +2978,7 @@ function grass(b: Builder, rand: () => number, w: number, d: number, h: number, 
   }
 }
 
-function tree(b: Builder, w: number, d: number, h: number, seed: number, kind: "round" | "birch" | "fruit") {
+function tree(b: Builder, w: number, d: number, h: number, seed: number, kind: "round" | "birch" | "fruit" | "autumn") {
   const rand = random(seed);
   const bark = mat(kind === "birch" ? C.birch : C.trunk);
   const trunkH = h * (kind === "birch" ? 0.55 : kind === "fruit" ? 0.35 : 0.42);
@@ -2801,7 +2991,7 @@ function tree(b: Builder, w: number, d: number, h: number, seed: number, kind: "
   const rx = w / 2;
   const rz = d / 2;
   const ry = (h - trunkH) / 2;
-  const colors = kind === "fruit" ? [C.leaf, C.leafLight, C.leafDark] : kind === "birch" ? [C.leafLight, C.leafYellow, C.leaf] : [C.leaf, C.leafDark, "#3f7037"];
+  const colors = kind === "fruit" ? [C.leaf, C.leafLight, C.leafDark] : kind === "birch" ? [C.leafLight, C.leafYellow, C.leaf] : kind === "autumn" ? ["#c98a3a", "#b5562e", "#d9b04a"] : [C.leaf, C.leafDark, "#3f7037"];
   for (let i = 0; i < clumps; i++) {
     const a = (i / clumps) * Math.PI * 2 + rand() * 0.6;
     const c = v(Math.cos(a) * rx * 0.45, crown.y + (rand() - 0.3) * ry * 0.8, Math.sin(a) * rz * 0.45);

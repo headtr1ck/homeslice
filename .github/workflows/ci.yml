@@ -21,14 +21,13 @@ jobs:
         run: |
           npx playwright-core install --with-deps chromium
           npm run test:browser
-      # the library's pictures and sizes come from the code: render them again and fail
-      # if a piece's picture is missing or Kenney sizes changed without being committed;
+      # the library's pictures come from the code: render them again and fail if a
+      # piece's picture is missing or was not committed;
       # test-results/library.html shows every piece for review (in the screenshots artifact)
       - name: Furniture library pictures
         if: always()
         run: |
           node scripts/thumbnails.mjs
-          git diff --exit-code -- frontend/editor/kenney-sizes.json
           if git status --porcelain --untracked-files=all assets | grep -E '^(\?\?| D)'; then
             echo "Pictures added or removed by scripts/thumbnails.mjs: run it and commit assets/"; exit 1
           fi

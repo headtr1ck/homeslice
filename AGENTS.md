@@ -12,11 +12,11 @@ before changing code; `CONTRIBUTING.md` has the setup.
 | `frontend/model/` | The house format: `types.ts` (input and expanded types, documented), `expand.ts` (input → expanded model, every rule with a fix-it message), geometry, walls, stairs, lights, furniture catalogue (`furniture.ts`, `modern.ts`), `catalog.ts` (what the integration gets) |
 | `frontend/render/` | three.js: `scene.ts` (the house), `simple.ts` (built-in shapes), `modern.ts` (Modern furniture drawn in code), `models.ts` (glTF models), `textures.ts` |
 | `frontend/card/` | The Lovelace card and its visual config editor |
-| `frontend/editor/` | The editor panel (`homeslice-panel.ts`), its operations (`ops.ts`, pure functions on the model), libraries (`library.ts`, `kenney.ts`, `openings.ts`), checklist |
+| `frontend/editor/` | The editor panel (`homeslice-panel.ts`), its operations (`ops.ts`, pure functions on the model), libraries (`library.ts`, `openings.ts`), checklist |
 | `frontend/ha/` | Everything that touches Home Assistant's `hass` object (keep HA internals here) |
 | `frontend/i18n/` | `en.json`, `de.json`: every user-visible text, same keys and placeholders |
 | `custom_components/homeslice/` | The integration: `store.py` (houses, previous version), `validate.py` (the rules of `expand.ts`, ported), `llm.py` + `guide.md` (AI tools and the guide), `rest_api.py`, `websocket.py`, `assets.py` (Poly Haven and uploaded models), `repairs.py`, `catalog.json` (generated) |
-| `assets/` | Bundled Kenney models, generated pictures (`thumbs/`, `plan/`) |
+| `assets/` | Generated pictures (`thumbs/`, `plan/`) |
 | `dev/` | Test harness with a fake `hass` (`fake-hass.js`, `harness.html`), fixtures, script entries |
 | `scripts/` | Browser tests, thumbnails, catalogue, library sheet and preview, deploy |
 | `tests/` | Python tests; `validation_cases.json` (generated, shared by both validators) |
@@ -29,7 +29,7 @@ npm run typecheck
 npm test                 # vitest: model, editor ops, i18n, assets, validation cases
 npm run test:browser     # build, then the card and editor in headless Chromium (fake hass)
 .venv/bin/python -m pytest
-node scripts/thumbnails.mjs   # after changing furniture: library pictures, Kenney sizes
+node scripts/thumbnails.mjs   # after changing furniture: library pictures
 node scripts/catalog.mjs      # after changing types, kinds, models: custom_components/homeslice/catalog.json
 UPDATE_CASES=1 npx vitest run frontend/model/validation.test.ts   # after changing a rule
 ```
@@ -50,7 +50,7 @@ UPDATE_CASES=1 npx vitest run frontend/model/validation.test.ts   # after changi
 - **Never commit a real home**: `houses/`, `test-results/`, `dev/fixtures/private/` are
   ignored; photos and floor plans never go into the repo or issues.
 - **Generated files are committed** and checked: `assets/thumbs`, `assets/plan`,
-  `frontend/editor/kenney-sizes.json`, `custom_components/homeslice/catalog.json`,
+  `custom_components/homeslice/catalog.json`,
   `tests/validation_cases.json`.
 - **Models never load from other sites.** Uploads and Poly Haven downloads are checked
   (`assets.py`: `check_links`, allowed file types), the browser's loader refuses other
@@ -66,16 +66,12 @@ UPDATE_CASES=1 npx vitest run frontend/model/validation.test.ts   # after changi
 **A built-in (Modern) furniture piece.** Add the kind to `MODERN_GROUPS` in
 `frontend/model/modern.ts` (type, default size, finishes, `accents` for a second colour, mount), its builder to
 `BUILDERS` in `frontend/render/modern.ts` (build to the given `w`, `d`, `h` with the finish `f` and accent `a`; centred, back
-at −z, on y = 0), names `modern.<kind>` in both `i18n` files. Build closed shapes: a
+at −z, on y = 0), names `modern.<kind>` and search words `alias.<kind>` in both `i18n` files; if it is the
+best piece for its type, it can become the type's default (`DEFAULT_KIND`). Build closed shapes: a
 bowl goes up the outside, over the rim and down the inside (no single walls light shines
 through); thin open things (shades, cloth, glass) get a double-sided material. Then
 `node scripts/thumbnails.mjs`, `node scripts/catalog.mjs`, `npm test` (the asset checks
 build it at several sizes, check its box, triangles and pictures).
-
-**A Kenney model.** Put the `.glb` (CC0, from the Kenney kits) into `assets/models/`, list
-it in `frontend/editor/kenney.ts` with its type, run the thumbnails and catalogue scripts.
-`tests/test_shipped_assets.py` checks every shipped model like an upload: no links to
-other sites, no decoders we don't bundle, at most 1 MB and 20,000 triangles.
 
 **A door or window kind.** `OpeningStyle` in `types.ts`, the style lists in `expand.ts`,
 `validate.py` and `catalog.ts`, the 3D look in `scene.ts` (walls around openings), the plan

@@ -5824,7 +5824,7 @@
   "errors": [
    {
     "path": "levels.g.rooms.a.furniture.0",
-    "message": "model must be builtin, kenney:<name>, polyhaven:<id>, custom:<id> or modern:<kind>, got \"ikea:klippan\"."
+    "message": "model must be modern:<kind>, polyhaven:<id>, custom:<id> or builtin, got \"ikea:klippan\"."
    }
   ]
  },
@@ -6043,7 +6043,7 @@
   "errors": [
    {
     "path": "levels.g.rooms.a.furniture.0",
-    "message": "model must be builtin, kenney:<name>, polyhaven:<id>, custom:<id> or modern:<kind>, got 3."
+    "message": "model must be modern:<kind>, polyhaven:<id>, custom:<id> or builtin, got 3."
    }
   ]
  },

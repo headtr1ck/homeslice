@@ -12,4 +12,4 @@ body:
     id: library
     attributes:
       label: Which library would fit?
-      options: [Modern (drawn by Homeslice, fitted to size), Kenney (low-poly model), A door or window kind, Not sure]
+      options: [Built-in piece (drawn by Homeslice, fitted to size), A door or window kind, Not sure]

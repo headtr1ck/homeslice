@@ -2074,6 +2074,58 @@
    ]
   },
   {
+   "model": "modern:toaster",
+   "name": "Toaster",
+   "group": "kitchen",
+   "type": "item",
+   "size": [
+    0.3,
+    0.18,
+    0.2
+   ],
+   "finishes": [
+    "silver",
+    "black",
+    "white",
+    "red",
+    "green"
+   ]
+  },
+  {
+   "model": "modern:kettle",
+   "name": "Kettle",
+   "group": "kitchen",
+   "type": "item",
+   "size": [
+    0.22,
+    0.17,
+    0.25
+   ],
+   "finishes": [
+    "silver",
+    "black",
+    "white",
+    "red",
+    "green"
+   ]
+  },
+  {
+   "model": "modern:kitchen_bin",
+   "name": "Kitchen bin",
+   "group": "kitchen",
+   "type": "item",
+   "size": [
+    0.3,
+    0.3,
+    0.65
+   ],
+   "finishes": [
+    "silver",
+    "black",
+    "white"
+   ]
+  },
+  {
    "model": "modern:bed",
    "name": "Double bed",
    "group": "bedroom",
@@ -2123,6 +2175,47 @@
     "oak",
     "brass",
     "chrome"
+   ]
+  },
+  {
+   "model": "modern:bunk_bed",
+   "name": "Bunk bed",
+   "group": "bedroom",
+   "type": "bed_single",
+   "size": [
+    1,
+    2.05,
+    1.6
+   ],
+   "finishes": [
+    "oak",
+    "white",
+    "walnut",
+    "black"
+   ]
+  },
+  {
+   "model": "modern:bed_storage",
+   "name": "Bed with drawers",
+   "group": "bedroom",
+   "type": "bed",
+   "size": [
+    1.6,
+    2.1,
+    0.95
+   ],
+   "finishes": [
+    "oak",
+    "white",
+    "walnut",
+    "black",
+    "anthracite"
+   ],
+   "accents": [
+    "black",
+    "chrome",
+    "brass",
+    "oak"
    ]
   },
   {
@@ -2516,6 +2609,52 @@
     "white",
     "chrome",
     "oak"
+   ]
+  },
+  {
+   "model": "modern:laptop",
+   "name": "Laptop",
+   "group": "bedroom",
+   "type": "item",
+   "size": [
+    0.32,
+    0.22,
+    0.2
+   ],
+   "finishes": [
+    "silver",
+    "black",
+    "white"
+   ]
+  },
+  {
+   "model": "modern:monitor",
+   "name": "Computer monitor",
+   "group": "bedroom",
+   "type": "tv",
+   "size": [
+    0.62,
+    0.2,
+    0.48
+   ],
+   "finishes": [
+    "black",
+    "white",
+    "silver"
+   ]
+  },
+  {
+   "model": "modern:books",
+   "name": "Books",
+   "group": "bedroom",
+   "type": "item",
+   "size": [
+    0.4,
+    0.22,
+    0.25
+   ],
+   "finishes": [
+    "white"
    ]
   },
   {
@@ -3802,7 +3941,85 @@
     6.5
    ],
    "finishes": [
+    "green",
+    "autumn"
+   ]
+  },
+  {
+   "model": "modern:tree_palm",
+   "name": "Palm tree",
+   "group": "outside",
+   "type": "tree",
+   "size": [
+    3.5,
+    3.5,
+    5
+   ],
+   "finishes": [
     "green"
+   ]
+  },
+  {
+   "model": "modern:tree_pine",
+   "name": "Pine tree",
+   "group": "outside",
+   "type": "pine",
+   "size": [
+    3,
+    3,
+    9
+   ],
+   "finishes": [
+    "green"
+   ]
+  },
+  {
+   "model": "modern:tree_stump",
+   "name": "Tree stump",
+   "group": "outside",
+   "type": "item",
+   "size": [
+    0.5,
+    0.5,
+    0.4
+   ],
+   "finishes": [
+    "oak"
+   ]
+  },
+  {
+   "model": "modern:log_stack",
+   "name": "Log pile",
+   "group": "outside",
+   "type": "item",
+   "size": [
+    1.2,
+    0.4,
+    0.8
+   ],
+   "finishes": [
+    "oak"
+   ]
+  },
+  {
+   "model": "modern:flower_pots",
+   "name": "Flower pots",
+   "group": "outside",
+   "type": "flower_bed",
+   "size": [
+    0.9,
+    0.3,
+    0.5
+   ],
+   "finishes": [
+    "white",
+    "terracotta",
+    "anthracite",
+    "concrete",
+    "sand",
+    "green",
+    "pink",
+    "black"
    ]
   },
   {
@@ -4094,6 +4311,95 @@
     "black",
     "anthracite",
     "silver"
+   ]
+  },
+  {
+   "model": "modern:fence_picket",
+   "name": "Picket fence",
+   "group": "outside",
+   "type": "fence",
+   "size": [
+    2.4,
+    0.06,
+    1
+   ],
+   "finishes": [
+    "white",
+    "oak",
+    "green",
+    "anthracite"
+   ]
+  },
+  {
+   "model": "modern:fence_planks",
+   "name": "Plank fence",
+   "group": "outside",
+   "type": "fence",
+   "size": [
+    3,
+    0.1,
+    1.8
+   ],
+   "finishes": [
+    "oak",
+    "walnut",
+    "anthracite",
+    "grey"
+   ]
+  },
+  {
+   "model": "modern:garden_gate",
+   "name": "Garden gate",
+   "group": "outside",
+   "type": "fence",
+   "size": [
+    1.2,
+    0.1,
+    1.2
+   ],
+   "finishes": [
+    "oak",
+    "white",
+    "anthracite",
+    "green"
+   ],
+   "accents": [
+    "black",
+    "silver"
+   ]
+  },
+  {
+   "model": "modern:path_paving",
+   "name": "Paved path",
+   "group": "outside",
+   "type": "garden_path",
+   "size": [
+    1.2,
+    3,
+    0.04
+   ],
+   "finishes": [
+    "concrete",
+    "grey",
+    "sand",
+    "anthracite",
+    "terracotta"
+   ]
+  },
+  {
+   "model": "modern:path_boardwalk",
+   "name": "Boardwalk",
+   "group": "outside",
+   "type": "garden_path",
+   "size": [
+    1,
+    3,
+    0.05
+   ],
+   "finishes": [
+    "oak",
+    "walnut",
+    "grey"
    ]
   },
   {
@@ -4950,6 +5256,26 @@
    ]
   },
   {
+   "model": "modern:car_sports",
+   "name": "Sports car",
+   "group": "vehicles",
+   "type": "car",
+   "size": [
+    1.9,
+    4.4,
+    1.25
+   ],
+   "finishes": [
+    "silver",
+    "white",
+    "black",
+    "anthracite",
+    "blue",
+    "red",
+    "green"
+   ]
+  },
+  {
    "model": "modern:car_van",
    "name": "Van",
    "group": "vehicles",
@@ -5039,633 +5365,8 @@
   "red",
   "silver",
   "brass",
-  "chrome"
- ],
- "kenney": [
-  {
-   "model": "kenney:loungeSofa",
-   "type": "sofa"
-  },
-  {
-   "model": "kenney:loungeSofaLong",
-   "type": "sofa"
-  },
-  {
-   "model": "kenney:loungeDesignSofa",
-   "type": "sofa"
-  },
-  {
-   "model": "kenney:loungeSofaCorner",
-   "type": "sofa_corner"
-  },
-  {
-   "model": "kenney:loungeDesignSofaCorner",
-   "type": "sofa_corner"
-  },
-  {
-   "model": "kenney:loungeChair",
-   "type": "armchair"
-  },
-  {
-   "model": "kenney:loungeChairRelax",
-   "type": "armchair"
-  },
-  {
-   "model": "kenney:loungeDesignChair",
-   "type": "armchair"
-  },
-  {
-   "model": "kenney:loungeSofaOttoman",
-   "type": "stool"
-  },
-  {
-   "model": "kenney:tableCoffee",
-   "type": "coffee_table"
-  },
-  {
-   "model": "kenney:tableCoffeeSquare",
-   "type": "coffee_table"
-  },
-  {
-   "model": "kenney:tableCoffeeGlass",
-   "type": "coffee_table"
-  },
-  {
-   "model": "kenney:tableCoffeeGlassSquare",
-   "type": "coffee_table"
-  },
-  {
-   "model": "kenney:sideTable",
-   "type": "side_table"
-  },
-  {
-   "model": "kenney:sideTableDrawers",
-   "type": "side_table"
-  },
-  {
-   "model": "kenney:televisionModern",
-   "type": "tv"
-  },
-  {
-   "model": "kenney:televisionVintage",
-   "type": "tv"
-  },
-  {
-   "model": "kenney:cabinetTelevision",
-   "type": "shelf"
-  },
-  {
-   "model": "kenney:cabinetTelevisionDoors",
-   "type": "shelf"
-  },
-  {
-   "model": "kenney:bookcaseOpen",
-   "type": "shelf"
-  },
-  {
-   "model": "kenney:bookcaseOpenLow",
-   "type": "shelf"
-  },
-  {
-   "model": "kenney:bookcaseClosed",
-   "type": "shelf"
-  },
-  {
-   "model": "kenney:bookcaseClosedWide",
-   "type": "shelf"
-  },
-  {
-   "model": "kenney:rugRectangle",
-   "type": "rug"
-  },
-  {
-   "model": "kenney:rugRounded",
-   "type": "rug"
-  },
-  {
-   "model": "kenney:rugRound",
-   "type": "rug"
-  },
-  {
-   "model": "kenney:rugSquare",
-   "type": "rug"
-  },
-  {
-   "model": "kenney:rugDoormat",
-   "type": "rug"
-  },
-  {
-   "model": "kenney:speaker",
-   "type": "item"
-  },
-  {
-   "model": "kenney:speakerSmall",
-   "type": "item"
-  },
-  {
-   "model": "kenney:radio",
-   "type": "item"
-  },
-  {
-   "model": "kenney:coatRackStanding",
-   "type": "item"
-  },
-  {
-   "model": "kenney:books",
-   "type": "item"
-  },
-  {
-   "model": "kenney:table",
-   "type": "table"
-  },
-  {
-   "model": "kenney:tableCloth",
-   "type": "table"
-  },
-  {
-   "model": "kenney:tableCross",
-   "type": "table"
-  },
-  {
-   "model": "kenney:tableCrossCloth",
-   "type": "table"
-  },
-  {
-   "model": "kenney:tableGlass",
-   "type": "table"
-  },
-  {
-   "model": "kenney:tableRound",
-   "type": "table"
-  },
-  {
-   "model": "kenney:chair",
-   "type": "chair"
-  },
-  {
-   "model": "kenney:chairCushion",
-   "type": "chair"
-  },
-  {
-   "model": "kenney:chairModernCushion",
-   "type": "chair"
-  },
-  {
-   "model": "kenney:chairModernFrameCushion",
-   "type": "chair"
-  },
-  {
-   "model": "kenney:chairRounded",
-   "type": "chair"
-  },
-  {
-   "model": "kenney:stoolBar",
-   "type": "stool"
-  },
-  {
-   "model": "kenney:stoolBarSquare",
-   "type": "stool"
-  },
-  {
-   "model": "kenney:kitchenCabinet",
-   "type": "kitchen"
-  },
-  {
-   "model": "kenney:kitchenCabinetDrawer",
-   "type": "kitchen"
-  },
-  {
-   "model": "kenney:kitchenSink",
-   "type": "kitchen"
-  },
-  {
-   "model": "kenney:kitchenStove",
-   "type": "kitchen"
-  },
-  {
-   "model": "kenney:kitchenStoveElectric",
-   "type": "kitchen"
-  },
-  {
-   "model": "kenney:kitchenCabinetCornerInner",
-   "type": "kitchen"
-  },
-  {
-   "model": "kenney:kitchenCabinetCornerRound",
-   "type": "kitchen"
-  },
-  {
-   "model": "kenney:kitchenBar",
-   "type": "kitchen"
-  },
-  {
-   "model": "kenney:kitchenBarEnd",
-   "type": "kitchen"
-  },
-  {
-   "model": "kenney:kitchenCabinetUpper",
-   "type": "kitchen_upper"
-  },
-  {
-   "model": "kenney:kitchenCabinetUpperDouble",
-   "type": "kitchen_upper"
-  },
-  {
-   "model": "kenney:kitchenCabinetUpperLow",
-   "type": "kitchen_upper"
-  },
-  {
-   "model": "kenney:kitchenCabinetUpperCorner",
-   "type": "kitchen_upper"
-  },
-  {
-   "model": "kenney:hoodModern",
-   "type": "kitchen_upper"
-  },
-  {
-   "model": "kenney:hoodLarge",
-   "type": "kitchen_upper"
-  },
-  {
-   "model": "kenney:kitchenFridge",
-   "type": "fridge"
-  },
-  {
-   "model": "kenney:kitchenFridgeLarge",
-   "type": "fridge"
-  },
-  {
-   "model": "kenney:kitchenFridgeSmall",
-   "type": "fridge"
-  },
-  {
-   "model": "kenney:kitchenFridgeBuiltIn",
-   "type": "fridge"
-  },
-  {
-   "model": "kenney:kitchenMicrowave",
-   "type": "item"
-  },
-  {
-   "model": "kenney:kitchenCoffeeMachine",
-   "type": "item"
-  },
-  {
-   "model": "kenney:kitchenBlender",
-   "type": "item"
-  },
-  {
-   "model": "kenney:toaster",
-   "type": "item"
-  },
-  {
-   "model": "kenney:trashcan",
-   "type": "item"
-  },
-  {
-   "model": "kenney:bedDouble",
-   "type": "bed"
-  },
-  {
-   "model": "kenney:bedSingle",
-   "type": "bed_single"
-  },
-  {
-   "model": "kenney:bedBunk",
-   "type": "bed_single"
-  },
-  {
-   "model": "kenney:cabinetBed",
-   "type": "nightstand"
-  },
-  {
-   "model": "kenney:cabinetBedDrawer",
-   "type": "nightstand"
-  },
-  {
-   "model": "kenney:cabinetBedDrawerTable",
-   "type": "nightstand"
-  },
-  {
-   "model": "kenney:bookcaseClosedDoors",
-   "type": "wardrobe"
-  },
-  {
-   "model": "kenney:desk",
-   "type": "desk"
-  },
-  {
-   "model": "kenney:deskCorner",
-   "type": "desk"
-  },
-  {
-   "model": "kenney:chairDesk",
-   "type": "chair"
-  },
-  {
-   "model": "kenney:computerScreen",
-   "type": "item"
-  },
-  {
-   "model": "kenney:laptop",
-   "type": "item"
-  },
-  {
-   "model": "kenney:coatRack",
-   "type": "item"
-  },
-  {
-   "model": "kenney:bathtub",
-   "type": "bathtub"
-  },
-  {
-   "model": "kenney:shower",
-   "type": "shower"
-  },
-  {
-   "model": "kenney:showerRound",
-   "type": "shower"
-  },
-  {
-   "model": "kenney:toilet",
-   "type": "toilet"
-  },
-  {
-   "model": "kenney:toiletSquare",
-   "type": "toilet"
-  },
-  {
-   "model": "kenney:bathroomSink",
-   "type": "sink"
-  },
-  {
-   "model": "kenney:bathroomSinkSquare",
-   "type": "sink"
-  },
-  {
-   "model": "kenney:bathroomCabinet",
-   "type": "shelf"
-  },
-  {
-   "model": "kenney:bathroomCabinetDrawer",
-   "type": "shelf"
-  },
-  {
-   "model": "kenney:bathroomMirror",
-   "type": "mirror"
-  },
-  {
-   "model": "kenney:washer",
-   "type": "washer"
-  },
-  {
-   "model": "kenney:washerDryerStacked",
-   "type": "washer"
-  },
-  {
-   "model": "kenney:dryer",
-   "type": "dryer"
-  },
-  {
-   "model": "kenney:lampSquareFloor",
-   "type": "floor_lamp"
-  },
-  {
-   "model": "kenney:lampRoundFloor",
-   "type": "floor_lamp"
-  },
-  {
-   "model": "kenney:lampSquareTable",
-   "type": "table_lamp"
-  },
-  {
-   "model": "kenney:lampRoundTable",
-   "type": "table_lamp"
-  },
-  {
-   "model": "kenney:lampSquareCeiling",
-   "type": "ceiling_lamp"
-  },
-  {
-   "model": "kenney:lampWall",
-   "type": "wall_lamp"
-  },
-  {
-   "model": "kenney:ceilingFan",
-   "type": "ceiling_fan"
-  },
-  {
-   "model": "kenney:pottedPlant",
-   "type": "plant"
-  },
-  {
-   "model": "kenney:plantSmall1",
-   "type": "plant"
-  },
-  {
-   "model": "kenney:plantSmall2",
-   "type": "plant"
-  },
-  {
-   "model": "kenney:plantSmall3",
-   "type": "plant"
-  },
-  {
-   "model": "kenney:tree_oak_dark",
-   "type": "tree"
-  },
-  {
-   "model": "kenney:tree_oak",
-   "type": "tree"
-  },
-  {
-   "model": "kenney:tree_default_dark",
-   "type": "tree"
-  },
-  {
-   "model": "kenney:tree_detailed",
-   "type": "tree"
-  },
-  {
-   "model": "kenney:tree_fat",
-   "type": "tree"
-  },
-  {
-   "model": "kenney:tree_tall_dark",
-   "type": "tree"
-  },
-  {
-   "model": "kenney:tree_oak_fall",
-   "type": "tree"
-  },
-  {
-   "model": "kenney:tree_palmTall",
-   "type": "tree"
-  },
-  {
-   "model": "kenney:tree_default",
-   "type": "tree_small"
-  },
-  {
-   "model": "kenney:tree_small_dark",
-   "type": "tree_small"
-  },
-  {
-   "model": "kenney:tree_simple_dark",
-   "type": "tree_small"
-  },
-  {
-   "model": "kenney:tree_cone_dark",
-   "type": "tree_small"
-  },
-  {
-   "model": "kenney:tree_thin_dark",
-   "type": "tree_small"
-  },
-  {
-   "model": "kenney:tree_pineRoundC",
-   "type": "pine"
-  },
-  {
-   "model": "kenney:tree_pineTallA_detailed",
-   "type": "pine"
-  },
-  {
-   "model": "kenney:tree_pineDefaultA",
-   "type": "pine"
-  },
-  {
-   "model": "kenney:tree_pineSmallA",
-   "type": "pine"
-  },
-  {
-   "model": "kenney:plant_bushDetailed",
-   "type": "bush"
-  },
-  {
-   "model": "kenney:plant_bushLarge",
-   "type": "bush"
-  },
-  {
-   "model": "kenney:plant_bush",
-   "type": "bush"
-  },
-  {
-   "model": "kenney:plant_bushSmall",
-   "type": "bush"
-  },
-  {
-   "model": "kenney:flower_redA",
-   "type": "flower_bed"
-  },
-  {
-   "model": "kenney:flower_yellowA",
-   "type": "flower_bed"
-  },
-  {
-   "model": "kenney:flower_purpleA",
-   "type": "flower_bed"
-  },
-  {
-   "model": "kenney:flower_redC",
-   "type": "flower_bed"
-  },
-  {
-   "model": "kenney:flower_yellowC",
-   "type": "flower_bed"
-  },
-  {
-   "model": "kenney:flower_purpleC",
-   "type": "flower_bed"
-  },
-  {
-   "model": "kenney:lily_large",
-   "type": "flower_bed"
-  },
-  {
-   "model": "kenney:fence_simple",
-   "type": "fence"
-  },
-  {
-   "model": "kenney:fence_planks",
-   "type": "fence"
-  },
-  {
-   "model": "kenney:fence_planksDouble",
-   "type": "fence"
-  },
-  {
-   "model": "kenney:fence_simpleHigh",
-   "type": "fence"
-  },
-  {
-   "model": "kenney:fence_gate",
-   "type": "fence"
-  },
-  {
-   "model": "kenney:path_stone",
-   "type": "garden_path"
-  },
-  {
-   "model": "kenney:path_stoneCircle",
-   "type": "garden_path"
-  },
-  {
-   "model": "kenney:path_wood",
-   "type": "garden_path"
-  },
-  {
-   "model": "kenney:stump_round",
-   "type": "item"
-  },
-  {
-   "model": "kenney:log_stack",
-   "type": "item"
-  },
-  {
-   "model": "kenney:bench",
-   "type": "bench"
-  },
-  {
-   "model": "kenney:benchCushion",
-   "type": "bench"
-  },
-  {
-   "model": "kenney:benchCushionLow",
-   "type": "bench"
-  },
-  {
-   "model": "kenney:sedan",
-   "type": "car"
-  },
-  {
-   "model": "kenney:suv",
-   "type": "car"
-  },
-  {
-   "model": "kenney:suv-luxury",
-   "type": "car"
-  },
-  {
-   "model": "kenney:hatchback-sports",
-   "type": "car"
-  },
-  {
-   "model": "kenney:van",
-   "type": "car"
-  },
-  {
-   "model": "kenney:delivery",
-   "type": "car"
-  },
-  {
-   "model": "kenney:taxi",
-   "type": "car"
-  },
-  {
-   "model": "kenney:police",
-   "type": "car"
-  }
+  "chrome",
+  "autumn"
  ],
  "energy_kinds": [
   "solar",
