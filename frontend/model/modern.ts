@@ -84,6 +84,7 @@ export const MODERN_GROUPS: { id: string; kinds: ModernKind[] }[] = [
       k("chair_shell", "chair", [0.48, 0.53, 0.8], ["white", "black", "grey", "green", "terracotta", "sand"]),
       k("chair_wood", "chair", [0.45, 0.5, 0.8], ["oak", "walnut", "black"]),
       k("bar_stool", "stool", [0.4, 0.4, 0.75], ["black", "oak", "white"]),
+      k("bench_dining", "bench", [1.6, 0.38, 0.45], ["oak", "walnut", "black"]),
     ],
   },
   {

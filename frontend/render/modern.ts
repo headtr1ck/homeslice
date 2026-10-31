@@ -494,12 +494,16 @@ const BUILDERS: Record<string, Build> = {
     b.box(w - 0.02, 0.1, 0.02, 0, h - 0.13, back(d) + 0.02, f, 0.005);
   },
   bar_stool: (b, w, _d, h, f) => {
-    b.cyl(w * 0.45, w * 0.42, 0.05, 0, h - 0.05, 0, f, 28);
+    b.cyl(w * 0.48, w * 0.44, 0.06, 0, h - 0.06, 0, f, 28);
     for (let i = 0; i < 4; i++) {
       const a = (i / 4) * Math.PI * 2 + Math.PI / 4;
       b.rod(v(Math.cos(a) * w * 0.25, h - 0.05, Math.sin(a) * w * 0.25), v(Math.cos(a) * w * 0.45, 0, Math.sin(a) * w * 0.45), 0.012, mat(C.black));
     }
     b.add(new THREE.TorusGeometry(w * 0.37, 0.008, 6, 24), mat(C.black), 0, h * 0.32, 0).rotation.x = Math.PI / 2;
+  },
+  bench_dining: (b, w, d, h, f) => {
+    b.box(w, 0.04, d, 0, h - 0.04, 0, f, 0.008);
+    legs(b, w, d, h - 0.04, 0.08, 0.02, f);
   },
   kitchen: (b, w, d, h, f) => {
     const n = Math.max(1, Math.round(w / 0.6));

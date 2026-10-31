@@ -599,5 +599,6 @@
   "finish.marble": "Marmor",
   "editor.library_modern": "Modern",
   "editor.furniture_finish": "Oberfläche",
-  "furniture.group_hall": "Flur"
+  "furniture.group_hall": "Flur",
+  "modern.bench_dining": "Esszimmerbank"
 }
