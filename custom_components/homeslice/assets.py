@@ -32,10 +32,12 @@ POLYHAVEN_API = "https://api.polyhaven.com"
 POLYHAVEN_FILES = "https://dl.polyhaven.org/"
 # Poly Haven asks every API client for its own User-Agent
 USER_AGENT = "Homeslice (Home Assistant integration; https://github.com/headtr1ck/homeslice)"
-# the categories a home has: furniture, lamps, plants, decoration
+# the categories a home and its garden have: furniture, lamps, plants, decoration, things on
+# shelves and in the kitchen, garden stones (not buildings, ships or industrial plant)
 POLYHAVEN_CATEGORIES = {
     "furniture", "seating", "table", "lighting", "shelves", "bed", "potted plants", "plants", "trees",
     "flowers", "appliances", "decorative", "vases", "wall decoration", "electronics", "office", "books",
+    "props", "containers", "dishes", "food", "tools", "instrument", "rocks", "ground cover", "grass",
 }
 CATALOG_TTL = 24 * 3600
 MAX_POLYHAVEN_BYTES = 40_000_000

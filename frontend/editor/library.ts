@@ -151,11 +151,13 @@ function polyhavenGroup(type: FurnitureType, a: PolyhavenAsset): string {
   if (["floor_lamp", "table_lamp", "wall_lamp", "ceiling_lamp", "ceiling_fan"].includes(type)) return "lighting";
   if (type === "plant") return "plants";
   if (["tree", "tree_small", "pine", "bush", "flower_bed"].includes(type)) return "outside";
+  if (a.categories.some((c) => ["rocks", "ground cover", "grass"].includes(c))) return "outside";
+  if (a.categories.some((c) => ["dishes", "food", "containers"].includes(c))) return "kitchen";
   if (a.categories.some((c) => ["appliances", "electronics", "office"].includes(c))) return "appliances";
   return "decoration";
 }
 
-const POLYHAVEN_GROUPS = ["seating", "tables", "storage", "bedroom", "lighting", "plants", "decoration", "appliances", "outside"];
+const POLYHAVEN_GROUPS = ["seating", "tables", "storage", "bedroom", "lighting", "plants", "decoration", "kitchen", "appliances", "outside"];
 
 export function polyhavenGroups(catalog: PolyhavenAsset[]): LibraryGroup[] {
   const groups = new Map<string, LibraryItem[]>(POLYHAVEN_GROUPS.map((g) => [g, []]));

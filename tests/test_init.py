@@ -289,14 +289,15 @@ async def test_polyhaven_catalog_keeps_home_categories(hass: HomeAssistant, setu
         "https://api.polyhaven.com/assets?t=models",
         json={
             "Sofa_01": {"name": "Sofa 01", "categories": ["furniture", "seating"], "dimensions": [1571, 658, 796], "download_count": 5},
-            "rock_01": {"name": "Rock", "categories": ["rocks"], "download_count": 9},
+            "rock_01": {"name": "Rock", "categories": ["rocks"], "download_count": 7},
+            "boat_01": {"name": "Boat", "categories": ["ships"], "download_count": 9},
         },
     )
     client = await hass_ws_client(hass)
     await client.send_json_auto_id({"type": "homeslice/assets/polyhaven"})
     result = (await client.receive_json())["result"]
-    assert [i["id"] for i in result] == ["Sofa_01"]
-    assert result[0]["dimensions"] == [1.571, 0.658, 0.796]
+    assert sorted(i["id"] for i in result) == ["Sofa_01", "rock_01"]
+    assert next(i for i in result if i["id"] == "Sofa_01")["dimensions"] == [1.571, 0.658, 0.796]
 
 
 # ----- for AI assistants -----
