@@ -26,7 +26,7 @@ export function makeHass(fixture, onChange) {
   };
 
   const hass = {
-    locale: { language: "en" },
+    locale: { language: fixture.language ?? "en" },
     areas: fixture.areas,
     floors: fixture.floors,
     devices: fixture.devices,

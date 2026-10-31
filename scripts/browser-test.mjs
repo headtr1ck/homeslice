@@ -624,6 +624,17 @@ console.log("demo house, floor plan");
   await page.close();
 }
 
+console.log("demo house, German");
+{
+  const { page, errors } = await open("dev/fixtures/demo-hass.json", {}, undefined, (f) => ({ ...f, language: "de" }));
+  await test("in German: the card speaks the user's language", async () => {
+    const buttons = await page.locator("homeslice-card nav.levels button").allTextContents();
+    assert(buttons.some((b) => b.includes("Alle Etagen")), `floor buttons: ${buttons}`);
+    assert(errors.length === 0, errors.join(" | "));
+  });
+  await page.close();
+}
+
 console.log("demo house, phone");
 {
   const { page, errors } = await open("dev/fixtures/demo-hass.json", {}, { width: 390, height: 800 });
@@ -1412,6 +1423,29 @@ console.log("editor");
     await page.keyboard.press("Delete");
     assert(!(await room("room")), "room still there");
     assert(await page.locator("homeslice-panel button.save.dirty").count(), "delete not marked as unsaved");
+    assert(errors.length === 0, errors.join(" | "));
+  });
+  await page.close();
+}
+
+console.log("editor, phone");
+{
+  const page = await browser.newPage({ viewport: { width: 390, height: 844 }, hasTouch: true });
+  const errors = [];
+  page.on("pageerror", (e) => errors.push(e.message));
+  await page.goto(`${base}/dev/harness.html`);
+  await page.waitForFunction(() => window.ready);
+  await page.evaluate((f) => window.setupPanel(f, { narrow: true }), loadFixture("dev/fixtures/demo-hass.json"));
+  await test("on a phone the plan gets most of the screen; the inspector is a sheet below", async () => {
+    await page.waitForTimeout(500);
+    await shot(page, "editor-phone");
+    const plan = await page.locator("homeslice-panel svg.plan").boundingBox();
+    assert(plan.height > 360 && plan.width > 370, `plan ${JSON.stringify(plan)}`);
+    // the inspector still works: select a room
+    const kb = await page.locator('homeslice-panel svg.plan g[data-room="kitchen"] polygon').boundingBox();
+    await page.mouse.click(kb.x + kb.width / 2, kb.y + kb.height * 0.75);
+    assert((await page.locator("homeslice-panel .inspector h2").textContent()) === "Kitchen", "room not selected on a phone");
+    await shot(page, "editor-phone-room");
     assert(errors.length === 0, errors.join(" | "));
   });
   await page.close();

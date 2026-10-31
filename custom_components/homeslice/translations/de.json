@@ -1,0 +1,39 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Homeslice",
+        "description": "Fügt die Homeslice-Karte zu den Dashboards hinzu. Das Hausmodell unter `homeslice/home.yaml` im Konfigurationsordner ablegen."
+      }
+    },
+    "abort": {
+      "single_instance_allowed": "Homeslice ist bereits eingerichtet."
+    }
+  },
+  "issues": {
+    "missing_area": {
+      "title": "Homeslice: Bereich {ref} existiert nicht mehr",
+      "description": "Haus **{house}** ({where}) ist mit dem Bereich `{ref}` verknüpft, den es in Home Assistant nicht mehr gibt. Den Raum mit einem anderen Bereich verknüpfen oder den Bereich wiederherstellen."
+    },
+    "missing_floor": {
+      "title": "Homeslice: Etage {ref} existiert nicht mehr",
+      "description": "Haus **{house}** ({where}) ist mit der Etage `{ref}` verknüpft, die es in Home Assistant nicht mehr gibt. Die Ebene mit einer anderen Etage verknüpfen oder die Etage wiederherstellen."
+    },
+    "missing_entity": {
+      "title": "Homeslice: Entität {ref} existiert nicht mehr",
+      "description": "Haus **{house}** verwendet `{ref}` ({where}), aber Home Assistant kennt diese Entität nicht mehr. Eine andere Entität auswählen oder die Verknüpfung entfernen."
+    }
+  },
+  "services": {
+    "import_files": {
+      "name": "Hausdateien importieren",
+      "description": "Importiert alle YAML-Dateien im Ordner homeslice der Konfiguration in den Speicher von Homeslice. Der Dateiname ist die Haus-ID. Häuser, die zuletzt im Editor gespeichert wurden, werden übersprungen, außer beim Erzwingen.",
+      "fields": {
+        "force": {
+          "name": "Erzwingen",
+          "description": "Auch Häuser überschreiben, die im Editor bearbeitet wurden."
+        }
+      }
+    }
+  }
+}

@@ -749,7 +749,7 @@ export class HomeslicePanel extends LitElement {
     const d = Math.hypot(delta[0], delta[1]);
     if (d < 0.005) return "0.00 m";
     const side = Math.abs(delta[0]) >= Math.abs(delta[1]) ? (delta[0] > 0 ? "east" : "west") : delta[1] > 0 ? "south" : "north";
-    return `${d.toFixed(2)} m ${this.t(`editor.side_${side}` as StringKey)}`;
+    return `${d.toFixed(2)} m ${this.t(`editor.towards_${side}` as StringKey)}`;
   }
 
   /** Faces (and centres) of the walls parallel to `line`, as offsets along `normal`. */
@@ -4484,6 +4484,45 @@ export class HomeslicePanel extends LitElement {
       flex-direction: column;
       align-items: center;
       gap: 12px;
+    }
+    /* phones: the plan first; header, tools and floors in slim rows, the inspector a sheet below */
+    @media (max-width: 700px) {
+      header {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        gap: 6px;
+        padding: 4px 8px;
+        min-height: 0;
+      }
+      h1,
+      .help,
+      canvas.preview {
+        display: none;
+      }
+      header > *,
+      .modes button {
+        flex: none;
+        white-space: nowrap;
+      }
+      .tools {
+        padding: 4px 8px;
+        gap: 4px;
+        overflow-x: auto;
+      }
+      .tools button {
+        width: 36px;
+        height: 36px;
+        flex: none;
+      }
+      aside.levels {
+        padding: 4px 8px;
+      }
+      .plan-wrap {
+        min-height: 0;
+      }
+      .side {
+        max-height: 34% !important;
+      }
     }
     @media (max-width: 900px) {
       main {

@@ -62,10 +62,11 @@
     editor.hass = makeHass(fixture, (h) => (editor.hass = h));
     window.cardEditor = editor;
   };
-  window.setupPanel = async (fixture) => {
+  window.setupPanel = async (fixture, options = {}) => {
     await customElements.whenDefined("homeslice-panel");
     document.getElementById("root").style.cssText = "width:100vw;height:100vh;padding:0";
     const panel = document.createElement("homeslice-panel");
+    panel.narrow = !!options.narrow;
     panel.style.cssText = "display:flex;height:100vh";
     document.getElementById("root").append(panel);
     panel.hass = makeHass(fixture, (h) => (panel.hass = h));

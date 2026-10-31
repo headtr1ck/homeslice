@@ -1,11 +1,12 @@
-// Every user-visible string goes through localize(). Only English exists for now; a new
-// language is one more JSON file with the same keys.
+// Every user-visible string goes through localize(). A new language is one more JSON
+// file with the same keys (i18n.test.ts checks keys and placeholders).
 
+import de from "./de.json";
 import en from "./en.json";
 
 export type StringKey = keyof typeof en;
 
-const LANGUAGES: Record<string, Partial<Record<StringKey, string>>> = { en };
+const LANGUAGES: Record<string, Partial<Record<StringKey, string>>> = { en, de };
 
 export function localize(language: string | undefined, key: StringKey, vars: Record<string, string | number> = {}): string {
   const table = LANGUAGES[language ?? "en"] ?? LANGUAGES[(language ?? "").split("-")[0]] ?? en;
