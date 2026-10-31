@@ -430,9 +430,12 @@ console.log("demo house, roof");
 {
   const { page, errors } = await open("dev/fixtures/demo-hass.json", { view: { azimuth: 200, elevation: 45, roof: true } });
   await test("furniture is drawn", async () => {
+    // counted once every piece is drawn in detail, before and after
+    await page.evaluate(() => window.card.renderer.modelsReady());
+    await page.waitForTimeout(300);
     const before = await page.evaluate(() => window.card.renderer.renderer.info.render.triangles);
-    await act(page, () =>
-      page.evaluate(() => {
+    await act(page, async () => {
+      await page.evaluate(() => {
         const m = structuredClone(window.__demoModel);
         m.levels[0].rooms.find((r) => r.id === "living").furniture = [
           { type: "sofa", at: [2, 4] },
@@ -440,8 +443,10 @@ console.log("demo house, roof");
           { type: "plant", at: [0.5, 0.5] },
         ];
         window.card.hass.pushModel(m);
-      }),
-    );
+      });
+      await page.evaluate(() => window.card.renderer.modelsReady());
+    });
+    await page.waitForTimeout(300);
     const after = await page.evaluate(() => window.card.renderer.renderer.info.render.triangles);
     assert(after > before + 50, `triangles ${before} → ${after}`);
   });

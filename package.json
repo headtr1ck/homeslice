@@ -1,6 +1,6 @@
 {
   "name": "homeslice",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "Model your house once and show it as an interactive, exploded isometric 3D view in Home Assistant.",
   "license": "MIT",
   "private": true,
@@ -14,7 +14,7 @@
     "test:browser": "vite build && node scripts/browser-test.mjs",
     "pull": "node scripts/pull-house.mjs",
     "check": "npm run typecheck && npm test && npm run test:browser && (test -x .venv/bin/python && .venv/bin/python -m pytest -q || echo 'Python tests skipped: no .venv (see CONTRIBUTING.md)')",
-    "dev": "vite build && echo 'Card: http://localhost:8123/dev/harness.html?demo=card  Editor: \u2026?demo=editor' && python3 -m http.server 8123"
+    "dev": "vite build && echo 'Card: http://localhost:8123/dev/harness.html?demo=card  Editor: …?demo=editor' && python3 -m http.server 8123"
   },
   "dependencies": {
     "lit": "^3.3.3",
