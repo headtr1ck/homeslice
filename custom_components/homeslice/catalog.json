@@ -514,6 +514,153 @@
    ]
   },
   {
+   "model": "modern:armchair_wingback",
+   "name": "Wingback chair",
+   "group": "living",
+   "type": "armchair",
+   "size": [
+    0.8,
+    0.85,
+    1.05
+   ],
+   "finishes": [
+    "grey",
+    "beige",
+    "anthracite",
+    "green",
+    "blue",
+    "terracotta",
+    "pink"
+   ],
+   "accents": [
+    "walnut",
+    "oak",
+    "black",
+    "brass"
+   ]
+  },
+  {
+   "model": "modern:lounge_chair",
+   "name": "Lounge chair",
+   "group": "living",
+   "type": "armchair",
+   "size": [
+    0.85,
+    0.85,
+    0.85
+   ],
+   "finishes": [
+    "black",
+    "beige",
+    "terracotta",
+    "grey"
+   ],
+   "accents": [
+    "walnut",
+    "oak",
+    "black"
+   ]
+  },
+  {
+   "model": "modern:lounge_ottoman",
+   "name": "Lounge ottoman",
+   "group": "living",
+   "type": "stool",
+   "size": [
+    0.65,
+    0.55,
+    0.42
+   ],
+   "finishes": [
+    "black",
+    "beige",
+    "terracotta",
+    "grey"
+   ],
+   "accents": [
+    "walnut",
+    "oak",
+    "black"
+   ]
+  },
+  {
+   "model": "modern:rocking_chair",
+   "name": "Rocking chair",
+   "group": "living",
+   "type": "armchair",
+   "size": [
+    0.6,
+    0.9,
+    0.95
+   ],
+   "finishes": [
+    "oak",
+    "walnut",
+    "white",
+    "black"
+   ]
+  },
+  {
+   "model": "modern:egg_chair",
+   "name": "Hanging egg chair",
+   "group": "living",
+   "type": "armchair",
+   "size": [
+    1,
+    1,
+    1.95
+   ],
+   "finishes": [
+    "sand",
+    "black",
+    "white"
+   ],
+   "accents": [
+    "black",
+    "white"
+   ]
+  },
+  {
+   "model": "modern:bean_bag",
+   "name": "Bean bag",
+   "group": "living",
+   "type": "armchair",
+   "size": [
+    0.85,
+    0.85,
+    0.7
+   ],
+   "finishes": [
+    "grey",
+    "beige",
+    "anthracite",
+    "green",
+    "blue",
+    "terracotta",
+    "pink"
+   ]
+  },
+  {
+   "model": "modern:pouf",
+   "name": "Pouf",
+   "group": "living",
+   "type": "stool",
+   "size": [
+    0.5,
+    0.5,
+    0.4
+   ],
+   "finishes": [
+    "grey",
+    "beige",
+    "anthracite",
+    "green",
+    "blue",
+    "terracotta",
+    "pink"
+   ]
+  },
+  {
    "model": "modern:coffee_table",
    "name": "Coffee table",
    "group": "living",
@@ -1215,6 +1362,146 @@
     "black",
     "brass",
     "chrome"
+   ]
+  },
+  {
+   "model": "modern:chair_cantilever",
+   "name": "Cantilever chair",
+   "group": "dining",
+   "type": "chair",
+   "size": [
+    0.46,
+    0.56,
+    0.82
+   ],
+   "finishes": [
+    "black",
+    "grey",
+    "beige",
+    "anthracite",
+    "terracotta",
+    "green"
+   ],
+   "accents": [
+    "chrome",
+    "black",
+    "brass"
+   ]
+  },
+  {
+   "model": "modern:chair_upholstered",
+   "name": "Upholstered chair",
+   "group": "dining",
+   "type": "chair",
+   "size": [
+    0.5,
+    0.58,
+    0.88
+   ],
+   "finishes": [
+    "grey",
+    "beige",
+    "anthracite",
+    "green",
+    "blue",
+    "terracotta",
+    "pink"
+   ],
+   "accents": [
+    "oak",
+    "walnut",
+    "black",
+    "brass"
+   ]
+  },
+  {
+   "model": "modern:chair_spindle",
+   "name": "Windsor chair",
+   "group": "dining",
+   "type": "chair",
+   "size": [
+    0.5,
+    0.52,
+    0.9
+   ],
+   "finishes": [
+    "oak",
+    "walnut",
+    "black",
+    "white",
+    "green"
+   ]
+  },
+  {
+   "model": "modern:chair_wishbone",
+   "name": "Wishbone chair",
+   "group": "dining",
+   "type": "chair",
+   "size": [
+    0.55,
+    0.51,
+    0.76
+   ],
+   "finishes": [
+    "oak",
+    "walnut",
+    "black",
+    "white"
+   ]
+  },
+  {
+   "model": "modern:chair_folding",
+   "name": "Folding chair",
+   "group": "dining",
+   "type": "chair",
+   "size": [
+    0.45,
+    0.5,
+    0.8
+   ],
+   "finishes": [
+    "oak",
+    "black",
+    "white"
+   ],
+   "accents": [
+    "black",
+    "chrome",
+    "white"
+   ]
+  },
+  {
+   "model": "modern:stool_wood",
+   "name": "Wooden stool",
+   "group": "dining",
+   "type": "stool",
+   "size": [
+    0.35,
+    0.35,
+    0.45
+   ],
+   "finishes": [
+    "oak",
+    "walnut",
+    "black",
+    "white"
+   ]
+  },
+  {
+   "model": "modern:dining_bench",
+   "name": "Dining bench",
+   "group": "dining",
+   "type": "bench",
+   "size": [
+    1.6,
+    0.38,
+    0.45
+   ],
+   "finishes": [
+    "oak",
+    "walnut",
+    "black",
+    "white"
    ]
   },
   {
@@ -3067,6 +3354,23 @@
    ]
   },
   {
+   "model": "modern:path_stepping",
+   "name": "Stepping stones",
+   "group": "outside",
+   "type": "garden_path",
+   "size": [
+    0.6,
+    2.4,
+    0.05
+   ],
+   "finishes": [
+    "concrete",
+    "grey",
+    "sand",
+    "anthracite"
+   ]
+  },
+  {
    "model": "modern:planter_box",
    "name": "Planter",
    "group": "outside",
@@ -3238,6 +3542,492 @@
     "anthracite",
     "black",
     "silver"
+   ]
+  },
+  {
+   "model": "modern:pendant_dome",
+   "name": "Pendant, dome",
+   "group": "lighting",
+   "type": "ceiling_lamp",
+   "size": [
+    0.4,
+    0.4,
+    0.9
+   ],
+   "finishes": [
+    "white",
+    "beige",
+    "black",
+    "sand",
+    "green",
+    "terracotta"
+   ],
+   "accents": [
+    "black",
+    "brass",
+    "white",
+    "chrome"
+   ],
+   "mount": "ceiling"
+  },
+  {
+   "model": "modern:pendant_globe",
+   "name": "Pendant, glass globe",
+   "group": "lighting",
+   "type": "ceiling_lamp",
+   "size": [
+    0.3,
+    0.3,
+    0.8
+   ],
+   "finishes": [
+    "white"
+   ],
+   "accents": [
+    "black",
+    "brass",
+    "white",
+    "chrome"
+   ],
+   "mount": "ceiling"
+  },
+  {
+   "model": "modern:pendant_linear",
+   "name": "Linear pendant",
+   "group": "lighting",
+   "type": "ceiling_lamp",
+   "size": [
+    1.2,
+    0.08,
+    0.8
+   ],
+   "finishes": [
+    "black",
+    "white",
+    "brass",
+    "oak"
+   ],
+   "accents": [
+    "black",
+    "brass",
+    "white",
+    "chrome"
+   ],
+   "mount": "ceiling"
+  },
+  {
+   "model": "modern:pendant_cluster",
+   "name": "Pendant cluster",
+   "group": "lighting",
+   "type": "ceiling_lamp",
+   "size": [
+    0.5,
+    0.5,
+    0.9
+   ],
+   "finishes": [
+    "white"
+   ],
+   "accents": [
+    "black",
+    "brass",
+    "white",
+    "chrome"
+   ],
+   "mount": "ceiling"
+  },
+  {
+   "model": "modern:pendant_rattan",
+   "name": "Rattan pendant",
+   "group": "lighting",
+   "type": "ceiling_lamp",
+   "size": [
+    0.5,
+    0.5,
+    0.8
+   ],
+   "finishes": [
+    "sand",
+    "black",
+    "white"
+   ],
+   "accents": [
+    "black",
+    "brass",
+    "white",
+    "chrome"
+   ],
+   "mount": "ceiling"
+  },
+  {
+   "model": "modern:chandelier",
+   "name": "Chandelier",
+   "group": "lighting",
+   "type": "ceiling_lamp",
+   "size": [
+    0.7,
+    0.7,
+    0.7
+   ],
+   "finishes": [
+    "white"
+   ],
+   "accents": [
+    "brass",
+    "black",
+    "chrome"
+   ],
+   "mount": "ceiling"
+  },
+  {
+   "model": "modern:ceiling_flush",
+   "name": "Ceiling light",
+   "group": "lighting",
+   "type": "ceiling_lamp",
+   "size": [
+    0.4,
+    0.4,
+    0.1
+   ],
+   "finishes": [
+    "white"
+   ],
+   "accents": [
+    "white",
+    "black",
+    "brass"
+   ],
+   "mount": "ceiling"
+  },
+  {
+   "model": "modern:ceiling_spots",
+   "name": "Spotlight track",
+   "group": "lighting",
+   "type": "ceiling_lamp",
+   "size": [
+    1,
+    0.1,
+    0.25
+   ],
+   "finishes": [
+    "black",
+    "white",
+    "brass"
+   ],
+   "mount": "ceiling"
+  },
+  {
+   "model": "modern:wall_sconce",
+   "name": "Wall light, up and down",
+   "group": "lighting",
+   "type": "wall_lamp",
+   "size": [
+    0.12,
+    0.18,
+    0.28
+   ],
+   "finishes": [
+    "black",
+    "white",
+    "brass",
+    "anthracite"
+   ],
+   "mount": "wall",
+   "elevation": 1.75
+  },
+  {
+   "model": "modern:wall_swing_arm",
+   "name": "Swing-arm wall lamp",
+   "group": "lighting",
+   "type": "wall_lamp",
+   "size": [
+    0.2,
+    0.55,
+    0.4
+   ],
+   "finishes": [
+    "white",
+    "beige",
+    "black",
+    "sand",
+    "green",
+    "terracotta"
+   ],
+   "accents": [
+    "black",
+    "brass",
+    "white",
+    "chrome"
+   ],
+   "mount": "wall",
+   "elevation": 1.5
+  },
+  {
+   "model": "modern:wall_globe",
+   "name": "Wall light, globe",
+   "group": "lighting",
+   "type": "wall_lamp",
+   "size": [
+    0.2,
+    0.25,
+    0.22
+   ],
+   "finishes": [
+    "white"
+   ],
+   "accents": [
+    "black",
+    "brass",
+    "white",
+    "chrome"
+   ],
+   "mount": "wall",
+   "elevation": 1.8
+  },
+  {
+   "model": "modern:wall_updown",
+   "name": "Outdoor wall light",
+   "group": "lighting",
+   "type": "wall_lamp",
+   "size": [
+    0.1,
+    0.12,
+    0.25
+   ],
+   "finishes": [
+    "anthracite",
+    "black",
+    "white",
+    "silver"
+   ],
+   "mount": "wall",
+   "elevation": 2
+  },
+  {
+   "model": "modern:table_lamp_mushroom",
+   "name": "Mushroom lamp",
+   "group": "lighting",
+   "type": "table_lamp",
+   "size": [
+    0.3,
+    0.3,
+    0.38
+   ],
+   "finishes": [
+    "white",
+    "green",
+    "terracotta",
+    "black",
+    "pink"
+   ]
+  },
+  {
+   "model": "modern:table_lamp_ceramic",
+   "name": "Ceramic table lamp",
+   "group": "lighting",
+   "type": "table_lamp",
+   "size": [
+    0.36,
+    0.36,
+    0.6
+   ],
+   "finishes": [
+    "terracotta",
+    "white",
+    "green",
+    "blue",
+    "sand"
+   ],
+   "accents": [
+    "brass",
+    "black"
+   ]
+  },
+  {
+   "model": "modern:desk_lamp",
+   "name": "Desk lamp",
+   "group": "lighting",
+   "type": "table_lamp",
+   "size": [
+    0.4,
+    0.25,
+    0.6
+   ],
+   "finishes": [
+    "black",
+    "white",
+    "green",
+    "red"
+   ],
+   "accents": [
+    "black",
+    "chrome",
+    "brass"
+   ]
+  },
+  {
+   "model": "modern:floor_lamp_drum",
+   "name": "Floor lamp, drum shade",
+   "group": "lighting",
+   "type": "floor_lamp",
+   "size": [
+    0.45,
+    0.45,
+    1.6
+   ],
+   "finishes": [
+    "white",
+    "beige",
+    "black",
+    "sand",
+    "green",
+    "terracotta"
+   ],
+   "accents": [
+    "black",
+    "brass",
+    "white",
+    "chrome"
+   ]
+  },
+  {
+   "model": "modern:floor_lamp_uplight",
+   "name": "Uplighter",
+   "group": "lighting",
+   "type": "floor_lamp",
+   "size": [
+    0.4,
+    0.4,
+    1.8
+   ],
+   "finishes": [
+    "white",
+    "black",
+    "brass"
+   ],
+   "accents": [
+    "black",
+    "brass",
+    "white"
+   ]
+  },
+  {
+   "model": "modern:floor_lamp_paper",
+   "name": "Paper floor lamp",
+   "group": "lighting",
+   "type": "floor_lamp",
+   "size": [
+    0.4,
+    0.4,
+    1.5
+   ],
+   "finishes": [
+    "white"
+   ],
+   "accents": [
+    "black",
+    "oak",
+    "white"
+   ]
+  },
+  {
+   "model": "modern:washer",
+   "name": "Washing machine",
+   "group": "utility",
+   "type": "washer",
+   "size": [
+    0.6,
+    0.6,
+    0.85
+   ],
+   "finishes": [
+    "white",
+    "anthracite",
+    "silver"
+   ],
+   "accents": [
+    "chrome",
+    "black",
+    "white"
+   ]
+  },
+  {
+   "model": "modern:dryer",
+   "name": "Tumble dryer",
+   "group": "utility",
+   "type": "dryer",
+   "size": [
+    0.6,
+    0.6,
+    0.85
+   ],
+   "finishes": [
+    "white",
+    "anthracite",
+    "silver"
+   ],
+   "accents": [
+    "chrome",
+    "black",
+    "white"
+   ]
+  },
+  {
+   "model": "modern:washer_dryer_stack",
+   "name": "Washer and dryer, stacked",
+   "group": "utility",
+   "type": "washer",
+   "size": [
+    0.6,
+    0.62,
+    1.75
+   ],
+   "finishes": [
+    "white",
+    "anthracite",
+    "silver"
+   ],
+   "accents": [
+    "chrome",
+    "black",
+    "white"
+   ]
+  },
+  {
+   "model": "modern:ceiling_fan",
+   "name": "Ceiling fan",
+   "group": "utility",
+   "type": "ceiling_fan",
+   "size": [
+    1.3,
+    1.3,
+    0.45
+   ],
+   "finishes": [
+    "oak",
+    "white",
+    "black",
+    "walnut"
+   ],
+   "accents": [
+    "white",
+    "black",
+    "brass"
+   ],
+   "mount": "ceiling"
+  },
+  {
+   "model": "modern:laundry_basket",
+   "name": "Laundry basket",
+   "group": "utility",
+   "type": "item",
+   "size": [
+    0.45,
+    0.35,
+    0.5
+   ],
+   "finishes": [
+    "sand"
    ]
   },
   {

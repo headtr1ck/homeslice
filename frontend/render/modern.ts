@@ -1648,6 +1648,382 @@ const BUILDERS: Record<string, Build> = {
     for (const sx of [-1, 1]) b.box(0.28, 0.08, 0.14, sx * (w / 2 - 0.3), h - 0.04, back(d) + 0.08, mat(C.black, { roughness: 1 }), 0.03);
     b.box(0.6, 0.18, 0.3, 0, 0, d / 2 + 0.15, f, 0.02);
   },
+  // ----- chairs and seats -----
+  chair_cantilever: (b, w, d, h, f, _c, a) => {
+    // one bent tube per side: along the floor, up at the front, back under the seat, up the back
+    for (const sx of [-1, 1]) {
+      const x = sx * (w / 2 - 0.02);
+      const pts = [v(x, 0.012, -d / 2 + 0.04), v(x, 0.012, d / 2 - 0.06), v(x, 0.06, d / 2 - 0.02), v(x, 0.4, d / 2 - 0.04), v(x, 0.44, d / 2 - 0.1), v(x, 0.44, -d / 2 + 0.08), v(x, 0.5, -d / 2 + 0.04), v(x, h - 0.02, -d / 2 + 0.02)];
+      b.add(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts, false, "catmullrom", 0.1), 48, 0.011, 8), a);
+    }
+    b.box(w - 0.02, 0.05, d - 0.14, 0, 0.44, 0.0, f, 0.02);
+    b.box(w - 0.02, 0.3, 0.04, 0, h - 0.33, -d / 2 + 0.04, f, 0.015)?.rotation.set(-0.08, 0, 0);
+  },
+  chair_upholstered: (b, w, d, h, f, _c, a) => {
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) b.cyl(0.018, 0.013, 0.42, sx * (w / 2 - 0.05), 0, sz * (d / 2 - 0.06), a, 10);
+    b.box(w, 0.09, d - 0.04, 0, 0.4, 0.02, f, 0.035);
+    const back2 = b.box(w - 0.02, h - 0.46, 0.08, 0, 0, 0, f, 0.035);
+    back2?.position.set(0, 0.46 + (h - 0.46) / 2, -d / 2 + 0.06);
+    back2?.rotation.set(-0.1, 0, 0);
+  },
+  chair_spindle: (b, w, d, h, f) => {
+    // Windsor: a saddle seat, splayed legs, spindles under a curved crest rail
+    const seat = new THREE.CylinderGeometry(0.5, 0.5, 0.04, 28);
+    seat.scale(w, 1, d);
+    b.add(seat, f, 0, 0.44, 0.02);
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) b.rod(v(sx * w * 0.3, 0.43, sz * d * 0.28), v(sx * (w / 2 - 0.02), 0, sz * (d / 2 - 0.02)), 0.016, f, 8);
+    const r = w * 0.48;
+    const crest = new THREE.TorusGeometry(r, 0.02, 6, 20, Math.PI * 0.8);
+    crest.rotateX(Math.PI / 2);
+    crest.rotateY(Math.PI * 0.1 + Math.PI);
+    b.add(crest, f, 0, h - 0.03, -d / 2 + r * 0.55 + 0.02);
+    for (let i = 0; i < 7; i++) {
+      const ang = Math.PI * 1.1 + (i / 6) * Math.PI * 0.8;
+      const x = Math.cos(ang) * r;
+      const z = -Math.sin(ang) * r * -1;
+      b.rod(v(x * 0.85, 0.46, -d / 2 + r * 0.55 + 0.02 + z * 0.85), v(x, h - 0.03, -d / 2 + r * 0.55 + 0.02 + z), 0.008, f, 6);
+    }
+  },
+  chair_wishbone: (b, w, d, h, f) => {
+    // a woven seat, a bow of a backrest-armrest on its Y-shaped back support
+    const cord = mat("#d9c49a", { roughness: 1 });
+    for (const sx of [-1, 1]) {
+      b.rod(v(sx * (w / 2 - 0.04), 0, d / 2 - 0.04), v(sx * (w / 2 - 0.05), 0.44, d / 2 - 0.06), 0.016, f, 8);
+      b.rod(v(sx * (w / 2 - 0.05), 0, -d / 2 + 0.05), v(sx * (w / 2 - 0.08), h - 0.04, -d / 2 + 0.1), 0.016, f, 8);
+    }
+    b.box(w - 0.08, 0.035, d - 0.1, 0, 0.42, 0, cord, 0.012);
+    const bow = new THREE.TorusGeometry(w / 2 - 0.06, 0.018, 6, 24, Math.PI);
+    bow.rotateX(Math.PI / 2);
+    bow.scale(1, 1, 0.75);
+    b.add(bow, f, 0, h - 0.03, -d / 2 + 0.1);
+    b.rod(v(0, 0.46, -d / 2 + 0.08), v(-0.06, h - 0.2, -d / 2 + 0.1), 0.012, f, 6);
+    b.rod(v(0, 0.46, -d / 2 + 0.08), v(0.06, h - 0.2, -d / 2 + 0.1), 0.012, f, 6);
+  },
+  chair_folding: (b, w, d, h, f, _c, a) => {
+    for (const sx of [-1, 1]) {
+      const x = sx * (w / 2 - 0.02);
+      b.rod(v(x, 0, d / 2 - 0.03), v(x, h, -d / 2 + 0.03), 0.01, a, 6);
+      b.rod(v(x, 0, -d / 2 + 0.05), v(x, 0.45, d / 2 - 0.08), 0.01, a, 6);
+    }
+    for (let i = 0; i < 4; i++) b.box(w - 0.06, 0.016, 0.08, 0, 0.44, -d / 2 + 0.12 + i * 0.095, f, 0.004);
+    for (let i = 0; i < 2; i++) b.box(w - 0.06, 0.07, 0.016, 0, h - 0.2 + i * 0.09, -d / 2 + 0.06 - i * 0.012, f, 0.004)?.rotation.set(-0.25, 0, 0);
+  },
+  lounge_chair: (b, w, d, h, f, _c, a) => {
+    // the classic lounge chair: plywood shells, leather cushions, a star base
+    const metal = mat("#9ca3aa", { metalness: 0.6, roughness: 0.35 });
+    for (let i = 0; i < 5; i++) {
+      const ang = (i / 5) * Math.PI * 2 + Math.PI / 2;
+      b.box(0.04, 0.03, 0.36, Math.cos(ang) * 0.17, 0.02, Math.sin(ang) * 0.17, metal, 0.01)?.rotation.set(0, -ang + Math.PI / 2, 0);
+    }
+    b.cyl(0.035, 0.035, 0.22, 0, 0.03, 0, metal, 12);
+    const seat = b.box(w * 0.82, 0.05, d * 0.62, 0, 0, 0, a, 0.02);
+    seat?.position.set(0, 0.3, 0.06);
+    seat?.rotation.set(-0.12, 0, 0);
+    const cushion = b.box(w * 0.78, 0.12, d * 0.58, 0, 0, 0, f, 0.05);
+    cushion?.position.set(0, 0.38, 0.07);
+    cushion?.rotation.set(-0.12, 0, 0);
+    const backShell = b.box(w * 0.8, h * 0.6, 0.05, 0, 0, 0, a, 0.02);
+    backShell?.position.set(0, 0.62, -d / 2 + 0.12);
+    backShell?.rotation.set(-0.35, 0, 0);
+    const backCushion = b.box(w * 0.74, h * 0.56, 0.12, 0, 0, 0, f, 0.05);
+    backCushion?.position.set(0, 0.64, -d / 2 + 0.2);
+    backCushion?.rotation.set(-0.35, 0, 0);
+    for (const sx of [-1, 1]) {
+      b.box(0.1, 0.05, d * 0.5, sx * (w / 2 - 0.06), 0.52, 0.0, a, 0.02);
+      b.box(0.1, 0.06, d * 0.46, sx * (w / 2 - 0.06), 0.57, 0.0, f, 0.025);
+    }
+  },
+  lounge_ottoman: (b, w, d, h, f, _c, a) => {
+    const metal = mat("#9ca3aa", { metalness: 0.6, roughness: 0.35 });
+    for (let i = 0; i < 4; i++) {
+      const ang = (i / 4) * Math.PI * 2 + Math.PI / 4;
+      b.box(0.035, 0.03, 0.3, Math.cos(ang) * 0.14, 0.02, Math.sin(ang) * 0.14, metal, 0.01)?.rotation.set(0, -ang + Math.PI / 2, 0);
+    }
+    b.cyl(0.03, 0.03, h - 0.2, 0, 0.03, 0, metal, 12);
+    b.box(w, 0.05, d, 0, h - 0.18, 0, a, 0.02);
+    b.box(w - 0.04, 0.13, d - 0.04, 0, h - 0.14, 0, f, 0.05);
+  },
+  armchair_wingback: (b, w, d, h, f, _c, a) => {
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) b.cyl(0.02, 0.014, 0.16, sx * (w / 2 - 0.08), 0, sz * (d / 2 - 0.08), a, 10);
+    b.box(w - 0.06, 0.26, d - 0.06, 0, 0.15, 0.02, f, 0.05);
+    b.box(w - 0.24, 0.12, d - 0.26, 0, 0.4, 0.1, f, 0.05);
+    b.box(w - 0.14, h - 0.4, 0.16, 0, 0.4, -d / 2 + 0.1, f, 0.06);
+    for (const sx of [-1, 1]) {
+      b.box(0.12, 0.26, d - 0.2, sx * (w / 2 - 0.09), 0.4, 0.06, f, 0.05);
+      const wing = b.box(0.1, h * 0.42, d * 0.36, 0, 0, 0, f, 0.04);
+      wing?.position.set(sx * (w / 2 - 0.07), h * 0.72, -d / 2 + d * 0.22);
+      wing?.rotation.set(0, sx * 0.25, 0);
+    }
+  },
+  rocking_chair: (b, w, d, h, f) => {
+    for (const sx of [-1, 1]) {
+      const x = sx * (w / 2 - 0.03);
+      const rocker = new THREE.TorusGeometry(d * 1.1, 0.018, 6, 24, 0.95);
+      rocker.rotateZ(Math.PI * 1.5 - 0.475);
+      rocker.rotateY(Math.PI / 2);
+      b.add(rocker, f, x, d * 1.1 + 0.02, 0);
+      b.rod(v(x, 0.04, d * 0.28), v(x, 0.42, d * 0.25), 0.016, f, 8);
+      b.rod(v(x, 0.04, -d * 0.28), v(x, h, -d * 0.36), 0.016, f, 8);
+      b.rod(v(x, 0.62, d * 0.25), v(x, 0.62, -d * 0.32), 0.014, f, 8);
+      b.rod(v(x, 0.42, d * 0.25), v(x, 0.62, d * 0.25), 0.014, f, 8);
+    }
+    b.box(w - 0.04, 0.035, d * 0.55, 0, 0.42, -0.01, f, 0.01);
+    for (let i = 0; i < 5; i++) b.rod(v(-w * 0.3 + (i * w * 0.6) / 4, 0.45, -d * 0.29), v(-w * 0.3 + (i * w * 0.6) / 4, h - 0.04, -d * 0.35), 0.009, f, 6);
+    b.box(w - 0.04, 0.06, 0.03, 0, h - 0.06, -d * 0.355, f, 0.01);
+  },
+  egg_chair: (b, w, d, h, f, _c, a) => {
+    // a woven egg hanging from an arched stand
+    const r = Math.min(w, d) * 0.42;
+    b.cyl(0.32, 0.34, 0.04, 0, 0, -d * 0.1, a, 28);
+    const arch = new THREE.CatmullRomCurve3([v(0, 0.04, -d * 0.1), v(0, h * 0.6, -d / 2 + 0.02), v(0, h, -d * 0.2), v(0, h - 0.02, 0.05)]);
+    b.add(new THREE.TubeGeometry(arch, 24, 0.025, 8), a);
+    b.rod(v(0, h - 0.05, 0.05), v(0, h * 0.55 + r * 1.3, 0.05), 0.008, a, 6);
+    const shell = new THREE.SphereGeometry(r, 28, 14, Math.PI * 0.25, Math.PI * 1.5);
+    shell.scale(1, 1.35, 1);
+    b.add(shell, mat((f as THREE.MeshStandardMaterial).color.getStyle(), { side: THREE.DoubleSide, roughness: 1 }), 0, h * 0.55, 0.05).rotation.y = Math.PI;
+    b.cyl(r * 0.8, r * 0.8, 0.08, 0, h * 0.55 - r * 0.6, 0.08, mat(C.linen, { roughness: 1 }), 24);
+  },
+  bean_bag: (b, w, d, h, f) => {
+    const geo = new THREE.SphereGeometry(0.5, 24, 14);
+    const pos = geo.attributes.position;
+    for (let i = 0; i < pos.count; i++) {
+      const y = pos.getY(i);
+      const z = pos.getZ(i);
+      // flat below, a dip where one sits, leaning back
+      pos.setY(i, Math.max(y, -0.38) + (z > 0 && y > 0 ? -0.18 * y : 0));
+    }
+    geo.computeVertexNormals();
+    geo.scale(w, h * 1.1, d);
+    b.add(geo, f, 0, h * 0.42, 0);
+  },
+  stool_wood: (b, w, d, h, f) => {
+    const r = Math.min(w, d) / 2;
+    b.cyl(r, r, 0.035, 0, h - 0.035, 0, f, 28);
+    for (let i = 0; i < 3; i++) {
+      const ang = (i / 3) * Math.PI * 2;
+      b.rod(v(Math.cos(ang) * r * 0.55, h - 0.035, Math.sin(ang) * r * 0.55), v(Math.cos(ang) * r * 0.95, 0, Math.sin(ang) * r * 0.95), 0.016, f, 8);
+    }
+  },
+  pouf: (b, w, d, h, f) => {
+    const r = Math.min(w, d) / 2;
+    b.add(new THREE.CapsuleGeometry(r - h * 0.25, 0.001, 6, 24).scale(1, (h * 0.5) / r, 1), f, 0, h / 2, 0);
+    b.cyl(r * 0.98, r * 0.98, h * 0.5, 0, h * 0.25, 0, f, 28);
+  },
+  dining_bench: (b, w, d, h, f) => {
+    b.box(w, 0.045, d, 0, h - 0.045, 0, f, 0.008);
+    for (const sx of [-1, 1]) b.box(0.05, h - 0.045, d - 0.04, sx * (w / 2 - 0.12), 0, 0, f, 0.006);
+    b.box(w - 0.3, 0.04, 0.03, 0, 0.12, 0, f, 0.005);
+  },
+  // ----- lighting (ceiling pieces hang from y = h; shades in the finish, fittings in the accent) -----
+  pendant_dome: (b, w, d, h, f, c, a) => {
+    const r = Math.min(w, d) / 2;
+    canopyAndCord(b, h, r * 0.9, a);
+    b.add(new THREE.SphereGeometry(r, 32, 12, 0, Math.PI * 2, 0, Math.PI / 2), shadeMat(f, c), 0, r * 0.75 - r, 0).scale.y = 0.75;
+    b.cyl(0.03, 0.03, 0.05, 0, r * 0.75 - 0.03, 0, a, 12);
+    bulb(b, 0, 0.06, 0, 0.04);
+  },
+  pendant_globe: (b, w, _d, h, _f, _c, a) => {
+    const r = w / 2;
+    canopyAndCord(b, h, r * 2, a);
+    b.cyl(0.03, 0.04, 0.04, 0, r * 2 - 0.02, 0, a, 14);
+    b.sphere(r, 0, r, 0, opal(), 1, 1, 1, 28);
+  },
+  pendant_linear: (b, w, d, h, f, _c, a) => {
+    // a long bar over a table, on two wires
+    const bh = 0.06;
+    for (const sx of [-1, 1]) {
+      b.rod(v(sx * w * 0.35, bh, 0), v(sx * w * 0.35, h, 0), 0.002, a, 4);
+      b.cyl(0.04, 0.04, 0.015, sx * w * 0.35, h - 0.015, 0, a, 14);
+    }
+    b.box(w, bh, Math.min(d, 0.08), 0, 0, 0, f, 0.01);
+    b.box(w - 0.04, 0.005, Math.min(d, 0.08) - 0.02, 0, -0.004, 0, opal());
+  },
+  pendant_cluster: (b, w, d, h, _f, _c, a) => {
+    const rand = random(163);
+    b.cyl(Math.min(w, d) * 0.35, Math.min(w, d) * 0.35, 0.02, 0, h - 0.02, 0, a, 24);
+    for (let i = 0; i < 5; i++) {
+      const ang = (i / 5) * Math.PI * 2;
+      const rr = Math.min(w, d) * 0.28;
+      const r = 0.06 + rand() * 0.05;
+      const y = r + rand() * (h * 0.5);
+      b.rod(v(Math.cos(ang) * rr, y + r, Math.sin(ang) * rr), v(Math.cos(ang) * rr, h - 0.02, Math.sin(ang) * rr), 0.003, a, 4);
+      b.sphere(r, Math.cos(ang) * rr, y, Math.sin(ang) * rr, opal(), 1, 1, 1, 18);
+    }
+  },
+  pendant_rattan: (b, w, d, h, f, c, a) => {
+    const r = Math.min(w, d) / 2;
+    const sh = Math.min(h * 0.5, r * 1.1);
+    canopyAndCord(b, h, sh, a);
+    const profile = [[0.05, 1], [0.35, 0.92], [0.48, 0.6], [0.5, 0.3], [0.4, 0]].map(([x, y]) => new THREE.Vector2(x * r * 2, y * sh));
+    b.add(new THREE.LatheGeometry(profile, 32), wickerMat(c), 0, 0, 0);
+    bulb(b, 0, sh * 0.35, 0, 0.05);
+    void f;
+  },
+  ceiling_flush: (b, w, d, h, f, _c, a) => {
+    const r = Math.min(w, d) / 2;
+    b.cyl(r, r * 0.96, h * 0.4, 0, h * 0.6, 0, a, 36);
+    b.add(new THREE.SphereGeometry(r * 0.94, 36, 8, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2), opal(), 0, h * 0.6, 0).scale.y = (h * 0.6) / (r * 0.94);
+    void f;
+  },
+  ceiling_spots: (b, w, d, h, f) => {
+    // a track with three spots
+    b.box(w, 0.035, 0.04, 0, h - 0.035, 0, f, 0.006);
+    const n = Math.max(2, Math.round(w / 0.4));
+    for (let i = 0; i < n; i++) {
+      const x = -w / 2 + (w / n) * (i + 0.5);
+      b.cyl(0.012, 0.012, 0.04, x, h - 0.075, 0, f, 8);
+      const spot = b.add(new THREE.CylinderGeometry(0.035, 0.03, 0.11, 18), f, x, h - 0.12, 0.02);
+      spot.rotation.x = 0.5 * (i % 2 ? 1 : -1);
+      b.add(new THREE.CircleGeometry(0.028, 16), glowMat(), x, h - 0.17, 0.02 + (i % 2 ? 0.03 : -0.03)).rotation.x = Math.PI / 2;
+    }
+    void d;
+  },
+  chandelier: (b, w, d, h, f, _c, a) => {
+    const r = Math.min(w, d) / 2 - 0.05;
+    b.rod(v(0, h * 0.35, 0), v(0, h, 0), 0.006, a, 6);
+    b.sphere(0.04, 0, h * 0.32, 0, a, 1, 1, 1, 14);
+    for (let i = 0; i < 6; i++) {
+      const ang = (i / 6) * Math.PI * 2;
+      const tip = v(Math.cos(ang) * r, h * 0.3, Math.sin(ang) * r);
+      b.add(new THREE.TubeGeometry(new THREE.CatmullRomCurve3([v(0, h * 0.32, 0), v(Math.cos(ang) * r * 0.5, h * 0.12, Math.sin(ang) * r * 0.5), tip]), 12, 0.008, 6), a);
+      b.cyl(0.03, 0.02, 0.03, tip.x, tip.y, tip.z, a, 10);
+      b.cyl(0.012, 0.012, 0.09, tip.x, tip.y + 0.03, tip.z, mat(C.ceramic), 8);
+      bulb(b, tip.x, tip.y + 0.14, tip.z, 0.018);
+    }
+    void f;
+  },
+  wall_sconce: (b, w, d, h, f) => {
+    // a cylinder throwing light up and down
+    b.box(w * 0.5, h * 0.4, 0.015, 0, h * 0.3, back(d) + 0.0075, f, 0.004);
+    b.box(0.03, 0.03, d - 0.08, 0, h / 2 - 0.015, back(d) + (d - 0.08) / 2, f);
+    b.cyl(Math.min(w, 0.12) / 2, Math.min(w, 0.12) / 2, h, 0, 0, d / 2 - Math.min(w, 0.12) / 2, f, 20);
+    for (const y of [-0.001, h + 0.001]) b.add(new THREE.CircleGeometry(Math.min(w, 0.12) / 2 - 0.01, 16), glowMat(), 0, y, d / 2 - Math.min(w, 0.12) / 2).rotation.x = y < 0 ? Math.PI / 2 : -Math.PI / 2;
+  },
+  wall_swing_arm: (b, w, d, h, f, c, a) => {
+    b.box(0.08, 0.14, 0.02, 0, h * 0.3, back(d) + 0.01, a, 0.01);
+    b.rod(v(0, h * 0.37, back(d) + 0.02), v(0, h * 0.55, d / 2 - 0.12), 0.008, a, 6);
+    const shade = b.add(new THREE.CylinderGeometry(0.05, Math.min(w, 0.2) / 2, 0.16, 24, 1, true), shadeMat(f, c), 0, h * 0.5, d / 2 - 0.1);
+    shade.rotation.x = 0.5;
+    bulb(b, 0, h * 0.47, d / 2 - 0.09, 0.03);
+  },
+  wall_globe: (b, w, d, h, _f, _c, a) => {
+    const r = Math.min(w, h) / 2 - 0.01;
+    b.cyl(0.06, 0.06, 0.02, 0, h / 2, back(d) + 0.01, a, 20).rotation.x = Math.PI / 2;
+    b.rod(v(0, h / 2, back(d) + 0.02), v(0, h / 2, d / 2 - r * 2), 0.01, a, 8);
+    b.sphere(r, 0, h / 2, d / 2 - r, opal(), 1, 1, 1, 24);
+  },
+  wall_updown: (b, w, d, h, f) => {
+    // outdoor: a square tube lighting the wall up and down
+    b.box(w, h, d - 0.02, 0, 0, 0.01, f, 0.008);
+    for (const y of [-0.001, h + 0.001]) b.add(new THREE.PlaneGeometry(w - 0.02, d - 0.04), glowMat(), 0, y, 0.01).rotation.x = y < 0 ? Math.PI / 2 : -Math.PI / 2;
+  },
+  table_lamp_mushroom: (b, w, _d, h, f) => {
+    const r = w / 2;
+    b.cyl(r * 0.55, r * 0.6, 0.02, 0, 0, 0, f, 28);
+    b.cyl(0.025, 0.035, h - r * 0.55, 0, 0.02, 0, f, 16);
+    b.add(new THREE.SphereGeometry(r, 32, 12, 0, Math.PI * 2, 0, Math.PI / 2), f, 0, h - r * 0.6, 0).scale.y = 0.6;
+    b.add(new THREE.CircleGeometry(r * 0.97, 32), glowMat(), 0, h - r * 0.6 - 0.002, 0).rotation.x = Math.PI / 2;
+  },
+  table_lamp_ceramic: (b, w, _d, h, f, c, a) => {
+    // a turned vase base, a pleated drum shade
+    const base = [[0.001, 0], [0.32, 0], [0.42, 0.12], [0.45, 0.25], [0.3, 0.42], [0.12, 0.48], [0.1, 0.52], [0.001, 0.52]].map(([x, y]) => new THREE.Vector2(x * w * 0.7, y * h));
+    b.add(new THREE.LatheGeometry(base, 32), f);
+    b.cyl(0.008, 0.008, h * 0.2, 0, h * 0.52, 0, a, 8);
+    const pleats = new THREE.CylinderGeometry(w * 0.36, w * 0.5, h * 0.34, 36, 1, true);
+    const pos = pleats.attributes.position;
+    for (let i = 0; i < pos.count; i++) {
+      const ang = Math.atan2(pos.getZ(i), pos.getX(i));
+      const k = 1 + 0.04 * Math.cos(ang * 18);
+      pos.setX(i, pos.getX(i) * k);
+      pos.setZ(i, pos.getZ(i) * k);
+    }
+    pleats.computeVertexNormals();
+    b.add(pleats, mat(C.shade, { side: THREE.DoubleSide, roughness: 1 }), 0, h * 0.83, 0);
+    bulb(b, 0, h * 0.72, 0, 0.03);
+    void c;
+  },
+  desk_lamp: (b, w, d, h, f, _c, a) => {
+    // an architect lamp: weighted foot, two arms, a cone head
+    b.cyl(0.08, 0.09, 0.03, 0, 0, 0, f, 24);
+    const knee = v(0, h * 0.6, -d * 0.2);
+    const head = v(w * 0.3, h * 0.85, d * 0.25);
+    b.rod(v(0, 0.03, 0), knee, 0.009, a, 6);
+    b.rod(knee, head, 0.009, a, 6);
+    b.sphere(0.015, knee.x, knee.y, knee.z, f, 1, 1, 1, 8);
+    const cone = b.add(new THREE.CylinderGeometry(0.03, 0.075, 0.13, 24, 1, true), mat((f as THREE.MeshStandardMaterial).color.getStyle(), { side: THREE.DoubleSide }), head.x, head.y - 0.05, head.z);
+    cone.rotation.z = 0.5;
+    bulb(b, head.x + 0.03, head.y - 0.09, head.z, 0.025);
+  },
+  floor_lamp_drum: (b, w, _d, h, f, c, a) => {
+    b.cyl(w * 0.4, w * 0.42, 0.025, 0, 0, 0, a, 28);
+    b.cyl(0.011, 0.011, h - 0.3, 0, 0.025, 0, a, 10);
+    b.cyl(w / 2, w / 2, 0.32, 0, h - 0.32, 0, shadeMat(f, c), 36, true);
+    bulb(b, 0, h - 0.2, 0, 0.035);
+  },
+  floor_lamp_uplight: (b, w, _d, h, f, _c, a) => {
+    b.cyl(w * 0.35, w * 0.4, 0.03, 0, 0, 0, a, 28);
+    b.cyl(0.012, 0.012, h - 0.12, 0, 0.03, 0, a, 10);
+    const bowlP = [[0.001, 0], [0.12, 0], [0.4, 0.6], [0.5, 1], [0.48, 1], [0.38, 0.62], [0.001, 0.08]].map(([x, y]) => new THREE.Vector2(x * w, y * 0.12));
+    b.add(new THREE.LatheGeometry(bowlP, 32), f, 0, h - 0.12, 0);
+    b.add(new THREE.CircleGeometry(w * 0.45, 32), glowMat(), 0, h - 0.015, 0).rotation.x = -Math.PI / 2;
+  },
+  floor_lamp_paper: (b, w, d, h, _f, _c, a) => {
+    // a tall paper lantern on a slim frame
+    const r = Math.min(w, d) / 2;
+    b.box(r * 1.2, 0.02, r * 1.2, 0, 0, 0, a, 0.005);
+    const lantern = new THREE.CylinderGeometry(r, r, h - 0.08, 32, 12);
+    const pos = lantern.attributes.position;
+    for (let i = 0; i < pos.count; i++) {
+      const y = pos.getY(i) / (h - 0.08) + 0.5;
+      const k = 1 - 0.04 * Math.abs(Math.sin(y * Math.PI * 12));
+      pos.setX(i, pos.getX(i) * k);
+      pos.setZ(i, pos.getZ(i) * k);
+    }
+    lantern.computeVertexNormals();
+    b.add(lantern, opal(), 0, 0.04 + (h - 0.08) / 2, 0);
+  },
+  // ----- utility -----
+  washer: (b, w, d, h, f, _c, a) => laundry(b, w, d, h, f, a, "washer"),
+  dryer: (b, w, d, h, f, _c, a) => laundry(b, w, d, h, f, a, "dryer"),
+  washer_dryer_stack: (b, w, d, h, f, _c, a) => {
+    laundry(b, w, d, h / 2 - 0.01, f, a, "washer");
+    b.box(w, 0.02, d, 0, h / 2 - 0.01, 0, mat(C.steel));
+    const top = new Builder();
+    laundry(top, w, d, h / 2 - 0.01, f, a, "dryer");
+    const g = top.done();
+    g.position.y = h / 2 + 0.01;
+    b.g.add(g);
+  },
+  ceiling_fan: (b, w, d, h, f, _c, a) => {
+    const r = Math.min(w, d) / 2;
+    b.cyl(0.06, 0.04, 0.04, 0, h - 0.04, 0, a, 18);
+    b.cyl(0.012, 0.012, h * 0.5, 0, h * 0.45, 0, a, 8);
+    b.cyl(0.11, 0.09, 0.09, 0, h * 0.35, 0, a, 24);
+    b.add(new THREE.SphereGeometry(0.09, 24, 8, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2), opal(), 0, h * 0.35, 0);
+    for (let i = 0; i < 5; i++) {
+      const ang = (i / 5) * Math.PI * 2;
+      const blade = b.box(r - 0.12, 0.012, 0.13, 0, 0, 0, f, 0.006);
+      blade?.position.set(Math.cos(ang) * (r / 2 + 0.06), h * 0.4, Math.sin(ang) * (r / 2 + 0.06));
+      blade?.rotation.set(0.12, -ang, 0);
+    }
+  },
+  laundry_basket: (b, w, d, h, f) => {
+    const geo = new THREE.CylinderGeometry(0.5, 0.42, 1, 24, 1, true);
+    geo.scale(w, h, d);
+    b.add(geo, wickerMat("sand"), 0, h / 2, 0);
+    b.add(new THREE.CircleGeometry(0.42, 24).scale(w, d, 1), wickerMat("sand"), 0, 0.005, 0).rotation.x = -Math.PI / 2;
+    foliage(b, random(167), 0, h * 0.85, 0, w * 0.35, 0.06, d * 0.35, 12, 0.12, C.clothes.slice(0, 4), true);
+    void f;
+  },
+  path_stepping: (b, w, d, h, f) => {
+    const n = Math.max(2, Math.round(d / 0.6));
+    const rand = random(173);
+    for (let i = 0; i < n; i++) {
+      const geo = new THREE.CylinderGeometry(0.5, 0.5, h, 9);
+      geo.scale(w * (0.8 + rand() * 0.2), 1, (d / n) * 0.75);
+      b.add(geo, f, (rand() - 0.5) * w * 0.15, h / 2, -d / 2 + (d / n) * (i + 0.5)).rotation.y = rand() * 0.5;
+    }
+  },
   // ----- vehicles -----
   car_hatchback: (b, w, d, h, _f, color) => car(b, w, d, h, color, "hatchback"),
   car_estate: (b, w, d, h, _f, color) => car(b, w, d, h, color, "estate"),
@@ -2003,6 +2379,63 @@ function tileMaterial(): THREE.MeshStandardMaterial {
   tex.repeat.set(4, 4);
   tiles = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.5 });
   return tiles;
+}
+
+/** A ceiling canopy and the cord down to a shade whose top is at y. */
+function canopyAndCord(b: Builder, h: number, y: number, m: THREE.Material) {
+  b.cyl(0.05, 0.05, 0.025, 0, h - 0.025, 0, m, 20);
+  b.rod(v(0, y, 0), v(0, h - 0.02, 0), 0.003, m, 4);
+}
+
+/** A glowing bulb. */
+function bulb(b: Builder, x: number, y: number, z: number, r: number) {
+  b.sphere(r, x, y, z, glowMat(), 1, 1.15, 1, 14);
+}
+const glowMat = () => mat("#fff6df", { emissive: "#fff2cc", emissiveIntensity: 0.8, side: THREE.DoubleSide });
+/** Opal glass: lit from within. */
+const opal = () => mat("#e6e1d6", { emissive: "#fff1d6", emissiveIntensity: 0.12, roughness: 0.5, side: THREE.DoubleSide });
+
+/** Woven rattan or wicker, see-through-ish and double-sided. */
+const wicker = new Map<string, THREE.MeshStandardMaterial>();
+function wickerMat(color: string): THREE.MeshStandardMaterial {
+  let m = wicker.get(color);
+  if (m) return m;
+  const base = new THREE.Color(FINISHES[color] ?? FINISHES.sand);
+  if (typeof document === "undefined") m = mat(base.getStyle(), { side: THREE.DoubleSide, roughness: 1 });
+  else {
+    const c = document.createElement("canvas");
+    c.width = c.height = 64;
+    const ctx = c.getContext("2d")!;
+    ctx.fillStyle = base.clone().multiplyScalar(0.6).getStyle();
+    ctx.fillRect(0, 0, 64, 64);
+    for (let i = 0; i < 8; i++)
+      for (let j = 0; j < 8; j++) {
+        ctx.fillStyle = base.clone().multiplyScalar((i + j) % 2 ? 1 : 0.85).getStyle();
+        if ((i + j) % 2) ctx.fillRect(i * 8 + 1, j * 8, 6, 8);
+        else ctx.fillRect(i * 8, j * 8 + 1, 8, 6);
+      }
+    const tex = new THREE.CanvasTexture(c);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+    tex.repeat.set(6, 3);
+    m = new THREE.MeshStandardMaterial({ map: tex, roughness: 1, side: THREE.DoubleSide });
+  }
+  wicker.set(color, m);
+  return m;
+}
+
+/** A front-loading washer or dryer: body, control strip with a dial, round door. */
+function laundry(b: Builder, w: number, d: number, h: number, f: THREE.Material, a: THREE.Material, kind: "washer" | "dryer") {
+  b.box(w, h, d, 0, 0, 0, f, 0.015);
+  b.box(w - 0.02, 0.1, 0.01, 0, h - 0.12, d / 2, mat(kind === "washer" ? C.ceramic : "#dfe3e6"), 0.004);
+  b.cyl(0.03, 0.03, 0.02, w * 0.3, h - 0.07, d / 2 + 0.01, a, 20).rotation.x = Math.PI / 2;
+  b.box(0.12, 0.035, 0.006, -w * 0.05, h - 0.085, d / 2 + 0.006, mat(C.screen), 0.004);
+  b.box(0.1, 0.03, 0.01, -w * 0.32, h - 0.08, d / 2 + 0.005, mat("#cfd3d6"), 0.004);
+  const r = Math.min(w * 0.33, (h - 0.16) * 0.4);
+  const cy = (h - 0.14) * 0.48;
+  b.add(new THREE.TorusGeometry(r, 0.028, 10, 36), a, 0, cy, d / 2 + 0.012);
+  b.add(new THREE.CircleGeometry(r * 0.94, 36), mat(kind === "washer" ? "#2c3e48" : "#3a3f44", { roughness: 0.1, metalness: 0.3 }), 0, cy, d / 2 + 0.006);
+  b.add(new THREE.CircleGeometry(r * 0.7, 36), mat("#8e9398", { metalness: 0.6, roughness: 0.4 }), 0, cy, d / 2 + 0.003);
 }
 
 function tvPanel(b: Builder, w: number, h: number, y: number, z: number) {
