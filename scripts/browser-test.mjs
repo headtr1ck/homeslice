@@ -1330,12 +1330,13 @@ console.log("editor");
     assert((await room("living")).furniture[sofaIndex].mount === "ceiling", "mount not set");
     await page.locator("homeslice-panel .inspector label", { hasText: "Mounted" }).locator("select").selectOption("floor");
     assert((await room("living")).furniture[sofaIndex].mount === undefined, "floor is the default and not written");
-    // mirrored, and back
-    await page.locator("homeslice-panel .inspector button", { hasText: "Mirror" }).click();
+    // mirrored left–right, then top–bottom (that one also turns it half way)
+    await page.locator("homeslice-panel .inspector button", { hasText: "left–right" }).click();
     assert((await room("living")).furniture[sofaIndex].mirror === true, "not mirrored");
     assert((await page.locator("homeslice-panel svg.plan g.furniture.selected image").getAttribute("transform")) === "scale(-1 1)", "plan picture not flipped");
-    await page.locator("homeslice-panel .inspector button", { hasText: "Mirror" }).click();
-    assert((await room("living")).furniture[sofaIndex].mirror === undefined, "mirror not removed");
+    await page.locator("homeslice-panel .inspector button", { hasText: "top–bottom" }).click();
+    const flipped = (await room("living")).furniture[sofaIndex];
+    assert(flipped.mirror === undefined && flipped.rotation === 180, `top–bottom: ${JSON.stringify(flipped)}`);
     await shot(page, "editor-library");
     await page.keyboard.press("Control+z");
     await page.keyboard.press("Control+z");

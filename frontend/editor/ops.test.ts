@@ -61,6 +61,7 @@ import {
   connectEnergy,
   snapFurniture,
   footprintHalf,
+  flipFurniture,
   addRobot,
   setRobotPosition,
   addRobotPoint,
@@ -560,5 +561,15 @@ describe("stacked windows", () => {
     // and off again: only this level keeps it, without the other level's blind
     const back = setOpeningLevels(model, "g", source, []).model;
     expect(back.facade_openings![0].levels).toEqual(["g"]);
+  });
+});
+
+describe("mirroring furniture", () => {
+  it("left–right and top–bottom on the plan, whichever way the piece is turned", () => {
+    expect(flipFurniture({ type: "sofa_corner", at: [0, 0] }, "x")).toEqual({ mirror: true });
+    expect(flipFurniture({ type: "sofa_corner", at: [0, 0] }, "y")).toEqual({ mirror: true, rotation: 180 });
+    // turned a quarter: the plan's left–right is the piece's front–back
+    expect(flipFurniture({ type: "sofa_corner", at: [0, 0], rotation: 90 }, "x")).toEqual({ mirror: true, rotation: 270 });
+    expect(flipFurniture({ type: "sofa_corner", at: [0, 0], rotation: 90, mirror: true }, "y")).toEqual({ mirror: undefined });
   });
 });

@@ -425,6 +425,16 @@ export function wallSnap(inner: Vec2[], p: Vec2, depth: number): { at: Vec2; rot
   return { at: [round(foot[0] + (n[0] * depth) / 2), round(foot[1] + (n[1] * depth) / 2)], rotation };
 }
 
+/**
+ * Mirrors a piece along the plan's x (left–right) or y (top–bottom) axis. Pieces only
+ * know one mirror (left–right in their own frame): front–back is that plus a half turn.
+ */
+export function flipFurniture(f: FurnitureInput, axis: "x" | "y"): Partial<FurnitureInput> {
+  const turned = (((f.rotation ?? 0) % 180) + 180) % 180 === 90;
+  const own = (axis === "x") !== turned; // the flip is the piece's own left–right one
+  return { mirror: f.mirror ? undefined : true, ...(own ? {} : { rotation: ((f.rotation ?? 0) + 180) % 360 }) };
+}
+
 /** A piece's footprint for snapping: its centre and half size along x and y. */
 export interface Footprint {
   c: Vec2;

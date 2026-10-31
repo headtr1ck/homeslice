@@ -45,6 +45,7 @@ import {
   clearRobotPoints,
   snapFurniture,
   footprintHalf,
+  flipFurniture,
   addOpening,
   addRoom,
   addFurniture,
@@ -2062,7 +2063,10 @@ export class HomeslicePanel extends LitElement {
         <button title=${this.t("editor.turn_left")} @click=${() => this.rotateFurniture(-90)}>⟲ 90°</button>
         <button title=${this.t("editor.turn_right")} @click=${() => this.rotateFurniture(90)}>⟳ 90°</button>
       </div>
-      <button class=${f.mirror ? "active" : ""} aria-pressed=${!!f.mirror} @click=${() => set({ mirror: f.mirror ? undefined : true })}>⇋ ${this.t("editor.furniture_mirror")}</button>
+      <div class="row">
+        <button title=${this.t("editor.furniture_mirror_h")} @click=${() => set(flipFurniture(f, "x"))}>⇋ ${this.t("editor.furniture_mirror_h")}</button>
+        <button title=${this.t("editor.furniture_mirror_v")} @click=${() => set(flipFurniture(f, "y"))}>⇅ ${this.t("editor.furniture_mirror_v")}</button>
+      </div>
       <button @click=${() => this.duplicateFurniture()}>${this.t("editor.furniture_duplicate")}</button>
       <button class="danger" @click=${() => {
         this.commit(deleteFurniture(m, this._level, r.id, sel.index));

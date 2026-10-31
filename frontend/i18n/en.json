@@ -425,5 +425,6 @@
   "editor.show_lights": "Show lights",
   "editor.show_devices": "Show energy items and robots",
   "editor.show_below": "Show the floor below",
-  "editor.furniture_mirror": "Mirror"
+  "editor.furniture_mirror_h": "Mirror left–right",
+  "editor.furniture_mirror_v": "Mirror top–bottom"
 }
