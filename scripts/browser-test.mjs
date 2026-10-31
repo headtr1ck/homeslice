@@ -1146,6 +1146,15 @@ console.log("editor");
     assert((await dropPiece("sofa", living.x + living.width * 0.3, living.y + living.height * 0.75)) === "ok", "drop refused");
     assert((await room("living")).furniture?.some((f) => f.type === "sofa"), `living: ${JSON.stringify((await room("living")).furniture)}`);
     assert((await page.locator("homeslice-panel .inspector h2").textContent()) === "Sofa", "dropped sofa not selected");
+    // dragged close to the south wall, the sofa snaps flush against it (inside face: 10 − 0.36 m)
+    const sofaBox = await page.locator("homeslice-panel svg.plan g.furniture.selected rect").boundingBox();
+    const near = await toPage([3, 9.1]);
+    await page.mouse.move(sofaBox.x + 8, sofaBox.y + 8);
+    await page.mouse.down();
+    await page.mouse.move(near.x + 8 - sofaBox.width / 2, near.y + 8 - sofaBox.height / 2, { steps: 8 });
+    await page.mouse.up();
+    const sofa = (await room("living")).furniture.find((f) => f.type === "sofa");
+    assert(Math.abs(sofa.at[1] + 4 - (9.64 - 0.45)) < 0.011, `sofa not against the wall: ${JSON.stringify(sofa)}`);
     // a mirror dropped near the hall's west wall hangs on it, facing east
     await page.keyboard.press("Escape");
     const hall = await page.locator('homeslice-panel svg.plan g[data-room="hall"] polygon').boundingBox();

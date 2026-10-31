@@ -59,6 +59,8 @@ import {
   wallSnap,
   suggestMerges,
   connectEnergy,
+  snapFurniture,
+  footprintHalf,
 } from "./ops";
 import { expandHouse } from "../model/expand";
 import { deriveWalls } from "../model/walls";
@@ -481,5 +483,35 @@ describe("energy connections in the editor", () => {
     expect(connectEnergy(m, 2, null).energy![2].to).toBeUndefined();
     const gone = deleteEnergy(m, 1);
     expect(gone.energy!.map((e) => e.to)).toEqual([undefined, undefined]);
+  });
+});
+
+describe("snapping furniture", () => {
+  // a 4 × 3 m room inside its walls
+  const walls: [[number, number], [number, number]][] = [
+    [[0, 0], [4, 0]],
+    [[4, 0], [4, 3]],
+    [[4, 3], [0, 3]],
+    [[0, 3], [0, 0]],
+  ];
+  it("pushes a piece against a nearby wall", () => {
+    const r = snapFurniture({ c: [2, 0.55], half: [1, 0.45] }, walls, [], [], 0.15);
+    expect(r.c[1]).toBeCloseTo(0.45);
+    expect(r.guide.y).toBe(0);
+    expect(r.guide.x).toBeUndefined();
+  });
+  it("lines pieces up: a cabinet next to another touches it", () => {
+    const cabinet = { c: [1, 2.7] as [number, number], half: [0.3, 0.3] as [number, number] };
+    const r = snapFurniture({ c: [1.68, 2.66], half: [0.3, 0.3] }, walls, [cabinet], [], 0.15);
+    expect(r.c[0]).toBeCloseTo(1.6); // touching
+    expect(r.c[1]).toBeCloseTo(2.7); // against the south wall, lined up with it
+  });
+  it("centres a ceiling lamp in the room", () => {
+    const r = snapFurniture({ c: [2.08, 1.45], half: [0.15, 0.15] }, [], [], [[2, 1.5]], 0.15);
+    expect(r.c).toEqual([2, 1.5]);
+  });
+  it("only pieces turned by a right angle have a footprint", () => {
+    expect(footprintHalf([2, 1], 90)).toEqual([0.5, 1]);
+    expect(footprintHalf([2, 1], 45)).toBeNull();
   });
 });

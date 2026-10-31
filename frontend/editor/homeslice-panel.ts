@@ -33,6 +33,8 @@ import {
   wallSnap,
   connectEnergy,
   setCoverInverted,
+  snapFurniture,
+  footprintHalf,
   addOpening,
   addRoom,
   addFurniture,
@@ -988,18 +990,36 @@ export class HomeslicePanel extends LitElement {
       const p: Vec2 = [drag.centre[0] + world[0] - drag.startWorld[0], drag.centre[1] + world[1] - drag.startWorld[1]];
       if (!drag.moved && Math.hypot(p[0] - drag.centre[0], p[1] - drag.centre[1]) * this._view.scale < 4) return;
       drag.moved = true;
-      const s = snapped(p, { ...this.snapContext(), points: [] });
       const rooms = (this.levelInput?.rooms ?? []).filter((r) => r.kind !== "void");
-      const into = rooms.find((r) => pointInPolygon(s.p, roomPolygon(this._model!, r)))?.id ?? drag.room;
+      const into = rooms.find((r) => pointInPolygon(p, roomPolygon(this._model!, r)))?.id ?? drag.room;
       const piece = drag.origin.levels.find((l) => l.id === this._level)?.rooms.find((r) => r.id === drag.room)?.furniture?.[drag.index];
-      // wall pieces slide along the walls, their back against them
       const target = rooms.find((r) => r.id === into);
-      const onWall = piece && target && mountOf(piece) === "wall" ? wallSnap(this.inner(target), s.p, (piece.size ?? FURNITURE[piece.type].size)[1]) : null;
-      let moved = moveFurniture(drag.origin, this._level, drag.room, drag.index, onWall?.at ?? s.p, into);
-      if (onWall) moved = { ...moved, model: updateFurniture(moved.model, this._level, moved.room, moved.index, { rotation: onWall.rotation }) };
+      if (!piece || !target) return;
+      const mount = mountOf(piece);
+      const size = piece.size ?? FURNITURE[piece.type].size;
+      let at = p;
+      let guides: { x?: number; y?: number } = {};
+      let rotation: number | undefined;
+      if (mount === "wall") {
+        // wall pieces slide along the walls, their back against them
+        const onWall = wallSnap(this.inner(target), p, size[1]);
+        if (onWall) [at, rotation] = [onWall.at, onWall.rotation];
+      } else {
+        const half = footprintHalf(size, piece.rotation ?? 0);
+        if (half && !free) {
+          // floor pieces snap to walls and to each other; ceiling pieces to each other and the room's middle
+          const inner = this.inner(target);
+          const walls = mount === "floor" ? inner.map((q, i) => [q, inner[(i + 1) % inner.length]] as [Vec2, Vec2]) : [];
+          const snappedPiece = snapFurniture({ c: p, half }, walls, this.footprints(drag.room, drag.index, mount), mount === "ceiling" ? [labelPoint(inner)] : [], 10 / this._view.scale);
+          at = snappedPiece.c;
+          guides = snappedPiece.guide;
+        } else if (!free) at = snapped(p, { ...this.snapContext(), points: [] }).p;
+      }
+      let moved = moveFurniture(drag.origin, this._level, drag.room, drag.index, at, into);
+      if (rotation !== undefined) moved = { ...moved, model: updateFurniture(moved.model, this._level, moved.room, moved.index, { rotation }) };
       this._model = moved.model;
       this._furn = { room: moved.room, index: moved.index };
-      this._guides = { x: s.alignX, y: s.alignY };
+      this._guides = guides;
       return;
     }
     if (drag.kind === "energy") {
@@ -2884,6 +2904,19 @@ export class HomeslicePanel extends LitElement {
     this.commit(model);
     this._room = room.id;
     this._furn = { room: room.id, index };
+  }
+
+  /** Footprints of the level's other pieces with the same mount (turned by right angles only). */
+  private footprints(room: string, index: number, mount: FurnitureMount): { c: Vec2; half: Vec2 }[] {
+    const m = this._model!;
+    return (this.levelInput?.rooms ?? []).flatMap((r) => {
+      const { min } = bbox(roomPolygon(m, r));
+      return (r.furniture ?? []).flatMap((f, i) => {
+        if ((r.id === room && i === index) || mountOf(f) !== mount) return [];
+        const half = footprintHalf(f.size ?? FURNITURE[f.type].size, f.rotation ?? 0);
+        return half ? [{ c: [min[0] + f.at[0], min[1] + f.at[1]] as Vec2, half }] : [];
+      });
+    });
   }
 
   /** Changes how a piece is mounted; on a wall it moves against the nearest one. */

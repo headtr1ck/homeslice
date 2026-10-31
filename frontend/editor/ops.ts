@@ -417,6 +417,72 @@ export function wallSnap(inner: Vec2[], p: Vec2, depth: number): { at: Vec2; rot
   return { at: [round(foot[0] + (n[0] * depth) / 2), round(foot[1] + (n[1] * depth) / 2)], rotation };
 }
 
+/** A piece's footprint for snapping: its centre and half size along x and y. */
+export interface Footprint {
+  c: Vec2;
+  half: Vec2;
+}
+
+/** Half sizes along x and y of a piece turned by a multiple of 90° (null otherwise). */
+export function footprintHalf(size: [number, number], rotation: number): Vec2 | null {
+  const r = ((rotation % 360) + 360) % 360;
+  if (r % 90 !== 0) return null;
+  return r % 180 === 0 ? [size[0] / 2, size[1] / 2] : [size[1] / 2, size[0] / 2];
+}
+
+/**
+ * Snaps a dragged piece: its sides to wall faces (`walls`, axis-aligned segments) and
+ * to other pieces (touching them or lined up with them), its centre to theirs and to
+ * `centres` (e.g. the room's middle). Each axis snaps on its own, within `tol` metres.
+ */
+export function snapFurniture(
+  piece: Footprint,
+  walls: [Vec2, Vec2][],
+  others: Footprint[],
+  centres: Vec2[],
+  tol: number,
+): { c: Vec2; guide: { x?: number; y?: number } } {
+  // the smallest move per axis wins
+  const best: [{ d: number; at?: number }, { d: number; at?: number }] = [{ d: Infinity }, { d: Infinity }];
+  const offer = (axis: 0 | 1, d: number, at: number) => {
+    if (Math.abs(d) <= tol && Math.abs(d) < Math.abs(best[axis].d)) best[axis] = { d, at };
+  };
+  const lo = (f: Footprint, axis: 0 | 1) => f.c[axis] - f.half[axis];
+  const hi = (f: Footprint, axis: 0 | 1) => f.c[axis] + f.half[axis];
+  const overlaps = (f: Footprint, a0: number, a1: number, axis: 0 | 1, margin = 0) => Math.min(hi(f, axis), a1) - Math.max(lo(f, axis), a0) > -margin;
+  for (const [a, b] of walls) {
+    // a wall along y (constant x) snaps x, if it runs beside the piece
+    for (const axis of [0, 1] as const) {
+      const other = (1 - axis) as 0 | 1;
+      if (Math.abs(a[axis] - b[axis]) > 1e-6) continue;
+      if (!overlaps(piece, Math.min(a[other], b[other]), Math.max(a[other], b[other]), other)) continue;
+      const face = a[axis];
+      offer(axis, face - lo(piece, axis), face);
+      offer(axis, face - hi(piece, axis), face);
+    }
+  }
+  for (const o of others) {
+    for (const axis of [0, 1] as const) {
+      const other = (1 - axis) as 0 | 1;
+      // only pieces nearby in the other direction (a row of cabinets, a chair at a table)
+      if (!overlaps(piece, lo(o, other), hi(o, other), other, 1)) continue;
+      for (const [mine, edge] of [
+        [lo(piece, axis), hi(o, axis)], // touching on one side
+        [hi(piece, axis), lo(o, axis)], // …or the other
+        [lo(piece, axis), lo(o, axis)], // lined up
+        [hi(piece, axis), hi(o, axis)],
+        [piece.c[axis], o.c[axis]], // centred
+      ])
+        offer(axis, edge - mine, edge);
+    }
+  }
+  for (const c of centres) for (const axis of [0, 1] as const) offer(axis, c[axis] - piece.c[axis], c[axis]);
+  const guide: { x?: number; y?: number } = {};
+  if (best[0].at !== undefined) guide.x = best[0].at;
+  if (best[1].at !== undefined) guide.y = best[1].at;
+  return { c: [piece.c[0] + (best[0].at !== undefined ? best[0].d : 0), piece.c[1] + (best[1].at !== undefined ? best[1].d : 0)], guide };
+}
+
 function insidePolygon(p: Vec2, poly: Vec2[]): boolean {
   let inside = false;
   for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
