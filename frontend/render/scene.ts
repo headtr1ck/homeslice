@@ -5,6 +5,7 @@
 
 import * as THREE from "three";
 import { buildPiece, loadModel, modelFiles, partsFor } from "./models";
+import { nearestCorner, offsetPolygon, perimeterPath } from "../model/route";
 import type { House, Level, Vec2, Vertical } from "../model/types";
 import { innerPolygon, type Wall, type WallOpening } from "../model/walls";
 import { bbox, pointInPolygon } from "../model/geometry";
@@ -75,6 +76,7 @@ export function viewOptions(
 
 /** Dots per flow line, and the least power that moves them. */
 const FLOW_DOTS = 6;
+const MAX_FLOW_DOTS = 24;
 const MIN_FLOW_WATTS = 10;
 
 // One perspective camera does both: "isometric" is a very narrow lens from far away, so
@@ -142,9 +144,17 @@ export interface EnergyItem {
   roof: string;
 }
 
+/** A point of a flow line: on a level, in that level's coordinates (it moves with the level). */
+interface RoutePoint {
+  levelIndex: number;
+  local: THREE.Vector3;
+}
+
 interface Flow {
   key: string;
   to: string;
+  /** From the item along the walls and down a corner of the house to `to`. */
+  route: RoutePoint[];
   line: THREE.Line<THREE.BufferGeometry, THREE.LineBasicMaterial>;
   dots: THREE.Points<THREE.BufferGeometry, THREE.PointsMaterial>;
   /** Watts towards `to` (negative: away from it). */
@@ -248,6 +258,10 @@ export class HouseRenderer {
   /** Where each energy item is, in its level group's coordinates (solar: on the roof). */
   private energyPoints = new Map<string, { levelIndex: number; local: THREE.Vector3; onRoof?: boolean }>();
   private flows: Flow[] = [];
+  /** Each level's outline and storey height, for routing the energy lines along the house. */
+  private levelOutlines: Vec2[][] = [];
+  private levelHeights: number[] = [];
+  private levelRooms: Vec2[][][] = [];
   /** Awnings by "level/room": the fabric scales along its depth with the cover position. */
   private awnings = new Map<string, THREE.Mesh>();
   /** Upper parts of outer walls, hidden while they face a low camera. */
@@ -303,6 +317,9 @@ export class HouseRenderer {
       const floorMaterials = new Set(level.rooms.map((r) => this.floors.get(`${level.id}/${r.id}`)?.material));
       const tintable = [...materials].filter((m): m is THREE.MeshLambertMaterial => m instanceof THREE.MeshLambertMaterial && !floorMaterials.has(m));
       this.levels.push({ group, baseY, materials, tintable, opacity: 1, lift: 0, hoverOpacity: 1 });
+      this.levelOutlines.push(level.outline);
+      this.levelHeights.push(level.height);
+      this.levelRooms.push(level.rooms.filter((r) => r.kind === "room").map((r) => r.polygon));
       this.levelIds.push(level.id);
     }
     const top = house.levels[house.levels.length - 1];
@@ -342,6 +359,9 @@ export class HouseRenderer {
     this.energyObjects = [];
     this.energyPoints.clear();
     this.flows = [];
+    this.levelOutlines = [];
+    this.levelHeights = [];
+    this.levelRooms = [];
     this.lamps.clear();
     this.lampObjects = [];
     this.cuttables = [];
@@ -721,22 +741,57 @@ export class HouseRenderer {
       }
     }
     // a line and moving dots from each item to the one it is connected to, drawn over the house
+    // lines that leave their floor get their own lane along the walls, side by side
+    let lane = 0;
     for (const item of items) {
       if (!item.to || !this.energyPoints.has(item.key) || !this.energyPoints.has(item.to)) continue;
+      const route = this.route(this.energyPoints.get(item.key)!, this.energyPoints.get(item.to)!, lane);
+      if (route.length > 2) lane++;
       const color = new THREE.Color(ENERGY_COLORS[item.kind] ?? ENERGY_COLORS.device);
       const line = new THREE.Line(
-        new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3()]),
-        new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0.45, depthTest: false }),
+        new THREE.BufferGeometry().setFromPoints(route.map(() => new THREE.Vector3())),
+        new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0.75, depthWrite: false }),
       );
       const dots = new THREE.Points(
-        new THREE.BufferGeometry().setAttribute("position", new THREE.BufferAttribute(new Float32Array(3 * FLOW_DOTS), 3)),
-        new THREE.PointsMaterial({ color, size: 7, sizeAttenuation: false, depthTest: false, transparent: true }),
+        new THREE.BufferGeometry().setAttribute("position", new THREE.BufferAttribute(new Float32Array(3 * MAX_FLOW_DOTS), 3)),
+        new THREE.PointsMaterial({ color, size: 7, sizeAttenuation: false, depthWrite: false, transparent: true }),
       );
       line.renderOrder = dots.renderOrder = 10;
       this.root.add(line, dots);
       this.energyObjects.push(line, dots);
-      this.flows.push({ key: item.key, to: item.to, line, dots, watts: 0 });
+      this.flows.push({ key: item.key, to: item.to, route, line, dots, watts: 0 });
     }
+  }
+
+  /**
+   * How a flow line runs: in the same room straight across; otherwise along the outside
+   * of the walls to the house corner nearest the far end, up or down that corner (the
+   * roof's eave for solar), and along the walls again. `lane` keeps lines apart.
+   */
+  private route(from: { levelIndex: number; local: THREE.Vector3; onRoof?: boolean }, to: { levelIndex: number; local: THREE.Vector3; onRoof?: boolean }, lane: number): RoutePoint[] {
+    const start = { levelIndex: from.levelIndex, local: from.local.clone() };
+    const end = { levelIndex: to.levelIndex, local: to.local.clone() };
+    const plan = (p: { local: THREE.Vector3 }): Vec2 => [p.local.x, p.local.z];
+    const sameFloor = !from.onRoof && !to.onRoof && from.levelIndex === to.levelIndex;
+    // in the same room: straight across
+    if (sameFloor && (this.levelRooms[from.levelIndex] ?? []).some((poly) => pointInPolygon(plan(from), poly) && pointInPolygon(plan(to), poly))) return [start, end];
+    const base = to.onRoof ? from : to;
+    const outline = this.levelOutlines[base.levelIndex];
+    if (!outline?.length) return [start, end];
+    const outer = offsetPolygon(outline, 0.25 + 0.12 * lane);
+    const at = (levelIndex: number, [x, z]: Vec2, y: number): RoutePoint => ({ levelIndex, local: new THREE.Vector3(x, y, z) });
+    // the same floor, different rooms: out to the wall, along the outside, and back in
+    if (sameFloor) return [start, ...perimeterPath(outer, plan(from), plan(to)).map((q) => at(from.levelIndex, q, from.local.y)), end];
+    const corner = nearestCorner(outer, plan(base));
+    const points: RoutePoint[] = [start];
+    // leave: along the walls to the corner, or from the panels to the eave above it
+    if (from.onRoof) points.push(at(from.levelIndex, corner, this.levelHeights[from.levelIndex]));
+    else points.push(...perimeterPath(outer, plan(from), corner).map((q) => at(from.levelIndex, q, from.local.y)));
+    // arrive the same way round
+    if (to.onRoof) points.push(at(to.levelIndex, corner, this.levelHeights[to.levelIndex]));
+    else points.push(...perimeterPath(outer, corner, plan(to)).map((q) => at(to.levelIndex, q, to.local.y)));
+    points.push(end);
+    return points;
   }
 
   /** Power per item (W towards what it is connected to); flows below a few watts stand still. */
@@ -763,24 +818,36 @@ export class HouseRenderer {
       f.line.visible = shown;
       f.dots.visible = shown && Math.abs(f.watts) >= MIN_FLOW_WATTS;
       if (!shown || !hub || !from) continue;
-      const a = this.levels[from.levelIndex].group.localToWorld(from.local.clone());
-      const b = this.levels[hub.levelIndex].group.localToWorld(hub.local.clone());
+      // the route follows its levels as they lift and fade
+      const world = f.route.map((p) => this.levels[p.levelIndex].group.localToWorld(p.local.clone()));
       const pos = f.line.geometry.attributes.position as THREE.BufferAttribute;
-      pos.setXYZ(0, a.x, a.y, a.z);
-      pos.setXYZ(1, b.x, b.y, b.z);
+      world.forEach((w, i) => pos.setXYZ(i, w.x, w.y, w.z));
       pos.needsUpdate = true;
       f.line.geometry.computeBoundingSphere();
       if (!f.dots.visible) continue;
       // towards `to` when positive; faster with more power
-      const [start, end] = f.watts > 0 ? [a, b] : [b, a];
-      const length = start.distanceTo(end) || 1;
+      const path = f.watts > 0 ? world : [...world].reverse();
+      const ends: number[] = [0];
+      for (let i = 1; i < path.length; i++) ends.push(ends[i - 1] + path[i - 1].distanceTo(path[i]));
+      const length = ends[ends.length - 1] || 1;
       const speed = Math.min(4, 0.6 + Math.abs(f.watts) / 800); // m/s
-      const spacing = length / FLOW_DOTS;
+      // one dot every 1.5 m or so, at least the usual few
+      const spacing = length / Math.max(FLOW_DOTS, Math.min(MAX_FLOW_DOTS, Math.round(length / 1.5)));
       const offset = ((now / 1000) * speed) % spacing;
       const dots = f.dots.geometry.attributes.position as THREE.BufferAttribute;
-      for (let i = 0; i < FLOW_DOTS; i++) {
-        const t = (offset + i * spacing) / length;
-        dots.setXYZ(i, start.x + (end.x - start.x) * t, start.y + (end.y - start.y) * t, start.z + (end.z - start.z) * t);
+      for (let i = 0; i < MAX_FLOW_DOTS; i++) {
+        const d = offset + i * spacing;
+        if (d > length) {
+          // unused dots sit at the end, hidden under the marker
+          dots.setXYZ(i, path[path.length - 1].x, path[path.length - 1].y, path[path.length - 1].z);
+          continue;
+        }
+        let s = 1;
+        while (s < ends.length - 1 && ends[s] < d) s++;
+        const t = (d - ends[s - 1]) / (ends[s] - ends[s - 1] || 1);
+        const a = path[s - 1];
+        const b = path[s];
+        dots.setXYZ(i, a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t, a.z + (b.z - a.z) * t);
       }
       dots.needsUpdate = true;
       f.dots.geometry.computeBoundingSphere();
