@@ -1233,10 +1233,21 @@ console.log("editor, starting from scratch");
   const model = () => page.evaluate(() => window.panel._model);
   const lvl = async (id) => (await model()).levels.find((l) => l.id === id);
 
-  await test("with no house, a new one is made from HA's floors and areas", async () => {
+  await test("with no house, a new one is made from HA's floors and areas; an Outside floor joins the ground floor", async () => {
+    // the garden on its own HA floor, as many people set it up
+    await page.evaluate(() => {
+      const h = window.panel.hass;
+      window.panel.hass = {
+        ...h,
+        floors: { ...h.floors, outside: { floor_id: "outside", name: "Outside", level: null } },
+        areas: { ...h.areas, garden: { ...h.areas.garden, floor_id: "outside" } },
+      };
+    });
     await page.locator("homeslice-panel .empty button.primary").click();
     const dialog = page.locator("homeslice-panel .create");
-    assert((await dialog.locator("input[type=checkbox]").count()) === 4, "expected three floors and the rooms option");
+    assert((await dialog.locator("input[type=checkbox]").count()) === 5, "expected four floors and the rooms option");
+    const outsideLevel = dialog.locator('select[aria-label="Level for Outside"]');
+    assert((await outsideLevel.inputValue()) === "ground_floor", `outside goes to: ${await outsideLevel.inputValue()}`);
     await dialog.locator("input").first().fill("Test house");
     await dialog.locator("input[type=number]").nth(0).fill("9");
     await dialog.locator("input[type=number]").nth(0).dispatchEvent("change");
@@ -1247,6 +1258,7 @@ console.log("editor, starting from scratch");
     assert(m.id === "test_house" && m.name === "Test house", `id/name: ${m.id} ${m.name}`);
     assert(JSON.stringify(m.outline) === '{"rect":[0,0,9,8]}', `outline: ${JSON.stringify(m.outline)}`);
     assert(JSON.stringify(m.levels.map((l) => l.id)) === '["basement","ground_floor","first_floor"]', `levels: ${m.levels.map((l) => l.id)}`);
+    assert(JSON.stringify(m.levels[1].include_floors) === '["outside"]', `ground floor includes: ${JSON.stringify(m.levels[1].include_floors)}`);
     // opens on the entrance floor with a room per area
     assert((await page.locator("homeslice-panel button.level.active").textContent()).includes("Ground Floor"), "not on the ground floor");
     const names = await page.locator("homeslice-panel svg.plan text.room-name").allTextContents();

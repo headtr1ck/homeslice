@@ -679,8 +679,26 @@ export function layoutRooms(rect: [number, number, number, number], areas: AreaS
 
 export interface LevelSeed {
   floor_id?: string;
+  /** More HA floors on this level (their areas are in `areas` too). */
+  include_floors?: string[];
   name?: string;
   areas: AreaSeed[];
+}
+
+/**
+ * Which HA floors get their own level and which join another: floors that look like
+ * outside (by name, or all their areas) join the ground floor (level 0, else the lowest
+ * level at or above 0, else the lowest). `floors` are listed bottom to top.
+ */
+export function suggestMerges(floors: { floor_id: string; name: string; level?: number | null; areas: AreaSeed[] }[]): Record<string, string> {
+  const outside = (f: (typeof floors)[number]) =>
+    looksOutdoor({ area_id: f.floor_id, name: f.name }) || (f.areas.length > 0 && f.areas.every(looksOutdoor));
+  const indoor = floors.filter((f) => !outside(f));
+  const ground = indoor.find((f) => f.level === 0) ?? indoor.find((f) => (f.level ?? 0) >= 0) ?? indoor[0];
+  const merges: Record<string, string> = {};
+  if (!ground) return merges;
+  for (const f of floors) if (f !== ground && outside(f)) merges[f.floor_id] = ground.floor_id;
+  return merges;
 }
 
 /** A new house: one level per seed (bottom to top), each with placeholder rooms for its areas. */
@@ -698,6 +716,7 @@ export function newHouse(id: string, name: string, size: [number, number], level
       const l: LevelInput = { id: lid, rooms: layoutRooms([0, 0, w, d], seed.areas) };
       if (seed.floor_id) l.floor_id = seed.floor_id;
       else if (seed.name) l.name = seed.name;
+      if (seed.include_floors?.length) l.include_floors = [...seed.include_floors];
       return l;
     }),
   };

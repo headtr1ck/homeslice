@@ -57,6 +57,7 @@ import {
   freeWallIndexes,
   resizeSide,
   wallSnap,
+  suggestMerges,
 } from "./ops";
 import { expandHouse } from "../model/expand";
 import { deriveWalls } from "../model/walls";
@@ -445,5 +446,20 @@ describe("wall-mounted furniture", () => {
     expect(wallSnap(inner, [3.8, 1.5], 0.04)).toEqual({ at: [3.98, 1.5], rotation: 90 }); // east wall
     expect(wallSnap(inner, [2, 2.9], 0.3)).toEqual({ at: [2, 2.85], rotation: 180 }); // south wall
     expect(wallSnap(inner, [0.1, 1], 0.3)).toEqual({ at: [0.15, 1], rotation: 270 }); // west wall
+  });
+});
+
+describe("merging Home Assistant floors", () => {
+  const floor = (floor_id: string, name: string, level: number | null, areas: string[] = []) => ({ floor_id, name, level, areas: areas.map((a) => ({ area_id: a, name: a })) });
+  it("puts an outside floor on the ground floor", () => {
+    expect(suggestMerges([floor("basement", "Basement", -1), floor("ground", "Ground floor", 0), floor("outside", "Outside", null), floor("first", "First floor", 1)])).toEqual({ outside: "ground" });
+    // recognised by its areas too
+    expect(suggestMerges([floor("eg", "EG", 0, ["kitchen"]), floor("x", "Grounds", 0, ["Garten", "Terrasse"])])).toEqual({ x: "eg" });
+    expect(suggestMerges([floor("eg", "EG", 0), floor("og", "OG", 1)])).toEqual({});
+  });
+  it("a new house keeps the merged floors on their level", () => {
+    const m = newHouse("h", "H", [10, 8], [{ floor_id: "ground", include_floors: ["outside"], areas: [{ area_id: "kitchen", name: "Kitchen" }, { area_id: "garden", name: "Garden" }] }]);
+    expect(m.levels[0].include_floors).toEqual(["outside"]);
+    expect(m.levels[0].rooms.find((r) => r.area_id === "garden")?.kind).toBe("outdoor");
   });
 });

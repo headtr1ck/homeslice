@@ -56,6 +56,7 @@ import {
   slug,
   uniqueId,
   updateLevel,
+  suggestMerges,
   type AreaSeed,
   deleteOpening,
   readOpening,
@@ -295,7 +296,8 @@ export class HomeslicePanel extends LitElement {
   /** Snap feedback drawn on the plan: guide lines and the corner snapped to. */
   private _guides: { x?: number; y?: number; ring?: Vec2 } | null = null;
   /** The "new house" form while it is open. */
-  private _create: { name: string; width: number; depth: number; floors: string[]; rooms: boolean } | null = null;
+  /** `merges`: HA floors whose areas go onto another floor's level (floor → floor). */
+  private _create: { name: string; width: number; depth: number; floors: string[]; rooms: boolean; merges: Record<string, string> } | null = null;
   /** The current level's floor plan image (loaded from HA), if any. */
   private _underlay: Underlay | null = null;
   private _underlayHidden = false;
@@ -440,6 +442,16 @@ export class HomeslicePanel extends LitElement {
     return Object.values(this._hass?.floors ?? {}).sort((a, b) => (b.level ?? 0) - (a.level ?? 0) || a.name.localeCompare(b.name));
   }
 
+  /** HA floors already on a level (as its floor or included), except `except`'s. */
+  private usedFloors(except?: string): Set<string> {
+    return new Set((this._model?.levels ?? []).filter((l) => l.id !== except).flatMap((l) => [l.floor_id, ...(l.include_floors ?? [])].filter((x): x is string => !!x)));
+  }
+
+  /** The areas of a level: its HA floor's and those of the floors it includes. */
+  private levelAreas(l: { floor_id?: string; include_floors?: string[] }): AreaSeed[] {
+    return [l.floor_id, ...(l.include_floors ?? [])].flatMap((f) => this.floorAreas(f));
+  }
+
   private floorAreas(floorId: string | undefined): AreaSeed[] {
     if (!floorId) return [];
     return Object.values(this._hass?.areas ?? {})
@@ -451,7 +463,9 @@ export class HomeslicePanel extends LitElement {
   private startCreate() {
     if (this.dirty && !confirm(this.t("editor.discard"))) return;
     const floors = this.haFloors();
-    this._create = { name: this._houses.length ? "" : this.t("editor.new_house_default_name"), width: 10, depth: 8, floors: floors.map((f) => f.floor_id), rooms: true };
+    // an "Outside" floor joins the ground floor (HA lists floors top first)
+    const merges = suggestMerges([...floors].reverse().map((f) => ({ floor_id: f.floor_id, name: f.name, level: f.level, areas: this.floorAreas(f.floor_id) })));
+    this._create = { name: this._houses.length ? "" : this.t("editor.new_house_default_name"), width: 10, depth: 8, floors: floors.map((f) => f.floor_id), rooms: true, merges };
   }
 
   private async createHouse() {
@@ -463,10 +477,18 @@ export class HomeslicePanel extends LitElement {
       slug(name, "home"),
     );
     // HA lists floors top first; the model goes bottom to top
+    const merged = (f: string) => c.merges[f] && c.floors.includes(c.merges[f]) && !c.merges[c.merges[f]];
     const seeds = this.haFloors()
-      .filter((f) => c.floors.includes(f.floor_id))
+      .filter((f) => c.floors.includes(f.floor_id) && !merged(f.floor_id))
       .reverse()
-      .map((f) => ({ floor_id: f.floor_id, areas: c.rooms ? this.floorAreas(f.floor_id) : [] }));
+      .map((f) => {
+        const include = c.floors.filter((x) => merged(x) && c.merges[x] === f.floor_id);
+        return {
+          floor_id: f.floor_id,
+          ...(include.length ? { include_floors: include } : {}),
+          areas: c.rooms ? [f.floor_id, ...include].flatMap((x) => this.floorAreas(x)) : [],
+        };
+      });
     const model = newHouse(id, name, [Math.max(1, c.width), Math.max(1, c.depth)], seeds);
     try {
       await this._hass!.callWS({ type: "homeslice/model/save", house: id, model });
@@ -501,12 +523,31 @@ export class HomeslicePanel extends LitElement {
       <fieldset>
         <legend>${this.t("editor.new_house_floors")}</legend>
         ${floors.length
-          ? floors.map(
-              (f) => html`<label class="check"><input type="checkbox" .checked=${c.floors.includes(f.floor_id)} @change=${(e: Event) =>
-                set({ floors: (e.target as HTMLInputElement).checked ? [...c.floors, f.floor_id] : c.floors.filter((x) => x !== f.floor_id) })} />
-                ${f.name} <span class="muted">${this.t("editor.areas_count", { count: this.floorAreas(f.floor_id).length })}</span></label>`,
-            )
+          ? floors.map((f) => {
+              const on = c.floors.includes(f.floor_id);
+              // a floor can join one that has its own level
+              const hosts = floors.filter((x) => x.floor_id !== f.floor_id && c.floors.includes(x.floor_id) && !c.merges[x.floor_id]);
+              const target = c.merges[f.floor_id];
+              return html`<div class="floor-row">
+                <label class="check"><input type="checkbox" .checked=${on} @change=${(e: Event) =>
+                  set({ floors: (e.target as HTMLInputElement).checked ? [...c.floors, f.floor_id] : c.floors.filter((x) => x !== f.floor_id) })} />
+                  ${f.name} <span class="muted">${this.t("editor.areas_count", { count: this.floorAreas(f.floor_id).length })}</span></label>
+                ${on && hosts.length && !Object.values(c.merges).includes(f.floor_id)
+                  ? html`<select aria-label=${this.t("editor.floor_level_for", { floor: f.name })} @change=${(e: Event) => {
+                      const v = (e.target as HTMLSelectElement).value;
+                      const merges = { ...c.merges };
+                      if (v) merges[f.floor_id] = v;
+                      else delete merges[f.floor_id];
+                      set({ merges });
+                    }}>
+                      <option value="" ?selected=${!target}>${this.t("editor.own_level")}</option>
+                      ${hosts.map((h) => html`<option value=${h.floor_id} ?selected=${target === h.floor_id}>${this.t("editor.join_level", { floor: h.name })}</option>`)}
+                    </select>`
+                  : nothing}
+              </div>`;
+            })
           : html`<p class="muted">${this.t("editor.no_ha_floors")}</p>`}
+        ${floors.length > 1 ? html`<p class="muted">${this.t("editor.merge_hint")}</p>` : nothing}
       </fieldset>
       <label class="check"><input type="checkbox" .checked=${c.rooms} @change=${(e: Event) => set({ rooms: (e.target as HTMLInputElement).checked })} />
         ${this.t("editor.new_house_rooms")}</label>
@@ -2194,8 +2235,9 @@ export class HomeslicePanel extends LitElement {
     const poly = this.inner(r);
     const areas = Object.values(this._hass?.areas ?? {}).sort((a, b) => {
       // the level's own floor first
-      const fa = a.floor_id === l.floor_id ? 0 : 1;
-      const fb = b.floor_id === l.floor_id ? 0 : 1;
+      const mine = (f?: string | null) => !!f && (f === l.floor_id || !!l.include_floors?.includes(f));
+      const fa = mine(a.floor_id) ? 0 : 1;
+      const fb = mine(b.floor_id) ? 0 : 1;
       return fa - fb || a.name.localeCompare(b.name);
     });
     return html`<h2>${this.roomName(r)}</h2>
@@ -2506,7 +2548,7 @@ export class HomeslicePanel extends LitElement {
   /** Adds a level at `index` (0 = bottom), on the next HA floor in that direction that has no level yet. */
   private addLevelAt(index: number) {
     const m = this._model!;
-    const used = new Set(m.levels.map((l) => l.floor_id).filter(Boolean));
+    const used = this.usedFloors();
     const free = this.haFloors().filter((f) => !used.has(f.floor_id));
     // an HA floor that fits between the neighbours, closest to the one it's added next to
     const lvl = (l?: { floor_id?: string }) => (l?.floor_id ? this._hass?.floors?.[l.floor_id]?.level : undefined) ?? undefined;
@@ -2526,10 +2568,11 @@ export class HomeslicePanel extends LitElement {
     const m = this._model!;
     const l = this.levelInput!;
     const index = m.levels.findIndex((x) => x.id === l.id);
-    const used = new Set(m.levels.filter((x) => x.id !== l.id).map((x) => x.floor_id));
+    const used = this.usedFloors(l.id);
     const set = (patch: Parameters<typeof updateLevel>[2]) => this.commit(updateLevel(m, l.id, patch));
     const placed = new Set(l.rooms.map((r) => r.area_id));
-    const unplaced = this.floorAreas(l.floor_id).filter((a) => !placed.has(a.area_id));
+    const unplaced = this.levelAreas(l).filter((a) => !placed.has(a.area_id));
+    const includable = this.haFloors().filter((f) => f.floor_id !== l.floor_id && (!used.has(f.floor_id) || l.include_floors?.includes(f.floor_id)));
     return html`<h2>${this.levelName(l)}</h2>
       <label>${this.t("editor.ha_floor")}
         <select @change=${(e: Event) => set({ floor_id: (e.target as HTMLSelectElement).value || undefined })}>
@@ -2542,6 +2585,19 @@ export class HomeslicePanel extends LitElement {
         : html`<label>${this.t("editor.level_name")}
             <input .value=${l.name ?? ""} @change=${(e: Event) => set({ name: (e.target as HTMLInputElement).value.trim() || undefined })} />
           </label>`}
+      ${includable.length
+        ? html`<h3>${this.t("editor.include_floors")}</h3>
+            <div class="checks">
+              ${includable.map(
+                (f) => html`<label class="check"><input type="checkbox" .checked=${!!l.include_floors?.includes(f.floor_id)} @change=${(e: Event) => {
+                  const on = (e.target as HTMLInputElement).checked;
+                  const next = on ? [...(l.include_floors ?? []), f.floor_id] : (l.include_floors ?? []).filter((x) => x !== f.floor_id);
+                  set({ include_floors: next.length ? next : undefined });
+                }} />${f.name}</label>`,
+              )}
+            </div>
+            <p class="muted">${this.t("editor.include_floors_hint")}</p>`
+        : nothing}
       <div class="row">
         <label>${this.t("editor.level_height")}
           <input type="number" min="1" max="10" step="0.05" .value=${String(l.height ?? 2.6)} @change=${(e: Event) => {
@@ -3341,6 +3397,17 @@ export class HomeslicePanel extends LitElement {
     .furniture.mount-ceiling rect {
       stroke-dasharray: 2 3;
       fill: rgba(60, 64, 70, 0.08);
+    }
+    .floor-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .floor-row select {
+      min-height: 30px;
+      font-size: 13px;
     }
     .library {
       display: grid;

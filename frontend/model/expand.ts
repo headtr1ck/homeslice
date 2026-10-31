@@ -201,6 +201,8 @@ export function expandHouse(input: unknown): ExpandResult {
     const outline = shape(li.outline, `${lp}.outline`) ?? houseOutline;
     if (!outline) err(lp, "No outline: set outline on the house (shared by all levels) or on this level.");
 
+    if (li.include_floors !== undefined && !(Array.isArray(li.include_floors) && li.include_floors.every((f) => typeof f === "string")))
+      err(`${lp}.include_floors`, "include_floors must be a list of Home Assistant floor ids.");
     const height = li.height ?? DEFAULTS.levelHeight;
     const slab = li.slab ?? DEFAULTS.slab;
     levels.push({

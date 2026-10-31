@@ -331,5 +331,11 @@
   "furniture.group_bathroom": "Bathroom",
   "furniture.group_utility": "Utility",
   "furniture.group_lighting": "Lighting",
-  "furniture.group_outside": "Outside"
+  "furniture.group_outside": "Outside",
+  "editor.own_level": "Own level",
+  "editor.join_level": "On the level of {floor}",
+  "editor.floor_level_for": "Level for {floor}",
+  "editor.merge_hint": "Floors like “Outside” go onto the ground floor's level, so the garden lies next to the house.",
+  "editor.include_floors": "Also on this level",
+  "editor.include_floors_hint": "Areas of these Home Assistant floors are on this level too, e.g. an “Outside” floor with the garden."
 }

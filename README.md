@@ -117,6 +117,7 @@ energy:                                 # optional, for the card's energy overla
 levels:
   - id: ground
     floor_id: ground_floor              # Home Assistant floor
+    # include_floors: [outside]        # optional: areas of more HA floors on this level
     height: 2.6                         # optional storey height
     rooms:
       - id: living

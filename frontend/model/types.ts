@@ -133,6 +133,11 @@ export interface OpeningInput {
 export interface LevelInput {
   id: string;
   floor_id?: string;
+  /**
+   * More Home Assistant floors whose areas are on this level, e.g. an "Outside" floor
+   * with the garden and terrace on the ground level.
+   */
+  include_floors?: string[];
   name?: string;
   height?: number;
   slab?: number;
