@@ -226,5 +226,9 @@
   "editor.copy_below_confirm": "Replace this level's rooms with copies of the level below?",
   "editor.export_3d": "3D model",
   "editor.export_3d_hint": "The house as a glTF file, e.g. for Blender.",
-  "editor.export_glb": "Download .glb"
+  "editor.export_glb": "Download .glb",
+  "editor.draft": "There are unsaved changes from {time} in this browser.",
+  "editor.draft_stale": "There are unsaved changes from {time} in this browser, made before the house was last saved (restoring them replaces the newer version).",
+  "editor.draft_restore": "Restore",
+  "editor.draft_discard": "Discard"
 }

@@ -69,6 +69,35 @@ type Tool = "select" | "rect" | "stairs";
 /** The editor's phases: shape the house, then doors and windows, then objects and entities. */
 type Mode = "rooms" | "openings" | "objects";
 
+// ----- drafts: unsaved changes kept in this browser -----
+
+const draftKey = (house: string) => `homeslice-draft:${house}`;
+
+function readDraft(house: string): { model: HouseInput; time: number; base: string } | null {
+  try {
+    const raw = localStorage.getItem(draftKey(house));
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeDraft(house: string, draft: { model: HouseInput; time: number; base: string } | null) {
+  try {
+    if (draft) localStorage.setItem(draftKey(house), JSON.stringify(draft));
+    else localStorage.removeItem(draftKey(house));
+  } catch {
+    // private mode or full storage: no drafts, nothing else breaks
+  }
+}
+
+/** A short fingerprint of a saved model (to tell whether a draft was based on it). */
+function hash(text: string): string {
+  let h = 5381;
+  for (let i = 0; i < text.length; i++) h = ((h << 5) + h + text.charCodeAt(i)) | 0;
+  return (h >>> 0).toString(36);
+}
+
 /** Natural size of an image (data URL). */
 function imageSize(src: string): Promise<{ width: number; height: number }> {
   return new Promise((resolve, reject) => {
@@ -174,6 +203,7 @@ export class HomeslicePanel extends LitElement {
     _create: { state: true },
     _pendingArea: { state: true },
     _stair: { state: true },
+    _draft: { state: true },
     _settings: { state: true },
     _energyPlace: { state: true },
     _energySel: { state: true },
@@ -221,6 +251,9 @@ export class HomeslicePanel extends LitElement {
   private _underlayMove = false;
   private underlayRequest = "";
   private underlaySaveTimer = 0;
+  /** Unsaved changes found from an earlier visit, offered for restoring. */
+  private _draft: { model: HouseInput; time: number; stale: boolean } | null = null;
+  private draftTimer = 0;
   /** House settings in the inspector: name, YAML in and out, delete. */
   private _settings: { paste?: string; problems?: string[]; copied?: boolean } | null = null;
   /** Energy item waiting for a click on the plan to be placed. */
@@ -251,8 +284,26 @@ export class HomeslicePanel extends LitElement {
     return localize(this._hass?.locale?.language, key, vars);
   }
 
+  /** Keeps unsaved changes in this browser, so a reload or crash doesn't lose them. */
+  private keepDraft() {
+    clearTimeout(this.draftTimer);
+    const house = this._house;
+    this.draftTimer = window.setTimeout(() => {
+      if (!this._model || house !== this._house) return;
+      if (this.dirty) writeDraft(house, { model: this._model, time: Date.now(), base: hash(this._saved) });
+      else writeDraft(house, null);
+    }, 400);
+  }
+
+  private onBeforeUnload = (e: BeforeUnloadEvent) => {
+    if (!this.dirty) return;
+    e.preventDefault();
+    e.returnValue = "";
+  };
+
   override connectedCallback() {
     super.connectedCallback();
+    window.addEventListener("beforeunload", this.onBeforeUnload);
     // HA may create the element and set hass before this bundle has defined it: those
     // values then sit on the instance and hide the setters, so pass them on now
     for (const key of ["hass", "narrow"] as const) {
@@ -267,6 +318,7 @@ export class HomeslicePanel extends LitElement {
 
   override disconnectedCallback() {
     super.disconnectedCallback();
+    window.removeEventListener("beforeunload", this.onBeforeUnload);
     window.removeEventListener("keydown", this.onKey);
     this.renderer?.dispose();
     this.renderer = undefined;
@@ -296,6 +348,9 @@ export class HomeslicePanel extends LitElement {
     this._level = this.entranceLevel(model);
     this._room = null;
     this.fitted = "";
+    this._draft = null;
+    const draft = readDraft(id);
+    if (draft && JSON.stringify(draft.model) !== this._saved) this._draft = { model: draft.model, time: draft.time, stale: draft.base !== hash(this._saved) };
   }
 
   /** The level to open first: the one on HA's entrance floor (level 0), else the lowest indoor one. */
@@ -961,6 +1016,7 @@ export class HomeslicePanel extends LitElement {
 
   protected override updated(changed: PropertyValues) {
     if ((changed.has("_level") || changed.has("_house")) && this._model) void this.loadUnderlay();
+    if ((changed.has("_model") || changed.has("_saved")) && this._model && !this._draft) this.keepDraft();
     if (changed.has("_model") || changed.has("_level")) {
       if (this._model && this.fitted !== `${this._house}/${this._level}`) {
         this.fitted = `${this._house}/${this._level}`;
@@ -1259,6 +1315,19 @@ export class HomeslicePanel extends LitElement {
         </button>
       </header>
       ${this._error ? html`<div class="error">${this._error}</div>` : nothing}
+      ${this._draft
+        ? html`<div class="draft">
+            <span>${this.t(this._draft.stale ? "editor.draft_stale" : "editor.draft", { time: new Date(this._draft.time).toLocaleString(this._hass?.locale?.language) })}</span>
+            <button class="primary" @click=${() => {
+              this.commit(this._draft!.model);
+              this._draft = null;
+            }}>${this.t("editor.draft_restore")}</button>
+            <button @click=${() => {
+              writeDraft(this._house, null);
+              this._draft = null;
+            }}>${this.t("editor.draft_discard")}</button>
+          </div>`
+        : nothing}
       <main>
         <aside class="tools">
           <button class=${this._tool === "select" ? "active" : ""} title=${this.t("editor.tool_select")} aria-label=${this.t("editor.tool_select")} @click=${() => (this._tool = "select")}>
@@ -2616,6 +2685,17 @@ export class HomeslicePanel extends LitElement {
       border-radius: 8px;
       padding: 8px;
       resize: vertical;
+    }
+    .draft {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 16px;
+      background: rgba(255, 193, 7, 0.15);
+      border-bottom: 1px solid rgba(255, 193, 7, 0.5);
+    }
+    .draft span {
+      flex: 1;
     }
     ul.problems {
       color: var(--error-color, #ff6b6b);

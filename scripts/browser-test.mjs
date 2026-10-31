@@ -903,6 +903,38 @@ console.log("editor");
   await page.close();
 }
 
+console.log("editor, unsaved changes");
+{
+  const page = await browser.newPage({ viewport: { width: 1600, height: 900 } });
+  const errors = [];
+  page.on("pageerror", (e) => errors.push(e.message));
+  page.on("dialog", (d) => d.accept());
+  await page.goto(`${base}/dev/harness.html`);
+  await page.waitForFunction(() => window.ready);
+  await page.evaluate((f) => window.setupPanel(f), loadFixture("dev/fixtures/demo-hass.json"));
+  await test("unsaved changes survive a reload and can be restored", async () => {
+    await page.evaluate(() => {
+      const p = window.panel;
+      const m = structuredClone(p._model);
+      m.levels[0].rooms[0].name = "Draft name";
+      p.commit(m);
+    });
+    await page.waitForTimeout(700);
+    await page.reload();
+    await page.waitForFunction(() => window.ready);
+    await page.evaluate((f) => window.setupPanel(f), loadFixture("dev/fixtures/demo-hass.json"));
+    await page.waitForSelector("homeslice-panel .draft");
+    await page.locator("homeslice-panel .draft button", { hasText: "Restore" }).click();
+    assert((await page.evaluate(() => window.panel._model.levels[0].rooms[0].name)) === "Draft name", "draft not restored");
+    assert(await page.locator("homeslice-panel button.save.dirty").count(), "restored draft should be unsaved");
+    await page.locator("homeslice-panel button.save").click();
+    await page.waitForTimeout(700);
+    assert((await page.evaluate(() => localStorage.getItem("homeslice-draft:demo"))) === null, "draft kept after saving");
+    assert(errors.length === 0, errors.join(" | "));
+  });
+  await page.close();
+}
+
 console.log("editor, starting from scratch");
 {
   const page = await browser.newPage({ viewport: { width: 1600, height: 900 } });
