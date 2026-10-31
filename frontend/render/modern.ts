@@ -240,6 +240,10 @@ function sofa(b: Builder, w: number, d: number, fabric: THREE.Material, corner: 
 function fronts(b: Builder, x0: number, w: number, y0: number, h: number, z: number, n: number, m: THREE.Material, rows = 1, handle?: "bar" | "knob", handleM: THREE.Material = mat(C.black)) {
   const cw = w / n;
   const rh = h / rows;
+  // dark joints between fronts: they show even where the fronts sit flush in the carcass
+  const joint = mat("#26272a", { roughness: 1 });
+  for (let i = 1; i < n; i++) b.box(0.005, h, 0.02, x0 + cw * i, y0, z + 0.0105, joint);
+  for (let r = 1; r < rows; r++) b.box(w, 0.005, 0.02, x0 + w / 2, y0 + rh * r - 0.0025, z + 0.0105, joint);
   for (let i = 0; i < n; i++)
     for (let r = 0; r < rows; r++) {
       b.box(cw - 0.004, rh - 0.004, 0.018, x0 + cw * (i + 0.5), y0 + rh * r + 0.002, z + 0.009, m, 0.003);
@@ -357,7 +361,12 @@ const BUILDERS: Record<string, Build> = {
   },
   speaker_floor: (b, w, d, h, f) => {
     b.box(w, h - 0.03, d, 0, 0.03, 0, f, 0.012);
-    b.box(w - 0.02, h - 0.1, 0.005, 0, 0.07, d / 2, mat("#3a3c40", { roughness: 1 }));
+    const cone = mat("#2b2d31", { roughness: 0.9 });
+    // a tweeter on top, three woofers below
+    for (const [y, r] of [[0.9, 0.025], [0.72, 0.065], [0.5, 0.075], [0.28, 0.075]] as const) {
+      b.add(new THREE.CircleGeometry(Math.min(r, w * 0.4), 24), cone, 0, 0.03 + (h - 0.03) * y, d / 2 + 0.002);
+      b.add(new THREE.TorusGeometry(Math.min(r, w * 0.4), 0.004, 4, 24), mat(C.steel, { metalness: 0.6, roughness: 0.3 }), 0, 0.03 + (h - 0.03) * y, d / 2 + 0.003);
+    }
     legs(b, w, d, 0.03, 0.03, 0.008, mat(C.black));
   },
   speaker_shelf: (b, w, d, h, f) => {
@@ -563,9 +572,10 @@ const BUILDERS: Record<string, Build> = {
     fronts(b, -w / 2, w, 0.16, h - 0.17, d / 2 - 0.018, 1, f, 2, "knob");
     legs(b, w, d, 0.15, 0.04, 0.01, a);
   },
-  nightstand_wall: (b, w, d, h, f) => {
+  nightstand_wall: (b, w, d, h, f, _c, a) => {
     b.box(w, h, d, 0, 0, 0, f, 0.006);
     fronts(b, -w / 2, w, 0.005, h - 0.01, d / 2 - 0.018, 1, f, 1);
+    b.box(Math.min(0.2, w * 0.4), 0.012, 0.02, 0, h * 0.62, d / 2 + 0.006, a, 0.004);
   },
   wardrobe: (b, w, d, h, f, _c, a) => cupboard(b, w, d, h, f, a, {}),
   wardrobe_1door: (b, w, d, h, f, _c, a) => cupboard(b, w, d, h, f, a, { doors: 1 }),
@@ -2376,15 +2386,17 @@ const BUILDERS: Record<string, Build> = {
     }
   },
   tree_pine: (b, w, d, h) => {
-    // a tall Scots pine: bare trunk, a flat-topped crown of needle clumps
+    // a tall Scots pine: orange-brown bare trunk, a flat, layered crown up top
     const rand = random(269);
-    const crownY = h * 0.6;
-    b.cyl(0.1, 0.16, h * 0.9, 0, 0, 0, mat("#9a5f3c", { roughness: 1 }), 10);
-    for (let i = 0; i < 9; i++) {
-      const a = (i / 9) * Math.PI * 2 + rand();
-      const c = v(Math.cos(a) * w * 0.24, crownY + rand() * (h - crownY) * 0.75, Math.sin(a) * d * 0.24);
-      b.rod(v(0, c.y - 0.3, 0), c, 0.04, mat("#7a4a32"), 5);
-      foliage(b, rand, c.x, c.y, c.z, w * 0.26, (h - crownY) * 0.22, d * 0.26, 140, 0.14, [C.leafDark, "#2f5a33", "#3d6b3a"]);
+    const crownY = h * 0.55;
+    b.cyl(0.08, 0.15, h * 0.92, 0, 0, 0, mat("#9a5f3c", { roughness: 1 }), 10);
+    for (let i = 0; i < 12; i++) {
+      const a = (i / 12) * Math.PI * 2 * 1.7 + rand();
+      const t = i / 12;
+      const reach = (Math.min(w, d) / 2) * (0.85 - t * 0.5);
+      const c = v(Math.cos(a) * reach * 0.5, crownY + t * (h - crownY) * 0.85, Math.sin(a) * reach * 0.5);
+      b.rod(v(0, c.y - 0.25, 0), c, 0.035, mat("#7a4a32"), 5);
+      foliage(b, rand, c.x, c.y, c.z, reach * 0.8, (h - crownY) * 0.12, reach * 0.8, 160, 0.16, [C.leafDark, "#2f5a33", "#3d6b3a"]);
     }
   },
   car_sports: (b, w, d, h, _f, color) => car(b, w, d, h, color, "sports"),
@@ -2409,6 +2421,257 @@ const BUILDERS: Record<string, Build> = {
         b.batch(new THREE.CircleGeometry(0.03, 6), leafMat(petals[(i * 3 + k) % petals.length]), matrix(x + Math.cos(a) * rr, y, Math.sin(a) * rr, -Math.PI / 2 + (rand() - 0.5) * 0.6, rand() * 6, 0));
       }
     }
+  },
+  // ----- living, more -----
+  fireplace_stove: (b, w, d, h, f) => {
+    // a wood stove on a stone plate, a glass door with fire, the flue to the ceiling
+    b.box(w + 0.3, 0.03, d + 0.35, 0, 0, 0.1, mat("#6e6a64", { roughness: 0.9 }), 0.005);
+    const bh = Math.min(h * 0.62, 1.0);
+    b.box(w, bh, d, 0, 0.03, 0, f, 0.04);
+    b.box(w * 0.7, bh * 0.45, 0.01, 0, 0.03 + bh * 0.3, d / 2, mat("#1a1210", { roughness: 0.1 }), 0.01);
+    fire(b, w * 0.5, 0.03 + bh * 0.32, d / 2 + 0.02, bh * 0.3);
+    b.box(0.02, bh * 0.35, 0.03, w * 0.32, 0.03 + bh * 0.35, d / 2 + 0.015, mat(C.steel), 0.005);
+    b.cyl(0.075, 0.075, h - bh - 0.03, 0, 0.03 + bh, -d * 0.1, f, 18);
+  },
+  fireplace_wall: (b, w, d, h, f) => {
+    // a built-in fireplace: plaster surround, a long low opening with flames, a hearth ledge
+    b.box(w, h, d, 0, 0, 0, f, 0.01);
+    b.box(w * 0.75, 0.32, 0.02, 0, 0.35, d / 2 + 0.005, mat("#121212", { roughness: 0.2 }));
+    fire(b, w * 0.65, 0.37, d / 2 + 0.04, 0.22);
+    b.box(w + 0.1, 0.06, d + 0.15, 0, 0.18, 0.075, mat("#3b3b3d"), 0.01);
+  },
+  piano_upright: (b, w, d, h, f) => {
+    const kh = 0.72;
+    b.box(w, h, d * 0.55, 0, 0, -d / 2 + d * 0.275, f, 0.012);
+    for (const sx of [-1, 1]) b.box(0.05, kh, d, sx * (w / 2 - 0.025), 0, 0, f, 0.01);
+    b.box(w - 0.1, 0.05, d * 0.45, 0, kh, d * 0.22, f, 0.008);
+    keys(b, w - 0.12, kh + 0.05, d * 0.3);
+    b.box(w - 0.1, 0.12, 0.02, 0, kh + 0.06, -d / 2 + d * 0.56, f, 0.006);
+    b.box(w - 0.3, 0.02, 0.03, 0, 0.05, d * 0.3, mat(FINISHES.brass, { metalness: 0.7, roughness: 0.3 }));
+  },
+  piano_grand: (b, w, d, h, f) => {
+    // the curved case, lid propped open, three legs, the keyboard at the front (+z)
+    const s = new THREE.Shape();
+    s.moveTo(-w / 2, d / 2);
+    s.lineTo(w / 2, d / 2);
+    s.lineTo(w / 2, -d * 0.05);
+    s.bezierCurveTo(w / 2, -d * 0.35, w * 0.05, -d * 0.2, 0, -d / 2);
+    s.bezierCurveTo(-w * 0.3, -d * 0.6, -w / 2, -d * 0.2, -w / 2, d / 2);
+    const caseH = 0.3;
+    const geo = new THREE.ExtrudeGeometry(s, { depth: caseH, bevelEnabled: false, curveSegments: 16 });
+    geo.rotateX(-Math.PI / 2);
+    geo.scale(1, 1, -1);
+    b.add(geo, f, 0, h - caseH - 0.08, 0);
+    const lid = new THREE.ExtrudeGeometry(s, { depth: 0.02, bevelEnabled: false, curveSegments: 16 });
+    lid.rotateX(-Math.PI / 2);
+    lid.scale(1, 1, -1);
+    // the lid, propped open on its long straight side
+    const hinge = new THREE.Group();
+    hinge.position.set(w / 2, h - 0.08, 0);
+    const lidMesh = new THREE.Mesh(lid, f);
+    lidMesh.position.set(-w / 2, 0, 0);
+    hinge.add(lidMesh);
+    hinge.rotation.z = 0.45;
+    b.g.add(hinge);
+    for (const [x, z] of [[-w * 0.4, d * 0.4], [w * 0.4, d * 0.4], [-w * 0.1, -d * 0.35]]) b.cyl(0.05, 0.04, h - caseH - 0.08, x, 0, z, f, 12);
+    keys(b, w - 0.1, h - caseH - 0.03, d / 2 - 0.1);
+  },
+  aquarium: (b, w, d, h, f) => {
+    const cab = Math.min(0.7, h * 0.55);
+    b.box(w, cab, d, 0, 0, 0, f, 0.006);
+    fronts(b, -w / 2, w, 0.01, cab - 0.02, d / 2 - 0.018, Math.max(2, Math.round(w / 0.5)), f, 1);
+    const th = h - cab;
+    b.box(w - 0.04, 0.05, d - 0.04, 0, cab, 0, mat("#c9b48a", { roughness: 1 }));
+    b.box(w - 0.04, th * 0.8, d - 0.04, 0, cab + 0.05, 0, mat("#5fb4d8", { transparent: true, opacity: 0.35, roughness: 0.05 }));
+    b.box(w, th, d, 0, cab, 0, glass());
+    b.box(w, 0.04, d, 0, h - 0.04, 0, mat(C.black), 0.004);
+    const rand = random(281);
+    for (let i = 0; i < 9; i++) grass(b, rand, 0.08, 0.06, th * (0.3 + rand() * 0.5), cab + 0.05, 8, ["#3f8a4a", "#6aa84f"]);
+    for (let i = 0; i < 6; i++) b.sphere(0.02, (rand() - 0.5) * w * 0.8, cab + 0.15 + rand() * th * 0.5, (rand() - 0.5) * d * 0.6, mat(["#ff7a2e", "#f2d14b", "#3f8fe0"][i % 3]), 1.6, 1, 0.6, 8);
+  },
+  picture_frame: (b, w, d, h, _f, c, a) => {
+    // an abstract print behind glass in a thin frame (frame in the accent)
+    b.box(w, h, d, 0, 0, 0, a, 0.004);
+    b.box(w - 0.04, h - 0.04, 0.004, 0, 0.02, d / 2, mat("#f4f1ea"));
+    art(b, w - 0.14, h - 0.14, 0.07, d / 2 + 0.003, c);
+  },
+  picture_set: (b, w, d, h, _f, c, a) => {
+    // a gallery wall: frames of different sizes on a common centre line
+    const rand = random(283);
+    const n = Math.max(2, Math.round(w / 0.4));
+    let x = -w / 2;
+    for (let i = 0; i < n; i++) {
+      const fw = w / n - 0.06;
+      const fh = h * (0.55 + rand() * 0.45);
+      const y = (h - fh) / 2;
+      b.box(fw, fh, d, x + fw / 2 + 0.03, y, 0, a, 0.004);
+      b.box(fw - 0.03, fh - 0.03, 0.004, x + fw / 2 + 0.03, y + 0.015, d / 2, mat("#f4f1ea"));
+      const pic = new Builder();
+      art(pic, fw - 0.1, fh - 0.1, 0.05, d / 2 + 0.003, ["terracotta", "blue", "green", "sand", "pink"][(i + c.length) % 5]);
+      const g = pic.done();
+      g.position.set(x + fw / 2 + 0.03, y, 0);
+      b.g.add(g);
+      x += w / n;
+    }
+  },
+  wall_clock: (b, w, d, h, f, _c, a) => {
+    const r = Math.min(w, h) / 2;
+    b.add(new THREE.CylinderGeometry(r, r, d, 40).rotateX(Math.PI / 2), a, 0, r, 0);
+    b.add(new THREE.CircleGeometry(r * 0.92, 40), f, 0, r, d / 2 + 0.001);
+    for (let i = 0; i < 12; i++) {
+      const ang = (i / 12) * Math.PI * 2;
+      b.box(0.006, i % 3 ? 0.02 : 0.04, 0.003, Math.sin(ang) * r * 0.8, r + Math.cos(ang) * r * 0.8 - 0.01, d / 2 + 0.002, a)?.rotation.set(0, 0, -ang);
+    }
+    b.box(0.008, r * 0.5, 0.004, 0, r, d / 2 + 0.004, a)?.rotation.set(0, 0, -1.0);
+    b.box(0.006, r * 0.75, 0.004, 0, r, d / 2 + 0.006, a)?.rotation.set(0, 0, 2.2);
+  },
+  curtains: (b, w, d, h, f, _c, a) => {
+    // a rod at the top, two drawn-back panels in soft folds
+    b.rod(v(-w / 2 - 0.05, h - 0.04, 0), v(w / 2 + 0.05, h - 0.04, 0), 0.012, a, 8);
+    for (const sx of [-1, 1]) {
+      b.sphere(0.025, sx * (w / 2 + 0.06), h - 0.04, 0, a, 1, 1, 1, 10);
+      const pw = w * 0.28;
+      const panel = new THREE.PlaneGeometry(pw, h - 0.06, 24, 1);
+      const pos = panel.attributes.position;
+      for (let i = 0; i < pos.count; i++) pos.setZ(i, Math.sin((pos.getX(i) / pw) * Math.PI * 9) * 0.035);
+      panel.computeVertexNormals();
+      b.add(panel, mat((f as THREE.MeshStandardMaterial).color.getStyle(), { side: THREE.DoubleSide, roughness: 1 }), sx * (w / 2 - pw / 2), (h - 0.06) / 2, 0);
+    }
+    void d;
+  },
+  sofa_midcentury: (b, w, d, h, f, _c, a) => {
+    // a slim frame on splayed wooden legs, buttoned back cushions
+    b.box(w, 0.16, d - 0.05, 0, 0.2, 0.02, f, 0.03);
+    const n = Math.max(2, Math.round(w / 0.75));
+    for (let i = 0; i < n; i++) {
+      const x = -w / 2 + 0.08 + ((w - 0.16) / n) * (i + 0.5);
+      b.box((w - 0.16) / n - 0.01, 0.12, d - 0.25, x, 0.36, 0.1, f, 0.04);
+      b.box((w - 0.16) / n - 0.01, h - 0.42, 0.16, x, 0.38, -d / 2 + 0.12, f, 0.05)?.rotation.set(-0.1, 0, 0);
+      for (const by of [0.55, 0.68]) b.sphere(0.012, x, by, -d / 2 + 0.215, mat((f as THREE.MeshStandardMaterial).color.clone().multiplyScalar(0.7).getStyle()), 1, 1, 0.5, 6);
+    }
+    for (const sx of [-1, 1]) b.box(0.06, 0.24, d - 0.1, sx * (w / 2 - 0.03), 0.28, 0.02, a, 0.01);
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) b.rod(v(sx * (w / 2 - 0.12), 0.2, sz * (d / 2 - 0.12)), v(sx * (w / 2 - 0.06), 0, sz * (d / 2 - 0.06)), 0.016, a, 8);
+  },
+  sofa_modular: (b, w, d, h, f) => {
+    // low deep modules, thick cushions, no legs
+    const n = Math.max(2, Math.round(w / 1.0));
+    const mw = w / n;
+    for (let i = 0; i < n; i++) {
+      const x = -w / 2 + mw * (i + 0.5);
+      b.box(mw - 0.01, 0.28, d, x, 0, 0, f, 0.05);
+      b.box(mw - 0.03, 0.14, d - 0.3, x, 0.28, 0.13, f, 0.06);
+      b.box(mw - 0.03, h - 0.28, 0.28, x, 0.28, -d / 2 + 0.14, f, 0.08);
+    }
+    b.box(0.45, 0.4, 0.14, -w / 2 + 0.4, 0.38, -d / 2 + 0.36, mat(C.pillow), 0.05)?.rotation.set(-0.3, 0.2, 0);
+  },
+  daybed: (b, w, d, h, f, _c, a) => {
+    // a frame with low back and arms, a mattress and two bolsters
+    b.box(w, 0.3, d, 0, 0.08, 0, a, 0.01);
+    legs(b, w, d, 0.08, 0.05, 0.02, a);
+    b.box(w, h - 0.08, 0.06, 0, 0.08, -d / 2 + 0.03, a, 0.01);
+    for (const sx of [-1, 1]) b.box(0.06, h * 0.75 - 0.08, d, sx * (w / 2 - 0.03), 0.08, 0, a, 0.01);
+    b.box(w - 0.14, 0.16, d - 0.1, 0, 0.38, 0.03, f, 0.05);
+    for (const sx of [-1, 1]) b.add(new THREE.CapsuleGeometry(0.1, d - 0.4, 6, 16).rotateX(Math.PI / 2), f, sx * (w / 2 - 0.18), 0.64, 0.03);
+  },
+  tv_frame: (b, w, d, h, _f, c, a) => {
+    // a TV that looks like a framed picture
+    b.box(w, h, d, 0, 0, 0, a, 0.004);
+    b.box(w - 0.07, h - 0.07, 0.004, 0, 0.035, d / 2, mat("#f4f1ea"));
+    art(b, w - 0.24, h - 0.22, 0.11, d / 2 + 0.003, c);
+  },
+  folding_screen: (b, w, d, h, f) => {
+    const n = 3;
+    const pw = w / n;
+    for (let i = 0; i < n; i++) {
+      const panel = b.box(pw - 0.01, h - 0.04, 0.025, 0, 0.04, 0, f, 0.006);
+      panel?.position.set(-w / 2 + pw * (i + 0.5), 0.04 + (h - 0.04) / 2, i % 2 ? d * 0.25 : -d * 0.25);
+      panel?.rotation.set(0, i % 2 ? -0.35 : 0.35, 0);
+    }
+  },
+  // ----- dining and office, more -----
+  dining_table_legs: (b, w, d, h, f, _c, a) => {
+    b.box(w, 0.04, d, 0, h - 0.04, 0, f, 0.008);
+    b.box(w - 0.16, 0.08, d - 0.16, 0, h - 0.12, 0, f);
+    legs(b, w, d, h - 0.04, 0.07, 0.035, a, true);
+  },
+  dining_table_oval: (b, w, d, h, f, _c, a) => {
+    b.add(new THREE.CylinderGeometry(0.5, 0.5, 0.035, 48).scale(w, 1, d), f, 0, h - 0.0175, 0);
+    for (const sx of [-1, 1]) {
+      b.cyl(0.05, 0.07, h - 0.035, sx * w * 0.25, 0, 0, a, 18);
+      b.add(new THREE.CylinderGeometry(0.5, 0.5, 0.03, 32).scale(0.4, 1, d * 0.55), a, sx * w * 0.25, 0.015, 0);
+    }
+  },
+  dining_table_glass: (b, w, d, h, f, _c, a) => {
+    b.box(w, 0.012, d, 0, h - 0.012, 0, glass(), 0.004);
+    b.box(w - 0.1, 0.03, d - 0.1, 0, h - 0.045, 0, a, 0.004);
+    for (const sx of [-1, 1]) {
+      b.rod(v(sx * (w / 2 - 0.15), h - 0.045, -d / 2 + 0.08), v(sx * (w / 2 - 0.1), 0, -d / 2 + 0.06), 0.015, a, 8);
+      b.rod(v(sx * (w / 2 - 0.15), h - 0.045, d / 2 - 0.08), v(sx * (w / 2 - 0.1), 0, d / 2 - 0.06), 0.015, a, 8);
+    }
+    void f;
+  },
+  desk_drawers: (b, w, d, h, f, _c, a) => {
+    b.box(w, 0.03, d, 0, h - 0.03, 0, f, 0.006);
+    const pw = Math.min(0.45, w * 0.32);
+    b.box(pw, h - 0.03, d - 0.04, w / 2 - pw / 2, 0, -0.02, f, 0.004);
+    fronts(b, w / 2 - pw, pw, 0.02, h - 0.07, d / 2 - 0.058, 1, f, 3, "bar", a);
+    for (const sz of [-1, 1]) b.box(0.035, h - 0.03, 0.035, -w / 2 + 0.04, 0, sz * (d / 2 - 0.04), a);
+    b.box(0.6, 0.36, 0.02, -w * 0.1, h + 0.1, -d / 2 + 0.12, mat(C.screen, { roughness: 0.3 }), 0.005);
+    b.box(0.04, 0.1, 0.04, -w * 0.1, h, -d / 2 + 0.12, mat(C.black));
+  },
+  desk_standing: (b, w, d, h, f, _c, a) => {
+    b.box(w, 0.03, d, 0, h - 0.03, 0, f, 0.006);
+    for (const sx of [-1, 1]) {
+      const x = sx * (w / 2 - 0.12);
+      b.box(0.07, h - 0.06, 0.05, x, 0.03, 0, a, 0.006);
+      b.box(0.06, 0.03, d - 0.08, x, 0, 0, a, 0.008);
+      b.box(0.05, 0.03, d - 0.2, x, h - 0.06, 0, a);
+    }
+    b.box(w - 0.3, 0.05, 0.03, 0, h - 0.11, -d / 2 + 0.1, a);
+    b.box(0.7, 0.4, 0.02, 0, h + 0.12, -d / 2 + 0.14, mat(C.screen, { roughness: 0.3 }), 0.005);
+    b.box(0.04, 0.12, 0.04, 0, h, -d / 2 + 0.14, mat(C.black));
+    b.box(0.45, 0.015, 0.14, 0, h, d * 0.1, mat("#2b2c2e"), 0.004);
+  },
+  desk_corner: (b, w, d, h, f, _c, a) => {
+    // an L: the long arm along the back, the short arm down the left
+    const arm = Math.min(0.7, d * 0.45);
+    b.box(w, 0.03, arm, 0, h - 0.03, -d / 2 + arm / 2, f, 0.006);
+    b.box(arm, 0.03, d - arm, -w / 2 + arm / 2, h - 0.03, arm / 2, f, 0.006);
+    for (const [x, z] of [[w / 2 - 0.04, -d / 2 + 0.04], [w / 2 - 0.04, -d / 2 + arm - 0.04], [-w / 2 + 0.04, d / 2 - 0.04], [-w / 2 + arm - 0.04, d / 2 - 0.04], [-w / 2 + 0.04, -d / 2 + 0.04]]) b.box(0.035, h - 0.03, 0.035, x, 0, z, a);
+    b.box(0.55, 0.34, 0.02, -w / 2 + arm + 0.3, h + 0.1, -d / 2 + 0.12, mat(C.screen, { roughness: 0.3 }), 0.005)?.rotation.set(0, 0.3, 0);
+    b.box(0.04, 0.1, 0.04, -w / 2 + arm + 0.3, h, -d / 2 + 0.12, mat(C.black));
+  },
+  drawer_unit: (b, w, d, h, f, _c, a) => {
+    b.box(w, h - 0.05, d, 0, 0.05, 0, f, 0.006);
+    fronts(b, -w / 2, w, 0.06, h - 0.07, d / 2 - 0.018, 1, f, 3, "bar", a);
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) b.sphere(0.022, sx * (w / 2 - 0.05), 0.025, sz * (d / 2 - 0.05), mat(C.black), 1, 1, 1, 8);
+  },
+  printer: (b, w, d, h, f) => {
+    b.box(w, h * 0.75, d, 0, 0, 0, f, 0.015);
+    b.box(w * 0.85, h * 0.25, d * 0.7, 0, h * 0.75, -d * 0.1, f, 0.015);
+    b.box(w * 0.6, 0.012, d * 0.3, 0, h * 0.35, d / 2 + 0.02, mat("#f7f7f2"));
+    b.box(w * 0.25, 0.04, 0.005, w * 0.25, h * 0.6, d / 2 + 0.002, mat(C.screen, { emissive: "#2a4a6a", emissiveIntensity: 0.4 }));
+  },
+  gaming_chair: (b, w, d, h, f, _c, a) => {
+    const metal = mat(C.black);
+    for (let i = 0; i < 5; i++) {
+      const ang = (i / 5) * Math.PI * 2;
+      b.rod(v(0, 0.09, 0), v(Math.cos(ang) * w * 0.45, 0.05, Math.sin(ang) * w * 0.45), 0.017, metal, 6);
+      b.sphere(0.028, Math.cos(ang) * w * 0.45, 0.028, Math.sin(ang) * w * 0.45, metal, 1, 1, 1, 8);
+    }
+    b.cyl(0.03, 0.03, 0.38, 0, 0.09, 0, metal, 10);
+    b.box(w * 0.75, 0.1, d * 0.75, 0, 0.45, 0.03, f, 0.04);
+    for (const sx of [-1, 1]) b.box(0.08, 0.08, d * 0.7, sx * w * 0.36, 0.5, 0.03, a, 0.03);
+    const back2 = b.box(w * 0.68, h - 0.55, 0.12, 0, 0, 0, f, 0.05);
+    back2?.position.set(0, 0.55 + (h - 0.55) / 2, -d / 2 + 0.12);
+    back2?.rotation.set(-0.12, 0, 0);
+    for (const sx of [-1, 1]) {
+      const wing = b.box(0.1, (h - 0.55) * 0.8, 0.13, 0, 0, 0, a, 0.04);
+      wing?.position.set(sx * w * 0.3, 0.55 + (h - 0.55) * 0.45, -d / 2 + 0.14);
+      wing?.rotation.set(-0.12, 0, 0);
+    }
+    b.box(w * 0.4, 0.12, 0.1, 0, h - 0.18, -d / 2 + 0.2, a, 0.04);
+    for (const sx of [-1, 1]) b.box(0.06, 0.2, 0.05, sx * w * 0.42, 0.5, 0.03, metal);
   },
   // ----- vehicles -----
   car_hatchback: (b, w, d, h, _f, color) => car(b, w, d, h, color, "hatchback"),
@@ -2517,6 +2780,17 @@ function car(b: Builder, w: number, d: number, h: number, color: string, style: 
     b.box(w * 0.18, 0.07, 0.03, sx * w * 0.36, prof.body[1][1] * h - 0.14, -d / 2 + 0.005, mat("#b3261e", { emissive: "#7a120d", emissiveIntensity: 0.4 }), 0.01);
   }
   b.box(w * 0.5, 0.11, 0.02, 0, 0.3, -d / 2 + 0.002, mat(C.ceramic), 0.005);
+  // grille, door lines, mirrors and the pillar between the side windows
+  const black = mat("#1c1e21", { roughness: 0.6 });
+  b.box(w * 0.42, 0.09, 0.02, 0, lowFront * h - 0.22, d / 2 - 0.005, black, 0.01);
+  const [c0, c1, c2, c3] = prof.cabin;
+  const belt = c0[1] * h;
+  if (style !== "van") {
+    const mid = -d / 2 + ((c1[0] + c2[0]) / 2) * d;
+    b.box(w * 0.85, (Math.max(c1[1], c2[1]) * h - belt) * 0.95, 0.07, 0, belt, mid, paint);
+    for (const z of [mid, -d / 2 + c3[0] * d - 0.05]) for (const sx of [-1, 1]) b.box(0.004, belt - 0.3, 0.006, sx * w * 0.466, 0.28, z, black);
+  }
+  for (const sx of [-1, 1]) b.box(0.08, 0.06, 0.12, sx * (w / 2 - 0.02), belt + 0.02, -d / 2 + c3[0] * d - 0.08, paint, 0.02);
 }
 
 /** A kitchen base unit: plinth, carcass and worktop; where its fronts go. */
@@ -2912,6 +3186,42 @@ function cupboard(b: Builder, w: number, d: number, h: number, f: THREE.Material
     y += dh;
   }
   if (topH) fronts(b, -w / 2, w, y, topH, z, doors, f, 1, "knob", a);
+}
+
+/** Flames and embers in a fire opening (glowing). */
+function fire(b: Builder, w: number, y: number, z: number, h: number) {
+  const rand = random(277);
+  b.box(w, 0.03, 0.04, 0, y, z, mat("#3a2a20"));
+  for (let i = 0; i < Math.max(3, Math.round(w / 0.08)); i++) {
+    const x = -w / 2 + (w * (i + 0.5)) / Math.max(3, Math.round(w / 0.08));
+    const fh = h * (0.4 + rand() * 0.6);
+    b.add(new THREE.ConeGeometry(0.035, fh, 6), mat(i % 2 ? "#ffb347" : "#ff7a2e", { emissive: i % 2 ? "#ff9a2a" : "#ff5a1a", emissiveIntensity: 0.9 }), x, y + 0.03 + fh / 2, z + (rand() - 0.5) * 0.04);
+  }
+}
+
+/** A piano keyboard: white keys and the black ones in their groups. */
+function keys(b: Builder, w: number, y: number, z: number) {
+  b.box(w, 0.025, 0.15, 0, y, z, mat("#f6f4ee"), 0.002);
+  const white = Math.max(14, Math.round(w / 0.0235));
+  const kw = w / white;
+  for (let i = 0; i < white - 1; i++) {
+    b.box(0.0015, 0.026, 0.15, -w / 2 + kw * (i + 1), y, z, mat("#bdbab2"));
+    if ([0, 1, 3, 4, 5].includes(i % 7)) b.box(kw * 0.55, 0.018, 0.09, -w / 2 + kw * (i + 1), y + 0.025, z - 0.03, mat("#141414"));
+  }
+}
+
+/** An abstract print: a few soft shapes in a palette around a colour. */
+function art(b: Builder, w: number, h: number, y0: number, z: number, color: string) {
+  const rand = random(color.length * 31 + Math.round(w * 100));
+  const base = new THREE.Color(FINISHES[color] ?? FINISHES.terracotta);
+  const tones = [base, base.clone().lerp(new THREE.Color("#ffffff"), 0.45), base.clone().lerp(new THREE.Color("#1c1c1c"), 0.35), new THREE.Color("#d9c9a8")];
+  for (let i = 0; i < 4; i++) {
+    const m = mat(tones[i].getStyle(), { roughness: 1 });
+    const x = (rand() - 0.5) * w * 0.5;
+    const y = y0 + h * (0.25 + rand() * 0.5);
+    if (i % 2) b.add(new THREE.CircleGeometry(Math.min(w, h) * (0.15 + rand() * 0.15), 28), m, x, y, z + i * 0.0005);
+    else b.add(new THREE.PlaneGeometry(w * (0.3 + rand() * 0.4), h * (0.2 + rand() * 0.3)), m, x, y, z + i * 0.0005);
+  }
 }
 
 function tvPanel(b: Builder, w: number, h: number, y: number, z: number) {

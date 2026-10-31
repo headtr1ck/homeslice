@@ -488,6 +488,77 @@
    ]
   },
   {
+   "model": "modern:sofa_midcentury",
+   "name": "Mid-century sofa",
+   "group": "living",
+   "type": "sofa",
+   "size": [
+    2,
+    0.85,
+    0.8
+   ],
+   "finishes": [
+    "grey",
+    "beige",
+    "anthracite",
+    "green",
+    "blue",
+    "terracotta",
+    "pink"
+   ],
+   "accents": [
+    "walnut",
+    "oak",
+    "black"
+   ]
+  },
+  {
+   "model": "modern:sofa_modular",
+   "name": "Modular sofa",
+   "group": "living",
+   "type": "sofa",
+   "size": [
+    3,
+    1.05,
+    0.72
+   ],
+   "finishes": [
+    "grey",
+    "beige",
+    "anthracite",
+    "green",
+    "blue",
+    "terracotta",
+    "pink"
+   ]
+  },
+  {
+   "model": "modern:daybed",
+   "name": "Daybed",
+   "group": "living",
+   "type": "sofa",
+   "size": [
+    2,
+    0.9,
+    0.72
+   ],
+   "finishes": [
+    "grey",
+    "beige",
+    "anthracite",
+    "green",
+    "blue",
+    "terracotta",
+    "pink"
+   ],
+   "accents": [
+    "oak",
+    "walnut",
+    "black",
+    "white"
+   ]
+  },
+  {
    "model": "modern:armchair",
    "name": "Armchair",
    "group": "living",
@@ -857,6 +928,31 @@
    ],
    "finishes": [
     "black"
+   ],
+   "mount": "wall",
+   "elevation": 1
+  },
+  {
+   "model": "modern:tv_frame",
+   "name": "Frame TV",
+   "group": "living",
+   "type": "tv",
+   "size": [
+    1.45,
+    0.03,
+    0.83
+   ],
+   "finishes": [
+    "terracotta",
+    "blue",
+    "green",
+    "sand"
+   ],
+   "accents": [
+    "oak",
+    "white",
+    "black",
+    "walnut"
    ],
    "mount": "wall",
    "elevation": 1
@@ -1254,6 +1350,206 @@
    "elevation": 0.9
   },
   {
+   "model": "modern:fireplace_stove",
+   "name": "Wood stove",
+   "group": "living",
+   "type": "item",
+   "size": [
+    0.55,
+    0.45,
+    2.4
+   ],
+   "finishes": [
+    "black",
+    "anthracite",
+    "red"
+   ]
+  },
+  {
+   "model": "modern:fireplace_wall",
+   "name": "Built-in fireplace",
+   "group": "living",
+   "type": "item",
+   "size": [
+    1.6,
+    0.4,
+    1.3
+   ],
+   "finishes": [
+    "white",
+    "concrete",
+    "anthracite"
+   ]
+  },
+  {
+   "model": "modern:piano_upright",
+   "name": "Upright piano",
+   "group": "living",
+   "type": "item",
+   "size": [
+    1.5,
+    0.6,
+    1.25
+   ],
+   "finishes": [
+    "black",
+    "walnut",
+    "white"
+   ]
+  },
+  {
+   "model": "modern:piano_grand",
+   "name": "Grand piano",
+   "group": "living",
+   "type": "item",
+   "size": [
+    1.5,
+    1.9,
+    1
+   ],
+   "finishes": [
+    "black",
+    "white",
+    "walnut"
+   ]
+  },
+  {
+   "model": "modern:aquarium",
+   "name": "Aquarium",
+   "group": "living",
+   "type": "item",
+   "size": [
+    1,
+    0.42,
+    1.3
+   ],
+   "finishes": [
+    "oak",
+    "white",
+    "walnut",
+    "black",
+    "anthracite"
+   ]
+  },
+  {
+   "model": "modern:picture_frame",
+   "name": "Picture",
+   "group": "living",
+   "type": "item",
+   "size": [
+    0.6,
+    0.025,
+    0.8
+   ],
+   "finishes": [
+    "terracotta",
+    "blue",
+    "green",
+    "sand",
+    "pink"
+   ],
+   "accents": [
+    "black",
+    "oak",
+    "white",
+    "brass"
+   ],
+   "mount": "wall",
+   "elevation": 1.3
+  },
+  {
+   "model": "modern:picture_set",
+   "name": "Gallery wall",
+   "group": "living",
+   "type": "item",
+   "size": [
+    1.4,
+    0.025,
+    0.6
+   ],
+   "finishes": [
+    "terracotta",
+    "blue",
+    "green",
+    "sand"
+   ],
+   "accents": [
+    "black",
+    "oak",
+    "white",
+    "brass"
+   ],
+   "mount": "wall",
+   "elevation": 1.4
+  },
+  {
+   "model": "modern:wall_clock",
+   "name": "Wall clock",
+   "group": "living",
+   "type": "item",
+   "size": [
+    0.35,
+    0.04,
+    0.35
+   ],
+   "finishes": [
+    "white",
+    "black",
+    "oak"
+   ],
+   "accents": [
+    "black",
+    "brass",
+    "white"
+   ],
+   "mount": "wall",
+   "elevation": 1.8
+  },
+  {
+   "model": "modern:curtains",
+   "name": "Curtains",
+   "group": "living",
+   "type": "item",
+   "size": [
+    2,
+    0.12,
+    2.4
+   ],
+   "finishes": [
+    "beige",
+    "white",
+    "grey",
+    "green",
+    "blue",
+    "terracotta"
+   ],
+   "accents": [
+    "black",
+    "brass",
+    "white",
+    "oak"
+   ],
+   "mount": "wall",
+   "elevation": 0
+  },
+  {
+   "model": "modern:folding_screen",
+   "name": "Folding screen",
+   "group": "living",
+   "type": "item",
+   "size": [
+    1.5,
+    0.4,
+    1.7
+   ],
+   "finishes": [
+    "oak",
+    "white",
+    "black",
+    "sand"
+   ]
+  },
+  {
    "model": "modern:dining_table",
    "name": "Dining table",
    "group": "dining",
@@ -1300,6 +1596,73 @@
     "walnut",
     "white",
     "marble"
+   ]
+  },
+  {
+   "model": "modern:dining_table_legs",
+   "name": "Dining table, four legs",
+   "group": "dining",
+   "type": "table",
+   "size": [
+    2,
+    1,
+    0.75
+   ],
+   "finishes": [
+    "oak",
+    "white",
+    "walnut",
+    "black",
+    "anthracite"
+   ],
+   "accents": [
+    "oak",
+    "black",
+    "walnut",
+    "white"
+   ]
+  },
+  {
+   "model": "modern:dining_table_oval",
+   "name": "Oval dining table",
+   "group": "dining",
+   "type": "table",
+   "size": [
+    2,
+    1.05,
+    0.75
+   ],
+   "finishes": [
+    "oak",
+    "walnut",
+    "white",
+    "black",
+    "marble"
+   ],
+   "accents": [
+    "black",
+    "oak",
+    "white",
+    "walnut"
+   ]
+  },
+  {
+   "model": "modern:dining_table_glass",
+   "name": "Glass dining table",
+   "group": "dining",
+   "type": "table",
+   "size": [
+    1.6,
+    0.9,
+    0.75
+   ],
+   "finishes": [
+    "white"
+   ],
+   "accents": [
+    "chrome",
+    "black",
+    "brass"
    ]
   },
   {
@@ -2258,6 +2621,12 @@
     "black",
     "anthracite"
    ],
+   "accents": [
+    "black",
+    "chrome",
+    "brass",
+    "oak"
+   ],
    "mount": "wall",
    "elevation": 0.45
   },
@@ -2676,6 +3045,138 @@
     "black",
     "chrome",
     "white"
+   ]
+  },
+  {
+   "model": "modern:desk_drawers",
+   "name": "Desk with drawers",
+   "group": "bedroom",
+   "type": "desk",
+   "size": [
+    1.4,
+    0.7,
+    0.75
+   ],
+   "finishes": [
+    "oak",
+    "white",
+    "walnut",
+    "black",
+    "anthracite"
+   ],
+   "accents": [
+    "black",
+    "chrome",
+    "white",
+    "oak"
+   ]
+  },
+  {
+   "model": "modern:desk_standing",
+   "name": "Standing desk",
+   "group": "bedroom",
+   "type": "desk",
+   "size": [
+    1.6,
+    0.8,
+    1.05
+   ],
+   "finishes": [
+    "oak",
+    "white",
+    "walnut",
+    "black"
+   ],
+   "accents": [
+    "black",
+    "white",
+    "silver"
+   ]
+  },
+  {
+   "model": "modern:desk_corner",
+   "name": "Corner desk",
+   "group": "bedroom",
+   "type": "desk",
+   "size": [
+    1.6,
+    1.4,
+    0.75
+   ],
+   "finishes": [
+    "oak",
+    "white",
+    "walnut",
+    "black"
+   ],
+   "accents": [
+    "black",
+    "white",
+    "silver"
+   ]
+  },
+  {
+   "model": "modern:drawer_unit",
+   "name": "Drawer unit on castors",
+   "group": "bedroom",
+   "type": "shelf",
+   "size": [
+    0.42,
+    0.55,
+    0.62
+   ],
+   "finishes": [
+    "oak",
+    "white",
+    "walnut",
+    "black",
+    "anthracite"
+   ],
+   "accents": [
+    "black",
+    "chrome",
+    "brass",
+    "oak"
+   ]
+  },
+  {
+   "model": "modern:printer",
+   "name": "Printer",
+   "group": "bedroom",
+   "type": "item",
+   "size": [
+    0.45,
+    0.38,
+    0.25
+   ],
+   "finishes": [
+    "white",
+    "black",
+    "grey"
+   ]
+  },
+  {
+   "model": "modern:gaming_chair",
+   "name": "Gaming chair",
+   "group": "bedroom",
+   "type": "chair",
+   "size": [
+    0.7,
+    0.7,
+    1.35
+   ],
+   "finishes": [
+    "black",
+    "red",
+    "blue",
+    "grey",
+    "white"
+   ],
+   "accents": [
+    "black",
+    "red",
+    "white",
+    "blue"
    ]
   },
   {
