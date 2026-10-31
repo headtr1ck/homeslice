@@ -1183,5 +1183,13 @@
   "alias.table_lamp_glass": "Glaslampe, Tischlampe",
   "alias.pendant_bell": "Glockenleuchte, Pendelleuchte",
   "furniture.group_office": "Büro",
-  "furniture.group_kids": "Kinderzimmer"
+  "furniture.group_kids": "Kinderzimmer",
+  "modern.fireplace_open": "Offener Kamin",
+  "modern.fireplace_glass": "Kamin mit Glasfront",
+  "modern.hedge_trimmed": "Geschnittene Hecke",
+  "modern.chair_arm_wood": "Esszimmerstuhl mit Armlehnen",
+  "alias.fireplace_open": "offener Kamin, Kaminsims, klassisch",
+  "alias.fireplace_glass": "Glaskamin, Panoramakamin, moderner Kamin",
+  "alias.hedge_trimmed": "geschnittene Hecke, Formhecke, Buchenhecke, Liguster",
+  "alias.chair_arm_wood": "Armlehnstuhl, Esszimmerstuhl, Stuhl mit Armlehnen"
 }

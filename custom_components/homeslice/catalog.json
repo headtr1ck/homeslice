@@ -1441,6 +1441,48 @@
    ]
   },
   {
+   "model": "modern:fireplace_open",
+   "name": "Open fireplace",
+   "group": "living",
+   "type": "item",
+   "size": [
+    1.5,
+    0.45,
+    1.2
+   ],
+   "finishes": [
+    "white",
+    "concrete",
+    "sand",
+    "terracotta",
+    "anthracite"
+   ],
+   "accents": [
+    "oak",
+    "walnut",
+    "white",
+    "marble",
+    "black"
+   ]
+  },
+  {
+   "model": "modern:fireplace_glass",
+   "name": "Glass-fronted fireplace",
+   "group": "living",
+   "type": "item",
+   "size": [
+    1,
+    0.55,
+    2.4
+   ],
+   "finishes": [
+    "anthracite",
+    "white",
+    "concrete",
+    "black"
+   ]
+  },
+  {
    "model": "modern:piano_upright",
    "name": "Upright piano",
    "group": "living",
@@ -1836,6 +1878,32 @@
     "walnut",
     "black",
     "brass"
+   ]
+  },
+  {
+   "model": "modern:chair_arm_wood",
+   "name": "Dining chair with arms",
+   "group": "dining",
+   "type": "chair",
+   "size": [
+    0.56,
+    0.54,
+    0.92
+   ],
+   "finishes": [
+    "oak",
+    "walnut",
+    "black",
+    "white"
+   ],
+   "accents": [
+    "grey",
+    "beige",
+    "anthracite",
+    "green",
+    "blue",
+    "terracotta",
+    "pink"
    ]
   },
   {
@@ -5148,6 +5216,20 @@
     3,
     0.7,
     1.6
+   ],
+   "finishes": [
+    "green"
+   ]
+  },
+  {
+   "model": "modern:hedge_trimmed",
+   "name": "Trimmed hedge",
+   "group": "outside",
+   "type": "hedge",
+   "size": [
+    3,
+    0.6,
+    1.4
    ],
    "finishes": [
     "green"

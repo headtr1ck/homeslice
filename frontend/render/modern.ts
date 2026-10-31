@@ -3205,7 +3205,7 @@ const BUILDERS: Record<string, Build> = {
     b.box(w - 0.06, h - seat - 0.05, 0.04, 0, seat + 0.05, -d / 2 + 0.04, f, 0.02)?.rotation.set(-0.1, 0, 0);
   },
   dining_armchair: (b, w, d, h, f, _c, a) => {
-    for (const sx of [-1, 1]) for (const sz of [-1, 1]) b.cyl(0.018, 0.014, 0.44, sx * (w / 2 - 0.05), 0, sz * (d / 2 - 0.05), a, 10);
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) b.rod(v(sx * w * 0.25, 0.42, 0.02 + sz * d * 0.22), v(sx * w * 0.36, 0, 0.02 + sz * d * 0.34), 0.016, a, 8);
     // a curved shell: back and arms in one, a cushion
     const shell = new THREE.CylinderGeometry(w / 2, w / 2 - 0.03, h - 0.44, 28, 1, true, Math.PI * 0.6, Math.PI * 0.8);
     shell.scale(1, 1, (d * 0.95) / w);
@@ -3235,6 +3235,81 @@ const BUILDERS: Record<string, Build> = {
     canopyAndCord(b, h, sh, a);
     b.add(new THREE.LatheGeometry([[0.06, 1], [0.12, 0.85], [0.18, 0.5], [0.35, 0.15], [0.5, 0]].map(([x, y]) => new THREE.Vector2(x * r * 2, y * sh)), 32), shadeMat(f, c), 0, 0, 0);
     bulb(b, 0, sh * 0.2, 0, 0.04);
+  },
+  fireplace_open: (b, w, d, h, f, _c, a) => {
+    // a classic open fireplace: a surround with a mantel shelf, an arched firebox, logs burning
+    const ow = w * 0.55;
+    const oh = Math.min(0.75, h * 0.6);
+    const s = new THREE.Shape();
+    s.moveTo(-w / 2, 0);
+    s.lineTo(w / 2, 0);
+    s.lineTo(w / 2, h - 0.08);
+    s.lineTo(-w / 2, h - 0.08);
+    s.lineTo(-w / 2, 0);
+    const hole = new THREE.Path();
+    hole.moveTo(-ow / 2, 0.08);
+    hole.lineTo(ow / 2, 0.08);
+    hole.lineTo(ow / 2, oh - ow * 0.2);
+    hole.quadraticCurveTo(0, oh + ow * 0.12, -ow / 2, oh - ow * 0.2);
+    hole.lineTo(-ow / 2, 0.08);
+    s.holes.push(hole);
+    const surround = new THREE.ExtrudeGeometry(s, { depth: d * 0.35, bevelEnabled: true, bevelSize: 0.01, bevelThickness: 0.01, bevelSegments: 1, curveSegments: 12 });
+    b.add(surround, f, 0, 0, d / 2 - d * 0.35);
+    b.box(ow + 0.02, oh + 0.05, d * 0.65, 0, 0.06, -d / 2 + d * 0.325, mat("#1b1714", { roughness: 1 }));
+    b.box(w + 0.14, 0.08, d + 0.06, 0, h - 0.08, 0.03, a, 0.01);
+    b.box(w + 0.3, 0.06, d + 0.3, 0, 0, 0.15, mat("#5e5a54", { roughness: 0.9 }), 0.005);
+    for (const [x, rz] of [[-0.12, 0.25], [0.1, -0.2], [0, 0]] as const) b.add(new THREE.CylinderGeometry(0.05, 0.05, ow * 0.7, 8).rotateZ(Math.PI / 2 + rz), mat(C.trunk), x * ow, 0.13 + (rz === 0 ? 0.07 : 0), 0.02);
+    fire(b, ow * 0.6, 0.12, 0.06, oh * 0.45);
+    for (const sx of [-1, 1]) b.cyl(0.03, 0.03, 0.14, sx * w * 0.32, h, 0.05, mat(C.ceramic), 12);
+  },
+  fireplace_glass: (b, w, d, h, f) => {
+    // a modern fire behind glass on three sides, a black frame, a plinth with logs stored under it
+    const base = Math.min(0.45, h * 0.35);
+    const fh = Math.min(0.55, h - base - 0.1);
+    b.box(w, base, d, 0, 0, 0, f, 0.01);
+    for (let i = 0; i < Math.round(w / 0.16); i++) b.add(new THREE.CylinderGeometry(0.05, 0.05, d * 0.8, 8).rotateX(Math.PI / 2), mat(i % 2 ? C.trunk : "#7a5a43"), -w / 2 + 0.1 + i * 0.16, 0.08, 0.05);
+    b.box(w - 0.04, base - 0.12, 0.02, 0, 0.1, d / 2 - 0.05, mat("#141414"));
+    const y = base;
+    b.box(w, 0.04, d, 0, y, 0, mat(C.black));
+    b.box(w, 0.04, d, 0, y + fh, 0, mat(C.black));
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) b.box(0.03, fh, 0.03, sx * (w / 2 - 0.015), y + 0.04, sz * (d / 2 - 0.015), mat(C.black));
+    b.box(w - 0.06, 0.02, d - 0.06, 0, y + 0.04, 0, mat("#3a3a3a", { roughness: 1 }));
+    fire(b, w * 0.7, y + 0.06, 0, fh * 0.6);
+    b.box(w - 0.03, fh - 0.04, 0.004, 0, y + 0.06, d / 2 - 0.015, glass());
+    for (const sx of [-1, 1]) b.box(0.004, fh - 0.04, d - 0.03, sx * (w / 2 - 0.015), y + 0.06, 0, glass());
+    b.box(w, h - y - fh - 0.04, d * 0.9, 0, y + fh + 0.04, -d * 0.05, f, 0.01);
+  },
+  hedge_trimmed: (b, w, d, h) => {
+    // a hedge cut to a crisp block: a slightly rounded core, small leaves all over
+    const rand = random(353);
+    b.batch(new RoundedBoxGeometry(w, h - 0.03, d, 3, Math.min(0.08, d / 4)), mat("#2f5a2f"), matrix(0, (h - 0.03) / 2 + 0.03, 0));
+    const leaf = smallLeaf(0.05);
+    const n = Math.min(2400, Math.round((w * h * 2 + d * h * 2 + w * d) * 160));
+    for (let i = 0; i < n; i++) {
+      const face = rand();
+      let x: number;
+      let y: number;
+      let z: number;
+      if (face < (w * d) / (w * d + 2 * w * h + 2 * d * h)) [x, y, z] = [(rand() - 0.5) * w, h, (rand() - 0.5) * d];
+      else if (rand() < w / (w + d)) [x, y, z] = [(rand() - 0.5) * w, 0.05 + rand() * (h - 0.05), (rand() > 0.5 ? 1 : -1) * (d / 2)];
+      else [x, y, z] = [(rand() > 0.5 ? 1 : -1) * (w / 2), 0.05 + rand() * (h - 0.05), (rand() - 0.5) * d];
+      b.batch(leaf.clone(), leafMat(i % 3 ? "#3f7037" : "#4f8a3f"), matrix(x, y, z, rand() * Math.PI, rand() * Math.PI * 2, rand() * Math.PI, 0.8 + rand() * 0.5));
+    }
+    b.box(w * 0.2, 0.05, d * 0.3, 0, 0, 0, mat(C.trunk));
+  },
+  chair_arm_wood: (b, w, d, h, f, _c, a) => {
+    // a classic wooden dining chair with arms and an upholstered seat
+    for (const sx of [-1, 1]) {
+      const x = sx * (w / 2 - 0.03);
+      b.box(0.04, 0.65, 0.04, x, 0, d / 2 - 0.05, f);
+      b.box(0.04, h, 0.04, x, 0, -d / 2 + 0.04, f)?.rotation.set(-0.06, 0, 0);
+      b.box(0.05, 0.03, d - 0.02, x, 0.65, 0.0, f, 0.01);
+      b.box(0.03, 0.03, d - 0.1, x, 0.15, 0, f);
+    }
+    b.box(w - 0.06, 0.06, d - 0.08, 0, 0.4, 0.01, f, 0.01);
+    b.box(w - 0.1, 0.06, d - 0.14, 0, 0.45, 0.02, a, 0.025);
+    b.box(w - 0.08, 0.12, 0.03, 0, h - 0.14, -d / 2 + 0.05, f, 0.01)?.rotation.set(-0.06, 0, 0);
+    for (let i = 0; i < 3; i++) b.box(0.03, h - 0.65, 0.02, -w * 0.18 + i * w * 0.18, 0.5, -d / 2 + 0.06, f)?.rotation.set(-0.06, 0, 0);
   },
   // ----- vehicles -----
   car_hatchback: (b, w, d, h, _f, color) => car(b, w, d, h, color, "hatchback"),

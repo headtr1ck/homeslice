@@ -1183,5 +1183,13 @@
   "alias.table_lamp_glass": "glass lamp, table lamp",
   "alias.pendant_bell": "bell pendant, metal pendant, kitchen light",
   "furniture.group_office": "Office",
-  "furniture.group_kids": "Kids"
+  "furniture.group_kids": "Kids",
+  "modern.fireplace_open": "Open fireplace",
+  "modern.fireplace_glass": "Glass-fronted fireplace",
+  "modern.hedge_trimmed": "Trimmed hedge",
+  "modern.chair_arm_wood": "Dining chair with arms",
+  "alias.fireplace_open": "open fireplace, classic fireplace, mantel, hearth",
+  "alias.fireplace_glass": "glass fireplace, modern fireplace, three-sided, panorama",
+  "alias.hedge_trimmed": "trimmed hedge, formal hedge, beech, privet, box hedge",
+  "alias.chair_arm_wood": "armchair, carver chair, dining chair with arms"
 }
