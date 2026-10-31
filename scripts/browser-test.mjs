@@ -827,6 +827,9 @@ console.log("editor");
     const hallWidth = (await room("hall")).rect[2];
     const inside = (hallWidth - 0.42).toFixed(2);
     assert(dims.length > 8 && dims.includes(inside), `lengths: ${dims.join(", ")} (hall ${inside})`);
+    // the house's outside size along its north and west sides
+    const overall = await page.locator("homeslice-panel svg.plan .overall-dims text").allTextContents();
+    assert(JSON.stringify(overall) === '["8.00 m","10.00 m"]', `overall: ${overall}`);
     const toggle = page.locator('homeslice-panel aside.tools button[aria-label="Show lengths"]');
     await toggle.click();
     assert((await page.locator("homeslice-panel svg.plan text.room-dim").count()) === 0, "lengths not hidden");

@@ -1870,6 +1870,7 @@ export class HomeslicePanel extends LitElement {
           </g>`;
         })}
       ${this._dims && l ? this.renderRoomDims(l.rooms, walls) : nothing}
+      ${this._dims && l ? this.renderOverallDims() : nothing}
       ${this._mode === "rooms" && level ? this.renderFreeWalls(level.freeWalls) : nothing}
       ${this._stair && this._mode === "rooms" ? this.renderStairHandles() : nothing}
       ${this.renderFurniture()}
@@ -2414,6 +2415,26 @@ export class HomeslicePanel extends LitElement {
       });
     }
     return out;
+  }
+
+  /** The house's outside width and depth, as dimension lines along its north and west sides. */
+  private renderOverallDims() {
+    const poly = outlineScope(this._model!, this._level).poly;
+    if (poly.length < 3) return nothing;
+    const { min, max } = bbox(poly);
+    const [x0, y0] = this.toScreen(min);
+    const [x1, y1] = this.toScreen(max);
+    const gap = 26;
+    const tick = (x: number, y: number, vertical: boolean) =>
+      svg`<line class="dim-line" x1=${vertical ? x - 5 : x} y1=${vertical ? y : y - 5} x2=${vertical ? x + 5 : x} y2=${vertical ? y : y + 5}></line>`;
+    const ty = y0 - gap;
+    const tx = x0 - gap;
+    return svg`<g class="overall-dims">
+      <line class="dim-line" x1=${x0} y1=${ty} x2=${x1} y2=${ty}></line>${tick(x0, ty, false)}${tick(x1, ty, false)}
+      <text class="dim overall" x=${(x0 + x1) / 2} y=${ty - 5} text-anchor="middle">${fmtM(max[0] - min[0])}</text>
+      <line class="dim-line" x1=${tx} y1=${y0} x2=${tx} y2=${y1}></line>${tick(tx, y0, true)}${tick(tx, y1, true)}
+      <text class="dim overall" x=${tx - 5} y=${(y0 + y1) / 2} text-anchor="middle" transform="rotate(-90 ${tx - 5} ${(y0 + y1) / 2})">${fmtM(max[1] - min[1])}</text>
+    </g>`;
   }
 
   /**
@@ -4132,6 +4153,14 @@ export class HomeslicePanel extends LitElement {
     .dim.editable:hover {
       fill: #01579b;
       font-size: 12px;
+    }
+    .overall-dims .dim-line {
+      stroke: var(--secondary-text-color, #aaa);
+    }
+    .dim.overall {
+      fill: var(--primary-text-color, #eee);
+      stroke: none;
+      font-weight: 600;
     }
     .dim-line {
       stroke: #4a4f55;
