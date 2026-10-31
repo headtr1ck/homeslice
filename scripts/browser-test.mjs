@@ -1071,6 +1071,32 @@ console.log("editor");
     assert(!(await walls()).some((w) => w.line), "free wall not deleted");
   });
 
+  await test("a wall drawn by finger snaps to 45°, with a magnifier while dragging", async () => {
+    await page.keyboard.press("w");
+    const a = await toPage([1, 8]);
+    const b = await toPage([2.97, 9.93]);
+    const touch = (type, p) =>
+      page.evaluate(
+        ([type, x, y]) => {
+          const svg = document.querySelector("homeslice-panel").shadowRoot.querySelector("svg.plan");
+          const target = document.querySelector("homeslice-panel").shadowRoot.elementFromPoint(x, y) ?? svg;
+          target.dispatchEvent(new PointerEvent(type, { clientX: x, clientY: y, pointerId: 7, pointerType: "touch", isPrimary: true, bubbles: true, composed: true }));
+        },
+        [type, p.x, p.y],
+      );
+    await touch("pointerdown", a);
+    for (let i = 1; i <= 6; i++) await touch("pointermove", { x: a.x + ((b.x - a.x) * i) / 6, y: a.y + ((b.y - a.y) * i) / 6 });
+    assert((await page.locator("homeslice-panel .loupe").count()) === 1, "no magnifier while dragging");
+    await shot(page, "editor-loupe");
+    await touch("pointerup", b);
+    assert((await page.locator("homeslice-panel .loupe").count()) === 0, "magnifier not hidden");
+    const drawn = (await model()).levels[0].walls?.find((w) => w.line);
+    const [[x0, y0], [x1, y1]] = drawn.line;
+    assert(Math.abs(x1 - x0 - (y1 - y0)) < 1e-6 && Math.abs(x1 - x0 - 2) < 0.06, `wall: ${JSON.stringify(drawn)}`);
+    await page.keyboard.press("Control+z");
+    await page.keyboard.press("Escape");
+  });
+
   await test("building settings: wall thickness, neighbours, floor slab, one wall's own thickness", async () => {
     await page.keyboard.press("Escape");
     const outer = await freeOutlineSpot(false);

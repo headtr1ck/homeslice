@@ -309,6 +309,7 @@ export class HomeslicePanel extends LitElement {
     _wall: { state: true },
     _opening: { state: true },
     _guides: { state: true },
+    _loupe: { state: true },
     _create: { state: true },
     _pendingArea: { state: true },
     _stair: { state: true },
@@ -362,6 +363,10 @@ export class HomeslicePanel extends LitElement {
   /** Selected opening (doors & windows mode) and the room it belongs to on this level. */
   private _opening: { src: OpeningSource; room: string } | null = null;
   /** Snap feedback drawn on the plan: guide lines and the corner snapped to. */
+  /** The plan's drawing, for the loupe. */
+  private _planContent: unknown = nothing;
+  /** Touch drags: where the finger is (plan pixels), shown magnified in a free corner. */
+  private _loupe: { x: number; y: number } | null = null;
   private _guides: { x?: number; y?: number; ring?: Vec2; rays?: [Vec2, Vec2][] } | null = null;
   /** The "new house" form while it is open. */
   /** `merges`: HA floors whose areas go onto another floor's level (floor → floor). */
@@ -944,7 +949,12 @@ export class HomeslicePanel extends LitElement {
     if ((e.target as Element).closest("foreignObject")) return;
     this._settings = null;
     const target = e.target as Element;
-    (e.currentTarget as Element).setPointerCapture(e.pointerId);
+    // (a pointer the browser no longer tracks cannot be captured)
+    try {
+      (e.currentTarget as Element).setPointerCapture(e.pointerId);
+    } catch {
+      /* keep going without capture */
+    }
     const world = this.eventWorld(e);
     const u = this._underlay?.level === this._level ? this._underlay : null;
     if (u && this._calib && !(this._calib.a && this._calib.b)) {
@@ -1158,6 +1168,8 @@ export class HomeslicePanel extends LitElement {
     const world = this.eventWorld(e);
     const screen = this.eventScreen(e);
     const free = e.altKey;
+    // a finger hides what it drags: show it magnified
+    this._loupe = e.pointerType !== "mouse" && drag.kind !== "pan" && drag.kind !== "underlay" ? { x: screen[0], y: screen[1] } : null;
     const snapped = (p: Vec2, ctx: SnapContext): Snapped => (free ? { p, kind: "free" } : snap(p, ctx));
     if (drag.kind === "underlay") {
       const u = this._underlay;
@@ -1373,6 +1385,7 @@ export class HomeslicePanel extends LitElement {
     this._drag = null;
     this._hint = null;
     this._guides = null;
+    this._loupe = null;
     if (!drag || !this._model) return;
     if (drag.kind === "energy-link") {
       this._linkEnd = null;
@@ -1885,6 +1898,7 @@ export class HomeslicePanel extends LitElement {
         </aside>
         <section class="plan-wrap">
           ${this.renderPlan()}
+          ${this.renderLoupe()}
           ${this._hint
             ? html`<div class="hint" style="left:${this._hint.x + 16}px;top:${this._hint.y + 16}px">${this._hint.lines.map((l) => html`<div>${l}</div>`)}</div>`
             : nothing}
@@ -1923,41 +1937,8 @@ export class HomeslicePanel extends LitElement {
     const selPoly = this._room === OUTLINE ? outlineScope(m, this._level).poly : selected ? roomPolygon(m, selected) : [];
     const grid = this._view.scale >= 20 ? 1 : 5;
     this.dimTargets.clear();
-    return html`<svg
-      class="plan tool-${this._tool} ${this._underlayMove ? "underlay-move" : ""} ${this._underlay?.level === this._level && !this._underlayHidden ? "has-underlay" : ""}"
-      @pointerdown=${this.onPlanDown}
-      @pointermove=${this.onPlanMove}
-      @pointerup=${this.onPlanUp}
-      @pointercancel=${this.onPlanUp}
-      @dblclick=${this.onPlanDoubleClick}
-      @wheel=${this.onPlanWheel}
-      @dragover=${(e: DragEvent) => {
-        if (!this.libraryDrag && !this.openingDrag) return;
-        e.preventDefault();
-        if (e.dataTransfer) e.dataTransfer.dropEffect = "copy";
-      }}
-      @drop=${(e: DragEvent) => {
-        const preset = this.openingDrag;
-        this.openingDrag = null;
-        if (preset) {
-          // dropped on a wall: a door or window right there
-          e.preventDefault();
-          // the wall under the drop, also beneath doors and windows already there
-          const wall = ((this.renderRoot as ShadowRoot).elementsFromPoint(e.clientX, e.clientY).find((el) => el.closest("[data-addwall]"))?.closest("[data-addwall]") ?? null) as SVGElement | null;
-          if (wall) {
-            this.clearSelection();
-            this.addOpeningAt(JSON.parse(wall.dataset.addwall!), this.eventWorld(e as unknown as PointerEvent), preset);
-          }
-          return;
-        }
-        const type = this.libraryDrag;
-        this.libraryDrag = null;
-        if (!type) return;
-        e.preventDefault();
-        this.addFurnitureAt(type, this.eventWorld(e as unknown as PointerEvent));
-      }}
-    >
-      <defs>
+    // also shown magnified around the finger on touch screens
+    const content = svg`      <defs>
         <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
           <path d="M 0 0 L 10 5 L 0 10 z" class="arrowhead"></path>
         </marker>
@@ -2022,8 +2003,42 @@ export class HomeslicePanel extends LitElement {
       ${this._opening ? this.renderOpeningDims(walls) : nothing}
       ${this._measure ? this.renderMeasure(this._measure) : nothing}
       ${this.renderGuides()}
-      ${this._dimEdit ? this.renderDimEdit(this._dimEdit) : nothing}
-    </svg>`;
+      ${this._dimEdit ? this.renderDimEdit(this._dimEdit) : nothing}`;
+    this._planContent = content;
+    return html`<svg
+      class="plan tool-${this._tool} ${this._underlayMove ? "underlay-move" : ""} ${this._underlay?.level === this._level && !this._underlayHidden ? "has-underlay" : ""}"
+      @pointerdown=${this.onPlanDown}
+      @pointermove=${this.onPlanMove}
+      @pointerup=${this.onPlanUp}
+      @pointercancel=${this.onPlanUp}
+      @dblclick=${this.onPlanDoubleClick}
+      @wheel=${this.onPlanWheel}
+      @dragover=${(e: DragEvent) => {
+        if (!this.libraryDrag && !this.openingDrag) return;
+        e.preventDefault();
+        if (e.dataTransfer) e.dataTransfer.dropEffect = "copy";
+      }}
+      @drop=${(e: DragEvent) => {
+        const preset = this.openingDrag;
+        this.openingDrag = null;
+        if (preset) {
+          // dropped on a wall: a door or window right there
+          e.preventDefault();
+          // the wall under the drop, also beneath doors and windows already there
+          const wall = ((this.renderRoot as ShadowRoot).elementsFromPoint(e.clientX, e.clientY).find((el) => el.closest("[data-addwall]"))?.closest("[data-addwall]") ?? null) as SVGElement | null;
+          if (wall) {
+            this.clearSelection();
+            this.addOpeningAt(JSON.parse(wall.dataset.addwall!), this.eventWorld(e as unknown as PointerEvent), preset);
+          }
+          return;
+        }
+        const type = this.libraryDrag;
+        this.libraryDrag = null;
+        if (!type) return;
+        e.preventDefault();
+        this.addFurnitureAt(type, this.eventWorld(e as unknown as PointerEvent));
+      }}
+    >${content}</svg>`;
   }
 
   /** Lamps on this level: placed ones and the area lights spread automatically. */
@@ -2468,6 +2483,24 @@ export class HomeslicePanel extends LitElement {
       const [sx, sy] = this.toScreen(c);
       return svg`<circle class="vertex" data-stairhandle=${JSON.stringify(corners[(i + 2) % 4])} cx=${sx} cy=${sy} r="6"></circle>`;
     })}`;
+  }
+
+  /** A magnifier of the plan around the finger, in the corner away from it. */
+  private renderLoupe() {
+    const at = this._loupe;
+    const svgEl = this.renderRoot.querySelector("svg.plan") as SVGSVGElement | null;
+    if (!at || !svgEl) return nothing;
+    const { width, height } = svgEl.getBoundingClientRect();
+    const size = 132;
+    const zoom = 2.5;
+    const r = size / 2 / zoom;
+    const right = at.x < width / 2;
+    const bottom = at.y < Math.min(height / 2, size + 40);
+    const style = `${right ? "right" : "left"}:12px;${bottom ? "bottom" : "top"}:12px`;
+    return html`<div class="loupe" style=${style}>
+      <svg viewBox="${at.x - r} ${at.y - r} ${2 * r} ${2 * r}">${this._planContent}</svg>
+      <div class="loupe-cross"></div>
+    </div>`;
   }
 
   private renderGuides() {
@@ -4053,6 +4086,33 @@ export class HomeslicePanel extends LitElement {
       padding: 0;
       display: grid;
       place-items: center;
+    }
+    .loupe {
+      position: absolute;
+      width: 132px;
+      height: 132px;
+      border-radius: 50%;
+      overflow: hidden;
+      pointer-events: none;
+      background: var(--primary-background-color, #fff);
+      border: 2px solid var(--primary-color, #03a9f4);
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+      z-index: 3;
+    }
+    .loupe svg {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+    .loupe svg * {
+      vector-effect: non-scaling-stroke;
+    }
+    .loupe-cross {
+      position: absolute;
+      inset: 0;
+      background:
+        linear-gradient(var(--primary-color, #03a9f4), var(--primary-color, #03a9f4)) center / 14px 1px no-repeat,
+        linear-gradient(var(--primary-color, #03a9f4), var(--primary-color, #03a9f4)) center / 1px 14px no-repeat;
     }
     .plan-wrap {
       position: relative;
