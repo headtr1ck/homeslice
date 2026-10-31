@@ -253,6 +253,10 @@ export class HouseRenderer {
   private camera = new THREE.PerspectiveCamera();
   private root = new THREE.Group();
   private sun = new THREE.DirectionalLight(0xffffff, 2.2);
+  private sky = new THREE.HemisphereLight(0xffffff, 0x50555c, 1.4);
+  private ambient = new THREE.AmbientLight(0xffffff, 0.35);
+  /** The real sun (plan degrees: 0 north, 90 east) or null for the default light from the south-west. */
+  private sunAt: { azimuth: number; elevation: number } | null = null;
   private view: ViewOptions = DEFAULT_VIEW;
   private levels: LevelState[] = [];
 
@@ -312,8 +316,7 @@ export class HouseRenderer {
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.scene.add(this.root);
-    this.scene.add(new THREE.HemisphereLight(0xffffff, 0x50555c, 1.4));
-    this.scene.add(new THREE.AmbientLight(0xffffff, 0.35));
+    this.scene.add(this.sky, this.ambient);
     this.sun.castShadow = true;
     this.sun.shadow.mapSize.set(2048, 2048);
     this.sun.shadow.bias = -0.0005;
@@ -1589,12 +1592,40 @@ export class HouseRenderer {
     this.camera.updateMatrixWorld();
   }
 
+  /**
+   * Light from the real sun: azimuth (degrees from the plan's north, clockwise) and
+   * elevation; null goes back to the default light. Below the horizon it is night: dim.
+   */
+  setSun(azimuth: number | null, elevation: number | null) {
+    this.sunAt = azimuth === null || elevation === null ? null : { azimuth, elevation };
+    const e = this.sunAt?.elevation ?? 45;
+    // day: full light, a little warmer and weaker when the sun is low; night: dim and cool
+    const day = Math.max(0, Math.min(1, (e + 4) / 14));
+    this.sun.intensity = 2.2 * day;
+    this.sun.color.set(e < 15 && day > 0 ? 0xffe2c0 : 0xffffff);
+    this.sky.intensity = 0.55 + 0.85 * day;
+    this.sky.color.set(day > 0.5 ? 0xffffff : 0xb8c4ff);
+    this.ambient.intensity = 0.2 + 0.15 * day;
+    this.placeSun();
+  }
+
+  /** For tests: the light. */
+  sunState() {
+    return { at: this.sunAt, intensity: this.sun.intensity, position: this.sun.position.clone().sub(this.sun.target.position).normalize().toArray() };
+  }
+
   private placeSun() {
     const box = new THREE.Box3().setFromObject(this.root);
     const center = box.getCenter(new THREE.Vector3());
     const size = box.getSize(new THREE.Vector3()).length();
-    // sun from the south-west, high
-    this.sun.position.copy(center).add(new THREE.Vector3(-0.5, 1.2, 0.8).multiplyScalar(size));
+    // the real sun (not lower than 12° for the shadows' sake), else from the south-west, high
+    let dir = new THREE.Vector3(-0.5, 1.2, 0.8);
+    if (this.sunAt) {
+      const a = THREE.MathUtils.degToRad(this.sunAt.azimuth);
+      const el = THREE.MathUtils.degToRad(Math.max(12, this.sunAt.elevation));
+      dir = new THREE.Vector3(Math.sin(a) * Math.cos(el), Math.sin(el), -Math.cos(a) * Math.cos(el)).multiplyScalar(1.45);
+    }
+    this.sun.position.copy(center).add(dir.multiplyScalar(size));
     this.sun.target.position.copy(center);
     const s = this.sun.shadow.camera;
     s.left = s.bottom = -size / 2;

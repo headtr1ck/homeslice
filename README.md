@@ -52,6 +52,7 @@ house: home                    # the house id
 interactive: false             # true: drag to turn, scroll/pinch to zoom, double-click to reset
 energy: false                  # true: energy overlay (shows the roof unless view.roof: false)
 mode: 3d                       # or plan: a flat floor plan from above, one floor at a time
+sun: true                      # light from the real sun (sun.sun), darker at night
 level: ground                  # optional: the floor shown first (plan: default the entrance floor)
 view:                          # all optional
   azimuth: 250                 # overview camera: 0 north, 90 east, 180 south, 270 west
@@ -95,6 +96,7 @@ name: Home
 outline: { rect: [0, 0, 10, 8] }       # outer face of the exterior walls, shared by all levels
 party_walls: [west]                     # walls shared with a neighbour
 roof: { ridge: east_west, pitch: 35 }   # optional; drawn by cards with view.roof
+north: 0                                # optional: degrees the plan's north side is turned east of true north
 inverted_covers: [cover.awning]         # optional: covers that report open/closed the other way round
 robots:                                 # optional: robot vacuums and lawn mowers
   - { entity: vacuum.robo, level: ground, dock: [0.8, 3.3] }   # live position: see the editor

@@ -252,6 +252,11 @@ export interface HouseInput {
    * awnings when extended, as in Home Assistant.
    */
   inverted_covers?: string[];
+  /**
+   * Which way the plan's "north" really faces: degrees east of true north (e.g. 23 for a
+   * house turned a little clockwise). Used for the real sun's light; default 0.
+   */
+  north?: number;
   /** House-wide defaults per opening type, e.g. floor-to-ceiling windows. */
   opening_defaults?: Partial<Record<OpeningType, { sill?: number; height?: number }>>;
   facade_openings?: FacadeOpeningInput[];
@@ -374,6 +379,7 @@ export interface House {
   energy: Energy[];
   invertedCovers: string[];
   robots: Robot[];
+  north: number;
 }
 
 export interface Robot {

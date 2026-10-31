@@ -35,6 +35,7 @@ import {
   wallSnap,
   connectEnergy,
   setCoverInverted,
+  updateHouse,
   setOpeningLevels,
   addRobot,
   updateRobot,
@@ -3506,6 +3507,13 @@ export class HomeslicePanel extends LitElement {
           }} />
         </label>
       </div>
+      <label>${this.t("editor.north")}
+        <input type="number" min="-180" max="180" step="1" .value=${String(m.north ?? 0)} @change=${(e: Event) => {
+          const v = Number((e.target as HTMLInputElement).value);
+          if (v >= -180 && v <= 180) this.commit(updateHouse(m, { north: v || undefined }));
+        }} />
+      </label>
+      <p class="muted">${this.t("editor.north_hint")}</p>
       <h3>${this.t("editor.walls_section")}</h3>
       <div class="row">
         ${this.cmInput(this.t("editor.walls_exterior"), m.walls?.exterior, DEFAULTS.walls.exterior, (v) => this.commit(setWallThickness(m, { exterior: v })))}

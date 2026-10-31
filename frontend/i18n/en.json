@@ -400,5 +400,8 @@
   "editor.check_unlinked_room": "{entity} is linked to no window; no free one fits in {room}.",
   "editor.check_link": "Link",
   "editor.check_link_all": "Link all {count} suggestions",
-  "editor.check_show": "Show"
+  "editor.check_show": "Show",
+  "cardeditor.sun": "Light from the real sun, darker at night (needs sun.sun)",
+  "editor.north": "North (°)",
+  "editor.north_hint": "Which way the plan's north side really faces, in degrees east of true north (e.g. 23 if the house is turned a little clockwise). The cards light the house from the real sun with it."
 }

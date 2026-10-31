@@ -469,6 +469,25 @@ console.log("demo house, roof");
     assert(docked.color === "#9e9e9e" && Math.abs(docked.at[0] - 0.8) < 1e-6 && Math.abs(docked.at[1] - 3.3) < 1e-6, `docked: ${JSON.stringify(docked)}`);
   });
 
+  await test("the real sun lights the house; at night it is dark", async () => {
+    const setSun = (azimuth, elevation) =>
+      act(page, () =>
+        page.evaluate(([azimuth, elevation]) => {
+          const h = window.card.hass;
+          window.card.hass = { ...h, states: { ...h.states, "sun.sun": { entity_id: "sun.sun", state: elevation > 0 ? "above_horizon" : "below_horizon", attributes: { azimuth, elevation } } } };
+        }, [azimuth, elevation]),
+      );
+    await setSun(180, 30);
+    let sun = await page.evaluate(() => window.card.renderer.sunState());
+    // from the south: +z in the scene
+    assert(sun.at.azimuth === 180 && sun.position[2] > 0.5 && sun.intensity > 2, `noon: ${JSON.stringify(sun)}`);
+    await setSun(300, -20);
+    sun = await page.evaluate(() => window.card.renderer.sunState());
+    assert(sun.intensity === 0, `night: ${JSON.stringify(sun)}`);
+    await shot(page, "demo-night");
+    await setSun(180, 30);
+  });
+
   await test("the roof shows in the overview only", async () => {
     const o = await page.evaluate(() => window.card.renderer.orientation);
     assert(o.azimuth === 200 && o.elevation === 45, `camera ${JSON.stringify(o)}`);

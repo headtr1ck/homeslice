@@ -380,5 +380,7 @@ export function expandHouse(input: unknown): ExpandResult {
       ...(r.position ? { position: { entity: r.position.entity ?? r.entity, attribute: r.position.attribute, points: points.map(([a, b]) => [[a[0], a[1]], [b[0], b[1]]] as [Vec2, Vec2]) } } : {}),
     });
   });
-  return { house: { id: h.id, name: h.name ?? h.id, walls, levels, vertical, roof, energy, invertedCovers, robots }, issues };
+  if (h.north !== undefined && typeof h.north !== "number") err("north", `north must be degrees (a number), got ${JSON.stringify(h.north)}.`);
+  const north = typeof h.north === "number" ? h.north : 0;
+  return { house: { id: h.id, name: h.name ?? h.id, walls, levels, vertical, roof, energy, invertedCovers, robots, north }, issues };
 }

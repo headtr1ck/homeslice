@@ -29,6 +29,8 @@ export interface HomesliceCardConfig {
   interactive?: boolean;
   /** Show the energy overlay: solar on the roof, battery, grid and devices with their power flows. */
   energy?: boolean;
+  /** Light the house from the real sun (HA's sun.sun) and dim it at night (default true). */
+  sun?: boolean;
   /** `plan`: a flat floor plan seen from straight above, one floor at a time (default `3d`). */
   mode?: "3d" | "plan";
   /** The floor shown first (level id); default: the whole house, or in plan mode the entrance floor. */
@@ -497,10 +499,14 @@ export class HomesliceCard extends LitElement {
     const awnings = this.rooms.map((r) => (r.room.awning ? coverOpen(hass, r.room.awning, inverted.has(r.room.awning)) : null));
     this.energyReadings = this.config.energy ? this.house.energy.map((e) => readEnergy(hass, e, this.energyPrefs)) : [];
     this.robotReadings = this.house.robots.map((r) => readRobot(hass, r));
-    const signature = JSON.stringify([lights, lamps, covers, contacts, temperatures, awnings, this.energyReadings, this.robotReadings]);
+    // the real sun, turned into the plan's directions; rounded so it redraws now and then, not always
+    const sun = this.config.sun !== false ? hass.states["sun.sun"]?.attributes : undefined;
+    const sunAt = typeof sun?.azimuth === "number" && typeof sun?.elevation === "number" ? [Math.round(sun.azimuth - this.house.north), Math.round(sun.elevation)] : null;
+    const signature = JSON.stringify([lights, lamps, covers, contacts, temperatures, awnings, this.energyReadings, this.robotReadings, sunAt]);
     if (signature === this.stateSignature) return;
     this.stateSignature = signature;
     this.lamps.forEach((l, i) => this.renderer!.setLamp(l.entity, lamps[i]));
+    this.renderer.setSun(sunAt?.[0] ?? null, sunAt?.[1] ?? null);
     this.house.robots.forEach((r, i) => this.renderer!.setRobotState(`robot-${r.index}`, this.robotReadings[i].at, ROBOT_COLORS[this.robotReadings[i].status]));
     if (this.config.energy) {
       this.renderer.setFlows(Object.fromEntries(this.house.energy.map((e, i) => [`energy-${e.index}`, this.energyReadings[i]?.flow ?? null])));

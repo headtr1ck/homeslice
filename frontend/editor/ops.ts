@@ -348,6 +348,14 @@ export function setBoundaryThickness(model: HouseInput, levelId: string, a: stri
   return m;
 }
 
+/** Simple house-wide settings (undefined removes one). */
+export function updateHouse(model: HouseInput, patch: Partial<Pick<HouseInput, "north" | "name">>): HouseInput {
+  const m = clone(model);
+  Object.assign(m, patch);
+  for (const [k, v] of Object.entries(patch)) if (v === undefined) delete (m as unknown as Record<string, unknown>)[k];
+  return m;
+}
+
 /** Marks a cover as reporting its position the other way round (or not). */
 export function setCoverInverted(model: HouseInput, cover: string, inverted: boolean): HouseInput {
   const m = clone(model);
