@@ -307,6 +307,7 @@ export class HomesliceCard extends LitElement {
     if (!this.renderer) {
       try {
         this.renderer = new HouseRenderer(canvas);
+        this.renderer.onChange = () => this.scheduleDraw();
       } catch {
         this._error = this.t("card.no_webgl");
         return;

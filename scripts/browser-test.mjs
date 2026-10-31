@@ -415,6 +415,46 @@ console.log("demo house, roof");
     const after = await page.evaluate(() => window.card.renderer.renderer.info.render.triangles);
     assert(after > before + 50, `triangles ${before} → ${after}`);
   });
+  await test("detailed furniture: every type gets its model, long pieces repeat units", async () => {
+    const types = ["sofa", "armchair", "table", "chair", "bed", "bed_single", "desk", "wardrobe", "shelf", "kitchen", "tv", "bathtub", "shower", "toilet", "sink", "plant", "car", "washer", "dryer", "fridge"];
+    await act(page, async () => {
+      await page.evaluate((types) => {
+        const m = structuredClone(window.__demoModel);
+        m.levels[0].rooms.find((r) => r.id === "living").furniture = types.map((type, i) => ({ type, at: [0.8 + (i % 5) * 1.2, 0.8 + Math.floor(i / 5) * 1.8] }));
+        window.card.hass.pushModel(m);
+      }, types);
+      await page.evaluate(() => window.card.renderer.modelsReady());
+    });
+    const pieces = await page.evaluate(() => {
+      const out = [];
+      const level = window.card.renderer.object.getObjectByName("ground");
+      for (const g of level.children) {
+        let shared = 0;
+        g.traverse((o) => o.isMesh && o.userData.shared && shared++);
+        if (shared) out.push({ shared, holders: g.children[0]?.children.length ?? 0 });
+      }
+      return out;
+    });
+    assert(pieces.length === types.length, `${pieces.length} of ${types.length} pieces detailed`);
+    // the 2.4 m kitchen counter is a row of cabinets, not one stretched cabinet
+    assert(pieces[types.indexOf("kitchen")].holders >= 4, `kitchen units: ${pieces[types.indexOf("kitchen")].holders}`);
+    await shot(page, "demo-furniture-detailed");
+  });
+  await test("simple furniture when the card asks for it", async () => {
+    await page.evaluate(() => {
+      window.card.setConfig({ ...window.card.config, view: { ...window.card.config.view, furniture: "simple" } });
+      window.card.hass = window.card.hass; // HA sends states all the time; the card reloads on the next
+    });
+    await page.waitForFunction(
+      () => {
+        let n = 0;
+        window.card.renderer.object.traverse((o) => o.isMesh && o.userData.shared && n++);
+        return n === 0;
+      },
+      null,
+      { timeout: 10000 },
+    );
+  });
   await test("the roof shows in the overview only", async () => {
     const o = await page.evaluate(() => window.card.renderer.orientation);
     assert(o.azimuth === 200 && o.elevation === 45, `camera ${JSON.stringify(o)}`);

@@ -82,6 +82,7 @@ export class HomesliceCardEditor extends LitElement {
     if (!this.renderer) {
       try {
         this.renderer = new HouseRenderer(canvas);
+        this.renderer.onChange = () => this.draw();
       } catch {
         return;
       }
@@ -190,6 +191,10 @@ export class HomesliceCardEditor extends LitElement {
       <label class="check"
         ><input type="checkbox" .checked=${!!v.roof} @change=${(e: Event) => this.change({}, { roof: (e.target as HTMLInputElement).checked || undefined })} />
         ${this.t("cardeditor.roof")}</label
+      >
+      <label class="check"
+        ><input type="checkbox" .checked=${v.furniture !== "simple"} @change=${(e: Event) => this.change({}, { furniture: (e.target as HTMLInputElement).checked ? undefined : "simple" })} />
+        ${this.t("cardeditor.furniture")}</label
       >
       <label class="check"
         ><input type="checkbox" .checked=${this._config.energy === true} @change=${(e: Event) => this.change({ energy: (e.target as HTMLInputElement).checked || undefined })} />

@@ -183,6 +183,7 @@
   "cardeditor.explode": "Gap between floors (m)",
   "cardeditor.outdoor": "Show gardens and terraces",
   "cardeditor.roof": "Show the roof (overview only)",
+  "cardeditor.furniture": "Detailed furniture (off: simple shapes)",
   "cardeditor.interactive": "Allow turning and zooming on the dashboard",
   "cardeditor.more": "The house itself is edited in the Homeslice panel in the sidebar. Room popups can be changed in YAML (popups).",
   "card.energy_solar": "Solar",
@@ -273,5 +274,8 @@
   "furniture.toilet": "Toilet",
   "furniture.sink": "Sink",
   "furniture.plant": "Plant",
-  "furniture.car": "Car"
+  "furniture.car": "Car",
+  "furniture.washer": "Washing machine",
+  "furniture.dryer": "Dryer",
+  "furniture.fridge": "Fridge"
 }

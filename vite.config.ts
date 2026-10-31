@@ -31,9 +31,12 @@ function loader(): Plugin {
 
 export default defineConfig({
   plugins: [loader()],
+  publicDir: "assets",
   build: {
     minify: true,
     outDir: OUT,
+    // assets/ (the furniture models) is copied next to the bundles
+    copyPublicDir: true,
     emptyOutDir: true,
     sourcemap: true,
     target: "es2022",

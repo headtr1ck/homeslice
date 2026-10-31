@@ -54,9 +54,12 @@ export type FurnitureType =
   | "toilet"
   | "sink"
   | "plant"
-  | "car";
+  | "car"
+  | "washer"
+  | "dryer"
+  | "fridge";
 
-/** A simple piece of furniture, drawn from boxes. */
+/** A piece of furniture: simple shapes, or a detailed model if the card asks for one. */
 export interface FurnitureInput {
   type: FurnitureType;
   /** Centre, metres from the room's north-west corner. */

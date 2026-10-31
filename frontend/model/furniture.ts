@@ -1,4 +1,4 @@
-// Default sizes of the simple furniture (width × depth × height, metres).
+// Default sizes of the furniture (width × depth × height, metres).
 
 import type { FurnitureType } from "./types";
 
@@ -20,6 +20,9 @@ export const FURNITURE: Record<FurnitureType, { size: [number, number]; height: 
   sink: { size: [0.6, 0.45], height: 0.85 },
   plant: { size: [0.45, 0.45], height: 1.1 },
   car: { size: [1.85, 4.6], height: 1.5 },
+  washer: { size: [0.6, 0.6], height: 0.85 },
+  dryer: { size: [0.6, 0.6], height: 0.85 },
+  fridge: { size: [0.6, 0.65], height: 1.8 },
 };
 
 export const FURNITURE_TYPES = Object.keys(FURNITURE) as FurnitureType[];

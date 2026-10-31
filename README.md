@@ -57,6 +57,7 @@ view:                          # all optional
   projection: isometric        # or perspective
   explode: 2.6                 # gap between floors in metres
   roof: false                  # draw the roof in the overview
+  furniture: detailed          # or simple: boxes instead of models
   cut_height: 0.4              # outer walls facing a low camera are cut to this height…
   cut_below: 60                # …while the camera is lower than this (degrees)
   show_outdoor: true           # garden, terrace etc. (drawn see-through)
@@ -123,9 +124,9 @@ levels:
         rect: [0, 0, 6, 8]              # x, y, width, depth (or polygon: [[x, y], …])
         lights:                         # optional: the area's lights are placed automatically
           - { entity: light.reading_lamp, at: [1, 2] }   # metres from the room's north-west corner
-        furniture:                      # optional, simple shapes: sofa, armchair, table, chair, bed,
-          - { type: sofa, at: [3, 6.5] } # bed_single, desk, wardrobe, shelf, kitchen, tv, bathtub,
-          - { type: table, at: [3, 2], rotation: 90 }    # shower, toilet, sink, plant, car
+        furniture:                      # optional: sofa, armchair, table, chair, bed, bed_single, desk,
+          - { type: sofa, at: [3, 6.5] } # wardrobe, shelf, kitchen, tv, bathtub, shower, toilet, sink,
+          - { type: table, at: [3, 2], rotation: 90 }    # plant, car, washer, dryer, fridge
       - { id: kitchen, area_id: kitchen, rect: [6, 0, 4, 8], floor: tile }
       - { id: garden, area_id: garden, kind: outdoor, rect: [0, 8, 10, 6], awning: cover.awning }
     walls:
@@ -172,4 +173,5 @@ uv pip install --python .venv/bin/python pytest-homeassistant-custom-component h
 
 ## License
 
-MIT
+MIT. The furniture models in `assets/models/` are by [Kenney](https://kenney.nl)
+(Furniture Kit and Car Kit, CC0). A card loads only the models its house uses.

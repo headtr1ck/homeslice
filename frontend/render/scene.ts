@@ -4,6 +4,7 @@
 // transition ends.
 
 import * as THREE from "three";
+import { buildPiece, loadModel, MODELS, modelFiles } from "./models";
 import type { House, Level, Vec2, Vertical } from "../model/types";
 import { innerPolygon, type Wall, type WallOpening } from "../model/walls";
 import { bbox, pointInPolygon } from "../model/geometry";
@@ -39,6 +40,8 @@ export interface ViewOptions {
   showOutdoor: boolean;
   /** Draw the house's roof in the overview (hidden while a floor is picked or hovered). */
   roof: boolean;
+  /** Furniture from simple shapes, or detailed models (loaded when first needed). */
+  furniture: "simple" | "detailed";
 }
 
 export const DEFAULT_VIEW: ViewOptions = {
@@ -52,6 +55,7 @@ export const DEFAULT_VIEW: ViewOptions = {
   levels: {},
   showOutdoor: true,
   roof: false,
+  furniture: "detailed",
 };
 
 /** View options from a card config or a saved view (which use snake_case keys). */
@@ -228,6 +232,13 @@ export class HouseRenderer {
   private roof: THREE.Group | null = null;
   /** Furniture materials of the level being built. */
   private furnitureMaterials = new Map<string, THREE.MeshLambertMaterial>();
+  /** Detailed furniture models' materials turned into the level's, per level being built. */
+  private modelMaterials = new Map<THREE.Material, THREE.MeshLambertMaterial>();
+  /** Bumped on every rebuild, so models that arrive late skip a house that is gone. */
+  private generation = 0;
+  private pendingModels: Promise<void>[] = [];
+  /** Called when something changes without a call from outside (a model has loaded). */
+  onChange?: () => void;
   /** The roof's shape and the level it sits on, for placing solar panels. */
   private roofInfo: { level: Level; shape: RoofShape } | null = null;
   private energyObjects: THREE.Object3D[] = [];
@@ -310,8 +321,11 @@ export class HouseRenderer {
   private clear() {
     cancelAnimationFrame(this.animation);
     cancelAnimationFrame(this.hoverAnimation);
+    this.generation++;
+    this.pendingModels = [];
     this.root.traverse((o) => {
-      if (o instanceof THREE.Mesh) o.geometry.dispose();
+      // loaded models share their geometry between pieces and cards
+      if (o instanceof THREE.Mesh && !o.userData.shared) o.geometry.dispose();
     });
     for (const l of this.levels) for (const m of l.materials) m.dispose();
     this.root.clear();
@@ -342,6 +356,7 @@ export class HouseRenderer {
   private buildLevel(level: Level, walls: Wall[], vertical: Vertical[]): THREE.Group {
     const g = new THREE.Group();
     this.furnitureMaterials.clear();
+    this.modelMaterials = new Map();
     g.name = level.id;
     const holes = holesFor(level, vertical);
 
@@ -939,6 +954,12 @@ export class HouseRenderer {
         g.add(leaves);
         break;
       }
+      case "washer":
+      case "dryer":
+      case "fridge":
+        box(w, f.height, d, 0, 0, 0, white);
+        box(w * 0.8, 0.01, 0.01, 0, f.height * (f.type === "fridge" ? 0.6 : 0.9), d / 2, dark);
+        break;
       case "car": {
         const paint = m("#3f6fa8");
         box(w, 0.65, d, 0, 0.28, 0, paint);
@@ -955,7 +976,52 @@ export class HouseRenderer {
     g.position.set(f.at[0], 0, f.at[1]);
     g.rotation.y = -(f.rotation * Math.PI) / 180;
     g.traverse((o) => (o.userData.outdoor = true)); // not a tap target: taps go to the room
+    if (this.view.furniture === "detailed" && MODELS[f.type]) this.detail(g, f);
     return g;
+  }
+
+  /** Swaps a piece's simple shapes for the detailed model once it has loaded. */
+  private detail(g: THREE.Group, f: Level["rooms"][number]["furniture"][number]) {
+    const generation = this.generation;
+    const materials = this.building!;
+    const converted = this.modelMaterials;
+    const convert = (source: THREE.Material) => {
+      let m = converted.get(source);
+      if (!m) {
+        const s = source as THREE.MeshStandardMaterial;
+        m = new THREE.MeshLambertMaterial({ color: s.color ?? 0xffffff, map: s.map ?? null, transparent: s.transparent, opacity: s.opacity });
+        converted.set(source, m);
+        materials.add(m);
+        // join the level's fading and hover tint as they are now
+        const level = this.levels.find((l) => l.materials === materials);
+        if (level) {
+          level.tintable.push(m);
+          m.emissive.copy(level.tintable[0].emissive);
+        }
+      }
+      return m;
+    };
+    const files = modelFiles(f.type);
+    const done = Promise.all(files.map(async (file) => [file, await loadModel(file)] as const)).then((loaded) => {
+      if (generation !== this.generation) return;
+      const piece = buildPiece(f.type, f.size, f.height, new Map(loaded), convert);
+      if (!piece) return; // keep the simple shapes
+      for (const child of [...g.children]) {
+        g.remove(child);
+        child.traverse((o) => o instanceof THREE.Mesh && o.geometry.dispose());
+      }
+      piece.traverse((o) => (o.userData.outdoor = true));
+      g.add(piece);
+      const level = this.levels.find((l) => l.materials === materials);
+      if (level) this.applyLevel(level);
+      this.onChange?.();
+    });
+    this.pendingModels.push(done);
+  }
+
+  /** Resolves when every detailed piece asked for so far has loaded (or failed). */
+  async modelsReady() {
+    await Promise.all(this.pendingModels);
   }
 
   /** The house as a three.js object (for exporting it). */

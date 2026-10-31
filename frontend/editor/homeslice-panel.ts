@@ -1082,6 +1082,7 @@ export class HomeslicePanel extends LitElement {
     if (!this.renderer) {
       try {
         this.renderer = new HouseRenderer(canvas);
+        this.renderer.onChange = () => this.renderer?.draw();
       } catch {
         return;
       }
@@ -2249,6 +2250,7 @@ export class HomeslicePanel extends LitElement {
     try {
       const walls = new Map(house.levels.map((l) => [l.id, deriveWalls(l, house.walls, issues)]));
       r.setModel(house, walls, { explode: 0, roof: true, showOutdoor: true });
+      await r.modelsReady();
       const glb = (await new GLTFExporter().parseAsync(r.object, { binary: true })) as ArrayBuffer;
       const a = document.createElement("a");
       a.href = URL.createObjectURL(new Blob([glb], { type: "model/gltf-binary" }));
