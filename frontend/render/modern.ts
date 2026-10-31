@@ -2673,6 +2673,395 @@ const BUILDERS: Record<string, Build> = {
     b.box(w * 0.4, 0.12, 0.1, 0, h - 0.18, -d / 2 + 0.2, a, 0.04);
     for (const sx of [-1, 1]) b.box(0.06, 0.2, 0.05, sx * w * 0.42, 0.5, 0.03, metal);
   },
+  // ----- bedroom and kids, more -----
+  bed_platform: (b, w, d, h, f) => {
+    // a low wooden platform wider than the mattress, a low headboard
+    b.box(w, 0.18, d, 0, 0.04, 0, f, 0.01);
+    b.box(w - 0.1, 0.04, d - 0.1, 0, 0, 0, mat(C.black));
+    b.box(w, h - 0.04, 0.05, 0, 0.04, -d / 2 + 0.025, f, 0.01);
+    bedding(b, w - 0.24, d - 0.2, 0.22, 0.05);
+  },
+  bed_canopy: (b, w, d, h, f) => {
+    b.box(w, 0.3, d, 0, 0.08, 0, f, 0.01);
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) b.box(0.06, h, 0.06, sx * (w / 2 - 0.03), 0, sz * (d / 2 - 0.03), f, 0.01);
+    for (const sz of [-1, 1]) b.box(w, 0.05, 0.05, 0, h - 0.05, sz * (d / 2 - 0.03), f);
+    for (const sx of [-1, 1]) b.box(0.05, 0.05, d, sx * (w / 2 - 0.03), h - 0.05, 0, f);
+    b.box(w - 0.1, 0.9, 0.04, 0, 0.38, -d / 2 + 0.05, f, 0.01);
+    bedding(b, w - 0.12, d - 0.14, 0.38, 0.02);
+    for (const sx of [-1, 1]) {
+      const drape = new THREE.PlaneGeometry(0.3, h - 0.5, 10, 1);
+      const pos = drape.attributes.position;
+      for (let i = 0; i < pos.count; i++) pos.setZ(i, Math.sin(pos.getX(i) * 40) * 0.025);
+      drape.computeVertexNormals();
+      b.add(drape, mat(C.linen, { side: THREE.DoubleSide, roughness: 1 }), sx * (w / 2 - 0.16), 0.5 + (h - 0.5) / 2 - 0.02, d / 2 - 0.05);
+    }
+  },
+  bed_upholstered: (b, w, d, h, f, _c, a) => {
+    // a padded frame, a tall buttoned headboard
+    b.box(w, 0.3, d - 0.08, 0, 0.08, 0.04, f, 0.05);
+    legs(b, w, d - 0.1, 0.08, 0.06, 0.02, a);
+    b.box(w + 0.06, h - 0.08, 0.12, 0, 0.08, -d / 2 + 0.06, f, 0.05);
+    const button = mat((f as THREE.MeshStandardMaterial).color.clone().multiplyScalar(0.7).getStyle());
+    for (let r = 0; r < 3; r++) for (let i = 0; i < Math.round(w / 0.2); i++) b.sphere(0.012, -w / 2 + 0.1 + i * 0.2 + (r % 2) * 0.1, 0.6 + r * 0.17, -d / 2 + 0.122, button, 1, 1, 0.5, 6);
+    bedding(b, w - 0.08, d - 0.16, 0.38, 0.04);
+  },
+  crib: (b, w, d, h, f) => {
+    // a cot: slatted sides, a mattress
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) b.box(0.045, h, 0.045, sx * (w / 2 - 0.022), 0, sz * (d / 2 - 0.022), f, 0.008);
+    for (const y of [0.25, h - 0.03]) {
+      for (const sz of [-1, 1]) b.box(w, 0.03, 0.03, 0, y, sz * (d / 2 - 0.022), f);
+      for (const sx of [-1, 1]) b.box(0.03, 0.03, d, sx * (w / 2 - 0.022), y, 0, f);
+    }
+    for (let i = 1; i < Math.round(d / 0.08); i++) for (const sx of [-1, 1]) b.box(0.02, h - 0.28, 0.02, sx * (w / 2 - 0.022), 0.27, -d / 2 + i * 0.08, f);
+    for (let i = 1; i < Math.round(w / 0.08); i++) for (const sz of [-1, 1]) b.box(0.02, h - 0.28, 0.02, -w / 2 + i * 0.08, 0.27, sz * (d / 2 - 0.022), f);
+    b.box(w - 0.08, 0.1, d - 0.08, 0, 0.28, 0, mat(C.mattress), 0.03);
+    b.box(w * 0.6, 0.05, d * 0.45, 0, 0.38, d * 0.15, mat("#bcd4e6", { roughness: 1 }), 0.02);
+  },
+  changing_table: (b, w, d, h, f, _c, a) => {
+    b.box(w, h - 0.12, d, 0, 0, 0, f, 0.006);
+    fronts(b, -w / 2, w, 0.02, h - 0.16, d / 2 - 0.018, 1, f, 3, "knob", a);
+    for (const sx of [-1, 1]) b.box(0.02, 0.12, d, sx * (w / 2 - 0.01), h - 0.12, 0, f);
+    b.box(w, 0.12, 0.02, 0, h - 0.12, -d / 2 + 0.01, f);
+    b.box(w - 0.06, 0.08, d - 0.06, 0, h - 0.12, 0.02, mat("#cfe0ea", { roughness: 1 }), 0.03);
+  },
+  dressing_table: (b, w, d, h, f, _c, a) => {
+    b.box(w, 0.03, d, 0, h - 0.03, 0, f, 0.006);
+    fronts(b, -w / 2, w, h - 0.15, 0.12, d / 2 - 0.018, 2, f, 1, "knob", a);
+    b.box(w, 0.12, d - 0.02, 0, h - 0.15, -0.01, f);
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) b.rod(v(sx * (w / 2 - 0.05), h - 0.15, sz * (d / 2 - 0.05)), v(sx * (w / 2 - 0.03), 0, sz * (d / 2 - 0.03)), 0.015, f, 8);
+    const r = Math.min(0.32, w * 0.3);
+    b.add(new THREE.CylinderGeometry(r, r, 0.02, 40).rotateX(Math.PI / 2), a, 0, h + r + 0.05, -d / 2 + 0.03);
+    b.add(new THREE.CircleGeometry(r * 0.94, 40), mat(C.mirror, { metalness: 0.9, roughness: 0.05 }), 0, h + r + 0.05, -d / 2 + 0.041);
+    b.box(0.04, 0.06, 0.03, 0, h, -d / 2 + 0.03, a);
+  },
+  toy_box: (b, w, d, h, f) => {
+    b.box(w, h - 0.03, d, 0, 0, 0, f, 0.02);
+    b.box(w + 0.02, 0.04, d + 0.02, 0, h - 0.04, 0, f, 0.015);
+    const rand = random(293);
+    for (let i = 0; i < 3; i++) b.box(0.06, 0.06, 0.06, -w * 0.3 + i * 0.12, h, (rand() - 0.5) * d * 0.4, mat(["#e04a3a", "#3a7de0", "#f2d14b"][i]), 0.01)?.rotation.set(0, rand(), 0);
+  },
+  rocking_horse: (b, w, d, h, f) => {
+    // a wooden horse on two rockers
+    for (const sx of [-1, 1]) {
+      const rocker = new THREE.TorusGeometry(d * 0.9, 0.018, 6, 24, 1.0);
+      rocker.rotateZ(Math.PI * 1.5 - 0.5);
+      rocker.rotateY(Math.PI / 2);
+      b.add(rocker, f, sx * (w / 2 - 0.02), d * 0.9 + 0.02, 0);
+      for (const sz of [-1, 1]) b.rod(v(sx * (w / 2 - 0.02), 0.06, sz * d * 0.3), v(sx * 0.05, h * 0.55, sz * d * 0.22), 0.02, f, 6);
+    }
+    b.add(new THREE.CapsuleGeometry(0.1, d * 0.35, 6, 12).rotateX(Math.PI / 2), f, 0, h * 0.6, 0);
+    b.box(0.09, 0.28, 0.12, 0, h * 0.62, d * 0.28, f, 0.03)?.rotation.set(-0.4, 0, 0);
+    b.box(0.08, 0.1, 0.2, 0, h * 0.82, d * 0.36, f, 0.03);
+    b.box(0.02, 0.2, 0.18, 0, h * 0.72, d * 0.25, mat("#5a3a24"), 0.008)?.rotation.set(-0.4, 0, 0);
+    b.box(0.14, 0.03, 0.18, 0, h * 0.7, 0, mat("#c8382c"), 0.01);
+  },
+  teepee: (b, w, d, h, f) => {
+    const r = Math.min(w, d) / 2;
+    const tent = new THREE.ConeGeometry(r, h * 0.9, 5, 1, true, 0.6, Math.PI * 2 - 1.0);
+    b.add(tent, mat((f as THREE.MeshStandardMaterial).color.getStyle(), { side: THREE.DoubleSide, roughness: 1 }), 0, h * 0.45, 0);
+    for (let i = 0; i < 5; i++) {
+      const ang = (i / 5) * Math.PI * 2;
+      b.rod(v(Math.cos(ang) * r, 0, Math.sin(ang) * r), v(-Math.cos(ang) * 0.12, h, -Math.sin(ang) * 0.12), 0.015, surface("oak", 0.7), 6);
+    }
+    b.cyl(r * 0.8, r * 0.8, 0.04, 0, 0, 0, mat(C.linen, { roughness: 1 }), 20);
+  },
+  kids_table: (b, w, d, h, f, _c, a) => {
+    // a small table with two little chairs
+    const tw = w * 0.6;
+    b.box(tw, 0.025, d, 0, h - 0.025, 0, f, 0.01);
+    legs(b, tw, d, h - 0.025, 0.04, 0.02, a);
+    for (const sx of [-1, 1]) {
+      const x = sx * (w / 2 - 0.12);
+      b.box(0.24, 0.02, 0.24, x, h * 0.6, 0, a, 0.006);
+      legs(b, 0.24, 0.24, h * 0.6, 0.03, 0.012, a);
+      b.box(0.02, h * 0.45, 0.22, x + sx * 0.11, h * 0.6, 0, a, 0.006);
+    }
+  },
+  // ----- utility, energy and garage -----
+  ironing_board: (b, w, d, h, f) => {
+    const s = new THREE.Shape();
+    s.moveTo(-w / 2, -d / 2);
+    s.lineTo(w / 2 - d, -d / 2);
+    s.quadraticCurveTo(w / 2 + 0.05, 0, w / 2 - d, d / 2);
+    s.lineTo(-w / 2, d / 2);
+    s.lineTo(-w / 2, -d / 2);
+    const geo = new THREE.ExtrudeGeometry(s, { depth: 0.03, bevelEnabled: false, curveSegments: 10 });
+    geo.rotateX(Math.PI / 2);
+    b.add(geo, f, 0, h, 0);
+    for (const sx of [-1, 1]) b.rod(v(sx * w * 0.3, 0, -d * 0.35), v(-sx * w * 0.25, h - 0.03, 0), 0.012, mat(C.steel), 6);
+    b.box(0.15, 0.08, 0.1, w * 0.3, h, 0, mat(C.ceramic), 0.02);
+  },
+  drying_rack: (b, w, d, h, f) => {
+    const steel = mat(C.chrome, { metalness: 0.6, roughness: 0.3 });
+    for (const sx of [-1, 1]) {
+      b.rod(v(sx * w / 2, 0, -d / 2), v(sx * w / 2, h, 0), 0.008, steel, 6);
+      b.rod(v(sx * w / 2, 0, d / 2), v(sx * w / 2, h, 0), 0.008, steel, 6);
+    }
+    for (let i = 0; i < 10; i++) {
+      const t = i / 9;
+      const z = (t - 0.5) * d * 0.9;
+      b.rod(v(-w / 2, h - Math.abs(z) * (h / (d / 2)) * 0.15, z), v(w / 2, h - Math.abs(z) * (h / (d / 2)) * 0.15, z), 0.004, steel, 4);
+    }
+    const rand = random(307);
+    for (let i = 0; i < 5; i++) b.box(0.3 + rand() * 0.2, 0.4 + rand() * 0.2, 0.008, -w / 2 + 0.25 + i * (w - 0.5) / 4, h - 0.3, (rand() - 0.5) * d * 0.6, mat(C.clothes[i % C.clothes.length], { side: THREE.DoubleSide }));
+    void f;
+  },
+  water_heater: (b, w, d, h, f) => {
+    const r = Math.min(w, d) / 2;
+    b.add(new THREE.CapsuleGeometry(r * 0.96, h - r * 2, 8, 28), f, 0, h / 2, 0);
+    for (const y of [0.25, 0.7]) b.rod(v(-r * 0.4, h * y, r), v(-r * 0.4, h * y, r + 0.12), 0.015, mat(C.steel), 6);
+    b.box(0.12, 0.08, 0.02, r * 0.3, h * 0.5, r * 0.98, mat(C.screen, { emissive: "#2a4a6a", emissiveIntensity: 0.4 }), 0.006);
+  },
+  heat_pump_indoor: (b, w, d, h, f) => {
+    // an indoor unit with its hot-water tank: a tall cabinet, a display, pipes on top
+    b.box(w, h - 0.15, d, 0, 0, 0, f, 0.02);
+    b.box(w, 0.04, d, 0, h * 0.42, 0.001, mat("#d9dcdf"));
+    b.box(0.16, 0.1, 0.01, 0, h * 0.7, d / 2 + 0.001, mat(C.screen, { emissive: "#2a5a8a", emissiveIntensity: 0.4 }), 0.006);
+    for (let i = 0; i < 4; i++) b.cyl(0.018, 0.018, 0.15, -w / 2 + 0.12 + i * (w - 0.24) / 3, h - 0.15, -d * 0.2, i % 2 ? mat("#b87333", { metalness: 0.6, roughness: 0.35 }) : mat(C.ceramic), 10);
+  },
+  fuse_box: (b, w, d, h, f) => {
+    b.box(w, h, d, 0, 0, 0, f, 0.01);
+    b.box(w - 0.04, h - 0.04, 0.01, 0, 0.02, d / 2, f, 0.006);
+    b.box(0.02, 0.1, 0.02, w / 2 - 0.05, h * 0.45, d / 2 + 0.01, mat(C.black), 0.004);
+    b.box(w * 0.4, 0.06, 0.004, 0, h * 0.8, d / 2 + 0.006, mat("#f2d14b"));
+  },
+  network_cabinet: (b, w, d, h, f) => {
+    // a small rack: glass door, a switch and a router with their lights
+    b.box(w, h, d, 0, 0, 0, f, 0.006);
+    b.box(w - 0.08, h - 0.08, 0.005, 0, 0.04, d / 2 + 0.001, mat("#6a7680", { transparent: true, opacity: 0.25, roughness: 0.1 }));
+    const units = [0.18, 0.32, 0.46];
+    for (const [i, y] of units.entries()) {
+      b.box(w - 0.12, 0.045, 0.01, 0, h * y, d / 2 - 0.02, mat("#2b2d31"));
+      for (let k = 0; k < 8; k++) b.box(0.008, 0.008, 0.004, -w / 2 + 0.1 + k * 0.035, h * y + 0.02, d / 2 - 0.013, mat(k % 3 ? "#3fd27a" : "#f2a53a", { emissive: k % 3 ? "#3fd27a" : "#f2a53a", emissiveIntensity: 0.8 }));
+      void i;
+    }
+  },
+  home_battery: (b, w, d, h, f) => {
+    b.box(w, h, d, 0, 0, 0, f, 0.03);
+    b.box(w * 0.04, h * 0.5, 0.004, -w * 0.35, h * 0.25, d / 2 + 0.001, mat("#3fd27a", { emissive: "#3fd27a", emissiveIntensity: 0.6 }));
+    b.box(w * 0.3, 0.04, 0.004, 0, h * 0.85, d / 2 + 0.001, mat("#9aa0a6"));
+  },
+  inverter: (b, w, d, h, f) => {
+    b.box(w, h, d, 0, 0, 0, f, 0.02);
+    for (let i = 0; i < 6; i++) b.box(w * 0.8, 0.008, 0.01, 0, 0.05 + i * 0.03, d / 2, mat("#9aa0a6"));
+    b.box(w * 0.3, 0.06, 0.004, 0, h * 0.7, d / 2 + 0.001, mat(C.screen, { emissive: "#2a4a6a", emissiveIntensity: 0.4 }), 0.004);
+    b.box(0.02, 0.02, 0.004, w * 0.25, h * 0.7, d / 2 + 0.001, mat("#3fd27a", { emissive: "#3fd27a", emissiveIntensity: 0.8 }));
+  },
+  freezer_chest: (b, w, d, h, f) => {
+    b.box(w, h - 0.05, d, 0, 0, 0, f, 0.03);
+    b.box(w + 0.01, 0.06, d + 0.01, 0, h - 0.06, 0, f, 0.025);
+    b.box(w * 0.3, 0.03, 0.03, 0, h - 0.07, d / 2 + 0.01, mat("#9aa0a6"), 0.01);
+    b.box(0.03, 0.02, 0.004, -w * 0.4, h * 0.85, d / 2 + 0.001, mat("#3fd27a", { emissive: "#3fd27a", emissiveIntensity: 0.6 }));
+  },
+  shelving_metal: (b, w, d, h, f) => {
+    // a garage rack: angle posts, four shelves, boxes and tins
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) b.box(0.035, h, 0.035, sx * (w / 2 - 0.018), 0, sz * (d / 2 - 0.018), f);
+    const rand = random(311);
+    for (let i = 0; i < 4; i++) {
+      const y = 0.08 + i * (h - 0.12) / 3;
+      b.box(w, 0.02, d, 0, y, 0, f);
+      let x = -w / 2 + 0.05;
+      while (x < w / 2 - 0.25 && i < 3) {
+        const bw = 0.2 + rand() * 0.2;
+        const bh = 0.15 + rand() * 0.2;
+        b.box(bw, bh, d * 0.8, x + bw / 2, y + 0.02, 0, mat(rand() > 0.5 ? "#b8956a" : ["#3a7de0", "#e04a3a", "#4f7a45", "#3a3d41"][Math.floor(rand() * 4)]), 0.01);
+        x += bw + 0.04;
+      }
+    }
+  },
+  workbench: (b, w, d, h, f, _c, a) => {
+    // a wooden top on a steel frame, a pegboard with tools behind it
+    b.box(w, 0.05, d, 0, h - 0.05, 0, surface("oak", 0.8), 0.006);
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) b.box(0.05, h - 0.05, 0.05, sx * (w / 2 - 0.05), 0, sz * (d / 2 - 0.05), a);
+    b.box(w - 0.1, 0.03, d - 0.1, 0, 0.15, 0, surface("oak", 0.8));
+    b.box(w, 0.8, 0.02, 0, h + 0.15, -d / 2 + 0.01, f);
+    const tool = mat("#2b2d31");
+    for (let i = 0; i < 7; i++) {
+      const x = -w / 2 + 0.15 + i * (w - 0.3) / 6;
+      if (i % 3 === 0) b.box(0.03, 0.28, 0.02, x, h + 0.35, -d / 2 + 0.035, mat("#c8382c"), 0.006);
+      else if (i % 3 === 1) b.add(new THREE.TorusGeometry(0.06, 0.012, 6, 16), tool, x, h + 0.6, -d / 2 + 0.035);
+      else b.box(0.12, 0.04, 0.02, x, h + 0.55, -d / 2 + 0.035, tool, 0.006);
+    }
+    b.box(0.2, 0.12, 0.12, w * 0.3, h, 0, mat("#c8382c"), 0.01);
+  },
+  // ----- garden furniture and plants, more -----
+  garden_chair: (b, w, d, h, f) => {
+    for (const sx of [-1, 1]) {
+      b.box(0.04, 0.42, 0.04, sx * (w / 2 - 0.03), 0, d / 2 - 0.05, f);
+      b.box(0.04, h, 0.04, sx * (w / 2 - 0.03), 0, -d / 2 + 0.05, f)?.rotation.set(-0.1, 0, 0);
+      b.box(0.05, 0.03, d - 0.08, sx * (w / 2 - 0.03), 0.6, 0, f);
+    }
+    for (let i = 0; i < 5; i++) b.box(w - 0.04, 0.02, 0.07, 0, 0.42, -d / 2 + 0.1 + i * (d - 0.15) / 4, f, 0.004);
+    for (let i = 0; i < 4; i++) b.box(w - 0.08, 0.06, 0.02, 0, 0.5 + i * (h - 0.55) / 4, -d / 2 + 0.06 - i * 0.012, f, 0.004);
+  },
+  garden_bench: (b, w, d, h, f, _c, a) => {
+    // wooden slats on cast iron sides
+    for (const sx of [-1, 1]) {
+      const x = sx * (w / 2 - 0.04);
+      b.box(0.04, 0.44, 0.05, x, 0, d / 2 - 0.08, a);
+      b.box(0.04, h, 0.05, x, 0, -d / 2 + 0.06, a)?.rotation.set(-0.12, 0, 0);
+      b.box(0.04, 0.04, d - 0.05, x, 0.62, 0.02, a, 0.01);
+      b.box(0.04, 0.04, d - 0.15, x, 0.4, 0, a);
+    }
+    for (let i = 0; i < 5; i++) b.box(w - 0.04, 0.025, 0.07, 0, 0.44, -d / 2 + 0.12 + i * (d - 0.2) / 4, f, 0.004);
+    for (let i = 0; i < 3; i++) b.box(w - 0.04, 0.07, 0.025, 0, 0.55 + i * 0.11, -d / 2 + 0.1 - i * 0.012, f, 0.004);
+  },
+  bistro_set: (b, w, d, h, f, _c, a) => {
+    const r = Math.min(0.35, d / 2);
+    b.cyl(r, r, 0.025, 0, h - 0.025, 0, f, 32);
+    b.cyl(0.02, 0.02, h - 0.025, 0, 0, 0, a, 10);
+    for (let i = 0; i < 3; i++) {
+      const ang = (i / 3) * Math.PI * 2;
+      b.rod(v(0, 0.15, 0), v(Math.cos(ang) * r * 0.8, 0, Math.sin(ang) * r * 0.8), 0.012, a, 6);
+    }
+    for (const sx of [-1, 1]) {
+      const x = sx * (w / 2 - 0.22);
+      b.cyl(0.2, 0.2, 0.02, x, 0.45, 0, f, 24);
+      for (const sz of [-1, 1]) for (const dx of [-1, 1]) b.rod(v(x + dx * 0.14, 0.45, sz * 0.14), v(x + dx * 0.18, 0, sz * 0.18), 0.009, a, 6);
+      const back2 = new THREE.TorusGeometry(0.17, 0.01, 6, 20, Math.PI);
+      back2.rotateY(sx > 0 ? -Math.PI / 2 : Math.PI / 2);
+      b.add(back2, a, x + sx * 0.14, 0.62, 0);
+    }
+  },
+  pergola: (b, w, d, h, f) => {
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) b.box(0.12, h, 0.12, sx * (w / 2 - 0.06), 0, sz * (d / 2 - 0.06), f);
+    for (const sz of [-1, 1]) b.box(w + 0.2, 0.18, 0.08, 0, h - 0.18, sz * (d / 2 - 0.06), f);
+    const n = Math.max(4, Math.round(w / 0.4));
+    for (let i = 0; i <= n; i++) b.box(0.05, 0.14, d + 0.2, -w / 2 - 0.05 + (i * (w + 0.1)) / n, h, 0, f);
+  },
+  outdoor_kitchen: (b, w, d, h, f) => {
+    // a masonry block with a grill, a sink and a worktop
+    b.box(w, h - 0.05, d, 0, 0, 0, f, 0.01);
+    b.box(w + 0.04, 0.05, d + 0.04, 0, h - 0.05, 0, mat("#3b3b3d", { roughness: 0.6 }), 0.006);
+    const steel = mat(C.steel, { metalness: 0.6, roughness: 0.35 });
+    b.box(0.75, 0.2, d * 0.7, -w / 2 + 0.55, h, -0.02, steel, 0.02);
+    fronts(b, -w / 2 + 0.17, 0.75, 0.12, h - 0.35, d / 2 - 0.018, 2, steel, 1, "bar");
+    b.box(0.45, 0.004, d * 0.55, w / 2 - 0.4, h, 0.02, mat("#6d7277", { metalness: 0.5, roughness: 0.4 }));
+    tapGooseneck(b, w / 2 - 0.4, h, -d / 2 + 0.08, mat(C.chrome, { metalness: 0.85, roughness: 0.2 }));
+  },
+  dog_house: (b, w, d, h, f) => {
+    const wall = h * 0.6;
+    b.box(w, wall, d, 0, 0, 0, f, 0.01);
+    gableRoof(b, d + 0.12, w + 0.12, wall, h - wall, mat(C.black));
+    b.g.children.at(-1)!.rotation.y = Math.PI / 2;
+    const door = new THREE.Shape();
+    door.moveTo(-0.15, 0);
+    door.lineTo(0.15, 0);
+    door.lineTo(0.15, wall * 0.5);
+    door.absarc(0, wall * 0.5, 0.15, 0, Math.PI, false);
+    b.add(new THREE.ShapeGeometry(door, 8), mat("#1c1c1c"), 0, 0, d / 2 + 0.002);
+  },
+  bird_house: (b, w, d, h, f) => {
+    b.cyl(0.03, 0.035, h - 0.25, 0, 0, 0, mat(C.trunk), 8);
+    b.box(w * 0.8, 0.2, d * 0.8, 0, h - 0.25, 0, f, 0.01);
+    gableRoof(b, w, d, h - 0.05, 0.08, mat("#8a3a32"));
+    b.add(new THREE.CircleGeometry(0.025, 12), mat("#1c1c1c"), 0, h - 0.13, d * 0.4 + 0.001);
+  },
+  fountain: (b, w, d, h, f) => {
+    const r = Math.min(w, d) / 2;
+    const water = mat("#5fb4d8", { transparent: true, opacity: 0.75, roughness: 0.05 });
+    b.add(new THREE.LatheGeometry([[0.001, 0], [r, 0], [r, 0.35], [r * 0.9, 0.35], [r * 0.9, 0.08], [0.001, 0.08]].map(([x, y]) => new THREE.Vector2(x, y)), 36), f);
+    b.cyl(r * 0.9, r * 0.9, 0.01, 0, 0.3, 0, water, 36);
+    b.cyl(0.08, 0.12, h * 0.55, 0, 0.08, 0, f, 16);
+    b.add(new THREE.LatheGeometry([[0.001, 0], [r * 0.45, 0.12], [r * 0.42, 0.14], [0.001, 0.05]].map(([x, y]) => new THREE.Vector2(x, y)), 28), f, 0, h * 0.6, 0);
+    b.cyl(r * 0.42, r * 0.42, 0.01, 0, h * 0.6 + 0.12, 0, water, 28);
+    b.cyl(0.03, 0.05, h * 0.25, 0, h * 0.6 + 0.1, 0, f, 12);
+    b.sphere(0.06, 0, h - 0.05, 0, f, 1, 1, 1, 14);
+  },
+  pond: (b, w, d, h, f) => {
+    const rand = random(313);
+    const s = new THREE.Shape();
+    for (let i = 0; i <= 24; i++) {
+      const ang = (i / 24) * Math.PI * 2;
+      const k = 0.85 + rand() * 0.15;
+      const p = new THREE.Vector2((Math.cos(ang) * w * k) / 2, (Math.sin(ang) * d * k) / 2);
+      if (i === 0) s.moveTo(p.x, p.y);
+      else s.lineTo(p.x, p.y);
+    }
+    b.add(new THREE.ShapeGeometry(s, 4).rotateX(-Math.PI / 2), mat("#3f7f9a", { roughness: 0.05 }), 0, h * 0.4, 0);
+    for (let i = 0; i < 24; i++) {
+      const ang = (i / 24) * Math.PI * 2;
+      b.sphere(0.12 + rand() * 0.08, (Math.cos(ang) * w) / 2, 0.05, (Math.sin(ang) * d) / 2, f, 1.3, 0.6, 1.1, 8);
+    }
+    for (let i = 0; i < 6; i++) b.add(new THREE.CircleGeometry(0.1, 12, 0.3, Math.PI * 1.8), leafMat("#4f8a3a"), (rand() - 0.5) * w * 0.5, h * 0.4 + 0.005, (rand() - 0.5) * d * 0.5).rotation.x = -Math.PI / 2;
+    b.sphere(0.04, w * 0.1, h * 0.4 + 0.03, 0, mat("#f4c6d6"), 1, 0.6, 1, 8);
+  },
+  string_lights: (b, w, d, h, f) => {
+    // two posts, a sagging string of warm bulbs
+    for (const sx of [-1, 1]) b.box(0.08, h, 0.08, sx * (w / 2 - 0.04), 0, 0, f);
+    const pts: THREE.Vector3[] = [];
+    for (let i = 0; i <= 20; i++) {
+      const t = i / 20;
+      pts.push(v(-w / 2 + 0.04 + t * (w - 0.08), h - 0.05 - Math.sin(t * Math.PI) * h * 0.15, 0));
+    }
+    b.add(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 40, 0.004, 4), mat(C.black));
+    for (let i = 1; i < 20; i += 1.5) {
+      const p = pts[Math.floor(i)];
+      bulb(b, p.x, p.y - 0.05, 0, 0.025);
+    }
+    void d;
+  },
+  lantern: (b, w, d, h, f) => {
+    const r = Math.min(w, d) / 2;
+    b.box(r * 2, 0.03, r * 2, 0, 0, 0, f, 0.006);
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) b.box(0.015, h * 0.7, 0.015, sx * (r - 0.01), 0.03, sz * (r - 0.01), f);
+    b.box(r * 1.9, h * 0.7, r * 1.9, 0, 0.03, 0, glass());
+    b.cyl(0.03, 0.035, h * 0.35, 0, 0.03, 0, mat(C.ceramic), 12);
+    bulb(b, 0, 0.03 + h * 0.4, 0, 0.012);
+    b.add(new THREE.ConeGeometry(r * 1.1, h * 0.15, 4).rotateY(Math.PI / 4), f, 0, 0.03 + h * 0.77, 0);
+    b.add(new THREE.TorusGeometry(0.04, 0.008, 6, 14), f, 0, h - 0.03, 0);
+  },
+  rose_bush: (b, w, d, h) => {
+    const rand = random(317);
+    foliage(b, rand, 0, h * 0.5, 0, w / 2, h / 2, d / 2, 260, 0.08, [C.leafDark, C.leaf]);
+    for (let i = 0; i < 26; i++) {
+      const u = rand() * Math.PI * 2;
+      const wv = Math.acos(2 * rand() - 1);
+      b.sphere(0.04, Math.sin(wv) * Math.cos(u) * w * 0.48, h * 0.5 + Math.cos(wv) * h * 0.48, Math.sin(wv) * Math.sin(u) * d * 0.48, mat(rand() > 0.3 ? "#c2273a" : "#e88aa0"), 1, 0.8, 1, 8);
+    }
+  },
+  hydrangea: (b, w, d, h) => {
+    const rand = random(331);
+    foliage(b, rand, 0, h * 0.45, 0, w / 2, h * 0.45, d / 2, 200, 0.12, [C.leaf, C.leafDark]);
+    for (let i = 0; i < 16; i++) {
+      const u = rand() * Math.PI * 2;
+      const wv = Math.acos(rand() * 0.9);
+      b.batch(new THREE.IcosahedronGeometry(0.09, 1), mat(["#8fa6e0", "#b59ad9", "#e6a8c4"][i % 3], { roughness: 1 }), matrix(Math.sin(wv) * Math.cos(u) * w * 0.42, h * 0.45 + Math.cos(wv) * h * 0.45, Math.sin(wv) * Math.sin(u) * d * 0.42));
+    }
+  },
+  bamboo: (b, w, d, h) => {
+    const rand = random(337);
+    for (let i = 0; i < 18; i++) {
+      const x = (rand() - 0.5) * w * 0.8;
+      const z = (rand() - 0.5) * d * 0.8;
+      const top = h * (0.7 + rand() * 0.3);
+      const tip = v(x + (rand() - 0.5) * 0.3, top, z + (rand() - 0.5) * 0.3);
+      b.rod(v(x, 0, z), tip, 0.015, mat(i % 2 ? "#8aa35a" : "#6f8f48"), 6);
+      for (let k = 0; k < 10; k++) {
+        const p = v(x, 0, z).lerp(tip, 0.4 + (k / 10) * 0.6);
+        b.batch(leafGeometry(0.16, 0.025, 0.4), leafMat(k % 2 ? C.leaf : C.leafLight), matrix(p.x, p.y, p.z, -1.0, rand() * 6, 0));
+      }
+    }
+  },
+  boxwood_ball: (b, w, d, h, f) => {
+    const ph = h * 0.35;
+    pot(b, Math.min(w, d) * 0.42, ph, f);
+    const r = Math.min(w, d, h - ph) / 2;
+    foliage(b, random(347), 0, ph + r, 0, r, r, r, 220, 0.06, [C.leafDark, "#3f7037", C.leaf]);
+  },
+  topiary_cone: (b, w, d, h, f) => {
+    const ph = Math.min(0.4, h * 0.28);
+    pot(b, Math.min(w, d) * 0.42, ph, f);
+    const rand = random(349);
+    b.batch(new THREE.ConeGeometry(Math.min(w, d) * 0.42, h - ph, 16), mat(C.leafDark), matrix(0, ph + (h - ph) / 2, 0));
+    const leaf = smallLeaf(0.05);
+    for (let i = 0; i < 260; i++) {
+      const t = rand();
+      const ang = rand() * Math.PI * 2;
+      const rr = Math.min(w, d) * 0.42 * (1 - t);
+      b.batch(leaf.clone(), leafMat(i % 2 ? C.leaf : "#3f7037"), matrix(Math.cos(ang) * rr, ph + t * (h - ph), Math.sin(ang) * rr, rand() * 3, rand() * 6, rand() * 3));
+    }
+  },
   // ----- vehicles -----
   car_hatchback: (b, w, d, h, _f, color) => car(b, w, d, h, color, "hatchback"),
   car_estate: (b, w, d, h, _f, color) => car(b, w, d, h, color, "estate"),
@@ -3222,6 +3611,15 @@ function art(b: Builder, w: number, h: number, y0: number, z: number, color: str
     if (i % 2) b.add(new THREE.CircleGeometry(Math.min(w, h) * (0.15 + rand() * 0.15), 28), m, x, y, z + i * 0.0005);
     else b.add(new THREE.PlaneGeometry(w * (0.3 + rand() * 0.4), h * (0.2 + rand() * 0.3)), m, x, y, z + i * 0.0005);
   }
+}
+
+/** A made bed's mattress, duvet and pillows, its mattress on y. */
+function bedding(b: Builder, w: number, d: number, y: number, back = 0.04) {
+  b.box(w, 0.2, d, 0, y, back / 2, mat(C.mattress), 0.05);
+  b.box(w + 0.02, 0.07, d * 0.66, 0, y + 0.18, d / 2 - (d * 0.66) / 2 + back / 2, mat(C.linen, { roughness: 1 }), 0.035);
+  b.box(w + 0.02, 0.04, 0.3, 0, y + 0.21, d / 2 - d * 0.66 + 0.12 + back / 2, mat(C.linen, { roughness: 1 }), 0.02);
+  const n = w > 1.2 ? 2 : 1;
+  for (let i = 0; i < n; i++) b.box(w / n - 0.14, 0.13, 0.36, -w / 2 + (w / n) * (i + 0.5), y + 0.18, -d / 2 + 0.27 + back / 2, mat(C.pillow), 0.06);
 }
 
 function tvPanel(b: Builder, w: number, h: number, y: number, z: number) {

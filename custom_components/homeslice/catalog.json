@@ -2582,6 +2582,205 @@
    ]
   },
   {
+   "model": "modern:bed_platform",
+   "name": "Platform bed",
+   "group": "bedroom",
+   "type": "bed",
+   "size": [
+    2,
+    2.2,
+    0.7
+   ],
+   "finishes": [
+    "oak",
+    "walnut",
+    "black",
+    "white"
+   ]
+  },
+  {
+   "model": "modern:bed_canopy",
+   "name": "Four-poster bed",
+   "group": "bedroom",
+   "type": "bed",
+   "size": [
+    1.8,
+    2.1,
+    2.1
+   ],
+   "finishes": [
+    "oak",
+    "walnut",
+    "black",
+    "white"
+   ]
+  },
+  {
+   "model": "modern:bed_upholstered",
+   "name": "Upholstered bed",
+   "group": "bedroom",
+   "type": "bed",
+   "size": [
+    1.8,
+    2.15,
+    1.25
+   ],
+   "finishes": [
+    "grey",
+    "beige",
+    "anthracite",
+    "green",
+    "blue",
+    "terracotta",
+    "pink"
+   ],
+   "accents": [
+    "black",
+    "oak",
+    "walnut",
+    "brass"
+   ]
+  },
+  {
+   "model": "modern:crib",
+   "name": "Cot",
+   "group": "bedroom",
+   "type": "bed_single",
+   "size": [
+    0.68,
+    1.28,
+    0.95
+   ],
+   "finishes": [
+    "white",
+    "oak",
+    "green",
+    "pink",
+    "blue"
+   ]
+  },
+  {
+   "model": "modern:changing_table",
+   "name": "Changing table",
+   "group": "bedroom",
+   "type": "shelf",
+   "size": [
+    0.8,
+    0.55,
+    1
+   ],
+   "finishes": [
+    "white",
+    "oak",
+    "green",
+    "pink",
+    "blue"
+   ],
+   "accents": [
+    "oak",
+    "white",
+    "black"
+   ]
+  },
+  {
+   "model": "modern:dressing_table",
+   "name": "Dressing table",
+   "group": "bedroom",
+   "type": "desk",
+   "size": [
+    1,
+    0.45,
+    0.76
+   ],
+   "finishes": [
+    "white",
+    "oak",
+    "walnut",
+    "pink"
+   ],
+   "accents": [
+    "brass",
+    "black",
+    "oak",
+    "white"
+   ]
+  },
+  {
+   "model": "modern:toy_box",
+   "name": "Toy box",
+   "group": "bedroom",
+   "type": "item",
+   "size": [
+    0.8,
+    0.42,
+    0.45
+   ],
+   "finishes": [
+    "white",
+    "blue",
+    "green",
+    "pink",
+    "oak"
+   ]
+  },
+  {
+   "model": "modern:rocking_horse",
+   "name": "Rocking horse",
+   "group": "bedroom",
+   "type": "item",
+   "size": [
+    0.32,
+    0.85,
+    0.72
+   ],
+   "finishes": [
+    "oak",
+    "white",
+    "walnut"
+   ]
+  },
+  {
+   "model": "modern:teepee",
+   "name": "Play tent",
+   "group": "bedroom",
+   "type": "item",
+   "size": [
+    1.3,
+    1.3,
+    1.8
+   ],
+   "finishes": [
+    "beige",
+    "white",
+    "grey",
+    "pink",
+    "green"
+   ]
+  },
+  {
+   "model": "modern:kids_table",
+   "name": "Kids' table and chairs",
+   "group": "bedroom",
+   "type": "table",
+   "size": [
+    1.1,
+    0.6,
+    0.52
+   ],
+   "finishes": [
+    "white",
+    "oak",
+    "green",
+    "pink",
+    "blue"
+   ],
+   "accents": [
+    "oak",
+    "white",
+    "black"
+   ]
+  },
+  {
    "model": "modern:nightstand",
    "name": "Nightstand",
    "group": "bedroom",
@@ -4640,6 +4839,90 @@
    ]
   },
   {
+   "model": "modern:rose_bush",
+   "name": "Rose bush",
+   "group": "outside",
+   "type": "bush",
+   "size": [
+    0.8,
+    0.8,
+    1
+   ],
+   "finishes": [
+    "green"
+   ]
+  },
+  {
+   "model": "modern:hydrangea",
+   "name": "Hydrangea",
+   "group": "outside",
+   "type": "bush",
+   "size": [
+    1,
+    1,
+    1
+   ],
+   "finishes": [
+    "green"
+   ]
+  },
+  {
+   "model": "modern:bamboo",
+   "name": "Bamboo",
+   "group": "outside",
+   "type": "bush",
+   "size": [
+    1.2,
+    0.6,
+    2.6
+   ],
+   "finishes": [
+    "green"
+   ]
+  },
+  {
+   "model": "modern:boxwood_ball",
+   "name": "Box ball in a pot",
+   "group": "outside",
+   "type": "plant",
+   "size": [
+    0.6,
+    0.6,
+    0.85
+   ],
+   "finishes": [
+    "white",
+    "terracotta",
+    "anthracite",
+    "concrete",
+    "sand",
+    "green",
+    "pink",
+    "black"
+   ]
+  },
+  {
+   "model": "modern:topiary_cone",
+   "name": "Cone topiary",
+   "group": "outside",
+   "type": "plant",
+   "size": [
+    0.55,
+    0.55,
+    1.4
+   ],
+   "finishes": [
+    "white",
+    "terracotta",
+    "anthracite",
+    "concrete",
+    "sand",
+    "green",
+    "pink",
+    "black"
+   ]
+  },
+  {
    "model": "modern:path_stepping",
    "name": "Stepping stones",
    "group": "outside",
@@ -4746,6 +5029,201 @@
     "anthracite",
     "black",
     "oak"
+   ]
+  },
+  {
+   "model": "modern:garden_chair",
+   "name": "Garden chair",
+   "group": "outside",
+   "type": "chair",
+   "size": [
+    0.6,
+    0.6,
+    0.85
+   ],
+   "finishes": [
+    "oak",
+    "walnut",
+    "anthracite",
+    "white"
+   ]
+  },
+  {
+   "model": "modern:garden_bench",
+   "name": "Garden bench",
+   "group": "outside",
+   "type": "bench",
+   "size": [
+    1.5,
+    0.62,
+    0.85
+   ],
+   "finishes": [
+    "oak",
+    "walnut",
+    "white",
+    "green"
+   ],
+   "accents": [
+    "black",
+    "anthracite",
+    "green"
+   ]
+  },
+  {
+   "model": "modern:bistro_set",
+   "name": "Bistro set",
+   "group": "outside",
+   "type": "table",
+   "size": [
+    1.5,
+    0.7,
+    0.72
+   ],
+   "finishes": [
+    "green",
+    "black",
+    "white",
+    "terracotta",
+    "blue"
+   ],
+   "accents": [
+    "black",
+    "green",
+    "white"
+   ]
+  },
+  {
+   "model": "modern:pergola",
+   "name": "Pergola",
+   "group": "outside",
+   "type": "item",
+   "size": [
+    3.5,
+    3,
+    2.5
+   ],
+   "finishes": [
+    "oak",
+    "walnut",
+    "anthracite",
+    "white"
+   ]
+  },
+  {
+   "model": "modern:outdoor_kitchen",
+   "name": "Outdoor kitchen",
+   "group": "outside",
+   "type": "kitchen",
+   "size": [
+    2.4,
+    0.7,
+    0.92
+   ],
+   "finishes": [
+    "concrete",
+    "anthracite",
+    "white",
+    "terracotta"
+   ]
+  },
+  {
+   "model": "modern:dog_house",
+   "name": "Dog kennel",
+   "group": "outside",
+   "type": "item",
+   "size": [
+    0.8,
+    1,
+    0.85
+   ],
+   "finishes": [
+    "oak",
+    "red",
+    "green",
+    "white"
+   ]
+  },
+  {
+   "model": "modern:bird_house",
+   "name": "Bird house",
+   "group": "outside",
+   "type": "item",
+   "size": [
+    0.25,
+    0.25,
+    1.8
+   ],
+   "finishes": [
+    "white",
+    "oak",
+    "green",
+    "blue"
+   ]
+  },
+  {
+   "model": "modern:fountain",
+   "name": "Fountain",
+   "group": "outside",
+   "type": "item",
+   "size": [
+    1.2,
+    1.2,
+    1.2
+   ],
+   "finishes": [
+    "concrete",
+    "sand",
+    "anthracite"
+   ]
+  },
+  {
+   "model": "modern:pond",
+   "name": "Pond",
+   "group": "outside",
+   "type": "item",
+   "size": [
+    2.6,
+    1.8,
+    0.15
+   ],
+   "finishes": [
+    "grey",
+    "sand",
+    "anthracite"
+   ]
+  },
+  {
+   "model": "modern:string_lights",
+   "name": "String lights",
+   "group": "outside",
+   "type": "item",
+   "size": [
+    4,
+    0.1,
+    2.6
+   ],
+   "finishes": [
+    "oak",
+    "anthracite",
+    "black"
+   ]
+  },
+  {
+   "model": "modern:lantern",
+   "name": "Lantern",
+   "group": "outside",
+   "type": "item",
+   "size": [
+    0.25,
+    0.25,
+    0.55
+   ],
+   "finishes": [
+    "black",
+    "white",
+    "brass",
+    "anthracite"
    ]
   },
   {
@@ -5403,6 +5881,195 @@
    ],
    "finishes": [
     "sand"
+   ]
+  },
+  {
+   "model": "modern:ironing_board",
+   "name": "Ironing board",
+   "group": "utility",
+   "type": "item",
+   "size": [
+    1.25,
+    0.38,
+    0.9
+   ],
+   "finishes": [
+    "blue",
+    "grey",
+    "white",
+    "green"
+   ]
+  },
+  {
+   "model": "modern:drying_rack",
+   "name": "Clothes airer",
+   "group": "utility",
+   "type": "item",
+   "size": [
+    1.4,
+    0.6,
+    0.95
+   ],
+   "finishes": [
+    "silver"
+   ]
+  },
+  {
+   "model": "modern:water_heater",
+   "name": "Hot water tank",
+   "group": "utility",
+   "type": "item",
+   "size": [
+    0.6,
+    0.6,
+    1.7
+   ],
+   "finishes": [
+    "white",
+    "silver",
+    "anthracite"
+   ]
+  },
+  {
+   "model": "modern:heat_pump_indoor",
+   "name": "Heat pump indoor unit",
+   "group": "utility",
+   "type": "item",
+   "size": [
+    0.6,
+    0.65,
+    1.85
+   ],
+   "finishes": [
+    "white",
+    "anthracite",
+    "silver"
+   ]
+  },
+  {
+   "model": "modern:fuse_box",
+   "name": "Fuse box",
+   "group": "utility",
+   "type": "item",
+   "size": [
+    0.55,
+    0.15,
+    0.8
+   ],
+   "finishes": [
+    "white",
+    "grey",
+    "anthracite"
+   ],
+   "mount": "wall",
+   "elevation": 1.1
+  },
+  {
+   "model": "modern:network_cabinet",
+   "name": "Network cabinet",
+   "group": "utility",
+   "type": "item",
+   "size": [
+    0.6,
+    0.4,
+    0.6
+   ],
+   "finishes": [
+    "black",
+    "anthracite",
+    "white"
+   ],
+   "mount": "wall",
+   "elevation": 1.2
+  },
+  {
+   "model": "modern:home_battery",
+   "name": "Home battery",
+   "group": "utility",
+   "type": "item",
+   "size": [
+    0.6,
+    0.2,
+    1
+   ],
+   "finishes": [
+    "white",
+    "anthracite",
+    "silver"
+   ],
+   "mount": "wall",
+   "elevation": 0.3
+  },
+  {
+   "model": "modern:inverter",
+   "name": "Solar inverter",
+   "group": "utility",
+   "type": "item",
+   "size": [
+    0.45,
+    0.18,
+    0.55
+   ],
+   "finishes": [
+    "white",
+    "anthracite",
+    "silver"
+   ],
+   "mount": "wall",
+   "elevation": 1.2
+  },
+  {
+   "model": "modern:freezer_chest",
+   "name": "Chest freezer",
+   "group": "utility",
+   "type": "fridge",
+   "size": [
+    1,
+    0.65,
+    0.85
+   ],
+   "finishes": [
+    "white",
+    "silver",
+    "anthracite"
+   ]
+  },
+  {
+   "model": "modern:shelving_metal",
+   "name": "Garage shelving",
+   "group": "utility",
+   "type": "shelf",
+   "size": [
+    1.2,
+    0.45,
+    1.8
+   ],
+   "finishes": [
+    "anthracite",
+    "silver",
+    "black"
+   ]
+  },
+  {
+   "model": "modern:workbench",
+   "name": "Workbench",
+   "group": "utility",
+   "type": "desk",
+   "size": [
+    1.6,
+    0.7,
+    0.9
+   ],
+   "finishes": [
+    "oak",
+    "anthracite",
+    "blue"
+   ],
+   "accents": [
+    "anthracite",
+    "blue",
+    "red",
+    "silver"
    ]
   },
   {
