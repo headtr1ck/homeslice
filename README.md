@@ -5,7 +5,11 @@
 [![CI](https://github.com/headtr1ck/homeslice/actions/workflows/ci.yml/badge.svg)](https://github.com/headtr1ck/homeslice/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-> **Early development — the format may still change.**
+> [!WARNING]
+> **Early alpha.** Homeslice is young and changes quickly: the house format, the card's
+> options and the editor may change between versions without migration, and there will be
+> bugs. Keep a copy of your house (editor → ⚙ → *Download* YAML) and expect to adjust it
+> after updates. Feedback and issues are very welcome.
 
 Model your house once — floors, rooms, walls, windows, devices — linked to Home Assistant's
 own floors, areas and entities, and show it as an interactive, exploded isometric 3D view
@@ -13,7 +17,7 @@ on your dashboards.
 
 ## Status
 
-Card and editor work; the format may still change before a first release.
+Alpha: card and editor work and are used daily on one house, but nothing is stable yet.
 
 - **Card:** exploded 3D view with live lights (a pool of light per lamp), blinds, window
   contacts, temperatures and awnings; floor focus and hover; room popups (a bottom sheet
