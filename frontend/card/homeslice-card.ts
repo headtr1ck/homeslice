@@ -611,6 +611,8 @@ export class HomesliceCard extends LitElement {
       ...this.openings.filter((o) => o.levelId === r.levelId && o.room === r.room.id).flatMap((o) => [o.cover, o.contact]),
       ...this.roomLights(key),
       r.room.awning,
+      // what its furniture is linked to (a TV, a washing machine, …)
+      ...r.room.furniture.map((f) => f.entity),
     ].filter((e): e is string => !!e);
     const generated: { title: string; cards: Record<string, unknown>[] }[] =
       override?.mode === "replace"

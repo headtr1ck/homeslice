@@ -11,6 +11,8 @@ export interface PlacedLight {
   at: Vec2;
   /** Placed automatically (not in the model). */
   auto: boolean;
+  /** The light of a piece of furniture. */
+  piece?: boolean;
 }
 
 /** Lights listed in any room of the house: those are never auto-placed elsewhere. */
@@ -53,5 +55,5 @@ export function placeLights(levelId: string, room: Room, polygon: Vec2[], areaLi
   ];
   const free = spread(polygon, entries.filter((e) => !e.at).length);
   let i = 0;
-  return entries.map((e) => ({ levelId, roomId: room.id, entity: e.entity, at: e.at ?? free[i++], auto: !e.at }));
+  return entries.map((e) => ({ levelId, roomId: room.id, entity: e.entity, at: e.at ?? free[i++], auto: !e.at, ...("piece" in e && e.piece ? { piece: true } : {}) }));
 }

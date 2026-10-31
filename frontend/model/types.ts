@@ -97,6 +97,11 @@ export interface FurnitureInput {
   elevation?: number;
   /** Flipped left to right, e.g. a corner sofa with its long side on the other end. */
   mirror?: boolean;
+  /**
+   * The entity this piece is, e.g. a floor lamp's light (it then glows where the piece
+   * stands) or a TV's media player (shown in the room's popup).
+   */
+  entity?: string;
 }
 
 export interface LightInput {
@@ -338,9 +343,10 @@ export interface Room {
   polygon: Vec2[];
   awning?: string;
   /** As in the input, with `at` in plan coordinates. */
-  lights: { entity: string; at?: Vec2; hidden: boolean }[];
+  /** `piece`: the light of a piece of furniture (placed where the piece is). */
+  lights: { entity: string; at?: Vec2; hidden: boolean; piece?: boolean }[];
   /** `elevation`: bottom above the floor in metres (ceiling pieces: null, they hang from the ceiling). */
-  furniture: { type: FurnitureType; at: Vec2; rotation: number; size: [number, number]; height: number; mount: FurnitureMount; elevation: number | null; mirror: boolean }[];
+  furniture: { type: FurnitureType; at: Vec2; rotation: number; size: [number, number]; height: number; mount: FurnitureMount; elevation: number | null; mirror: boolean; entity?: string }[];
 }
 
 /** Where an opening is defined: a level's own list, or a façade entry shared by levels. */

@@ -1393,6 +1393,26 @@ console.log("editor");
     assert(errors.length === 0, errors.join(" | "));
   });
 
+  await test("a floor lamp linked to a light: the lamp marker goes, the piece is the lamp", async () => {
+    await page.keyboard.press("Escape");
+    await page.keyboard.press("Escape");
+    const lb = await page.locator('homeslice-panel svg.plan g[data-room="living"] polygon').boundingBox();
+    await page.mouse.click(lb.x + lb.width * 0.85, lb.y + lb.height * 0.9);
+    await page.locator("homeslice-panel .inspector button", { hasText: "Add furniture" }).click();
+    await page.locator('homeslice-panel .inspector .library button[data-type="floor_lamp"]').click();
+    const lampMarkers = () => page.locator('homeslice-panel svg.plan [data-light*="light.reading_lamp"]').count();
+    assert((await lampMarkers()) === 1, "the reading lamp should have its marker before linking");
+    await page.locator("homeslice-panel .inspector label", { hasText: "Linked to" }).locator("select").selectOption("light.reading_lamp");
+    const piece = (await room("living")).furniture.find((f) => f.type === "floor_lamp");
+    assert(piece?.entity === "light.reading_lamp", `piece: ${JSON.stringify(piece)}`);
+    assert((await lampMarkers()) === 0, "the lamp marker should give way to the piece");
+    await page.evaluate(() => window.panel.shadowRoot.activeElement?.blur());
+    await page.keyboard.press("Control+z");
+    await page.keyboard.press("Control+z");
+    await page.keyboard.press("Escape");
+    await page.keyboard.press("Escape");
+  });
+
   await test("robots: place a mower's dock, show it live from GPS after two calibration spots", async () => {
     await page.keyboard.press("Escape");
     await page.locator('homeslice-panel aside.tools button.tool[data-tool="devices"]').click();

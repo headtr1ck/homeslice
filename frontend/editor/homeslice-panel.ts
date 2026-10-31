@@ -1993,7 +1993,8 @@ export class HomeslicePanel extends LitElement {
   }
 
   private renderLamps() {
-    return svg`${this.levelLamps().map((l) => {
+    // a piece's light is moved with the piece
+    return svg`${this.levelLamps().filter((l) => !l.piece).map((l) => {
       const [x, y] = this.toScreen(l.at);
       const on = this._hass?.states[l.entity]?.state === "on";
       const sel = this._room === l.roomId;
@@ -2085,6 +2086,8 @@ export class HomeslicePanel extends LitElement {
           : nothing}
       </div>
       <p class="muted">${this.t(`editor.mount_${mountOf(f)}_hint` as StringKey)}</p>
+      ${this.linkSelect(r.area_id, f.entity, (entity) => set({ entity }))}
+      <p class="muted">${this.t("editor.furniture_entity_hint")}</p>
       <div class="row">
         <button title=${this.t("editor.turn_left")} @click=${() => this.rotateFurniture(-90)}>⟲ 90°</button>
         <button title=${this.t("editor.turn_right")} @click=${() => this.rotateFurniture(90)}>⟳ 90°</button>
@@ -3436,6 +3439,23 @@ export class HomeslicePanel extends LitElement {
     const { model, index } = addFurniture(m, this._level, sel.room, { ...f, at });
     this.commit(model);
     this._furn = { room: sel.room, index };
+  }
+
+  /** An entity a piece of furniture is: the area's own first, then all of the usual domains. */
+  private linkSelect(areaId: string | undefined, value: string | undefined, onChange: (id: string | undefined) => void) {
+    const domains = ["light", "switch", "media_player", "fan", "climate", "humidifier", "vacuum", "sensor", "binary_sensor", "cover", "water_heater"];
+    const hass = this._hass;
+    const states = hass?.states ?? {};
+    const name = (id: string) => (states[id]?.attributes.friendly_name as string | undefined) ?? id;
+    const all = Object.keys(states).filter((id) => domains.includes(id.split(".")[0]));
+    const own = new Set(areaId && hass ? domains.flatMap((d) => areaEntities(hass, areaId, d)) : []);
+    const ids = [...all.filter((id) => own.has(id)).sort((a, b) => name(a).localeCompare(name(b))), ...all.filter((id) => !own.has(id)).sort((a, b) => name(a).localeCompare(name(b)))];
+    return html`<label>${this.t("editor.furniture_entity")}
+      <select @change=${(e: Event) => onChange((e.target as HTMLSelectElement).value || undefined)}>
+        <option value="">—</option>
+        ${ids.map((id) => html`<option value=${id} ?selected=${value === id}>${own.has(id) ? `★ ${name(id)}` : name(id)}</option>`)}
+      </select>
+    </label>`;
   }
 
   /** Changes how a piece is mounted; on a wall it moves against the nearest one. */

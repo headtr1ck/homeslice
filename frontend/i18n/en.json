@@ -442,5 +442,7 @@
   "editor.opening_window_double": "Double window",
   "editor.opening_window_fixed": "Fixed window",
   "editor.opening_door_sliding": "Sliding door",
-  "editor.opening_opening_arch": "Arched opening"
+  "editor.opening_opening_arch": "Arched opening",
+  "editor.furniture_entity": "Linked to",
+  "editor.furniture_entity_hint": "The entity this piece is: a floor lamp's light glows where the lamp stands; a TV or washing machine shows in the room's popup."
 }

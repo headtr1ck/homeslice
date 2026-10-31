@@ -405,3 +405,13 @@ describe("furniture", () => {
     expect(house!.levels[0].rooms[0].furniture.map((f) => f.mirror)).toEqual([true, false]);
   });
 });
+
+describe("furniture linked to entities", () => {
+  it("a floor lamp's light is where the lamp stands, and moves with it", () => {
+    const input = (at: [number, number]) => ({ schema: 1, id: "f", outline: { rect: [0, 0, 5, 5] }, levels: [{ id: "g", rooms: [{ id: "r", rect: [0, 0, 5, 5], lights: [{ entity: "light.lamp", at: [1, 1] }], furniture: [{ type: "floor_lamp", at, entity: "light.lamp" }, { type: "tv", at: [2, 4], entity: "media_player.tv" }] }] }] });
+    const room = expandHouse(input([4, 1])).house!.levels[0].rooms[0];
+    expect(room.lights).toEqual([{ entity: "light.lamp", at: [4, 1], hidden: false, piece: true }]);
+    expect(room.furniture.map((f) => f.entity)).toEqual(["light.lamp", "media_player.tv"]);
+    expect(expandHouse(input([2, 3])).house!.levels[0].rooms[0].lights[0].at).toEqual([2, 3]);
+  });
+});

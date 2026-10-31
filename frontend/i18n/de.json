@@ -442,5 +442,7 @@
   "editor.opening_window_double": "Zweiflügliges Fenster",
   "editor.opening_window_fixed": "Festverglasung",
   "editor.opening_door_sliding": "Schiebetür",
-  "editor.opening_opening_arch": "Rundbogen"
+  "editor.opening_opening_arch": "Rundbogen",
+  "editor.furniture_entity": "Verknüpft mit",
+  "editor.furniture_entity_hint": "Die Entität dieses Möbelstücks: Das Licht einer Stehlampe leuchtet dort, wo die Lampe steht; ein Fernseher oder eine Waschmaschine erscheint im Popup des Raums."
 }
