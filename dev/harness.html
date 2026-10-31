@@ -77,6 +77,13 @@
     });
   };
   window.ready = true;
+  // opened by hand (npm run dev): ?demo=card or ?demo=editor shows the demo house
+  const demo = new URLSearchParams(location.search).get("demo");
+  if (demo) {
+    const fixture = await (await fetch("/dev/fixtures/demo-hass.json")).json();
+    if (demo === "editor") await window.setupPanel(fixture);
+    else await window.setup(fixture, { interactive: true });
+  }
 </script>
 </body>
 </html>

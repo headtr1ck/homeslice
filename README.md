@@ -79,6 +79,37 @@ Alternatively, write the house as YAML (format below): paste it in the editor's
 `force: true`). Broken links (deleted areas, floors, entities) show up under
 *Settings → Repairs*.
 
+## Setting up your home with an AI assistant
+
+An assistant can draw the house from a photo or sketch of your floor plan. It needs the
+format and your Home Assistant's floors, areas and devices; Homeslice provides both,
+checks what the assistant wrote with the editor's rules, and keeps the previous version
+so any save can be undone (editor → ⚙ → *Restore the version from …*).
+
+- **Any chat assistant (ChatGPT, Claude, Gemini…):** editor → ⚙ → *Copy prompt for an AI
+  assistant*. Paste it into the chat with your floor plan, paste the answer into
+  *Replace the house with this YAML*, and if it has mistakes, *Copy errors for the
+  assistant* gives them back to it.
+- **Home Assistant's own assistant:** in a conversation agent's settings (OpenAI,
+  Anthropic, Google, Ollama…), add the API **Homeslice** next to *Assist*. It gets four
+  tools: `homeslice_get_guide`, `homeslice_get_house`, `homeslice_validate_house` and
+  `homeslice_save_house` (saving needs an administrator).
+- **External assistants (Claude Code, Claude Desktop, Cursor…):** add Home Assistant's
+  **MCP Server** integration and pick the *Homeslice* API there; the assistant connects
+  with a long-lived access token and gets the same tools.
+- **Scripts and assistants without MCP:** the HTTP API, with a long-lived access token
+  (`Authorization: Bearer …`):
+
+  ```sh
+  curl -H "Authorization: Bearer $TOKEN" http://homeassistant:8123/api/homeslice/guide            # the guide with your floors, areas, entities
+  curl -H "Authorization: Bearer $TOKEN" http://homeassistant:8123/api/homeslice/houses/home      # the house as YAML
+  curl -X POST --data-binary @home.yaml -H "Authorization: Bearer $TOKEN" http://homeassistant:8123/api/homeslice/validate
+  curl -X PUT  --data-binary @home.yaml -H "Authorization: Bearer $TOKEN" http://homeassistant:8123/api/homeslice/houses/home   # admins
+  curl -X POST -H "Authorization: Bearer $TOKEN" http://homeassistant:8123/api/homeslice/houses/home/restore                     # admins
+  ```
+
+The guide itself is [`custom_components/homeslice/guide.md`](custom_components/homeslice/guide.md).
+
 ## Card
 
 ```yaml
@@ -192,6 +223,9 @@ levels:
 ```
 
 ## Development
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) and [AGENTS.md](AGENTS.md) (the code, its rules and
+step-by-step recipes; coding assistants read it on their own).
 
 ```sh
 npm install

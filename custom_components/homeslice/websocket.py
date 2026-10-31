@@ -30,7 +30,7 @@ def _assets(hass: HomeAssistant) -> Assets:
 @callback
 def async_register_websocket(hass: HomeAssistant) -> None:
     """Register the websocket commands."""
-    for command in (ws_list, ws_get_model, ws_subscribe, ws_save, ws_delete, ws_import_files, ws_underlay_get, ws_underlay_set, ws_underlay_delete, ws_polyhaven_catalog, ws_polyhaven_fetch, ws_custom_list, ws_custom_upload, ws_custom_delete):
+    for command in (ws_list, ws_get_model, ws_subscribe, ws_save, ws_delete, ws_import_files, ws_underlay_get, ws_underlay_set, ws_underlay_delete, ws_polyhaven_catalog, ws_polyhaven_fetch, ws_custom_list, ws_custom_upload, ws_custom_delete, ws_guide, ws_validate, ws_restore):
         websocket_api.async_register_command(hass, command)
 
 
@@ -221,5 +221,44 @@ async def ws_custom_delete(hass: HomeAssistant, connection: websocket_api.Active
         await _assets(hass).async_custom_delete(msg["asset"])
     except AssetError as err:
         connection.send_error(msg["id"], "invalid_id", str(err))
+        return
+    connection.send_result(msg["id"])
+
+
+# ----- for assistants: the guide, validation and restoring the previous version -----
+
+
+@websocket_api.websocket_command({vol.Required("type"): "homeslice/guide", vol.Optional("house"): str})
+@callback
+def ws_guide(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
+    """The guide for AI assistants, with this Home Assistant's floors, areas and entities."""
+    from .llm import guide
+
+    connection.send_result(msg["id"], {"guide": guide(hass, msg.get("house"))})
+
+
+@websocket_api.websocket_command({vol.Required("type"): "homeslice/validate", vol.Required("model"): vol.Any(dict, str, list, None)})
+@callback
+def ws_validate(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
+    """A house's issues (YAML text or a parsed model), as the integration checks it."""
+    from .llm import parse
+    from .validate import validate
+
+    try:
+        issues = validate(parse(msg["model"]))
+    except ModelError as err:
+        issues = [{"severity": "error", "path": "", "message": str(err)}]
+    connection.send_result(msg["id"], {"valid": not any(i["severity"] == "error" for i in issues), "issues": issues})
+
+
+@websocket_api.websocket_command({vol.Required("type"): "homeslice/model/restore", vol.Required("house"): str})
+@websocket_api.require_admin
+@websocket_api.async_response
+async def ws_restore(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
+    """Back to the version before the last save (a second restore swaps back)."""
+    try:
+        await _store(hass).async_restore(msg["house"])
+    except ModelError as err:
+        connection.send_error(msg["id"], "no_previous", str(err))
         return
     connection.send_result(msg["id"])

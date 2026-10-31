@@ -222,6 +222,15 @@ interface Underlay {
   opacity: number;
 }
 
+/** A stored house, as the integration lists it (with the version a restore brings back). */
+interface HouseSummary {
+  id: string;
+  name: string;
+  updated?: string;
+  source?: string;
+  previous?: { updated: string; source: string };
+}
+
 type Drag =
   | { kind: "pan"; start: Vec2; offset: Vec2 }
   | { kind: "underlay"; start: Vec2; origin: Vec2 }
@@ -357,7 +366,7 @@ export class HomeslicePanel extends LitElement {
 
   narrow = false;
   private _hass?: Hass;
-  private _houses: { id: string; name: string }[] = [];
+  private _houses: HouseSummary[] = [];
   private _house = "";
   private _model: HouseInput | null = null;
   private _level = "";
@@ -449,7 +458,7 @@ export class HomeslicePanel extends LitElement {
   private _draft: { model: HouseInput; time: number; stale: boolean } | null = null;
   private draftTimer = 0;
   /** House settings in the inspector: name, YAML in and out, delete. */
-  private _settings: { paste?: string; problems?: string[]; copied?: boolean } | null = null;
+  private _settings: { paste?: string; problems?: string[]; copied?: boolean; prompt?: "copying" | "copied" | string; errorsCopied?: boolean } | null = null;
   /** Energy item waiting for a click on the plan to be placed. */
   private _energyPlace: EnergyInput | null = null;
   private _energySel: number | null = null;
@@ -544,7 +553,7 @@ export class HomeslicePanel extends LitElement {
       .then((p) => (this._energyPrefs = p))
       .catch(() => (this._energyPrefs = { energy_sources: [], device_consumption: [] }));
     try {
-      this._houses = await this._hass!.callWS<{ id: string; name: string }[]>({ type: "homeslice/houses" });
+      this._houses = await this._hass!.callWS<HouseSummary[]>({ type: "homeslice/houses" });
       if (this._houses.length) await this.openHouse(this._houses[0].id);
     } catch (e) {
       this._error = String((e as { message?: string }).message ?? e);
@@ -633,7 +642,7 @@ export class HomeslicePanel extends LitElement {
     try {
       await this._hass!.callWS({ type: "homeslice/model/save", house: id, model });
       this._create = null;
-      this._houses = await this._hass!.callWS<{ id: string; name: string }[]>({ type: "homeslice/houses" });
+      this._houses = await this._hass!.callWS<HouseSummary[]>({ type: "homeslice/houses" });
       this._saved = "";
       this._model = null;
       await this.openHouse(id);
@@ -3888,13 +3897,27 @@ export class HomeslicePanel extends LitElement {
         }}>${st.copied ? this.t("editor.copied") : this.t("editor.yaml_copy")}</button>
         <button @click=${download}>${this.t("editor.yaml_download")}</button>
       </div>
+      <h3>${this.t("editor.ai")}</h3>
+      <p class="muted">${this.t("editor.ai_hint")}</p>
+      <div class="row">
+        <button @click=${() => void this.copyPrompt()}>${st.prompt === "copied" ? this.t("editor.copied") : st.prompt === "copying" ? "…" : this.t("editor.ai_prompt")}</button>
+      </div>
+      ${st.prompt && st.prompt !== "copied" && st.prompt !== "copying" ? html`<p class="error">${st.prompt}</p>` : nothing}
+      <p class="muted">${this.t("editor.ai_tools_hint")}</p>
+      ${this.renderRestore()}
       <h3>${this.t("editor.export_3d")}</h3>
       <p class="muted">${this.t("editor.export_3d_hint")}</p>
       <button @click=${() => void this.exportGlb()}>${this.t("editor.export_glb")}</button>
       <label>${this.t("editor.yaml_paste")}
         <textarea class="yaml" rows="8" spellcheck="false" .value=${st.paste ?? ""} @input=${(e: Event) => (this._settings = { ...st, paste: (e.target as HTMLTextAreaElement).value, problems: undefined })}></textarea>
       </label>
-      ${st.problems?.length ? html`<ul class="problems">${st.problems.map((x) => html`<li>${x}</li>`)}</ul>` : nothing}
+      ${st.problems?.length
+        ? html`<ul class="problems">${st.problems.map((x) => html`<li>${x}</li>`)}</ul>
+            <button @click=${async () => {
+              await navigator.clipboard?.writeText(this.t("editor.ai_errors_text") + "\n" + st.problems!.map((x) => `- ${x}`).join("\n")).catch(() => undefined);
+              this._settings = { ...st, errorsCopied: true };
+            }}>${st.errorsCopied ? this.t("editor.copied") : this.t("editor.ai_errors")}</button>`
+        : nothing}
       <button class="primary" ?disabled=${!st.paste?.trim()} @click=${applyPaste}>${this.t("editor.yaml_apply")}</button>
       <h3>${this.t("editor.danger")}</h3>
       <button class="danger" @click=${async () => {
@@ -3903,9 +3926,40 @@ export class HomeslicePanel extends LitElement {
         this._settings = null;
         this._saved = "";
         this._model = null;
-        this._houses = await this._hass!.callWS<{ id: string; name: string }[]>({ type: "homeslice/houses" });
+        this._houses = await this._hass!.callWS<HouseSummary[]>({ type: "homeslice/houses" });
         if (this._houses.length) await this.openHouse(this._houses[0].id);
       }}>${this.t("editor.delete_house")}</button>`;
+  }
+
+  /** Copies the guide (with this Home Assistant's floors, areas and entities) as a prompt for any chat assistant. */
+  private async copyPrompt() {
+    const st = this._settings!;
+    this._settings = { ...st, prompt: "copying" };
+    try {
+      const { guide } = await this._hass!.callWS<{ guide: string }>({ type: "homeslice/guide", house: this._house });
+      await navigator.clipboard.writeText(`${this.t("editor.ai_prompt_intro")}\n\n${guide}`);
+      this._settings = { ...this._settings!, prompt: "copied" };
+    } catch (e) {
+      this._settings = { ...this._settings!, prompt: (e as { message?: string })?.message ?? String(e) };
+    }
+  }
+
+  /** "Restore previous version": the house as it was before its last save (an assistant's, the editor's or a file's). */
+  private renderRestore() {
+    const prev = this._houses.find((h) => h.id === this._house)?.previous;
+    if (!prev) return nothing;
+    const who = (source: string) =>
+      source === "api" ? this.t("editor.source_editor") : source.startsWith("file:") ? this.t("editor.source_file", { file: source.slice(5) }) : source.startsWith("assistant:") ? this.t("editor.source_assistant", { name: source.slice(10) }) : source;
+    const when = new Date(prev.updated).toLocaleString(this._hass?.locale?.language);
+    const current = this._houses.find((h) => h.id === this._house);
+    return html`<p class="muted">${this.t("editor.restore_hint", { source: who(current?.source ?? ""), when: new Date(current?.updated ?? "").toLocaleString(this._hass?.locale?.language) })}</p>
+      <button @click=${async () => {
+        if (!confirm(this.t("editor.restore_confirm", { when, source: who(prev.source) }))) return;
+        await this._hass!.callWS({ type: "homeslice/model/restore", house: this._house });
+        this._houses = await this._hass!.callWS<HouseSummary[]>({ type: "homeslice/houses" });
+        this._settings = null;
+        await this.openHouse(this._house);
+      }}>${this.t("editor.restore", { when, source: who(prev.source) })}</button>`;
   }
 
   private renderStairInspector(id: string) {

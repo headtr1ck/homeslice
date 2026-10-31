@@ -252,3 +252,87 @@ async def test_polyhaven_catalog_keeps_home_categories(hass: HomeAssistant, setu
     result = (await client.receive_json())["result"]
     assert [i["id"] for i in result] == ["Sofa_01"]
     assert result[0]["dimensions"] == [1.571, 0.658, 0.796]
+
+
+# ----- for AI assistants -----
+
+VALID_YAML = HOUSE_YAML
+
+
+async def test_guide_lists_floors_areas_and_the_catalogue(hass: HomeAssistant, setup, hass_ws_client) -> None:
+    client = await hass_ws_client(hass)
+    await client.send_json_auto_id({"type": "homeslice/guide", "house": "home"})
+    guide = (await client.receive_json())["result"]["guide"]
+    assert "Writing a Homeslice house" in guide
+    assert "area_id: living_room" in guide  # this Home Assistant's area
+    assert "modern:wardrobe_sliding" in guide  # the catalogue
+    assert "## Current house `home`" in guide
+
+
+async def test_validate_says_what_the_editor_says(hass: HomeAssistant, setup, hass_ws_client) -> None:
+    client = await hass_ws_client(hass)
+    await client.send_json_auto_id({"type": "homeslice/validate", "model": VALID_YAML})
+    assert (await client.receive_json())["result"] == {"valid": True, "issues": []}
+    broken = VALID_YAML + "    openings: [{ room: kitchen, side: south, at: 1, width: 1 }]\n"
+    await client.send_json_auto_id({"type": "homeslice/validate", "model": broken})
+    result = (await client.receive_json())["result"]
+    assert not result["valid"]
+    assert result["issues"][0]["message"].startswith('Unknown room "kitchen"')
+
+
+async def test_saving_keeps_the_previous_version(hass: HomeAssistant, setup, hass_ws_client) -> None:
+    client = await hass_ws_client(hass)
+    await client.send_json_auto_id({"type": "homeslice/model/save", "house": "home", "model": model(area="kitchen")})
+    assert (await client.receive_json())["success"]
+    await client.send_json_auto_id({"type": "homeslice/houses"})
+    house = (await client.receive_json())["result"][0]
+    assert house["source"] == "api" and house["previous"]["source"] == "file:home.yaml"
+    await client.send_json_auto_id({"type": "homeslice/model/restore", "house": "home"})
+    assert (await client.receive_json())["success"]
+    await client.send_json_auto_id({"type": "homeslice/model", "house": "home"})
+    assert (await client.receive_json())["result"]["levels"][0]["rooms"][0]["area_id"] == "living_room"
+    # a broken house is refused with the editor's messages
+    await client.send_json_auto_id({"type": "homeslice/model/save", "house": "home", "model": {**model(), "levels": [{"rooms": []}]}})
+    msg = await client.receive_json()
+    assert not msg["success"] and "Every level needs an id." in msg["error"]["message"]
+
+
+async def test_llm_api_tools(hass: HomeAssistant, setup, hass_admin_user) -> None:
+    from homeassistant.core import Context
+    from homeassistant.helpers import llm
+
+    from custom_components.homeslice.llm import HomesliceAPI
+
+    context = llm.LLMContext(platform="test", context=Context(user_id=hass_admin_user.id), language="en", assistant="conversation", device_id=None)
+    assert "homeslice" in {a.id for a in llm.async_get_apis(hass)}
+    api = await HomesliceAPI(hass=hass, id="homeslice", name="Homeslice").async_get_api_instance(context)
+    names = [t.name for t in api.tools]
+    assert names == ["homeslice_get_guide", "homeslice_get_house", "homeslice_validate_house", "homeslice_save_house"]
+    tools = {t.name: t for t in api.tools}
+    # (APIInstance.async_call_tool needs the conversation integration; call the tools themselves)
+    call = lambda name, args: tools[name].async_call(hass, llm.ToolInput(name, args), context)  # noqa: E731
+    result = await call("homeslice_validate_house", {"yaml": "schema: 1\nlevels: []"})
+    assert result["valid"] is False and "at least one level" in result["issues"]
+    saved = await call("homeslice_save_house", {"yaml": VALID_YAML.replace("living_room", "kitchen")})
+    assert saved["saved"] is True and saved["house"] == "home"
+    store = hass.data[DOMAIN]["store"]
+    assert store.houses["home"]["source"] == "assistant:test"
+    got = await call("homeslice_get_house", {})
+    assert "area_id: kitchen" in got["yaml"]
+
+
+async def test_http_api(hass: HomeAssistant, setup, hass_client) -> None:
+    client = await hass_client()
+    resp = await client.get("/api/homeslice/guide")
+    assert resp.status == 200 and "Home Assistant context" in await resp.text()
+    resp = await client.post("/api/homeslice/validate", data="schema: 1\nlevels: [{id: g}]")
+    body = await resp.json()
+    assert body["valid"] is False and body["issues"][0]["path"] == "levels.g"
+    resp = await client.put("/api/homeslice/houses/home", data=VALID_YAML.replace("living_room", "kitchen"))
+    assert resp.status == 200 and (await resp.json())["saved"]
+    resp = await client.get("/api/homeslice/houses/home")
+    assert "area_id: kitchen" in await resp.text()
+    resp = await client.post("/api/homeslice/houses/home/restore")
+    assert resp.status == 200
+    resp = await client.get("/api/homeslice/houses/home")
+    assert "area_id: living_room" in await resp.text()

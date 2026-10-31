@@ -1,0 +1,15 @@
+name: Furniture or kind wish
+description: A piece of furniture, plant, door or window kind that's missing
+labels: [enhancement, area:editor]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What's missing?
+      description: What it is, its usual size, and how it should look (a link to a picture of a similar product helps).
+    validations: { required: true }
+  - type: dropdown
+    id: library
+    attributes:
+      label: Which library would fit?
+      options: [Modern (drawn by Homeslice, fitted to size), Kenney (low-poly model), A door or window kind, Not sure]

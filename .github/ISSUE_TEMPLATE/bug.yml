@@ -1,0 +1,24 @@
+name: Bug
+description: Something doesn't work as it should
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened, and what did you expect?
+    validations: { required: true }
+  - type: textarea
+    id: steps
+    attributes:
+      label: How to see it
+      description: Steps, and if it's about the house, the smallest YAML that shows it (no real addresses or photos).
+  - type: input
+    id: versions
+    attributes:
+      label: Homeslice and Home Assistant versions
+      placeholder: Homeslice 0.0.2, Home Assistant 2026.10
+  - type: textarea
+    id: logs
+    attributes:
+      label: Browser console or Home Assistant log
+      render: text

@@ -1,0 +1,9 @@
+name: Feature idea
+description: Something new for the card, the editor or the integration
+labels: [enhancement]
+body:
+  - type: textarea
+    id: idea
+    attributes:
+      label: What would you like, and what for?
+    validations: { required: true }

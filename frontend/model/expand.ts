@@ -329,6 +329,7 @@ export function expandHouse(input: unknown): ExpandResult {
     const to = levelIndex.get(vi.to);
     if (from === undefined) err(vp, `Unknown level "${vi.from}" in from.`);
     if (to === undefined) err(vp, `Unknown level "${vi.to}" in to.`);
+    if (!vi?.rect && !vi?.polygon) err(vp, "Stairs need rect: [x, y, width, depth] or polygon: [[x, y], …].");
     if (!polygon || from === undefined || to === undefined) return;
     if (to <= from) return err(vp, "to must be a level above from.");
     const stairShape = vi.shape ?? "straight";

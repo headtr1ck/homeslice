@@ -1,0 +1,2551 @@
+{
+ "sides": [
+  "north",
+  "south",
+  "east",
+  "west"
+ ],
+ "room_kinds": [
+  "room",
+  "outdoor",
+  "void"
+ ],
+ "floors": [
+  "wood",
+  "tile",
+  "carpet",
+  "concrete",
+  "paving",
+  "gravel",
+  "lawn",
+  "none"
+ ],
+ "opening_types": [
+  "window",
+  "door",
+  "garage_door",
+  "opening"
+ ],
+ "opening_styles": {
+  "window": [
+   "single",
+   "double",
+   "triple",
+   "fixed",
+   "split",
+   "split_single"
+  ],
+  "door": [
+   "single",
+   "double",
+   "sliding",
+   "sliding_glass",
+   "glass",
+   "glass_double",
+   "entrance_strip",
+   "entrance_panes",
+   "entrance_sidelight"
+  ],
+  "garage_door": [
+   "single"
+  ],
+  "opening": [
+   "square",
+   "arch"
+  ]
+ },
+ "furniture_types": {
+  "sofa": {
+   "name": "Sofa",
+   "size": [
+    2.2,
+    0.9
+   ],
+   "height": 0.8
+  },
+  "sofa_corner": {
+   "name": "Corner sofa",
+   "size": [
+    2.6,
+    1.8
+   ],
+   "height": 0.8
+  },
+  "armchair": {
+   "name": "Armchair",
+   "size": [
+    0.9,
+    0.85
+   ],
+   "height": 0.8
+  },
+  "coffee_table": {
+   "name": "Coffee table",
+   "size": [
+    1.1,
+    0.6
+   ],
+   "height": 0.42
+  },
+  "tv": {
+   "name": "TV",
+   "size": [
+    1.6,
+    0.4
+   ],
+   "height": 1.2
+  },
+  "shelf": {
+   "name": "Shelf",
+   "size": [
+    1,
+    0.35
+   ],
+   "height": 1.8
+  },
+  "rug": {
+   "name": "Rug",
+   "size": [
+    2,
+    1.4
+   ],
+   "height": 0.02
+  },
+  "floor_lamp": {
+   "name": "Floor lamp",
+   "size": [
+    0.35,
+    0.35
+   ],
+   "height": 1.6
+  },
+  "plant": {
+   "name": "Plant",
+   "size": [
+    0.45,
+    0.45
+   ],
+   "height": 1.1
+  },
+  "table": {
+   "name": "Table",
+   "size": [
+    1.6,
+    0.9
+   ],
+   "height": 0.75
+  },
+  "chair": {
+   "name": "Chair",
+   "size": [
+    0.45,
+    0.5
+   ],
+   "height": 0.9
+  },
+  "kitchen": {
+   "name": "Kitchen counter",
+   "size": [
+    2.4,
+    0.6
+   ],
+   "height": 0.9
+  },
+  "kitchen_upper": {
+   "name": "Wall cabinets",
+   "size": [
+    2.4,
+    0.35
+   ],
+   "height": 0.7,
+   "mount": "wall",
+   "elevation": 1.45
+  },
+  "fridge": {
+   "name": "Fridge",
+   "size": [
+    0.6,
+    0.65
+   ],
+   "height": 1.8
+  },
+  "bed": {
+   "name": "Double bed",
+   "size": [
+    1.8,
+    2.05
+   ],
+   "height": 0.5
+  },
+  "bed_single": {
+   "name": "Single bed",
+   "size": [
+    0.9,
+    2
+   ],
+   "height": 0.5
+  },
+  "nightstand": {
+   "name": "Bedside table",
+   "size": [
+    0.45,
+    0.4
+   ],
+   "height": 0.5
+  },
+  "wardrobe": {
+   "name": "Wardrobe",
+   "size": [
+    1.5,
+    0.6
+   ],
+   "height": 2.1
+  },
+  "desk": {
+   "name": "Desk",
+   "size": [
+    1.4,
+    0.7
+   ],
+   "height": 0.75
+  },
+  "bathtub": {
+   "name": "Bathtub",
+   "size": [
+    1.7,
+    0.75
+   ],
+   "height": 0.55
+  },
+  "shower": {
+   "name": "Shower",
+   "size": [
+    0.9,
+    0.9
+   ],
+   "height": 2
+  },
+  "toilet": {
+   "name": "Toilet",
+   "size": [
+    0.4,
+    0.65
+   ],
+   "height": 0.75
+  },
+  "sink": {
+   "name": "Sink",
+   "size": [
+    0.6,
+    0.45
+   ],
+   "height": 0.85
+  },
+  "mirror": {
+   "name": "Mirror",
+   "size": [
+    0.6,
+    0.04
+   ],
+   "height": 0.8,
+   "mount": "wall",
+   "elevation": 1.2
+  },
+  "washer": {
+   "name": "Washing machine",
+   "size": [
+    0.6,
+    0.6
+   ],
+   "height": 0.85
+  },
+  "dryer": {
+   "name": "Dryer",
+   "size": [
+    0.6,
+    0.6
+   ],
+   "height": 0.85
+  },
+  "wall_lamp": {
+   "name": "Wall lamp",
+   "size": [
+    0.3,
+    0.2
+   ],
+   "height": 0.12,
+   "mount": "wall",
+   "elevation": 1.8
+  },
+  "ceiling_lamp": {
+   "name": "Ceiling lamp",
+   "size": [
+    0.3,
+    0.3
+   ],
+   "height": 0.55,
+   "mount": "ceiling"
+  },
+  "ceiling_fan": {
+   "name": "Ceiling fan",
+   "size": [
+    1.2,
+    1.2
+   ],
+   "height": 0.4,
+   "mount": "ceiling"
+  },
+  "tree": {
+   "name": "Tree",
+   "size": [
+    4,
+    4
+   ],
+   "height": 6
+  },
+  "tree_small": {
+   "name": "Small tree",
+   "size": [
+    2.2,
+    2.2
+   ],
+   "height": 3.5
+  },
+  "pine": {
+   "name": "Conifer",
+   "size": [
+    2.5,
+    2.5
+   ],
+   "height": 7
+  },
+  "bush": {
+   "name": "Bush",
+   "size": [
+    1.2,
+    1.2
+   ],
+   "height": 1
+  },
+  "hedge": {
+   "name": "Hedge",
+   "size": [
+    3,
+    0.8
+   ],
+   "height": 1.6
+  },
+  "flower_bed": {
+   "name": "Flower bed",
+   "size": [
+    2,
+    0.8
+   ],
+   "height": 0.4
+  },
+  "fence": {
+   "name": "Fence",
+   "size": [
+    3,
+    0.1
+   ],
+   "height": 1
+  },
+  "garden_path": {
+   "name": "Garden path",
+   "size": [
+    3,
+    0.8
+   ],
+   "height": 0.05
+  },
+  "bench": {
+   "name": "Bench",
+   "size": [
+    1.5,
+    0.5
+   ],
+   "height": 0.45
+  },
+  "car": {
+   "name": "Car",
+   "size": [
+    1.85,
+    4.6
+   ],
+   "height": 1.5
+  },
+  "side_table": {
+   "name": "Side table",
+   "size": [
+    0.5,
+    0.5
+   ],
+   "height": 0.55
+  },
+  "table_lamp": {
+   "name": "Table lamp",
+   "size": [
+    0.3,
+    0.3
+   ],
+   "height": 0.5
+  },
+  "stool": {
+   "name": "Stool",
+   "size": [
+    0.4,
+    0.4
+   ],
+   "height": 0.65
+  },
+  "item": {
+   "name": "Object",
+   "size": [
+    0.6,
+    0.6
+   ],
+   "height": 0.8
+  }
+ },
+ "modern": [
+  {
+   "model": "modern:sofa",
+   "name": "Sofa",
+   "group": "living",
+   "type": "sofa",
+   "size": [
+    2.2,
+    0.95,
+    0.8
+   ],
+   "finishes": [
+    "grey",
+    "beige",
+    "anthracite",
+    "green",
+    "blue",
+    "terracotta",
+    "pink"
+   ]
+  },
+  {
+   "model": "modern:sofa_corner",
+   "name": "Corner sofa",
+   "group": "living",
+   "type": "sofa_corner",
+   "size": [
+    2.8,
+    1.9,
+    0.8
+   ],
+   "finishes": [
+    "grey",
+    "beige",
+    "anthracite",
+    "green",
+    "blue",
+    "terracotta",
+    "pink"
+   ]
+  },
+  {
+   "model": "modern:sofa_chaise",
+   "name": "Sofa with chaise",
+   "group": "living",
+   "type": "sofa_corner",
+   "size": [
+    2.6,
+    1.6,
+    0.8
+   ],
+   "finishes": [
+    "grey",
+    "beige",
+    "anthracite",
+    "green",
+    "blue",
+    "terracotta",
+    "pink"
+   ]
+  },
+  {
+   "model": "modern:armchair",
+   "name": "Armchair",
+   "group": "living",
+   "type": "armchair",
+   "size": [
+    0.85,
+    0.85,
+    0.8
+   ],
+   "finishes": [
+    "grey",
+    "beige",
+    "anthracite",
+    "green",
+    "blue",
+    "terracotta",
+    "pink"
+   ]
+  },
+  {
+   "model": "modern:coffee_table",
+   "name": "Coffee table",
+   "group": "living",
+   "type": "coffee_table",
+   "size": [
+    1.2,
+    0.6,
+    0.4
+   ],
+   "finishes": [
+    "oak",
+    "white",
+    "walnut",
+    "black",
+    "anthracite"
+   ]
+  },
+  {
+   "model": "modern:coffee_table_round",
+   "name": "Round coffee table",
+   "group": "living",
+   "type": "coffee_table",
+   "size": [
+    0.8,
+    0.8,
+    0.38
+   ],
+   "finishes": [
+    "oak",
+    "white",
+    "walnut",
+    "black",
+    "anthracite"
+   ]
+  },
+  {
+   "model": "modern:coffee_tables_nested",
+   "name": "Nesting tables",
+   "group": "living",
+   "type": "coffee_table",
+   "size": [
+    1,
+    0.65,
+    0.45
+   ],
+   "finishes": [
+    "oak",
+    "walnut",
+    "black",
+    "white",
+    "marble"
+   ]
+  },
+  {
+   "model": "modern:coffee_table_block",
+   "name": "Block coffee table",
+   "group": "living",
+   "type": "coffee_table",
+   "size": [
+    1.1,
+    0.7,
+    0.32
+   ],
+   "finishes": [
+    "concrete",
+    "oak",
+    "white",
+    "marble",
+    "black"
+   ]
+  },
+  {
+   "model": "modern:side_table",
+   "name": "Side table",
+   "group": "living",
+   "type": "side_table",
+   "size": [
+    0.45,
+    0.45,
+    0.52
+   ],
+   "finishes": [
+    "black",
+    "oak",
+    "white",
+    "marble"
+   ]
+  },
+  {
+   "model": "modern:tv_board",
+   "name": "Low board",
+   "group": "living",
+   "type": "shelf",
+   "size": [
+    1.8,
+    0.4,
+    0.45
+   ],
+   "finishes": [
+    "oak",
+    "white",
+    "walnut",
+    "black",
+    "anthracite"
+   ]
+  },
+  {
+   "model": "modern:tv_board_wall",
+   "name": "Low board, hanging",
+   "group": "living",
+   "type": "shelf",
+   "size": [
+    1.8,
+    0.38,
+    0.32
+   ],
+   "finishes": [
+    "oak",
+    "white",
+    "walnut",
+    "black",
+    "anthracite"
+   ],
+   "mount": "wall",
+   "elevation": 0.35
+  },
+  {
+   "model": "modern:sideboard",
+   "name": "Sideboard",
+   "group": "living",
+   "type": "shelf",
+   "size": [
+    1.6,
+    0.45,
+    0.8
+   ],
+   "finishes": [
+    "oak",
+    "white",
+    "walnut",
+    "black",
+    "anthracite"
+   ]
+  },
+  {
+   "model": "modern:tv_stand",
+   "name": "TV on a low board",
+   "group": "living",
+   "type": "tv",
+   "size": [
+    1.6,
+    0.4,
+    1.3
+   ],
+   "finishes": [
+    "oak",
+    "white",
+    "walnut",
+    "black",
+    "anthracite"
+   ]
+  },
+  {
+   "model": "modern:tv_wall",
+   "name": "TV on the wall",
+   "group": "living",
+   "type": "tv",
+   "size": [
+    1.45,
+    0.06,
+    0.84
+   ],
+   "finishes": [
+    "black"
+   ],
+   "mount": "wall",
+   "elevation": 1
+  },
+  {
+   "model": "modern:soundbar",
+   "name": "Soundbar",
+   "group": "living",
+   "type": "item",
+   "size": [
+    0.95,
+    0.11,
+    0.07
+   ],
+   "finishes": [
+    "black",
+    "white"
+   ],
+   "mount": "wall",
+   "elevation": 0.85
+  },
+  {
+   "model": "modern:speaker_floor",
+   "name": "Floor speaker",
+   "group": "living",
+   "type": "item",
+   "size": [
+    0.22,
+    0.3,
+    1
+   ],
+   "finishes": [
+    "black",
+    "walnut",
+    "white"
+   ]
+  },
+  {
+   "model": "modern:speaker_shelf",
+   "name": "Bookshelf speaker",
+   "group": "living",
+   "type": "item",
+   "size": [
+    0.18,
+    0.24,
+    0.3
+   ],
+   "finishes": [
+    "black",
+    "white",
+    "walnut"
+   ]
+  },
+  {
+   "model": "modern:cube_shelf",
+   "name": "Cube shelf",
+   "group": "living",
+   "type": "shelf",
+   "size": [
+    0.77,
+    0.39,
+    1.47
+   ],
+   "finishes": [
+    "white",
+    "oak",
+    "black",
+    "walnut"
+   ]
+  },
+  {
+   "model": "modern:bookshelf",
+   "name": "Bookshelf",
+   "group": "living",
+   "type": "shelf",
+   "size": [
+    0.8,
+    0.3,
+    2
+   ],
+   "finishes": [
+    "oak",
+    "white",
+    "walnut",
+    "black",
+    "anthracite"
+   ]
+  },
+  {
+   "model": "modern:floor_lamp_arc",
+   "name": "Arc floor lamp",
+   "group": "living",
+   "type": "floor_lamp",
+   "size": [
+    1.3,
+    0.4,
+    2
+   ],
+   "finishes": [
+    "black",
+    "white",
+    "oak",
+    "sand"
+   ]
+  },
+  {
+   "model": "modern:floor_lamp_tripod",
+   "name": "Tripod floor lamp",
+   "group": "living",
+   "type": "floor_lamp",
+   "size": [
+    0.55,
+    0.55,
+    1.55
+   ],
+   "finishes": [
+    "black",
+    "white",
+    "oak",
+    "sand"
+   ]
+  },
+  {
+   "model": "modern:floor_lamp_globe",
+   "name": "Globe floor lamp",
+   "group": "living",
+   "type": "floor_lamp",
+   "size": [
+    0.3,
+    0.3,
+    1.45
+   ],
+   "finishes": [
+    "black",
+    "white",
+    "oak",
+    "sand"
+   ]
+  },
+  {
+   "model": "modern:table_lamp",
+   "name": "Table lamp",
+   "group": "living",
+   "type": "table_lamp",
+   "size": [
+    0.3,
+    0.3,
+    0.5
+   ],
+   "finishes": [
+    "black",
+    "white",
+    "oak",
+    "sand"
+   ]
+  },
+  {
+   "model": "modern:rug",
+   "name": "Rug",
+   "group": "living",
+   "type": "rug",
+   "size": [
+    2,
+    1.4,
+    0.015
+   ],
+   "finishes": [
+    "beige",
+    "grey",
+    "terracotta",
+    "green",
+    "blue",
+    "anthracite"
+   ]
+  },
+  {
+   "model": "modern:rug_round",
+   "name": "Round rug",
+   "group": "living",
+   "type": "rug",
+   "size": [
+    1.6,
+    1.6,
+    0.015
+   ],
+   "finishes": [
+    "beige",
+    "grey",
+    "terracotta",
+    "green",
+    "blue",
+    "anthracite"
+   ]
+  },
+  {
+   "model": "modern:rug_runner",
+   "name": "Runner",
+   "group": "living",
+   "type": "rug",
+   "size": [
+    0.8,
+    2.5,
+    0.012
+   ],
+   "finishes": [
+    "beige",
+    "grey",
+    "terracotta",
+    "blue",
+    "anthracite"
+   ]
+  },
+  {
+   "model": "modern:rug_shaggy",
+   "name": "Shaggy rug",
+   "group": "living",
+   "type": "rug",
+   "size": [
+    2,
+    1.4,
+    0.04
+   ],
+   "finishes": [
+    "beige",
+    "white",
+    "grey",
+    "anthracite"
+   ]
+  },
+  {
+   "model": "modern:mirror_floor",
+   "name": "Standing mirror",
+   "group": "living",
+   "type": "mirror",
+   "size": [
+    0.6,
+    0.35,
+    1.8
+   ],
+   "finishes": [
+    "black",
+    "oak",
+    "white",
+    "sand"
+   ],
+   "mount": "floor"
+  },
+  {
+   "model": "modern:mirror_round",
+   "name": "Round mirror",
+   "group": "living",
+   "type": "mirror",
+   "size": [
+    0.7,
+    0.03,
+    0.7
+   ],
+   "finishes": [
+    "black",
+    "oak",
+    "sand",
+    "white"
+   ],
+   "mount": "wall",
+   "elevation": 1.2
+  },
+  {
+   "model": "modern:mirror_wall",
+   "name": "Wall mirror",
+   "group": "living",
+   "type": "mirror",
+   "size": [
+    0.5,
+    0.03,
+    1.1
+   ],
+   "finishes": [
+    "black",
+    "oak",
+    "white",
+    "sand"
+   ],
+   "mount": "wall",
+   "elevation": 0.9
+  },
+  {
+   "model": "modern:dining_table",
+   "name": "Dining table",
+   "group": "dining",
+   "type": "table",
+   "size": [
+    1.8,
+    0.9,
+    0.75
+   ],
+   "finishes": [
+    "oak",
+    "walnut",
+    "white",
+    "black"
+   ]
+  },
+  {
+   "model": "modern:dining_table_round",
+   "name": "Round dining table",
+   "group": "dining",
+   "type": "table",
+   "size": [
+    1.1,
+    1.1,
+    0.75
+   ],
+   "finishes": [
+    "oak",
+    "walnut",
+    "white",
+    "black",
+    "marble"
+   ]
+  },
+  {
+   "model": "modern:chair_shell",
+   "name": "Shell chair",
+   "group": "dining",
+   "type": "chair",
+   "size": [
+    0.48,
+    0.53,
+    0.8
+   ],
+   "finishes": [
+    "white",
+    "black",
+    "grey",
+    "green",
+    "terracotta",
+    "sand"
+   ]
+  },
+  {
+   "model": "modern:chair_wood",
+   "name": "Wooden chair",
+   "group": "dining",
+   "type": "chair",
+   "size": [
+    0.45,
+    0.5,
+    0.8
+   ],
+   "finishes": [
+    "oak",
+    "walnut",
+    "black"
+   ]
+  },
+  {
+   "model": "modern:bar_stool",
+   "name": "Bar stool",
+   "group": "dining",
+   "type": "stool",
+   "size": [
+    0.4,
+    0.4,
+    0.75
+   ],
+   "finishes": [
+    "black",
+    "oak",
+    "white"
+   ]
+  },
+  {
+   "model": "modern:kitchen",
+   "name": "Kitchen run",
+   "group": "kitchen",
+   "type": "kitchen",
+   "size": [
+    3,
+    0.62,
+    0.91
+   ],
+   "finishes": [
+    "white",
+    "anthracite",
+    "oak",
+    "green",
+    "blue",
+    "black"
+   ]
+  },
+  {
+   "model": "modern:kitchen_island",
+   "name": "Kitchen island",
+   "group": "kitchen",
+   "type": "kitchen",
+   "size": [
+    2.4,
+    1,
+    0.92
+   ],
+   "finishes": [
+    "white",
+    "anthracite",
+    "oak",
+    "green",
+    "blue",
+    "black"
+   ]
+  },
+  {
+   "model": "modern:kitchen_upper",
+   "name": "Wall cabinets",
+   "group": "kitchen",
+   "type": "kitchen_upper",
+   "size": [
+    2.4,
+    0.35,
+    0.72
+   ],
+   "finishes": [
+    "white",
+    "anthracite",
+    "oak",
+    "green",
+    "blue",
+    "black"
+   ],
+   "mount": "wall",
+   "elevation": 1.45
+  },
+  {
+   "model": "modern:kitchen_tall",
+   "name": "Tall unit (fridge, oven)",
+   "group": "kitchen",
+   "type": "fridge",
+   "size": [
+    0.6,
+    0.62,
+    2.2
+   ],
+   "finishes": [
+    "white",
+    "anthracite",
+    "oak",
+    "green",
+    "blue",
+    "black"
+   ]
+  },
+  {
+   "model": "modern:bed",
+   "name": "Double bed",
+   "group": "bedroom",
+   "type": "bed",
+   "size": [
+    1.8,
+    2.1,
+    1
+   ],
+   "finishes": [
+    "beige",
+    "grey",
+    "anthracite",
+    "green",
+    "blue",
+    "pink",
+    "oak"
+   ]
+  },
+  {
+   "model": "modern:bed_single",
+   "name": "Single bed",
+   "group": "bedroom",
+   "type": "bed_single",
+   "size": [
+    0.9,
+    2.05,
+    0.9
+   ],
+   "finishes": [
+    "beige",
+    "grey",
+    "anthracite",
+    "green",
+    "blue",
+    "pink",
+    "oak"
+   ]
+  },
+  {
+   "model": "modern:nightstand",
+   "name": "Nightstand",
+   "group": "bedroom",
+   "type": "nightstand",
+   "size": [
+    0.45,
+    0.38,
+    0.5
+   ],
+   "finishes": [
+    "oak",
+    "white",
+    "walnut",
+    "black",
+    "anthracite"
+   ]
+  },
+  {
+   "model": "modern:nightstand_wall",
+   "name": "Nightstand, hanging",
+   "group": "bedroom",
+   "type": "nightstand",
+   "size": [
+    0.45,
+    0.32,
+    0.18
+   ],
+   "finishes": [
+    "oak",
+    "white",
+    "walnut",
+    "black",
+    "anthracite"
+   ],
+   "mount": "wall",
+   "elevation": 0.45
+  },
+  {
+   "model": "modern:wardrobe",
+   "name": "Wardrobe",
+   "group": "bedroom",
+   "type": "wardrobe",
+   "size": [
+    2,
+    0.6,
+    2.2
+   ],
+   "finishes": [
+    "oak",
+    "white",
+    "walnut",
+    "black",
+    "anthracite"
+   ]
+  },
+  {
+   "model": "modern:wardrobe_sliding",
+   "name": "Sliding-door wardrobe",
+   "group": "bedroom",
+   "type": "wardrobe",
+   "size": [
+    2,
+    0.65,
+    2.2
+   ],
+   "finishes": [
+    "oak",
+    "white",
+    "walnut",
+    "black",
+    "anthracite",
+    "grey"
+   ]
+  },
+  {
+   "model": "modern:wardrobe_open",
+   "name": "Open wardrobe",
+   "group": "bedroom",
+   "type": "wardrobe",
+   "size": [
+    1.6,
+    0.55,
+    2
+   ],
+   "finishes": [
+    "black",
+    "oak",
+    "white"
+   ]
+  },
+  {
+   "model": "modern:dresser",
+   "name": "Chest of drawers",
+   "group": "bedroom",
+   "type": "shelf",
+   "size": [
+    1.2,
+    0.48,
+    0.8
+   ],
+   "finishes": [
+    "oak",
+    "white",
+    "walnut",
+    "black",
+    "anthracite"
+   ]
+  },
+  {
+   "model": "modern:desk",
+   "name": "Desk",
+   "group": "bedroom",
+   "type": "desk",
+   "size": [
+    1.4,
+    0.7,
+    0.75
+   ],
+   "finishes": [
+    "oak",
+    "white",
+    "walnut",
+    "black"
+   ]
+  },
+  {
+   "model": "modern:chair_office",
+   "name": "Office chair",
+   "group": "bedroom",
+   "type": "chair",
+   "size": [
+    0.6,
+    0.6,
+    1.05
+   ],
+   "finishes": [
+    "black",
+    "grey",
+    "white"
+   ]
+  },
+  {
+   "model": "modern:shoe_shelf",
+   "name": "Shoe shelf",
+   "group": "hall",
+   "type": "shelf",
+   "size": [
+    0.8,
+    0.3,
+    0.9
+   ],
+   "finishes": [
+    "black",
+    "oak",
+    "white"
+   ]
+  },
+  {
+   "model": "modern:shoe_cabinet",
+   "name": "Shoe cabinet",
+   "group": "hall",
+   "type": "shelf",
+   "size": [
+    0.8,
+    0.24,
+    1.05
+   ],
+   "finishes": [
+    "oak",
+    "white",
+    "walnut",
+    "black",
+    "anthracite"
+   ]
+  },
+  {
+   "model": "modern:hall_bench",
+   "name": "Hall bench",
+   "group": "hall",
+   "type": "bench",
+   "size": [
+    1,
+    0.38,
+    0.47
+   ],
+   "finishes": [
+    "oak",
+    "black",
+    "white",
+    "walnut"
+   ]
+  },
+  {
+   "model": "modern:coat_hooks",
+   "name": "Coat hooks",
+   "group": "hall",
+   "type": "item",
+   "size": [
+    0.9,
+    0.12,
+    0.6
+   ],
+   "finishes": [
+    "black",
+    "oak",
+    "white"
+   ],
+   "mount": "wall",
+   "elevation": 1.15
+  },
+  {
+   "model": "modern:coat_stand",
+   "name": "Coat stand",
+   "group": "hall",
+   "type": "item",
+   "size": [
+    0.45,
+    0.45,
+    1.75
+   ],
+   "finishes": [
+    "black",
+    "oak",
+    "white"
+   ]
+  },
+  {
+   "model": "modern:letter_box",
+   "name": "Letter box",
+   "group": "hall",
+   "type": "item",
+   "size": [
+    0.38,
+    0.12,
+    0.42
+   ],
+   "finishes": [
+    "anthracite",
+    "black",
+    "white",
+    "concrete"
+   ],
+   "mount": "wall",
+   "elevation": 0.95
+  },
+  {
+   "model": "modern:letter_box_post",
+   "name": "Letter box on a post",
+   "group": "hall",
+   "type": "item",
+   "size": [
+    0.4,
+    0.3,
+    1.25
+   ],
+   "finishes": [
+    "anthracite",
+    "black",
+    "white",
+    "concrete"
+   ]
+  },
+  {
+   "model": "modern:toilet_wall",
+   "name": "Wall-hung toilet",
+   "group": "bathroom",
+   "type": "toilet",
+   "size": [
+    0.37,
+    0.55,
+    0.8
+   ],
+   "finishes": [
+    "white",
+    "black"
+   ]
+  },
+  {
+   "model": "modern:bidet",
+   "name": "Bidet",
+   "group": "bathroom",
+   "type": "toilet",
+   "size": [
+    0.37,
+    0.54,
+    0.4
+   ],
+   "finishes": [
+    "white",
+    "black"
+   ]
+  },
+  {
+   "model": "modern:vanity",
+   "name": "Vanity unit",
+   "group": "bathroom",
+   "type": "sink",
+   "size": [
+    0.8,
+    0.47,
+    0.85
+   ],
+   "finishes": [
+    "oak",
+    "white",
+    "walnut",
+    "black",
+    "anthracite"
+   ]
+  },
+  {
+   "model": "modern:vanity_double",
+   "name": "Double vanity",
+   "group": "bathroom",
+   "type": "sink",
+   "size": [
+    1.4,
+    0.47,
+    0.85
+   ],
+   "finishes": [
+    "oak",
+    "white",
+    "walnut",
+    "black",
+    "anthracite"
+   ]
+  },
+  {
+   "model": "modern:sink_large",
+   "name": "Large washbasin",
+   "group": "bathroom",
+   "type": "sink",
+   "size": [
+    1,
+    0.5,
+    0.9
+   ],
+   "finishes": [
+    "white",
+    "concrete",
+    "marble",
+    "black"
+   ]
+  },
+  {
+   "model": "modern:mirror_cabinet",
+   "name": "Mirror cabinet",
+   "group": "bathroom",
+   "type": "mirror",
+   "size": [
+    0.8,
+    0.15,
+    0.7
+   ],
+   "finishes": [
+    "white",
+    "black",
+    "oak"
+   ],
+   "mount": "wall",
+   "elevation": 1.25
+  },
+  {
+   "model": "modern:shower_glass",
+   "name": "Walk-in shower",
+   "group": "bathroom",
+   "type": "shower",
+   "size": [
+    1.2,
+    0.9,
+    2.1
+   ],
+   "finishes": [
+    "black",
+    "white"
+   ]
+  },
+  {
+   "model": "modern:bathtub",
+   "name": "Freestanding bathtub",
+   "group": "bathroom",
+   "type": "bathtub",
+   "size": [
+    1.8,
+    0.8,
+    0.58
+   ],
+   "finishes": [
+    "white",
+    "black",
+    "concrete"
+   ]
+  },
+  {
+   "model": "modern:towel_radiator",
+   "name": "Towel radiator",
+   "group": "bathroom",
+   "type": "item",
+   "size": [
+    0.5,
+    0.06,
+    1.2
+   ],
+   "finishes": [
+    "white",
+    "black",
+    "anthracite"
+   ],
+   "mount": "wall",
+   "elevation": 0.2
+  },
+  {
+   "model": "modern:monstera",
+   "name": "Monstera",
+   "group": "plants",
+   "type": "plant",
+   "size": [
+    0.9,
+    0.9,
+    1.15
+   ],
+   "finishes": [
+    "white",
+    "terracotta",
+    "anthracite",
+    "concrete"
+   ]
+  },
+  {
+   "model": "modern:fiddle_fig",
+   "name": "Fiddle-leaf fig",
+   "group": "plants",
+   "type": "plant",
+   "size": [
+    0.6,
+    0.6,
+    1.7
+   ],
+   "finishes": [
+    "white",
+    "terracotta",
+    "anthracite",
+    "concrete"
+   ]
+  },
+  {
+   "model": "modern:snake_plant",
+   "name": "Snake plant",
+   "group": "plants",
+   "type": "plant",
+   "size": [
+    0.35,
+    0.35,
+    0.85
+   ],
+   "finishes": [
+    "white",
+    "terracotta",
+    "anthracite",
+    "concrete"
+   ]
+  },
+  {
+   "model": "modern:areca_palm",
+   "name": "Areca palm",
+   "group": "plants",
+   "type": "plant",
+   "size": [
+    0.9,
+    0.9,
+    1.6
+   ],
+   "finishes": [
+    "white",
+    "terracotta",
+    "anthracite",
+    "concrete"
+   ]
+  },
+  {
+   "model": "modern:olive_tree",
+   "name": "Olive tree",
+   "group": "plants",
+   "type": "plant",
+   "size": [
+    0.6,
+    0.6,
+    1.5
+   ],
+   "finishes": [
+    "white",
+    "terracotta",
+    "anthracite",
+    "concrete"
+   ]
+  },
+  {
+   "model": "modern:plant_hanging",
+   "name": "Hanging plant",
+   "group": "plants",
+   "type": "plant",
+   "size": [
+    0.45,
+    0.45,
+    0.75
+   ],
+   "finishes": [
+    "white",
+    "terracotta",
+    "anthracite",
+    "concrete"
+   ],
+   "mount": "ceiling"
+  },
+  {
+   "model": "modern:plant_small",
+   "name": "Small plant",
+   "group": "plants",
+   "type": "plant",
+   "size": [
+    0.22,
+    0.22,
+    0.3
+   ],
+   "finishes": [
+    "white",
+    "terracotta",
+    "anthracite",
+    "concrete"
+   ]
+  },
+  {
+   "model": "modern:tree_deciduous",
+   "name": "Deciduous tree",
+   "group": "outside",
+   "type": "tree",
+   "size": [
+    4.5,
+    4.5,
+    6.5
+   ],
+   "finishes": [
+    "green"
+   ]
+  },
+  {
+   "model": "modern:tree_birch",
+   "name": "Birch",
+   "group": "outside",
+   "type": "tree_small",
+   "size": [
+    2.4,
+    2.4,
+    6
+   ],
+   "finishes": [
+    "green"
+   ]
+  },
+  {
+   "model": "modern:tree_conifer",
+   "name": "Conifer",
+   "group": "outside",
+   "type": "pine",
+   "size": [
+    2.6,
+    2.6,
+    7
+   ],
+   "finishes": [
+    "green"
+   ]
+  },
+  {
+   "model": "modern:tree_fruit",
+   "name": "Fruit tree",
+   "group": "outside",
+   "type": "tree_small",
+   "size": [
+    3,
+    3,
+    3.6
+   ],
+   "finishes": [
+    "green"
+   ]
+  },
+  {
+   "model": "modern:shrub",
+   "name": "Shrub",
+   "group": "outside",
+   "type": "bush",
+   "size": [
+    1.2,
+    1.2,
+    1
+   ],
+   "finishes": [
+    "green"
+   ]
+  },
+  {
+   "model": "modern:ornamental_grass",
+   "name": "Ornamental grass",
+   "group": "outside",
+   "type": "bush",
+   "size": [
+    0.8,
+    0.8,
+    0.9
+   ],
+   "finishes": [
+    "green",
+    "sand"
+   ]
+  },
+  {
+   "model": "modern:hedge_leafy",
+   "name": "Hedge",
+   "group": "outside",
+   "type": "hedge",
+   "size": [
+    3,
+    0.7,
+    1.6
+   ],
+   "finishes": [
+    "green"
+   ]
+  },
+  {
+   "model": "modern:flower_bed",
+   "name": "Flower bed",
+   "group": "outside",
+   "type": "flower_bed",
+   "size": [
+    2,
+    0.8,
+    0.45
+   ],
+   "finishes": [
+    "terracotta",
+    "pink",
+    "white",
+    "blue"
+   ]
+  },
+  {
+   "model": "modern:lavender",
+   "name": "Lavender",
+   "group": "outside",
+   "type": "flower_bed",
+   "size": [
+    1.6,
+    0.5,
+    0.5
+   ],
+   "finishes": [
+    "blue"
+   ]
+  },
+  {
+   "model": "modern:planter_box",
+   "name": "Planter",
+   "group": "outside",
+   "type": "plant",
+   "size": [
+    1.2,
+    0.4,
+    0.9
+   ],
+   "finishes": [
+    "anthracite",
+    "terracotta",
+    "concrete",
+    "oak"
+   ]
+  },
+  {
+   "model": "modern:sun_lounger",
+   "name": "Sun lounger",
+   "group": "outside",
+   "type": "item",
+   "size": [
+    0.7,
+    1.95,
+    0.4
+   ],
+   "finishes": [
+    "oak",
+    "anthracite",
+    "white"
+   ]
+  },
+  {
+   "model": "modern:parasol",
+   "name": "Parasol",
+   "group": "outside",
+   "type": "item",
+   "size": [
+    2.8,
+    2.8,
+    2.5
+   ],
+   "finishes": [
+    "sand",
+    "white",
+    "anthracite",
+    "terracotta"
+   ]
+  },
+  {
+   "model": "modern:garden_table",
+   "name": "Garden table",
+   "group": "outside",
+   "type": "table",
+   "size": [
+    1.6,
+    0.9,
+    0.74
+   ],
+   "finishes": [
+    "oak",
+    "anthracite",
+    "white"
+   ]
+  },
+  {
+   "model": "modern:garden_sofa",
+   "name": "Garden sofa",
+   "group": "outside",
+   "type": "sofa",
+   "size": [
+    1.9,
+    0.8,
+    0.7
+   ],
+   "finishes": [
+    "anthracite",
+    "sand",
+    "grey"
+   ]
+  }
+ ],
+ "finishes": [
+  "white",
+  "oak",
+  "walnut",
+  "black",
+  "anthracite",
+  "grey",
+  "beige",
+  "sand",
+  "green",
+  "blue",
+  "terracotta",
+  "pink",
+  "concrete",
+  "marble"
+ ],
+ "kenney": [
+  {
+   "model": "kenney:loungeSofa",
+   "type": "sofa"
+  },
+  {
+   "model": "kenney:loungeSofaLong",
+   "type": "sofa"
+  },
+  {
+   "model": "kenney:loungeDesignSofa",
+   "type": "sofa"
+  },
+  {
+   "model": "kenney:loungeSofaCorner",
+   "type": "sofa_corner"
+  },
+  {
+   "model": "kenney:loungeDesignSofaCorner",
+   "type": "sofa_corner"
+  },
+  {
+   "model": "kenney:loungeChair",
+   "type": "armchair"
+  },
+  {
+   "model": "kenney:loungeChairRelax",
+   "type": "armchair"
+  },
+  {
+   "model": "kenney:loungeDesignChair",
+   "type": "armchair"
+  },
+  {
+   "model": "kenney:loungeSofaOttoman",
+   "type": "stool"
+  },
+  {
+   "model": "kenney:tableCoffee",
+   "type": "coffee_table"
+  },
+  {
+   "model": "kenney:tableCoffeeSquare",
+   "type": "coffee_table"
+  },
+  {
+   "model": "kenney:tableCoffeeGlass",
+   "type": "coffee_table"
+  },
+  {
+   "model": "kenney:tableCoffeeGlassSquare",
+   "type": "coffee_table"
+  },
+  {
+   "model": "kenney:sideTable",
+   "type": "side_table"
+  },
+  {
+   "model": "kenney:sideTableDrawers",
+   "type": "side_table"
+  },
+  {
+   "model": "kenney:televisionModern",
+   "type": "tv"
+  },
+  {
+   "model": "kenney:televisionVintage",
+   "type": "tv"
+  },
+  {
+   "model": "kenney:cabinetTelevision",
+   "type": "shelf"
+  },
+  {
+   "model": "kenney:cabinetTelevisionDoors",
+   "type": "shelf"
+  },
+  {
+   "model": "kenney:bookcaseOpen",
+   "type": "shelf"
+  },
+  {
+   "model": "kenney:bookcaseOpenLow",
+   "type": "shelf"
+  },
+  {
+   "model": "kenney:bookcaseClosed",
+   "type": "shelf"
+  },
+  {
+   "model": "kenney:bookcaseClosedWide",
+   "type": "shelf"
+  },
+  {
+   "model": "kenney:rugRectangle",
+   "type": "rug"
+  },
+  {
+   "model": "kenney:rugRounded",
+   "type": "rug"
+  },
+  {
+   "model": "kenney:rugRound",
+   "type": "rug"
+  },
+  {
+   "model": "kenney:rugSquare",
+   "type": "rug"
+  },
+  {
+   "model": "kenney:rugDoormat",
+   "type": "rug"
+  },
+  {
+   "model": "kenney:speaker",
+   "type": "item"
+  },
+  {
+   "model": "kenney:speakerSmall",
+   "type": "item"
+  },
+  {
+   "model": "kenney:radio",
+   "type": "item"
+  },
+  {
+   "model": "kenney:coatRackStanding",
+   "type": "item"
+  },
+  {
+   "model": "kenney:books",
+   "type": "item"
+  },
+  {
+   "model": "kenney:table",
+   "type": "table"
+  },
+  {
+   "model": "kenney:tableCloth",
+   "type": "table"
+  },
+  {
+   "model": "kenney:tableCross",
+   "type": "table"
+  },
+  {
+   "model": "kenney:tableCrossCloth",
+   "type": "table"
+  },
+  {
+   "model": "kenney:tableGlass",
+   "type": "table"
+  },
+  {
+   "model": "kenney:tableRound",
+   "type": "table"
+  },
+  {
+   "model": "kenney:chair",
+   "type": "chair"
+  },
+  {
+   "model": "kenney:chairCushion",
+   "type": "chair"
+  },
+  {
+   "model": "kenney:chairModernCushion",
+   "type": "chair"
+  },
+  {
+   "model": "kenney:chairModernFrameCushion",
+   "type": "chair"
+  },
+  {
+   "model": "kenney:chairRounded",
+   "type": "chair"
+  },
+  {
+   "model": "kenney:stoolBar",
+   "type": "stool"
+  },
+  {
+   "model": "kenney:stoolBarSquare",
+   "type": "stool"
+  },
+  {
+   "model": "kenney:kitchenCabinet",
+   "type": "kitchen"
+  },
+  {
+   "model": "kenney:kitchenCabinetDrawer",
+   "type": "kitchen"
+  },
+  {
+   "model": "kenney:kitchenSink",
+   "type": "kitchen"
+  },
+  {
+   "model": "kenney:kitchenStove",
+   "type": "kitchen"
+  },
+  {
+   "model": "kenney:kitchenStoveElectric",
+   "type": "kitchen"
+  },
+  {
+   "model": "kenney:kitchenCabinetCornerInner",
+   "type": "kitchen"
+  },
+  {
+   "model": "kenney:kitchenCabinetCornerRound",
+   "type": "kitchen"
+  },
+  {
+   "model": "kenney:kitchenBar",
+   "type": "kitchen"
+  },
+  {
+   "model": "kenney:kitchenBarEnd",
+   "type": "kitchen"
+  },
+  {
+   "model": "kenney:kitchenCabinetUpper",
+   "type": "kitchen_upper"
+  },
+  {
+   "model": "kenney:kitchenCabinetUpperDouble",
+   "type": "kitchen_upper"
+  },
+  {
+   "model": "kenney:kitchenCabinetUpperLow",
+   "type": "kitchen_upper"
+  },
+  {
+   "model": "kenney:kitchenCabinetUpperCorner",
+   "type": "kitchen_upper"
+  },
+  {
+   "model": "kenney:hoodModern",
+   "type": "kitchen_upper"
+  },
+  {
+   "model": "kenney:hoodLarge",
+   "type": "kitchen_upper"
+  },
+  {
+   "model": "kenney:kitchenFridge",
+   "type": "fridge"
+  },
+  {
+   "model": "kenney:kitchenFridgeLarge",
+   "type": "fridge"
+  },
+  {
+   "model": "kenney:kitchenFridgeSmall",
+   "type": "fridge"
+  },
+  {
+   "model": "kenney:kitchenFridgeBuiltIn",
+   "type": "fridge"
+  },
+  {
+   "model": "kenney:kitchenMicrowave",
+   "type": "item"
+  },
+  {
+   "model": "kenney:kitchenCoffeeMachine",
+   "type": "item"
+  },
+  {
+   "model": "kenney:kitchenBlender",
+   "type": "item"
+  },
+  {
+   "model": "kenney:toaster",
+   "type": "item"
+  },
+  {
+   "model": "kenney:trashcan",
+   "type": "item"
+  },
+  {
+   "model": "kenney:bedDouble",
+   "type": "bed"
+  },
+  {
+   "model": "kenney:bedSingle",
+   "type": "bed_single"
+  },
+  {
+   "model": "kenney:bedBunk",
+   "type": "bed_single"
+  },
+  {
+   "model": "kenney:cabinetBed",
+   "type": "nightstand"
+  },
+  {
+   "model": "kenney:cabinetBedDrawer",
+   "type": "nightstand"
+  },
+  {
+   "model": "kenney:cabinetBedDrawerTable",
+   "type": "nightstand"
+  },
+  {
+   "model": "kenney:bookcaseClosedDoors",
+   "type": "wardrobe"
+  },
+  {
+   "model": "kenney:desk",
+   "type": "desk"
+  },
+  {
+   "model": "kenney:deskCorner",
+   "type": "desk"
+  },
+  {
+   "model": "kenney:chairDesk",
+   "type": "chair"
+  },
+  {
+   "model": "kenney:computerScreen",
+   "type": "item"
+  },
+  {
+   "model": "kenney:laptop",
+   "type": "item"
+  },
+  {
+   "model": "kenney:coatRack",
+   "type": "item"
+  },
+  {
+   "model": "kenney:bathtub",
+   "type": "bathtub"
+  },
+  {
+   "model": "kenney:shower",
+   "type": "shower"
+  },
+  {
+   "model": "kenney:showerRound",
+   "type": "shower"
+  },
+  {
+   "model": "kenney:toilet",
+   "type": "toilet"
+  },
+  {
+   "model": "kenney:toiletSquare",
+   "type": "toilet"
+  },
+  {
+   "model": "kenney:bathroomSink",
+   "type": "sink"
+  },
+  {
+   "model": "kenney:bathroomSinkSquare",
+   "type": "sink"
+  },
+  {
+   "model": "kenney:bathroomCabinet",
+   "type": "shelf"
+  },
+  {
+   "model": "kenney:bathroomCabinetDrawer",
+   "type": "shelf"
+  },
+  {
+   "model": "kenney:bathroomMirror",
+   "type": "mirror"
+  },
+  {
+   "model": "kenney:washer",
+   "type": "washer"
+  },
+  {
+   "model": "kenney:washerDryerStacked",
+   "type": "washer"
+  },
+  {
+   "model": "kenney:dryer",
+   "type": "dryer"
+  },
+  {
+   "model": "kenney:lampSquareFloor",
+   "type": "floor_lamp"
+  },
+  {
+   "model": "kenney:lampRoundFloor",
+   "type": "floor_lamp"
+  },
+  {
+   "model": "kenney:lampSquareTable",
+   "type": "table_lamp"
+  },
+  {
+   "model": "kenney:lampRoundTable",
+   "type": "table_lamp"
+  },
+  {
+   "model": "kenney:lampSquareCeiling",
+   "type": "ceiling_lamp"
+  },
+  {
+   "model": "kenney:lampWall",
+   "type": "wall_lamp"
+  },
+  {
+   "model": "kenney:ceilingFan",
+   "type": "ceiling_fan"
+  },
+  {
+   "model": "kenney:pottedPlant",
+   "type": "plant"
+  },
+  {
+   "model": "kenney:plantSmall1",
+   "type": "plant"
+  },
+  {
+   "model": "kenney:plantSmall2",
+   "type": "plant"
+  },
+  {
+   "model": "kenney:plantSmall3",
+   "type": "plant"
+  },
+  {
+   "model": "kenney:tree_oak_dark",
+   "type": "tree"
+  },
+  {
+   "model": "kenney:tree_oak",
+   "type": "tree"
+  },
+  {
+   "model": "kenney:tree_default_dark",
+   "type": "tree"
+  },
+  {
+   "model": "kenney:tree_detailed",
+   "type": "tree"
+  },
+  {
+   "model": "kenney:tree_fat",
+   "type": "tree"
+  },
+  {
+   "model": "kenney:tree_tall_dark",
+   "type": "tree"
+  },
+  {
+   "model": "kenney:tree_oak_fall",
+   "type": "tree"
+  },
+  {
+   "model": "kenney:tree_palmTall",
+   "type": "tree"
+  },
+  {
+   "model": "kenney:tree_default",
+   "type": "tree_small"
+  },
+  {
+   "model": "kenney:tree_small_dark",
+   "type": "tree_small"
+  },
+  {
+   "model": "kenney:tree_simple_dark",
+   "type": "tree_small"
+  },
+  {
+   "model": "kenney:tree_cone_dark",
+   "type": "tree_small"
+  },
+  {
+   "model": "kenney:tree_thin_dark",
+   "type": "tree_small"
+  },
+  {
+   "model": "kenney:tree_pineRoundC",
+   "type": "pine"
+  },
+  {
+   "model": "kenney:tree_pineTallA_detailed",
+   "type": "pine"
+  },
+  {
+   "model": "kenney:tree_pineDefaultA",
+   "type": "pine"
+  },
+  {
+   "model": "kenney:tree_pineSmallA",
+   "type": "pine"
+  },
+  {
+   "model": "kenney:plant_bushDetailed",
+   "type": "bush"
+  },
+  {
+   "model": "kenney:plant_bushLarge",
+   "type": "bush"
+  },
+  {
+   "model": "kenney:plant_bush",
+   "type": "bush"
+  },
+  {
+   "model": "kenney:plant_bushSmall",
+   "type": "bush"
+  },
+  {
+   "model": "kenney:flower_redA",
+   "type": "flower_bed"
+  },
+  {
+   "model": "kenney:flower_yellowA",
+   "type": "flower_bed"
+  },
+  {
+   "model": "kenney:flower_purpleA",
+   "type": "flower_bed"
+  },
+  {
+   "model": "kenney:flower_redC",
+   "type": "flower_bed"
+  },
+  {
+   "model": "kenney:flower_yellowC",
+   "type": "flower_bed"
+  },
+  {
+   "model": "kenney:flower_purpleC",
+   "type": "flower_bed"
+  },
+  {
+   "model": "kenney:lily_large",
+   "type": "flower_bed"
+  },
+  {
+   "model": "kenney:fence_simple",
+   "type": "fence"
+  },
+  {
+   "model": "kenney:fence_planks",
+   "type": "fence"
+  },
+  {
+   "model": "kenney:fence_planksDouble",
+   "type": "fence"
+  },
+  {
+   "model": "kenney:fence_simpleHigh",
+   "type": "fence"
+  },
+  {
+   "model": "kenney:fence_gate",
+   "type": "fence"
+  },
+  {
+   "model": "kenney:path_stone",
+   "type": "garden_path"
+  },
+  {
+   "model": "kenney:path_stoneCircle",
+   "type": "garden_path"
+  },
+  {
+   "model": "kenney:path_wood",
+   "type": "garden_path"
+  },
+  {
+   "model": "kenney:stump_round",
+   "type": "item"
+  },
+  {
+   "model": "kenney:log_stack",
+   "type": "item"
+  },
+  {
+   "model": "kenney:bench",
+   "type": "bench"
+  },
+  {
+   "model": "kenney:benchCushion",
+   "type": "bench"
+  },
+  {
+   "model": "kenney:benchCushionLow",
+   "type": "bench"
+  },
+  {
+   "model": "kenney:sedan",
+   "type": "car"
+  },
+  {
+   "model": "kenney:suv",
+   "type": "car"
+  },
+  {
+   "model": "kenney:suv-luxury",
+   "type": "car"
+  },
+  {
+   "model": "kenney:hatchback-sports",
+   "type": "car"
+  },
+  {
+   "model": "kenney:van",
+   "type": "car"
+  },
+  {
+   "model": "kenney:delivery",
+   "type": "car"
+  },
+  {
+   "model": "kenney:taxi",
+   "type": "car"
+  },
+  {
+   "model": "kenney:police",
+   "type": "car"
+  }
+ ],
+ "energy_kinds": [
+  "solar",
+  "battery",
+  "grid",
+  "inverter",
+  "device"
+ ]
+}

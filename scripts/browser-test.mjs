@@ -1867,6 +1867,40 @@ console.log("editor, starting from scratch");
     await page.keyboard.press("Escape");
   });
 
+  await test("house settings: a prompt for an AI assistant, its errors, restoring the previous version", async () => {
+    await page.keyboard.press("Escape");
+    await page.evaluate(() => {
+      // the page's clipboard, readable by the test
+      window.copied = [];
+      Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText: async (t) => void window.copied.push(t) } });
+    });
+    await page.locator("homeslice-panel header button[aria-label='House settings']").click();
+    await page.locator("homeslice-panel .inspector button", { hasText: "Copy prompt for an AI assistant" }).click();
+    await page.locator("homeslice-panel .inspector button", { hasText: "Copied" }).first().waitFor();
+    const prompt = await page.evaluate(() => window.copied.at(-1));
+    assert(prompt.startsWith("Please draw my home for Homeslice") && prompt.includes("guide for AI assistants") && prompt.includes("House: test_house"), `prompt: ${prompt.slice(0, 200)}`);
+    // an assistant's answer with a mistake: the errors can go straight back to it
+    await page.locator("homeslice-panel textarea.yaml").fill("schema: 1\nid: x\nlevels:\n  - id: g\n    rooms:\n      - { id: a }");
+    await page.locator("homeslice-panel .inspector button", { hasText: "Check and apply" }).click();
+    await page.locator("homeslice-panel .inspector button", { hasText: "Copy errors for the assistant" }).click();
+    const errorsText = await page.evaluate(() => window.copied.at(-1));
+    assert(errorsText.startsWith("Homeslice found these errors") && errorsText.includes("- levels.g.rooms.a: A room needs rect"), `errors: ${errorsText}`);
+    // save twice: the first version can be restored
+    await page.keyboard.press("Escape");
+    const before = (await model()).levels[0].rooms[0].name;
+    await page.evaluate(() => window.panel.save());
+    await page.evaluate(() => {
+      const m = structuredClone(window.panel._model);
+      m.levels[0].rooms[0].name = "Changed by an assistant";
+      return window.panel.hass.callWS({ type: "homeslice/model/save", house: "test_house", model: m });
+    });
+    await page.evaluate(() => window.panel.hass.callWS({ type: "homeslice/houses" }).then((h) => (window.panel._houses = h)));
+    await page.locator("homeslice-panel header button[aria-label='House settings']").click();
+    await page.locator("homeslice-panel .inspector button", { hasText: "Restore the version from" }).click();
+    await page.waitForFunction((name) => window.panel._model?.levels[0].rooms[0].name === name, before);
+    await page.keyboard.press("Escape");
+  });
+
   await test("a level can start from the one below", async () => {
     await page.keyboard.press("Escape");
     await page.locator("homeslice-panel button.level", { hasText: "First Floor" }).click();

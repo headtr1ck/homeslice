@@ -102,13 +102,29 @@ export function makeHass(fixture, onChange) {
         if (!m) throw new Error(`fake hass: no house ${msg.house}`);
         return structuredClone(m);
       }
-      if (msg.type === "homeslice/houses") return Object.values(houses).map((m) => ({ id: m.id, name: m.name ?? m.id, source: "api" }));
+      // the version before the last save, per house (for "Restore previous version")
+      const previous = (fixture.previous ??= {});
+      if (msg.type === "homeslice/houses")
+        return Object.values(houses).map((m) => ({ id: m.id, name: m.name ?? m.id, source: "api", updated: "2026-10-31T12:00:00Z", ...(previous[m.id] ? { previous: { updated: "2026-10-31T11:00:00Z", source: "assistant:openai" } } : {}) }));
+      if (msg.type === "homeslice/guide") return { guide: `# Writing a Homeslice house (guide for AI assistants)\n\nHouse: ${msg.house}\n` };
+      if (msg.type === "homeslice/model/restore") {
+        const before = previous[msg.house];
+        if (!before) throw new Error("no previous version");
+        previous[msg.house] = houses[msg.house];
+        houses[msg.house] = before;
+        if (msg.house === fixture.model?.id) {
+          fixture.model = before;
+          for (const callback of subscribers) callback({ model: structuredClone(before) });
+        }
+        return null;
+      }
       if (msg.type === "homeslice/model/delete") {
         delete houses[msg.house];
         return null;
       }
       if (msg.type === "homeslice/model/save") {
         hass.saved.push(structuredClone(msg.model));
+        if (houses[msg.house]) previous[msg.house] = houses[msg.house];
         houses[msg.house] = msg.model;
         if (!fixture.model || msg.house === fixture.model.id) {
           fixture.model = msg.model;

@@ -599,5 +599,18 @@
   "finish.marble": "Marmor",
   "editor.library_modern": "Modern",
   "editor.furniture_finish": "Oberfläche",
-  "furniture.group_hall": "Flur"
+  "furniture.group_hall": "Flur",
+  "editor.ai": "Mit einem KI-Assistenten",
+  "editor.ai_hint": "Kopiere den Prompt in ChatGPT, Claude oder Gemini, füge ein Foto oder eine Skizze deines Grundrisses hinzu und füge die Antwort unten ein. Der Prompt erklärt das Format und listet deine Etagen, Bereiche und Geräte auf, damit der Assistent die richtigen verknüpft.",
+  "editor.ai_prompt": "Prompt für einen KI-Assistenten kopieren",
+  "editor.ai_prompt_intro": "Bitte zeichne mein Zuhause für Homeslice (eine 3D-Hausansicht für Home Assistant). Ich hänge einen Grundriss an (oder beschreibe die Räume). Halte dich an die Anleitung unten, verwende nur die dort aufgeführten Etagen-, Bereichs- und Entitäts-IDs, frag nach, wenn etwas unklar ist, und antworte mit dem ganzen Haus als YAML in einem Codeblock.",
+  "editor.ai_tools_hint": "Assistenten können auch direkt am Haus arbeiten: die eigenen Assistenten von Home Assistant (in den Einstellungen eines Konversationsagenten die API „Homeslice“ hinzufügen) und externe über die Integration MCP Server oder die HTTP-API. Siehe README.",
+  "editor.ai_errors": "Fehler für den Assistenten kopieren",
+  "editor.ai_errors_text": "Homeslice hat diese Fehler im Haus gefunden. Bitte behebe sie und antworte mit dem ganzen korrigierten YAML:",
+  "editor.restore": "Version vom {when} wiederherstellen ({source})",
+  "editor.restore_hint": "Zuletzt gespeichert am {when} von {source}. Home Assistant behält die Version davor:",
+  "editor.restore_confirm": "Das Haus durch die Version vom {when} ({source}) ersetzen? Ungespeicherte Änderungen gehen verloren; erneutes Wiederherstellen tauscht zurück.",
+  "editor.source_editor": "dem Editor",
+  "editor.source_file": "der Datei {file}",
+  "editor.source_assistant": "einem Assistenten ({name})"
 }

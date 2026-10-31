@@ -599,5 +599,18 @@
   "finish.marble": "Marble",
   "editor.library_modern": "Modern",
   "editor.furniture_finish": "Finish",
-  "furniture.group_hall": "Hall"
+  "furniture.group_hall": "Hall",
+  "editor.ai": "With an AI assistant",
+  "editor.ai_hint": "Copy the prompt into ChatGPT, Claude or Gemini, add a photo or sketch of your floor plan, and paste its answer into the field below. The prompt explains the format and lists your floors, areas and devices, so the assistant links the right ones.",
+  "editor.ai_prompt": "Copy prompt for an AI assistant",
+  "editor.ai_prompt_intro": "Please draw my home for Homeslice (a Home Assistant 3D house view). I'll attach a floor plan (or describe the rooms). Follow the guide below, use only the floor, area and entity ids it lists, ask me about anything unclear, and answer with the whole house as YAML in one code block.",
+  "editor.ai_tools_hint": "Assistants can also work on the house directly: Home Assistant's own assistants (add the \"Homeslice\" API in a conversation agent's settings) and external ones through the MCP Server integration or the HTTP API. See the README.",
+  "editor.ai_errors": "Copy errors for the assistant",
+  "editor.ai_errors_text": "Homeslice found these errors in the house. Please fix them and answer with the whole corrected YAML:",
+  "editor.restore": "Restore the version from {when} ({source})",
+  "editor.restore_hint": "Last saved {when} by {source}. Home Assistant keeps the version before that:",
+  "editor.restore_confirm": "Replace the house with the version from {when} ({source})? Unsaved changes are lost; restoring again swaps back.",
+  "editor.source_editor": "the editor",
+  "editor.source_file": "the file {file}",
+  "editor.source_assistant": "an assistant ({name})"
 }

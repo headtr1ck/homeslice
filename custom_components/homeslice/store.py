@@ -16,6 +16,7 @@ from homeassistant.util import dt as dt_util
 from homeassistant.util.yaml import load_yaml
 
 from .const import DOMAIN, MODEL_DIR
+from .validate import describe, errors
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -30,13 +31,12 @@ class ModelError(HomeAssistantError):
 
 
 def check_model(model: Any) -> dict[str, Any]:
-    """Minimal structural check; the frontend validates the details with fix-it messages."""
+    """The house file's rules (the editor's, see validate.py); errors stop the save."""
     if not isinstance(model, dict):
         raise ModelError("The house model must be a mapping")
-    if model.get("schema") != 1:
-        raise ModelError(f"Unsupported schema {model.get('schema')!r}; expected 1")
-    if not isinstance(model.get("levels"), list) or not model["levels"]:
-        raise ModelError("A house needs at least one level")
+    problems = errors(model)
+    if problems:
+        raise ModelError("The house has errors:\n" + describe(problems))
     return model
 
 
@@ -72,26 +72,51 @@ class HomesliceStore:
         return house["model"] if house else None
 
     def summary(self) -> list[dict[str, Any]]:
-        """Houses for listings."""
+        """Houses for listings (with the version a restore would bring back)."""
         return [
             {
                 "id": house_id,
                 "name": house["model"].get("name", house_id),
                 "updated": house["updated"],
                 "source": house["source"],
+                **(
+                    {"previous": {"updated": house["previous"]["updated"], "source": house["previous"]["source"]}}
+                    if house.get("previous")
+                    else {}
+                ),
             }
             for house_id, house in sorted(self.houses.items())
         ]
 
     async def async_save(self, house_id: str, model: Any, source: str) -> None:
-        """Store a model and notify listeners."""
+        """Store a model and notify listeners; the version it replaces is kept for a restore."""
         if not HOUSE_ID.match(house_id):
             raise ModelError(f"Invalid house id {house_id!r}: use lower-case letters, digits and _")
         check_model(model)
-        self.houses[house_id] = {"model": model, "updated": dt_util.utcnow().isoformat(), "source": source}
+        current = self.houses.get(house_id)
+        previous = current.get("previous") if current else None
+        if current and current["model"] != model:
+            previous = {k: current[k] for k in ("model", "updated", "source")}
+        self.houses[house_id] = {
+            "model": model,
+            "updated": dt_util.utcnow().isoformat(),
+            "source": source,
+            **({"previous": previous} if previous else {}),
+        }
         await self.store.async_save(self._data())
         for listener in list(self._listeners):
             listener(house_id, model)
+
+    async def async_restore(self, house_id: str) -> None:
+        """Swap a house with the version before its last save (a second restore swaps back)."""
+        current = self.houses.get(house_id)
+        if not current or not current.get("previous"):
+            raise ModelError(f"House {house_id!r} has no previous version")
+        previous = current["previous"]
+        self.houses[house_id] = {**previous, "previous": {k: current[k] for k in ("model", "updated", "source")}}
+        await self.store.async_save(self._data())
+        for listener in list(self._listeners):
+            listener(house_id, previous["model"])
 
     async def async_delete(self, house_id: str) -> None:
         """Remove a house."""
@@ -115,7 +140,8 @@ class HomesliceStore:
         for path in files:
             house_id = path.stem
             current = self.houses.get(house_id)
-            if current and current["source"] == "api" and not force:
+            # saved in the editor or by an assistant: a file never overwrites that silently
+            if current and not current["source"].startswith("file:") and not force:
                 _LOGGER.warning("Not importing %s: the house was edited in the editor (use force)", path.name)
                 continue
             try:

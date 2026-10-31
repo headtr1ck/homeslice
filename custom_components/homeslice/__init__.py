@@ -16,6 +16,8 @@ from homeassistant.helpers import area_registry as ar, entity_registry as er, fl
 from homeassistant.helpers.debounce import Debouncer
 
 from .assets import ASSETS_URL, Assets
+from .rest_api import async_register_views
+from .llm import async_register_llm_api
 from .const import DOMAIN, FRONTEND_FILE, FRONTEND_URL, PANEL_FILE
 from .repairs import async_check_house
 from .store import HomesliceStore
@@ -67,6 +69,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             require_admin=True,
         )
         async_register_websocket(hass)
+        async_register_views(hass)
 
         async def import_files(call: ServiceCall) -> None:
             await hass.data[DOMAIN]["store"].async_import_files(force=call.data.get("force", False))
@@ -100,6 +103,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         if model:
             hass.async_create_background_task(assets.async_ensure_models(model), f"homeslice models {house_id}")
     entry.async_on_unload(store.async_listen(house_changed))
+    # the tools for AI assistants (conversation agents, and MCP clients through MCP Server)
+    entry.async_on_unload(async_register_llm_api(hass))
     for event_type in (
         ar.EVENT_AREA_REGISTRY_UPDATED,
         fr.EVENT_FLOOR_REGISTRY_UPDATED,
