@@ -917,10 +917,480 @@ const BUILDERS: Record<string, Build> = {
   parasol: (b, w, d, h, f) => {
     b.box(0.5, 0.08, 0.5, 0, 0, 0, mat("#5a5d61"), 0.01);
     b.cyl(0.02, 0.02, h - 0.1, 0, 0.08, 0, mat("#cfcac0"), 10);
-    const canopy = b.add(new THREE.ConeGeometry(Math.min(w, d) / 2, 0.45, 8, 1, true), mat((f.color as THREE.Color).getStyle(), { side: THREE.DoubleSide, roughness: 1 }), 0, h - 0.2, 0);
-    void canopy;
+    b.add(new THREE.ConeGeometry(Math.min(w, d) / 2, 0.45, 8, 1, true), mat((f.color as THREE.Color).getStyle(), { side: THREE.DoubleSide, roughness: 1 }), 0, h - 0.2, 0);
+  },
+  // ----- more shelves -----
+  bookshelf_wide: (b, w, d, h, f) => {
+    const rand = random(83);
+    const n = Math.max(1, Math.round(w / 0.8));
+    const t = 0.022;
+    const base = Math.min(0.75, h * 0.35);
+    b.box(w, t, d, 0, h - t, 0, f);
+    for (let i = 0; i <= n; i++) b.box(t, h, d, -w / 2 + t / 2 + (i * (w - t)) / n, 0, 0, f);
+    fronts(b, -w / 2 + t, w - 2 * t, 0.04, base - 0.04, d / 2 - 0.02, n * 2, f, 1, "knob");
+    b.box(w, base, d - 0.02, 0, 0, -0.01, f);
+    const cw = (w - t) / n;
+    for (let i = 0; i < n; i++) {
+      const x0 = -w / 2 + t + i * cw;
+      const rows = Math.max(2, Math.round((h - base) / 0.36));
+      for (let r = 0; r < rows; r++) {
+        const y = base + (r * (h - base - t)) / rows;
+        b.box(cw - t, t, d - 0.01, x0 + (cw - t) / 2, y - t, 0, f);
+        if (rand() > 0.2) books(b, rand, x0 + 0.01, x0 + (cw - t) * (0.4 + rand() * 0.55), y, (h - base) / rows - 0.04, d * 0.75, 0);
+      }
+    }
+  },
+  bookshelf_low: (b, w, d, h, f) => shelves(b, w, d, h, f, 3, random(89)),
+  bookshelf_grid: (b, w, d, h, f) => {
+    // irregular cells, books standing and lying, open front and back (a room divider)
+    const rand = random(97);
+    const t = 0.025;
+    const rows = Math.max(2, Math.round(h / 0.38));
+    const rh = (h - t) / rows;
+    for (const sx of [-1, 1]) b.box(t, h, d, sx * (w / 2 - t / 2), 0, 0, f);
+    for (let r = 0; r <= rows; r++) b.box(w, t, d, 0, r * rh, 0, f);
+    for (let r = 0; r < rows; r++) {
+      const cuts = [-w / 2 + t];
+      let x = cuts[0];
+      while (x < w / 2 - 0.45) {
+        x += 0.3 + rand() * 0.35;
+        if (x < w / 2 - 0.2) cuts.push(x);
+      }
+      cuts.push(w / 2 - t);
+      for (let i = 0; i < cuts.length; i++) {
+        if (i > 0 && i < cuts.length - 1) b.box(t, rh, d, cuts[i], r * rh + t, 0, f);
+        if (i === cuts.length - 1) break;
+        const x0 = cuts[i] + t / 2;
+        const x1 = cuts[i + 1] - t / 2;
+        const what = rand();
+        if (what < 0.5) books(b, rand, x0 + 0.01, x0 + (x1 - x0) * (0.5 + rand() * 0.45), r * rh + t, rh - 0.05, d * 0.7, 0);
+        else if (what < 0.75) for (let k = 0; k < 4; k++) b.batch(new THREE.BoxGeometry((x1 - x0) * 0.7, 0.03, d * 0.6), mat(C.book[(k + r) % C.book.length]), matrix((x0 + x1) / 2, r * rh + t + 0.015 + k * 0.031, 0, 0, (rand() - 0.5) * 0.3, 0));
+        else if (what < 0.88) {
+          const px = (x0 + x1) / 2;
+          b.cyl(0.06, 0.045, 0.11, px, r * rh + t, 0, mat(C.ceramic), 12);
+          foliage(b, rand, px, r * rh + t + 0.17, 0, 0.07, 0.07, 0.07, 18, 0.05, [C.leaf, C.leafLight], true);
+        }
+      }
+    }
+  },
+  bookshelf_ladder: (b, w, d, h, f) => {
+    // leans against the wall: rails from the floor in front to the wall at the top
+    const rand = random(101);
+    const zAt = (y: number) => d / 2 - 0.02 - (y / h) * (d - 0.04);
+    for (const sx of [-1, 1]) b.rod(v(sx * (w / 2 - 0.02), 0, zAt(0)), v(sx * (w / 2 - 0.02), h, zAt(h)), 0.018, f, 6);
+    const n = 5;
+    for (let i = 0; i < n; i++) {
+      const y = 0.12 + (i * (h - 0.3)) / (n - 1);
+      const front = zAt(y);
+      const sd = Math.max(0.12, front + d / 2 - 0.01);
+      const z = front - sd / 2;
+      b.box(w - 0.04, 0.02, sd, 0, y, z, f);
+      if (i < n - 1 && rand() > 0.25) books(b, rand, -w / 2 + 0.05, -w / 2 + 0.05 + (w - 0.1) * (0.35 + rand() * 0.5), y + 0.02, 0.26, sd * 0.75, z);
+    }
+  },
+  bookshelf_wall: (b, w, d, h, f) => {
+    const rand = random(103);
+    const n = Math.max(2, Math.round(h / 0.4) + 1);
+    for (let i = 0; i < n; i++) {
+      const y = (i * (h - 0.025)) / (n - 1);
+      const sw = w * (i % 2 ? 0.8 : 1);
+      const x = i % 2 ? w * 0.1 : 0;
+      b.box(sw, 0.025, d, x, y, 0, f);
+      if (i < n - 1) books(b, rand, x - sw / 2 + 0.03, x - sw / 2 + sw * (0.3 + rand() * 0.4), y + 0.025, Math.min(0.26, (h - 0.025) / (n - 1) - 0.03), d * 0.8, 0);
+    }
+  },
+  // ----- garden, more -----
+  deck_chair: (b, w, d, h, f) => {
+    const wood = mat(FINISHES.oak);
+    for (const sx of [-1, 1]) {
+      const x = sx * (w / 2 - 0.02);
+      b.rod(v(x, 0, d / 2), v(x, h, -d / 2 + 0.05), 0.016, wood, 6);
+      b.rod(v(x, 0, -d / 2), v(x, h * 0.45, d / 2 - 0.05), 0.016, wood, 6);
+    }
+    const sling = new THREE.PlaneGeometry(w - 0.08, Math.hypot(h, d) * 0.85, 1, 8);
+    const pos = sling.attributes.position;
+    for (let i = 0; i < pos.count; i++) {
+      const t = pos.getY(i) / (Math.hypot(h, d) * 0.85) + 0.5;
+      pos.setZ(i, Math.sin(t * Math.PI) * 0.12);
+    }
+    sling.computeVertexNormals();
+    const m = b.add(sling, mat((f as THREE.MeshStandardMaterial).color.getStyle(), { side: THREE.DoubleSide, roughness: 1 }), 0, h * 0.55, 0);
+    m.rotation.x = -(Math.PI / 2 - Math.atan2(h * 0.9, d * 0.9));
+  },
+  hammock: (b, w, d, h, f) => {
+    // a wooden frame (a post pair at each end, a beam on the ground) and a sagging cloth
+    const wood = mat(FINISHES.oak);
+    const top = h * 0.92;
+    for (const sx of [-1, 1]) {
+      const x = sx * (w / 2 - 0.05);
+      for (const sz of [-1, 1]) b.rod(v(x - sx * 0.15, 0, sz * (d / 2 - 0.05)), v(x, top, 0), 0.04, wood, 8);
+      b.box(0.08, 0.08, d, x - sx * 0.15, 0, 0, wood);
+    }
+    b.box(w - 0.3, 0.08, 0.08, 0, 0, 0, wood);
+    const len = w * 0.62;
+    const cloth = new THREE.PlaneGeometry(len, Math.min(0.9, d * 0.8), 16, 4);
+    const pos = cloth.attributes.position;
+    for (let i = 0; i < pos.count; i++) {
+      const t = pos.getX(i) / len;
+      const s2 = pos.getY(i) / Math.min(0.9, d * 0.8);
+      pos.setZ(i, -(1 - 4 * t * t) * h * 0.35 - (1 - 4 * s2 * s2) * 0.08);
+    }
+    cloth.computeVertexNormals();
+    const m = b.add(cloth, mat((f as THREE.MeshStandardMaterial).color.getStyle(), { side: THREE.DoubleSide, roughness: 1 }), 0, h * 0.75, 0);
+    m.rotation.x = -Math.PI / 2;
+    for (const sx of [-1, 1]) b.rod(v((sx * len) / 2, h * 0.75, 0), v(sx * (w / 2 - 0.07), top - 0.03, 0), 0.008, mat(C.linen), 4);
+  },
+  fence_slats: (b, w, d, h, f) => {
+    const n = Math.max(1, Math.round(w / 1.8));
+    for (let i = 0; i <= n; i++) b.box(0.07, h, 0.07, -w / 2 + 0.035 + (i * (w - 0.07)) / n, 0, 0, mat(C.black));
+    const rows = Math.max(3, Math.round(h / 0.12));
+    for (let r = 0; r < rows; r++) b.box(w - 0.02, (h / rows) * 0.72, Math.min(0.025, d), 0, 0.03 + (r * (h - 0.03)) / rows, 0.045, f);
+  },
+  garden_light: (b, w, d, h, f) => {
+    const r = Math.min(w, d) / 2;
+    b.cyl(r, r, h - 0.08, 0, 0, 0, f, 20);
+    b.cyl(r * 0.95, r * 0.95, 0.06, 0, h - 0.08, 0, mat("#fff3d6", { emissive: "#ffe2a8", emissiveIntensity: 0.6 }), 20);
+    b.cyl(r * 1.05, r * 1.05, 0.02, 0, h - 0.02, 0, f, 20);
+  },
+  bbq_kettle: (b, w, d, h, f) => {
+    const r = Math.min(w, d) / 2 - 0.02;
+    const y = h - r * 0.9;
+    b.add(new THREE.SphereGeometry(r, 24, 8, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2), f, 0, y, 0);
+    b.add(new THREE.SphereGeometry(r * 0.98, 24, 8, 0, Math.PI * 2, 0, Math.PI / 2), f, 0, y + 0.01, 0).scale.y = 0.85;
+    b.cyl(0.03, 0.03, 0.04, 0, y + r * 0.85, 0, mat(C.black), 10);
+    for (let i = 0; i < 3; i++) {
+      const a = (i / 3) * Math.PI * 2 + 0.3;
+      b.rod(v(Math.cos(a) * r * 0.5, y - r * 0.7, Math.sin(a) * r * 0.5), v(Math.cos(a) * r * 0.95, 0, Math.sin(a) * r * 0.95), 0.012, mat(C.steel), 6);
+    }
+    b.add(new THREE.TorusGeometry(r * 0.75, 0.008, 4, 24), mat(C.steel), 0, y - r * 0.85, 0).rotation.x = Math.PI / 2;
+  },
+  bbq_gas: (b, w, d, h, f) => {
+    const cw = w * 0.6;
+    const ch = h * 0.72;
+    b.box(cw, ch - 0.1, d * 0.9, 0, 0.1, 0, f, 0.01);
+    fronts(b, -cw / 2, cw, 0.15, ch - 0.3, d * 0.45, 2, mat(C.steel), 1, "bar");
+    b.box(cw, 0.08, d * 0.95, 0, ch - 0.12, 0, mat(C.steel));
+    const hood = b.add(new THREE.CylinderGeometry(d * 0.45, d * 0.45, cw, 20, 1, false, 0, Math.PI), f, 0, ch - 0.04, 0);
+    hood.rotation.set(0, 0, Math.PI / 2);
+    b.rod(v(-cw * 0.35, ch + d * 0.3, d * 0.42), v(cw * 0.35, ch + d * 0.3, d * 0.42), 0.012, mat(C.steel), 6);
+    for (const sx of [-1, 1]) b.box((w - cw) / 2, 0.03, d * 0.8, sx * (cw / 2 + (w - cw) / 4), ch - 0.06, 0, mat(C.steel));
+    for (let i = 0; i < 4; i++) b.cyl(0.02, 0.02, 0.03, -cw * 0.3 + (i * cw * 0.6) / 3, ch - 0.09, d * 0.48, mat(C.black), 10).rotation.x = Math.PI / 2;
+    for (const sx of [-1, 1]) b.add(new THREE.CylinderGeometry(0.05, 0.05, 0.03, 12), mat(C.black), sx * cw * 0.4, 0.05, d * 0.3).rotation.z = Math.PI / 2;
+  },
+  fire_pit: (b, w, d, h, f) => {
+    const r = Math.min(w, d) / 2;
+    const profile = [v(0.001, 0, 0), v(r * 0.3, 0, 0), v(r * 0.75, h * 0.35, 0), v(r, h * 0.8, 0), v(r * 0.98, h * 0.8, 0), v(r * 0.73, h * 0.38, 0), v(0.001, h * 0.3, 0)].map((p) => new THREE.Vector2(p.x, p.y));
+    b.add(new THREE.LatheGeometry(profile, 32), mat((f as THREE.MeshStandardMaterial).color.getStyle(), { side: THREE.DoubleSide, roughness: 0.9 }));
+    const rand = random(107);
+    for (let i = 0; i < 5; i++) {
+      const a = (i / 5) * Math.PI * 2;
+      b.rod(v(Math.cos(a) * r * 0.45, h * 0.35, Math.sin(a) * r * 0.45), v(Math.cos(a + 2.4) * r * 0.4, h * 0.5 + rand() * 0.05, Math.sin(a + 2.4) * r * 0.4), 0.035, mat(C.trunk), 6);
+    }
+    b.sphere(r * 0.25, 0, h * 0.42, 0, mat("#ff8a3a", { emissive: "#ff5a1a", emissiveIntensity: 0.8 }), 1, 0.4, 1, 10);
+  },
+  raised_bed: (b, w, d, h, f) => {
+    const t = 0.04;
+    const rows = Math.max(3, Math.round(h / 0.15));
+    for (let r = 0; r < rows; r++) {
+      const y = (r * h) / rows;
+      const bh = h / rows - 0.008;
+      b.box(w, bh, t, 0, y, d / 2 - t / 2, f);
+      b.box(w, bh, t, 0, y, -d / 2 + t / 2, f);
+      b.box(t, bh, d - 2 * t, -w / 2 + t / 2, y, 0, f);
+      b.box(t, bh, d - 2 * t, w / 2 - t / 2, y, 0, f);
+    }
+    b.box(w - 2 * t, 0.02, d - 2 * t, 0, h - 0.06, 0, mat(C.soil));
+    const rand = random(109);
+    const n = Math.max(2, Math.round(w / 0.3));
+    for (let i = 0; i < n; i++)
+      for (const z of [-d / 4, d / 4]) {
+        const x = -w / 2 + t + ((w - 2 * t) * (i + 0.5)) / n;
+        if (i % 3 === 2) foliage(b, rand, x, h + 0.12, z, 0.1, 0.14, 0.1, 30, 0.06, [C.leaf, C.leafDark], true);
+        else for (let k = 0; k < 9; k++) {
+          const a = (k / 9) * Math.PI * 2;
+          b.batch(leafGeometry(0.13, 0.08, 0.4), leafMat(i % 2 ? C.leafLight : "#8bb85c"), matrix(x, h - 0.04, z, -0.6 - rand() * 0.4, a, 0));
+        }
+      }
+  },
+  greenhouse: (b, w, d, h, f) => {
+    const wall = h * 0.62;
+    const frame = f;
+    const pane = glass();
+    b.box(w, 0.08, d, 0, 0, 0, mat(C.black));
+    b.box(w - 0.04, wall - 0.08, d - 0.04, 0, 0.08, 0, pane);
+    gableRoof(b, w, d, wall, h - wall, pane);
+    const n = Math.max(2, Math.round(w / 0.6));
+    for (let i = 0; i <= n; i++) {
+      const x = -w / 2 + (i * w) / n;
+      for (const sz of [-1, 1]) b.rod(v(x, 0, sz * d / 2), v(x, wall, sz * d / 2), 0.015, frame, 4);
+      for (const sz of [-1, 1]) b.rod(v(x, wall, sz * d / 2), v(x, h, 0), 0.015, frame, 4);
+    }
+    for (const sx of [-1, 1]) for (const z of [-d / 2, 0, d / 2]) b.rod(v(sx * w / 2, 0, z), v(sx * w / 2, z === 0 ? h : wall, z), 0.015, frame, 4);
+    for (const [a, c] of [[v(-w / 2, wall, -d / 2), v(w / 2, wall, -d / 2)], [v(-w / 2, wall, d / 2), v(w / 2, wall, d / 2)], [v(-w / 2, h, 0), v(w / 2, h, 0)]]) b.rod(a, c, 0.015, frame, 4);
+    const rand = random(113);
+    b.box(w * 0.8, 0.04, 0.4, 0, 0.75, -d / 2 + 0.3, mat(FINISHES.oak));
+    for (let i = 0; i < 5; i++) foliage(b, rand, -w * 0.35 + (i * w * 0.7) / 4, 0.95, -d / 2 + 0.3, 0.12, 0.15, 0.12, 30, 0.07, [C.leaf, C.leafLight], true);
+  },
+  garden_shed: (b, w, d, h, f) => {
+    const wall = h * 0.72;
+    const rows = Math.max(4, Math.round(wall / 0.14));
+    for (let r = 0; r < rows; r++) b.box(w, wall / rows - 0.006, d, 0, (r * wall) / rows, 0, f);
+    gableRoof(b, w + 0.25, d + 0.25, wall, h - wall, mat(C.black));
+    b.box(0.9, wall * 0.85, 0.03, -w * 0.15, 0, d / 2, mat((f as THREE.MeshStandardMaterial).color.clone().multiplyScalar(0.8).getStyle()));
+    b.sphere(0.025, -w * 0.15 + 0.35, wall * 0.42, d / 2 + 0.03, mat(C.black), 1, 1, 1, 8);
+    b.box(0.6, 0.45, 0.03, w * 0.28, wall * 0.45, d / 2, glass());
+    b.box(0.66, 0.51, 0.02, w * 0.28, wall * 0.45 - 0.03, d / 2 - 0.005, mat(C.ceramic));
+  },
+  pool: (b, w, d, h, f) => {
+    const t = 0.08;
+    b.box(w, h, t, 0, 0, d / 2 - t / 2, f, 0.02);
+    b.box(w, h, t, 0, 0, -d / 2 + t / 2, f, 0.02);
+    b.box(t, h, d - 2 * t, -w / 2 + t / 2, 0, 0, f, 0.02);
+    b.box(t, h, d - 2 * t, w / 2 - t / 2, 0, 0, f, 0.02);
+    b.box(w - 2 * t, 0.02, d - 2 * t, 0, 0.02, 0, mat("#9fd3e0"));
+    b.box(w - 2 * t, 0.02, d - 2 * t, 0, h - 0.2, 0, mat("#3fa4c8", { transparent: true, opacity: 0.7, roughness: 0.05 }));
+    for (const sx of [-1, 1]) {
+      b.rod(v(w / 2 - 0.4 + sx * 0.2, 0, d / 2 + 0.4), v(w / 2 - 0.4 + sx * 0.2, h + 0.3, d / 2 - 0.02), 0.02, mat(C.chrome), 6);
+    }
+    for (let i = 1; i < 4; i++) b.rod(v(w / 2 - 0.6, (h * i) / 4, d / 2 + 0.4 - (0.42 * i) / 4), v(w / 2 - 0.2, (h * i) / 4, d / 2 + 0.4 - (0.42 * i) / 4), 0.015, mat(C.chrome), 6);
+  },
+  trampoline: (b, w, d, h, f) => {
+    const r = Math.min(w, d) / 2;
+    const top = Math.min(0.9, h * 0.35);
+    const steel = mat(C.steel);
+    for (let i = 0; i < 6; i++) {
+      const a = (i / 6) * Math.PI * 2;
+      b.rod(v(Math.cos(a) * r * 0.95, 0, Math.sin(a) * r * 0.95), v(Math.cos(a) * r, top, Math.sin(a) * r), 0.025, steel, 6);
+      b.rod(v(Math.cos(a) * r, top, Math.sin(a) * r), v(Math.cos(a) * r * 0.97, h, Math.sin(a) * r * 0.97), 0.02, f, 6);
+    }
+    b.add(new THREE.TorusGeometry(r, 0.03, 6, 40), steel, 0, top, 0).rotation.x = Math.PI / 2;
+    b.add(new THREE.TorusGeometry(r * 0.92, r * 0.08, 4, 40), f, 0, top + 0.02, 0).rotation.x = Math.PI / 2;
+    b.cyl(r * 0.84, r * 0.84, 0.01, 0, top - 0.04, 0, mat(C.black), 40);
+    b.add(new THREE.CylinderGeometry(r * 0.97, r, h - top, 32, 1, true), mat("#202326", { transparent: true, opacity: 0.25, side: THREE.DoubleSide }), 0, top + (h - top) / 2, 0);
+    b.add(new THREE.TorusGeometry(r * 0.97, 0.025, 6, 40), f, 0, h, 0).rotation.x = Math.PI / 2;
+  },
+  swing: (b, w, d, h, f) => {
+    const wood = mat(FINISHES.oak);
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) b.rod(v(sx * (w / 2 - 0.05), 0, sz * (d / 2 - 0.05)), v(sx * (w / 2 - 0.05), h - 0.06, 0), 0.05, wood, 8);
+    b.box(w, 0.1, 0.1, 0, h - 0.1, 0, wood);
+    for (const sx of [-0.25, 0.25]) {
+      const x = sx * w;
+      for (const ox of [-0.2, 0.2]) b.rod(v(x + ox, h - 0.1, 0), v(x + ox, 0.42, 0), 0.008, mat(C.linen), 4);
+      b.box(0.46, 0.04, 0.2, x, 0.4, 0, f, 0.01);
+    }
+  },
+  playhouse: (b, w, d, h, f) => {
+    const wall = h * 0.6;
+    b.box(w, wall, d, 0, 0, 0, f, 0.01);
+    gableRoof(b, w + 0.2, d + 0.2, wall, h - wall, mat(C.ceramic));
+    b.box(0.5, wall * 0.8, 0.02, -w * 0.18, 0, d / 2, mat(C.ceramic));
+    b.box(0.35, 0.35, 0.02, w * 0.22, wall * 0.45, d / 2, glass());
+    b.box(0.41, 0.41, 0.015, w * 0.22, wall * 0.45 - 0.03, d / 2 - 0.004, mat(C.ceramic));
+    b.box(0.35, 0.35, 0.02, w / 2, wall * 0.45, 0, glass())!.rotation.y = Math.PI / 2;
+  },
+  sandbox: (b, w, d, h, f) => {
+    const t = 0.05;
+    for (const sz of [-1, 1]) b.box(w, h, t, 0, 0, sz * (d / 2 - t / 2), f);
+    for (const sx of [-1, 1]) b.box(t, h, d - 2 * t, sx * (w / 2 - t / 2), 0, 0, f);
+    b.box(w - 2 * t, h * 0.6, d - 2 * t, 0, 0, 0, mat("#e3cf9c", { roughness: 1 }));
+    for (const [sx, sz] of [[-1, -1], [1, 1]]) {
+      const tri = new THREE.Shape([new THREE.Vector2(0, 0), new THREE.Vector2(0.3, 0), new THREE.Vector2(0, 0.3)]);
+      const seat = b.add(new THREE.ExtrudeGeometry(tri, { depth: 0.025, bevelEnabled: false }), f, sx * (w / 2 - 0.02), h + 0.025, sz * (d / 2 - 0.02));
+      seat.rotation.x = Math.PI / 2;
+      seat.rotation.z = sx === -1 ? 0 : Math.PI;
+    }
+    b.cyl(0.07, 0.055, 0.12, w * 0.15, h * 0.6, 0, mat("#e04a3a"), 12, true);
+    b.cyl(0.03, 0.03, 0.02, -w * 0.2, h * 0.6, d * 0.1, mat("#3a7de0"), 10);
+  },
+  rain_barrel: (b, w, d, h, f) => {
+    const r = Math.min(w, d) / 2;
+    b.add(new THREE.LatheGeometry([new THREE.Vector2(0.001, 0), new THREE.Vector2(r * 0.85, 0), new THREE.Vector2(r, h * 0.5), new THREE.Vector2(r * 0.88, h - 0.02), new THREE.Vector2(0.001, h - 0.02)], 24), f);
+    b.cyl(r * 0.9, r * 0.9, 0.04, 0, h - 0.04, 0, f, 24);
+    for (const y of [0.25, 0.75]) b.add(new THREE.TorusGeometry(r * (y === 0.25 ? 0.93 : 0.95), 0.012, 4, 24), f, 0, h * y, 0).rotation.x = Math.PI / 2;
+    b.rod(v(0, 0.15, r * 0.9), v(0, 0.15, r + 0.08), 0.015, mat(C.chrome), 6);
+  },
+  compost_bin: (b, w, d, h, f) => {
+    const rows = Math.max(4, Math.round(h / 0.12));
+    for (let r = 0; r < rows; r++) {
+      const y = (r * h) / rows;
+      const sh = h / rows - 0.03;
+      for (const sz of [-1, 1]) b.box(w, sh, 0.025, 0, y, sz * (d / 2 - 0.0125), f);
+      for (const sx of [-1, 1]) b.box(0.025, sh, d - 0.05, sx * (w / 2 - 0.0125), y, 0, f);
+    }
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) b.box(0.05, h + 0.04, 0.05, sx * (w / 2 - 0.025), 0, sz * (d / 2 - 0.025), f);
+    b.box(w - 0.06, h * 0.75, d - 0.06, 0, 0, 0, mat(C.soil, { roughness: 1 }));
+    foliage(b, random(127), 0, h * 0.78, 0, w * 0.3, 0.05, d * 0.3, 25, 0.06, ["#7a8a3a", "#a08d4a"], true);
+  },
+  wheelbarrow: (b, w, d, h, f) => {
+    const tray = new THREE.CylinderGeometry(Math.SQRT1_2, Math.SQRT1_2 * 0.6, 0.3, 4, 1, false, Math.PI / 4);
+    tray.scale(w, 1, d * 0.55);
+    b.add(tray, f, 0, h - 0.17, d * 0.05);
+    b.add(new THREE.TorusGeometry(0.17, 0.05, 8, 20), mat(C.black), 0, 0.2, d / 2 - 0.2).rotation.y = Math.PI / 2;
+    for (const sx of [-1, 1]) {
+      b.rod(v(sx * 0.2, h - 0.25, -d / 2), v(sx * 0.06, 0.2, d / 2 - 0.2), 0.016, mat(C.steel), 6);
+      b.rod(v(sx * 0.18, h - 0.32, -d * 0.15), v(sx * 0.18, 0, -d * 0.2), 0.014, mat(C.steel), 6);
+      b.cyl(0.02, 0.02, 0.12, sx * 0.2, h - 0.25, -d / 2 + 0.06, mat(C.black), 8).rotation.x = Math.PI / 2 - 0.25;
+    }
+  },
+  robot_mower: (b, w, d, h, f) => {
+    b.box(w, h * 0.55, d, 0, h * 0.15, 0, mat(C.black), 0.06);
+    b.box(w * 0.92, h * 0.35, d * 0.85, 0, h * 0.6, -d * 0.03, f, 0.08);
+    b.box(0.1, 0.04, 0.06, 0, h * 0.92, -d * 0.15, mat("#d23a2a"), 0.01);
+    for (const sx of [-1, 1]) b.add(new THREE.CylinderGeometry(h * 0.4, h * 0.4, 0.06, 18), mat(C.black), sx * (w / 2 - 0.02), h * 0.4, -d * 0.2).rotation.z = Math.PI / 2;
+  },
+  rotary_dryer: (b, w, d, h, f) => {
+    const r = Math.min(w, d) / 2;
+    b.cyl(0.02, 0.022, h - 0.05, 0, 0, 0, f, 8);
+    for (let i = 0; i < 4; i++) {
+      const a = (i / 4) * Math.PI * 2 + Math.PI / 4;
+      b.rod(v(0, h - 0.2, 0), v(Math.cos(a) * r, h - 0.05, Math.sin(a) * r), 0.012, f, 4);
+      b.rod(v(0, h - 0.6, 0), v(Math.cos(a) * r * 0.6, h - 0.12, Math.sin(a) * r * 0.6), 0.01, f, 4);
+    }
+    for (let k = 1; k <= 5; k++) {
+      const rr = (r * k) / 5;
+      const ring = b.add(new THREE.TorusGeometry(rr * Math.SQRT2 * 0.707, 0.003, 3, 4), mat(C.linen), 0, h - 0.2 + (0.15 * k) / 5, 0);
+      ring.rotation.x = Math.PI / 2;
+    }
+    const rand = random(131);
+    for (let i = 0; i < 6; i++) {
+      const a = (Math.floor(i / 2) * Math.PI) / 2 + (i % 2) * 0.6 + 0.2;
+      const rr = r * (0.5 + (i % 3) * 0.15);
+      b.box(0.35, 0.45, 0.01, Math.cos(a) * rr * 0.7, h - 0.62, Math.sin(a) * rr * 0.7, mat(C.clothes[Math.floor(rand() * C.clothes.length)], { side: THREE.DoubleSide }))!.rotation.y = -a;
+    }
+  },
+  wheelie_bins: (b, w, d, h) => {
+    const colors = ["#3a3d41", "#2f5fa8", "#6b4a35", "#e2c33a"];
+    const n = Math.max(1, Math.round(w / 0.62));
+    const bw = w / n - 0.04;
+    for (let i = 0; i < n; i++) {
+      const x = -w / 2 + (w / n) * (i + 0.5);
+      const body = mat(colors[i % colors.length], { roughness: 0.6 });
+      const geo = new THREE.CylinderGeometry(Math.SQRT1_2, Math.SQRT1_2 * 0.88, 1, 4, 1, false, Math.PI / 4);
+      geo.scale(bw, h - 0.12, d - 0.05);
+      b.add(geo, body, x, (h - 0.12) / 2 + 0.04, 0);
+      b.box(bw + 0.03, 0.04, d, x, h - 0.08, 0.01, body, 0.01);
+      for (const sx of [-1, 1]) b.add(new THREE.CylinderGeometry(0.1, 0.1, 0.04, 14), mat(C.black), x + sx * (bw / 2 - 0.02), 0.1, -d / 2 + 0.1).rotation.z = Math.PI / 2;
+      b.rod(v(x - bw * 0.4, h - 0.05, -d / 2 + 0.01), v(x + bw * 0.4, h - 0.05, -d / 2 + 0.01), 0.015, body, 6);
+    }
+  },
+  heat_pump: (b, w, d, h, f) => {
+    b.box(w, h - 0.1, d - 0.05, 0, 0.1, -0.025, f, 0.015);
+    for (const sx of [-1, 1]) b.box(0.08, 0.1, d, sx * (w / 2 - 0.15), 0, 0, mat(C.black));
+    const r = Math.min(w * 0.3, (h - 0.1) * 0.4);
+    const cx = -w * 0.12;
+    const cy = 0.1 + (h - 0.1) / 2;
+    b.add(new THREE.CircleGeometry(r, 32), mat(C.black), cx, cy, d / 2 - 0.045);
+    for (let k = 1; k <= 4; k++) b.add(new THREE.TorusGeometry((r * k) / 4, 0.004, 3, 32), mat(C.steel), cx, cy, d / 2 - 0.04);
+    for (let i = 0; i < 2; i++) b.box(0.006, r * 2, 0.006, cx, cy - r, d / 2 - 0.04, mat(C.steel))!.rotation.z = (i * Math.PI) / 2;
+    b.box(w * 0.18, 0.06, 0.01, w * 0.32, h * 0.8, d / 2 - 0.045, mat(C.steel));
+  },
+  // ----- vehicles -----
+  car_hatchback: (b, w, d, h, _f, color) => car(b, w, d, h, color, "hatchback"),
+  car_estate: (b, w, d, h, _f, color) => car(b, w, d, h, color, "estate"),
+  car_suv: (b, w, d, h, _f, color) => car(b, w, d, h, color, "suv"),
+  car_van: (b, w, d, h, _f, color) => car(b, w, d, h, color, "van"),
+  bicycle: (b, w, d, h, f) => {
+    // along z, front wheel at +z
+    const r = Math.min(0.34, h * 0.33);
+    const zr = -d / 2 + r + 0.02;
+    const zf = d / 2 - r - 0.02;
+    for (const z of [zr, zf]) {
+      b.add(new THREE.TorusGeometry(r, 0.02, 6, 28), mat(C.black), 0, r, z).rotation.y = Math.PI / 2;
+      b.add(new THREE.TorusGeometry(r * 0.88, 0.006, 3, 28), mat(C.steel), 0, r, z).rotation.y = Math.PI / 2;
+      b.cyl(0.03, 0.03, 0.08, 0, r - 0.04, z, mat(C.steel), 8);
+    }
+    const crank = v(0, r * 0.95, (zr + zf) / 2 - 0.05);
+    const seat = v(0, h * 0.8, zr + r * 0.45);
+    const head = v(0, h * 0.82, zf - r * 0.45);
+    for (const [a, c] of [[v(0, r, zr), crank], [v(0, r, zr), seat.clone().setY(seat.y - 0.08)], [crank, seat.clone().setY(seat.y - 0.05)], [crank, head.clone().setY(head.y - 0.12)], [seat.clone().setY(seat.y - 0.08), head], [head, v(0, r, zf)]] as const) b.rod(a, c, 0.018, f, 6);
+    b.box(0.14, 0.04, 0.24, 0, seat.y, seat.z - 0.02, mat(C.black), 0.015);
+    b.rod(v(-w / 2 + 0.05, h - 0.02, head.z - 0.05), v(w / 2 - 0.05, h - 0.02, head.z - 0.05), 0.012, mat(C.black), 6);
+    b.rod(head, v(0, h - 0.02, head.z - 0.05), 0.015, f, 6);
+    b.add(new THREE.TorusGeometry(0.09, 0.008, 4, 16), mat(C.steel), 0, crank.y, crank.z).rotation.y = Math.PI / 2;
+  },
+  bike_rack: (b, w, d, h, f) => {
+    const n = Math.max(1, Math.round(w / 0.4));
+    for (let i = 0; i < n; i++) {
+      const x = -w / 2 + (w / n) * (i + 0.5);
+      const pts = [v(x, 0, -d * 0.3), v(x, h - 0.15, -d * 0.3), v(x, h, -d * 0.1), v(x, h, d * 0.1), v(x, h - 0.15, d * 0.3), v(x, 0, d * 0.3)];
+      b.add(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 16, 0.02, 6), f);
+    }
+    b.box(w, 0.03, 0.06, 0, 0.1, -d * 0.3, f);
+    b.box(w, 0.03, 0.06, 0, 0.1, d * 0.3, f);
+  },
+  wallbox: (b, w, d, h, f) => {
+    b.box(w, h, d * 0.7, 0, 0, -d * 0.15, f, 0.03);
+    b.box(w * 0.5, h * 0.18, 0.005, 0, h * 0.62, d * 0.2, mat(C.screen));
+    b.box(w * 0.3, 0.01, 0.006, 0, h * 0.82, d * 0.2, mat("#3fd27a", { emissive: "#3fd27a", emissiveIntensity: 0.7 }));
+    b.add(new THREE.TorusGeometry(w * 0.32, 0.012, 6, 20), mat(C.black), 0, h * 0.3, d * 0.3).rotation.y = 0;
+    b.box(0.05, 0.1, 0.06, 0, h * 0.05, d * 0.25, mat(C.black), 0.01);
   },
 };
+
+/** A row of books standing between x0 and x1 on a shelf at y. */
+function books(b: Builder, rand: () => number, x0: number, x1: number, y: number, maxH: number, depth: number, z: number) {
+  let x = x0;
+  while (x < x1) {
+    const bw = 0.02 + rand() * 0.03;
+    const bh = Math.max(0.05, Math.min(maxH, 0.17 + rand() * 0.12));
+    b.batch(new THREE.BoxGeometry(bw, bh, depth), mat(C.book[Math.floor(rand() * C.book.length)]), matrix(x + bw / 2, y + bh / 2, z));
+    x += bw + 0.002;
+  }
+}
+
+/** A gable roof on walls of w × d at height y, the ridge along x. */
+function gableRoof(b: Builder, w: number, d: number, y: number, rise: number, m: THREE.Material) {
+  const shape = new THREE.Shape([new THREE.Vector2(-d / 2, 0), new THREE.Vector2(d / 2, 0), new THREE.Vector2(0, rise)]);
+  const geo = new THREE.ExtrudeGeometry(shape, { depth: w, bevelEnabled: false });
+  geo.rotateY(Math.PI / 2);
+  geo.translate(-w / 2, y, 0);
+  b.add(geo, m);
+}
+
+/**
+ * A car along z (front at +z), from a side profile: the body up to the window line in
+ * the paint, the cabin in dark glass under a painted roof, wheels, lights.
+ */
+const CAR_PROFILES: Record<string, { body: [number, number][]; cabin: [number, number][] }> = {
+  hatchback: { body: [[0, 0.17], [0, 0.58], [0.04, 0.62], [0.72, 0.62], [0.95, 0.52], [1, 0.42], [1, 0.17]], cabin: [[0.03, 0.62], [0.08, 0.97], [0.5, 1], [0.73, 0.62]] },
+  estate: { body: [[0, 0.17], [0, 0.56], [0.03, 0.6], [0.75, 0.6], [0.96, 0.5], [1, 0.4], [1, 0.17]], cabin: [[0.02, 0.6], [0.04, 0.95], [0.6, 0.98], [0.77, 0.6]] },
+  suv: { body: [[0, 0.17], [0, 0.6], [0.03, 0.64], [0.76, 0.64], [0.96, 0.57], [1, 0.47], [1, 0.17]], cabin: [[0.02, 0.64], [0.04, 0.97], [0.64, 0.99], [0.78, 0.64]] },
+  van: { body: [[0, 0.14], [0, 0.97], [0.03, 1], [0.8, 1], [0.86, 0.62], [1, 0.5], [1, 0.4], [1, 0.14]], cabin: [[0.79, 0.95], [0.85, 0.62], [0.95, 0.6], [0.83, 0.97]] },
+};
+function car(b: Builder, w: number, d: number, h: number, color: string, style: string) {
+  const prof = CAR_PROFILES[style] ?? CAR_PROFILES.hatchback;
+  const paint = mat(FINISHES[color] ?? FINISHES.silver, { roughness: 0.35, metalness: 0.3 });
+  const dark = mat("#20262d", { roughness: 0.15, metalness: 0.4 });
+  const side = (pts: [number, number][], width: number, m: THREE.Material, bevel: number) => {
+    const shape = new THREE.Shape(pts.map(([t, y]) => new THREE.Vector2(-d / 2 + bevel + t * (d - 2 * bevel), y * h)));
+    const geo = new THREE.ExtrudeGeometry(shape, { depth: width - 2 * bevel, bevelEnabled: bevel > 0, bevelSize: bevel, bevelThickness: bevel, bevelSegments: 2, curveSegments: 4 });
+    geo.rotateY(-Math.PI / 2);
+    geo.translate(width / 2 - bevel, 0, 0);
+    b.add(geo, m);
+  };
+  side(prof.body, w * 0.93, paint, 0.04);
+  side(prof.cabin, w * (style === "van" ? 0.975 : 0.84), dark, 0.03);
+  if (style !== "van") {
+    // the roof over the cabin's top edge
+    const [, a, c] = prof.cabin;
+    const len = (c[0] - a[0]) * d;
+    b.box(w * 0.82, 0.04, len, 0, Math.max(a[1], c[1]) * h - 0.005, -d / 2 + ((a[0] + c[0]) / 2) * d, paint, 0.02);
+  }
+  const r = Math.min(0.34, h * 0.22);
+  for (const t of [0.17, 0.8])
+    for (const sx of [-1, 1]) {
+      const x = sx * (w / 2 - 0.1);
+      const z = -d / 2 + t * d;
+      b.add(new THREE.CylinderGeometry(r, r, 0.22, 20), mat(C.black, { roughness: 0.9 }), x, r, z).rotation.z = Math.PI / 2;
+      b.add(new THREE.CylinderGeometry(r * 0.6, r * 0.6, 0.23, 12), mat(C.steel, { metalness: 0.6, roughness: 0.3 }), x, r, z).rotation.z = Math.PI / 2;
+    }
+  const lowFront = prof.body.find(([t]) => t === 1)?.[1] ?? 0.4;
+  for (const sx of [-1, 1]) {
+    b.box(w * 0.2, 0.06, 0.03, sx * w * 0.33, lowFront * h - 0.1, d / 2 - 0.005, mat("#f4f1e6", { emissive: "#fff4d6", emissiveIntensity: 0.3 }), 0.01);
+    b.box(w * 0.18, 0.07, 0.03, sx * w * 0.36, prof.body[1][1] * h - 0.14, -d / 2 + 0.005, mat("#b3261e", { emissive: "#7a120d", emissiveIntensity: 0.4 }), 0.01);
+  }
+  b.box(w * 0.5, 0.11, 0.02, 0, 0.3, -d / 2 + 0.002, mat(C.ceramic), 0.005);
+}
 
 function tvPanel(b: Builder, w: number, h: number, y: number, z: number) {
   b.box(w, h, 0.03, 0, y, z, mat(C.black, { roughness: 0.4 }), 0.004);

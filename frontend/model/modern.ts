@@ -31,12 +31,15 @@ export const FINISHES: Record<string, string> = {
   pink: "#d4a19b",
   concrete: "#a8a59f",
   marble: "#e6e3dd",
+  red: "#a8322d",
+  silver: "#b9bdc2",
 };
 
 const WOOD = ["oak", "white", "walnut", "black", "anthracite"];
 const FABRIC = ["grey", "beige", "anthracite", "green", "blue", "terracotta", "pink"];
 const LAMP = ["black", "white", "oak", "sand"];
 const POT = ["white", "terracotta", "anthracite", "concrete"];
+const PAINT = ["silver", "white", "black", "anthracite", "blue", "red", "green"];
 
 const k = (id: string, type: FurnitureType, size: [number, number, number], finishes: string[], more: Partial<ModernKind> = {}): ModernKind => ({ id, type, size, finishes, ...more });
 
@@ -63,6 +66,11 @@ export const MODERN_GROUPS: { id: string; kinds: ModernKind[] }[] = [
       k("speaker_shelf", "item", [0.18, 0.24, 0.3], ["black", "white", "walnut"]),
       k("cube_shelf", "shelf", [0.77, 0.39, 1.47], ["white", "oak", "black", "walnut"]),
       k("bookshelf", "shelf", [0.8, 0.3, 2.0], WOOD),
+      k("bookshelf_wide", "shelf", [1.6, 0.35, 2.1], WOOD),
+      k("bookshelf_low", "shelf", [1.2, 0.3, 0.8], WOOD),
+      k("bookshelf_grid", "shelf", [1.5, 0.35, 1.8], WOOD),
+      k("bookshelf_ladder", "shelf", [0.7, 0.42, 1.8], ["oak", "white", "black", "walnut"]),
+      k("bookshelf_wall", "shelf", [1.2, 0.22, 0.9], ["oak", "white", "black", "walnut"], { mount: "wall", elevation: 1.0 }),
       k("floor_lamp_arc", "floor_lamp", [1.3, 0.4, 2.0], LAMP),
       k("floor_lamp_tripod", "floor_lamp", [0.55, 0.55, 1.55], LAMP),
       k("floor_lamp_globe", "floor_lamp", [0.3, 0.3, 1.45], LAMP),
@@ -165,6 +173,45 @@ export const MODERN_GROUPS: { id: string; kinds: ModernKind[] }[] = [
       k("parasol", "item", [2.8, 2.8, 2.5], ["sand", "white", "anthracite", "terracotta"]),
       k("garden_table", "table", [1.6, 0.9, 0.74], ["oak", "anthracite", "white"]),
       k("garden_sofa", "sofa", [1.9, 0.8, 0.7], ["anthracite", "sand", "grey"]),
+      k("deck_chair", "chair", [0.6, 1.0, 0.9], ["blue", "terracotta", "green", "beige"]),
+      k("hammock", "item", [3.4, 1.0, 1.3], ["beige", "terracotta", "blue", "green"]),
+      k("fence_slats", "fence", [3.0, 0.08, 1.8], ["anthracite", "oak", "walnut", "grey"]),
+      k("garden_light", "floor_lamp", [0.16, 0.16, 0.6], ["anthracite", "black", "silver"]),
+    ],
+  },
+  {
+    id: "garden",
+    kinds: [
+      k("bbq_kettle", "item", [0.6, 0.6, 1.0], ["black", "red", "green"]),
+      k("bbq_gas", "item", [1.35, 0.6, 1.15], ["black", "silver", "anthracite"]),
+      k("fire_pit", "item", [0.9, 0.9, 0.4], ["terracotta", "black", "concrete"]),
+      k("raised_bed", "flower_bed", [2.0, 0.8, 0.75], ["oak", "anthracite", "terracotta"]),
+      k("greenhouse", "item", [2.5, 1.9, 2.2], ["silver", "anthracite", "green"]),
+      k("garden_shed", "item", [2.4, 2.0, 2.2], ["oak", "anthracite", "green", "grey", "red"]),
+      k("pool", "item", [4.0, 2.2, 1.2], ["blue", "grey", "anthracite", "oak"]),
+      k("trampoline", "item", [3.0, 3.0, 2.6], ["green", "blue", "anthracite"]),
+      k("swing", "item", [2.6, 1.6, 2.1], ["oak", "green", "blue"]),
+      k("playhouse", "item", [1.5, 1.5, 1.8], ["blue", "red", "green", "white", "oak"]),
+      k("sandbox", "item", [1.5, 1.5, 0.3], ["oak", "green", "blue"]),
+      k("rain_barrel", "item", [0.6, 0.6, 1.0], ["green", "anthracite", "oak"]),
+      k("compost_bin", "item", [0.8, 0.8, 0.8], ["oak", "green", "anthracite"]),
+      k("wheelbarrow", "item", [0.62, 1.4, 0.62], ["green", "red", "silver"]),
+      k("robot_mower", "item", [0.55, 0.65, 0.27], ["white", "anthracite", "green"]),
+      k("rotary_dryer", "item", [2.6, 2.6, 1.9], ["silver", "white", "anthracite"]),
+      k("wheelie_bins", "item", [2.4, 0.75, 1.07], ["anthracite"]),
+      k("heat_pump", "item", [1.1, 0.45, 0.95], ["white", "anthracite", "grey"]),
+    ],
+  },
+  {
+    id: "vehicles",
+    kinds: [
+      k("car_hatchback", "car", [1.8, 4.1, 1.48], PAINT),
+      k("car_estate", "car", [1.85, 4.8, 1.5], PAINT),
+      k("car_suv", "car", [1.95, 4.7, 1.7], PAINT),
+      k("car_van", "car", [2.0, 5.0, 1.98], PAINT),
+      k("bicycle", "item", [0.6, 1.75, 1.05], ["black", "red", "blue", "silver", "green"]),
+      k("bike_rack", "item", [1.6, 0.5, 0.8], ["silver", "anthracite"]),
+      k("wallbox", "item", [0.26, 0.13, 0.4], ["white", "anthracite", "black"], { mount: "wall", elevation: 1.0 }),
     ],
   },
 ];

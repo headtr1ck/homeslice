@@ -65,8 +65,8 @@ repository itself doesn't contain the built frontend; build it with `npm run bui
    - **3. Objects & entities:** lights are placed automatically and can be dragged;
      drag furniture from the library (wall pieces go against a wall; `R` to turn); place solar, battery, grid and power-measured
      devices for the energy overlay. The library has five sources: **Built-in** (simple
-     shapes, lightest), **Modern** (86 pieces drawn by Homeslice to their size, with
-     finishes: sofas, wardrobes, kitchens, bathroom, lamps, plants, garden…), **Kenney** (low-poly models, included), **Poly Haven** (realistic
+     shapes, lightest), **Modern** (120 pieces drawn by Homeslice to their size, with
+     finishes: sofas, wardrobes, kitchens, bathroom, lamps, plants, garden, play, cars and bikes…), **Kenney** (low-poly models, included), **Poly Haven** (realistic
      models, downloaded into Home Assistant once when placed) and **Custom** (upload your
      own `.glb`; it has to be self-contained: models that load textures or data from
      other websites are refused, so no screen showing your house contacts a stranger).

@@ -753,6 +753,96 @@
    ]
   },
   {
+   "model": "modern:bookshelf_wide",
+   "name": "Wide bookcase",
+   "group": "living",
+   "type": "shelf",
+   "size": [
+    1.6,
+    0.35,
+    2.1
+   ],
+   "finishes": [
+    "oak",
+    "white",
+    "walnut",
+    "black",
+    "anthracite"
+   ]
+  },
+  {
+   "model": "modern:bookshelf_low",
+   "name": "Low bookcase",
+   "group": "living",
+   "type": "shelf",
+   "size": [
+    1.2,
+    0.3,
+    0.8
+   ],
+   "finishes": [
+    "oak",
+    "white",
+    "walnut",
+    "black",
+    "anthracite"
+   ]
+  },
+  {
+   "model": "modern:bookshelf_grid",
+   "name": "Bookcase, open grid",
+   "group": "living",
+   "type": "shelf",
+   "size": [
+    1.5,
+    0.35,
+    1.8
+   ],
+   "finishes": [
+    "oak",
+    "white",
+    "walnut",
+    "black",
+    "anthracite"
+   ]
+  },
+  {
+   "model": "modern:bookshelf_ladder",
+   "name": "Ladder shelf",
+   "group": "living",
+   "type": "shelf",
+   "size": [
+    0.7,
+    0.42,
+    1.8
+   ],
+   "finishes": [
+    "oak",
+    "white",
+    "black",
+    "walnut"
+   ]
+  },
+  {
+   "model": "modern:bookshelf_wall",
+   "name": "Floating shelves",
+   "group": "living",
+   "type": "shelf",
+   "size": [
+    1.2,
+    0.22,
+    0.9
+   ],
+   "finishes": [
+    "oak",
+    "white",
+    "black",
+    "walnut"
+   ],
+   "mount": "wall",
+   "elevation": 1
+  },
+  {
    "model": "modern:floor_lamp_arc",
    "name": "Arc floor lamp",
    "group": "living",
@@ -1897,6 +1987,495 @@
     "sand",
     "grey"
    ]
+  },
+  {
+   "model": "modern:deck_chair",
+   "name": "Deck chair",
+   "group": "outside",
+   "type": "chair",
+   "size": [
+    0.6,
+    1,
+    0.9
+   ],
+   "finishes": [
+    "blue",
+    "terracotta",
+    "green",
+    "beige"
+   ]
+  },
+  {
+   "model": "modern:hammock",
+   "name": "Hammock with stand",
+   "group": "outside",
+   "type": "item",
+   "size": [
+    3.4,
+    1,
+    1.3
+   ],
+   "finishes": [
+    "beige",
+    "terracotta",
+    "blue",
+    "green"
+   ]
+  },
+  {
+   "model": "modern:fence_slats",
+   "name": "Slatted fence",
+   "group": "outside",
+   "type": "fence",
+   "size": [
+    3,
+    0.08,
+    1.8
+   ],
+   "finishes": [
+    "anthracite",
+    "oak",
+    "walnut",
+    "grey"
+   ]
+  },
+  {
+   "model": "modern:garden_light",
+   "name": "Garden light",
+   "group": "outside",
+   "type": "floor_lamp",
+   "size": [
+    0.16,
+    0.16,
+    0.6
+   ],
+   "finishes": [
+    "anthracite",
+    "black",
+    "silver"
+   ]
+  },
+  {
+   "model": "modern:bbq_kettle",
+   "name": "Kettle grill",
+   "group": "garden",
+   "type": "item",
+   "size": [
+    0.6,
+    0.6,
+    1
+   ],
+   "finishes": [
+    "black",
+    "red",
+    "green"
+   ]
+  },
+  {
+   "model": "modern:bbq_gas",
+   "name": "Gas grill",
+   "group": "garden",
+   "type": "item",
+   "size": [
+    1.35,
+    0.6,
+    1.15
+   ],
+   "finishes": [
+    "black",
+    "silver",
+    "anthracite"
+   ]
+  },
+  {
+   "model": "modern:fire_pit",
+   "name": "Fire pit",
+   "group": "garden",
+   "type": "item",
+   "size": [
+    0.9,
+    0.9,
+    0.4
+   ],
+   "finishes": [
+    "terracotta",
+    "black",
+    "concrete"
+   ]
+  },
+  {
+   "model": "modern:raised_bed",
+   "name": "Raised bed",
+   "group": "garden",
+   "type": "flower_bed",
+   "size": [
+    2,
+    0.8,
+    0.75
+   ],
+   "finishes": [
+    "oak",
+    "anthracite",
+    "terracotta"
+   ]
+  },
+  {
+   "model": "modern:greenhouse",
+   "name": "Greenhouse",
+   "group": "garden",
+   "type": "item",
+   "size": [
+    2.5,
+    1.9,
+    2.2
+   ],
+   "finishes": [
+    "silver",
+    "anthracite",
+    "green"
+   ]
+  },
+  {
+   "model": "modern:garden_shed",
+   "name": "Garden shed",
+   "group": "garden",
+   "type": "item",
+   "size": [
+    2.4,
+    2,
+    2.2
+   ],
+   "finishes": [
+    "oak",
+    "anthracite",
+    "green",
+    "grey",
+    "red"
+   ]
+  },
+  {
+   "model": "modern:pool",
+   "name": "Pool",
+   "group": "garden",
+   "type": "item",
+   "size": [
+    4,
+    2.2,
+    1.2
+   ],
+   "finishes": [
+    "blue",
+    "grey",
+    "anthracite",
+    "oak"
+   ]
+  },
+  {
+   "model": "modern:trampoline",
+   "name": "Trampoline",
+   "group": "garden",
+   "type": "item",
+   "size": [
+    3,
+    3,
+    2.6
+   ],
+   "finishes": [
+    "green",
+    "blue",
+    "anthracite"
+   ]
+  },
+  {
+   "model": "modern:swing",
+   "name": "Swing",
+   "group": "garden",
+   "type": "item",
+   "size": [
+    2.6,
+    1.6,
+    2.1
+   ],
+   "finishes": [
+    "oak",
+    "green",
+    "blue"
+   ]
+  },
+  {
+   "model": "modern:playhouse",
+   "name": "Playhouse",
+   "group": "garden",
+   "type": "item",
+   "size": [
+    1.5,
+    1.5,
+    1.8
+   ],
+   "finishes": [
+    "blue",
+    "red",
+    "green",
+    "white",
+    "oak"
+   ]
+  },
+  {
+   "model": "modern:sandbox",
+   "name": "Sandbox",
+   "group": "garden",
+   "type": "item",
+   "size": [
+    1.5,
+    1.5,
+    0.3
+   ],
+   "finishes": [
+    "oak",
+    "green",
+    "blue"
+   ]
+  },
+  {
+   "model": "modern:rain_barrel",
+   "name": "Rain barrel",
+   "group": "garden",
+   "type": "item",
+   "size": [
+    0.6,
+    0.6,
+    1
+   ],
+   "finishes": [
+    "green",
+    "anthracite",
+    "oak"
+   ]
+  },
+  {
+   "model": "modern:compost_bin",
+   "name": "Compost bin",
+   "group": "garden",
+   "type": "item",
+   "size": [
+    0.8,
+    0.8,
+    0.8
+   ],
+   "finishes": [
+    "oak",
+    "green",
+    "anthracite"
+   ]
+  },
+  {
+   "model": "modern:wheelbarrow",
+   "name": "Wheelbarrow",
+   "group": "garden",
+   "type": "item",
+   "size": [
+    0.62,
+    1.4,
+    0.62
+   ],
+   "finishes": [
+    "green",
+    "red",
+    "silver"
+   ]
+  },
+  {
+   "model": "modern:robot_mower",
+   "name": "Robot mower",
+   "group": "garden",
+   "type": "item",
+   "size": [
+    0.55,
+    0.65,
+    0.27
+   ],
+   "finishes": [
+    "white",
+    "anthracite",
+    "green"
+   ]
+  },
+  {
+   "model": "modern:rotary_dryer",
+   "name": "Rotary clothes dryer",
+   "group": "garden",
+   "type": "item",
+   "size": [
+    2.6,
+    2.6,
+    1.9
+   ],
+   "finishes": [
+    "silver",
+    "white",
+    "anthracite"
+   ]
+  },
+  {
+   "model": "modern:wheelie_bins",
+   "name": "Wheelie bins",
+   "group": "garden",
+   "type": "item",
+   "size": [
+    2.4,
+    0.75,
+    1.07
+   ],
+   "finishes": [
+    "anthracite"
+   ]
+  },
+  {
+   "model": "modern:heat_pump",
+   "name": "Heat pump (outdoor unit)",
+   "group": "garden",
+   "type": "item",
+   "size": [
+    1.1,
+    0.45,
+    0.95
+   ],
+   "finishes": [
+    "white",
+    "anthracite",
+    "grey"
+   ]
+  },
+  {
+   "model": "modern:car_hatchback",
+   "name": "Hatchback",
+   "group": "vehicles",
+   "type": "car",
+   "size": [
+    1.8,
+    4.1,
+    1.48
+   ],
+   "finishes": [
+    "silver",
+    "white",
+    "black",
+    "anthracite",
+    "blue",
+    "red",
+    "green"
+   ]
+  },
+  {
+   "model": "modern:car_estate",
+   "name": "Estate car",
+   "group": "vehicles",
+   "type": "car",
+   "size": [
+    1.85,
+    4.8,
+    1.5
+   ],
+   "finishes": [
+    "silver",
+    "white",
+    "black",
+    "anthracite",
+    "blue",
+    "red",
+    "green"
+   ]
+  },
+  {
+   "model": "modern:car_suv",
+   "name": "SUV",
+   "group": "vehicles",
+   "type": "car",
+   "size": [
+    1.95,
+    4.7,
+    1.7
+   ],
+   "finishes": [
+    "silver",
+    "white",
+    "black",
+    "anthracite",
+    "blue",
+    "red",
+    "green"
+   ]
+  },
+  {
+   "model": "modern:car_van",
+   "name": "Van",
+   "group": "vehicles",
+   "type": "car",
+   "size": [
+    2,
+    5,
+    1.98
+   ],
+   "finishes": [
+    "silver",
+    "white",
+    "black",
+    "anthracite",
+    "blue",
+    "red",
+    "green"
+   ]
+  },
+  {
+   "model": "modern:bicycle",
+   "name": "Bicycle",
+   "group": "vehicles",
+   "type": "item",
+   "size": [
+    0.6,
+    1.75,
+    1.05
+   ],
+   "finishes": [
+    "black",
+    "red",
+    "blue",
+    "silver",
+    "green"
+   ]
+  },
+  {
+   "model": "modern:bike_rack",
+   "name": "Bike rack",
+   "group": "vehicles",
+   "type": "item",
+   "size": [
+    1.6,
+    0.5,
+    0.8
+   ],
+   "finishes": [
+    "silver",
+    "anthracite"
+   ]
+  },
+  {
+   "model": "modern:wallbox",
+   "name": "Wallbox (EV charger)",
+   "group": "vehicles",
+   "type": "item",
+   "size": [
+    0.26,
+    0.13,
+    0.4
+   ],
+   "finishes": [
+    "white",
+    "anthracite",
+    "black"
+   ],
+   "mount": "wall",
+   "elevation": 1
   }
  ],
  "finishes": [
@@ -1913,7 +2492,9 @@
   "terracotta",
   "pink",
   "concrete",
-  "marble"
+  "marble",
+  "red",
+  "silver"
  ],
  "kenney": [
   {
