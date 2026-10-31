@@ -324,7 +324,7 @@ describe("stairs", () => {
 });
 
 describe("lights", () => {
-  const room = (lights: Room["lights"] = []): Room => ({ id: "r", kind: "room", floor: "wood", polygon: [[0, 0], [4, 0], [4, 2], [0, 2]], lights });
+  const room = (lights: Room["lights"] = []): Room => ({ id: "r", kind: "room", floor: "wood", polygon: [[0, 0], [4, 0], [4, 2], [0, 2]], lights, furniture: [] });
   it("spreads the area's lights and keeps placed ones", () => {
     const placed = placeLights("g", room([{ entity: "light.a", at: [1, 1], hidden: false }]), room().polygon, ["light.a", "light.b", "light.c"], new Set(["light.a"]));
     expect(placed).toEqual([

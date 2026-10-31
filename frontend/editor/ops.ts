@@ -2,7 +2,7 @@
 // each returns a new model, which keeps undo/redo trivial and makes them easy to test.
 
 import { bbox, dist, normalizeOrientation, project, signedArea } from "../model/geometry";
-import type { Coord, EnergyInput, HouseInput, LevelInput, OpeningInput, OpeningSource, RoomInput, ShapeInput, RoofInput, Side, Vec2, VerticalInput } from "../model/types";
+import type { Coord, EnergyInput, FurnitureInput, HouseInput, LevelInput, OpeningInput, OpeningSource, RoomInput, ShapeInput, RoofInput, Side, Vec2, VerticalInput } from "../model/types";
 
 /** Points closer than this count as the same corner (shared by neighbouring rooms). */
 export const SAME_POINT = 0.01;
@@ -806,4 +806,49 @@ export function copyRooms(model: HouseInput, fromLevel: string, toLevel: string)
   dst.openings = (dst.openings ?? []).filter((o) => ids.has(o.room));
   if (!dst.openings.length) delete dst.openings;
   return m;
+}
+
+// ----- furniture -----
+
+export function addFurniture(model: HouseInput, levelId: string, roomId: string, item: FurnitureInput): { model: HouseInput; index: number } {
+  const m = clone(model);
+  const room = level(m, levelId).rooms.find((r) => r.id === roomId);
+  if (!room) return { model: m, index: -1 };
+  room.furniture = [...(room.furniture ?? []), { ...item, at: [round(item.at[0]), round(item.at[1])] }];
+  return { model: m, index: room.furniture.length - 1 };
+}
+
+export function updateFurniture(model: HouseInput, levelId: string, roomId: string, index: number, patch: Partial<FurnitureInput>): HouseInput {
+  const m = clone(model);
+  const f = level(m, levelId).rooms.find((r) => r.id === roomId)?.furniture?.[index];
+  if (!f) return m;
+  Object.assign(f, patch);
+  for (const [k, v] of Object.entries(patch)) if (v === undefined || (k === "rotation" && v === 0)) delete (f as unknown as Record<string, unknown>)[k];
+  f.at = [round(f.at[0]), round(f.at[1])];
+  if (f.rotation !== undefined) f.rotation = ((f.rotation % 360) + 360) % 360 || undefined;
+  if (f.rotation === undefined) delete f.rotation;
+  return m;
+}
+
+export function deleteFurniture(model: HouseInput, levelId: string, roomId: string, index: number): HouseInput {
+  const m = clone(model);
+  const room = level(m, levelId).rooms.find((r) => r.id === roomId);
+  if (!room?.furniture) return m;
+  room.furniture = room.furniture.filter((_, i) => i !== index);
+  if (!room.furniture.length) delete room.furniture;
+  return m;
+}
+
+/** Moves a piece to a plan position, into whichever room it now stands in. Returns its new place. */
+export function moveFurniture(model: HouseInput, levelId: string, roomId: string, index: number, to: Vec2, toRoom: string): { model: HouseInput; room: string; index: number } {
+  const src = level(model, levelId).rooms.find((r) => r.id === roomId);
+  const piece = src?.furniture?.[index];
+  const target = level(model, levelId).rooms.find((r) => r.id === toRoom);
+  if (!piece || !target) return { model, room: roomId, index };
+  const { min } = bbox(roomPolygon(model, target));
+  const at: [number, number] = [to[0] - min[0], to[1] - min[1]];
+  if (toRoom === roomId) return { model: updateFurniture(model, levelId, roomId, index, { at }), room: roomId, index };
+  const removed = deleteFurniture(model, levelId, roomId, index);
+  const added = addFurniture(removed, levelId, toRoom, { ...piece, at });
+  return { model: added.model, room: toRoom, index: added.index };
 }

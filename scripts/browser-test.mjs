@@ -399,6 +399,22 @@ console.log(results.splice(0).join("\n"));
 console.log("demo house, roof");
 {
   const { page, errors } = await open("dev/fixtures/demo-hass.json", { view: { azimuth: 200, elevation: 45, roof: true } });
+  await test("furniture is drawn", async () => {
+    const before = await page.evaluate(() => window.card.renderer.renderer.info.render.triangles);
+    await act(page, () =>
+      page.evaluate(() => {
+        const m = structuredClone(window.__demoModel);
+        m.levels[0].rooms.find((r) => r.id === "living").furniture = [
+          { type: "sofa", at: [2, 4] },
+          { type: "table", at: [3, 2], rotation: 90 },
+          { type: "plant", at: [0.5, 0.5] },
+        ];
+        window.card.hass.pushModel(m);
+      }),
+    );
+    const after = await page.evaluate(() => window.card.renderer.renderer.info.render.triangles);
+    assert(after > before + 50, `triangles ${before} → ${after}`);
+  });
   await test("the roof shows in the overview only", async () => {
     const o = await page.evaluate(() => window.card.renderer.orientation);
     assert(o.azimuth === 200 && o.elevation === 45, `camera ${JSON.stringify(o)}`);
@@ -859,6 +875,32 @@ console.log("editor");
     assert((await room("kitchen")).lights?.[0]?.hidden === true, "not hidden");
     await page.locator("homeslice-panel .inspector ul.lights li.hidden button").click();
     assert(!(await room("kitchen")).lights, "hidden entry not removed by Show");
+    await page.locator("homeslice-panel .modes button", { hasText: "Rooms" }).click();
+    assert(errors.length === 0, errors.join(" | "));
+  });
+
+  await test("objects mode: add furniture, drag it into another room, turn and delete it", async () => {
+    await page.keyboard.press("Escape");
+    await page.locator("homeslice-panel .modes button", { hasText: "Objects" }).click();
+    const kb = await page.locator('homeslice-panel svg.plan g[data-room="kitchen"] polygon').boundingBox();
+    await page.mouse.click(kb.x + kb.width * 0.8, kb.y + kb.height * 0.85);
+    await page.locator("homeslice-panel .inspector label", { hasText: "Add furniture" }).locator("select").selectOption("table");
+    assert((await room("kitchen")).furniture?.[0]?.type === "table", `kitchen: ${JSON.stringify((await room("kitchen")).furniture)}`);
+    assert((await page.locator("homeslice-panel .inspector h2").textContent()) === "Table", "new table not selected");
+    const piece = await page.locator("homeslice-panel svg.plan g.furniture.selected rect").boundingBox();
+    const living = await page.locator('homeslice-panel svg.plan g[data-room="living"] polygon').boundingBox();
+    // grab it off-centre: the room's lamp hangs over the middle
+    await page.mouse.move(piece.x + 6, piece.y + 6);
+    await page.mouse.down();
+    await page.mouse.move(living.x + living.width * 0.3, living.y + living.height * 0.8, { steps: 8 });
+    await page.mouse.up();
+    assert(!(await room("kitchen")).furniture && (await room("living")).furniture?.[0]?.type === "table", "table not moved into the living room");
+    await page.keyboard.press("r");
+    assert((await room("living")).furniture[0].rotation === 90, "not turned");
+    await shot(page, "editor-furniture");
+    await page.keyboard.press("Delete");
+    assert(!(await room("living")).furniture, "not deleted");
+    await page.keyboard.press("Escape");
     await page.locator("homeslice-panel .modes button", { hasText: "Rooms" }).click();
     assert(errors.length === 0, errors.join(" | "));
   });

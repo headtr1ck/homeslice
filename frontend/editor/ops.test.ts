@@ -25,6 +25,10 @@ import {
   addLevel,
   deleteLevel,
   newHouse,
+  addFurniture,
+  updateFurniture,
+  deleteFurniture,
+  moveFurniture,
   copyRooms,
   addEnergy,
   updateEnergy,
@@ -340,5 +344,20 @@ describe("copying a level", () => {
     m = copyRooms(m, "g", "f");
     expect(m.levels[1].rooms).toEqual([{ id: "left", rect: [0, 0, 5, 8] }, { id: "right", rect: [5, 0, 5, 8] }]);
     expect(m.levels[1].walls).toEqual([{ between: ["left", "right"] }]);
+  });
+});
+
+describe("furniture", () => {
+  it("adds, turns, moves into another room and deletes furniture", () => {
+    let { model, index } = addFurniture(house(), "g", "left", { type: "sofa", at: [2, 3] });
+    model = updateFurniture(model, "g", "left", index, { rotation: 450 });
+    expect(rooms(model).left.furniture).toEqual([{ type: "sofa", at: [2, 3], rotation: 90 }]);
+    model = updateFurniture(model, "g", "left", index, { rotation: 360 });
+    expect(rooms(model).left.furniture).toEqual([{ type: "sofa", at: [2, 3] }]);
+    const moved = moveFurniture(model, "g", "left", index, [7, 4], "right");
+    expect(moved.room).toBe("right");
+    expect(rooms(moved.model).left.furniture).toBeUndefined();
+    expect(rooms(moved.model).right.furniture).toEqual([{ type: "sofa", at: [2, 4] }]);
+    expect(rooms(deleteFurniture(moved.model, "g", "right", 0)).right.furniture).toBeUndefined();
   });
 });

@@ -9,11 +9,12 @@ import { areaEntities, type Hass } from "../ha/hass";
 import { localize, type StringKey } from "../i18n/localize";
 import { expandHouse } from "../model/expand";
 import { bbox, labelPoint, pointInPolygon } from "../model/geometry";
-import type { EnergyInput, HouseInput, Issue, OpeningInput, OpeningSource, OpeningType, RoomInput, Side, Vec2, Vertical } from "../model/types";
+import type { EnergyInput, FurnitureInput, FurnitureType, HouseInput, Issue, OpeningInput, OpeningSource, OpeningType, RoomInput, Side, Vec2, Vertical } from "../model/types";
 import { deriveWalls, innerPolygon, sideOfRoom, type Wall } from "../model/walls";
 import { HouseRenderer } from "../render/scene";
 import { stairFrame, stairHole } from "../model/stairs";
 import { misalignedWalls } from "../model/checks";
+import { FURNITURE, FURNITURE_TYPES } from "../model/furniture";
 import { listedLights, placeLights, type PlacedLight } from "../model/lights";
 import type { EnergyPrefs } from "../ha/energy";
 import { ENERGY_COLORS } from "../render/scene";
@@ -21,6 +22,10 @@ import {
   History,
   addOpening,
   addRoom,
+  addFurniture,
+  deleteFurniture,
+  moveFurniture,
+  updateFurniture,
   copyRooms,
   addEnergy,
   deleteEnergy,
@@ -149,6 +154,7 @@ type Drag =
   | { kind: "rect"; start: Vec2; ctx: SnapContext }
   | { kind: "stair-move"; origin: HouseInput; id: string; rect: [number, number, number, number]; startWorld: Vec2; ctx: SnapContext; moved: boolean }
   | { kind: "stair-resize"; origin: HouseInput; id: string; fixed: Vec2; ctx: SnapContext }
+  | { kind: "furniture"; origin: HouseInput; room: string; index: number; startWorld: Vec2; centre: Vec2; moved: boolean }
   | { kind: "energy"; origin: HouseInput; index: number; startWorld: Vec2; at: Vec2; moved: boolean }
   | { kind: "light"; origin: HouseInput; entity: string; room: string; startWorld: Vec2; ctx: SnapContext; moved: boolean }
   | { kind: "wall"; origin: HouseInput; a: Vec2; b: Vec2; startWorld: Vec2; normal: Vec2; thickness: number; faces: number[] }
@@ -203,6 +209,7 @@ export class HomeslicePanel extends LitElement {
     _create: { state: true },
     _pendingArea: { state: true },
     _stair: { state: true },
+    _furn: { state: true },
     _shortcuts: { state: true },
     _draft: { state: true },
     _settings: { state: true },
@@ -253,6 +260,8 @@ export class HomeslicePanel extends LitElement {
   private underlayRequest = "";
   private underlaySaveTimer = 0;
   private _shortcuts = false;
+  /** Selected piece of furniture (objects mode). */
+  private _furn: { room: string; index: number } | null = null;
   /** Unsaved changes found from an earlier visit, offered for restoring. */
   private _draft: { model: HouseInput; time: number; stale: boolean } | null = null;
   private draftTimer = 0;
@@ -496,6 +505,11 @@ export class HomeslicePanel extends LitElement {
     } else if ((e.key === "Delete" || e.key === "Backspace") && this._opening && this._model) {
       this.commit(deleteOpening(this._model, this._level, this._opening.src));
       this._opening = null;
+    } else if ((e.key === "Delete" || e.key === "Backspace") && this._furn && this._model && this._mode === "objects") {
+      this.commit(deleteFurniture(this._model, this._level, this._furn.room, this._furn.index));
+      this._furn = null;
+    } else if (e.key === "r" && !mod && this._furn && this._model && this._mode === "objects") {
+      this.rotateFurniture(e.shiftKey ? -90 : 90);
     } else if ((e.key === "Delete" || e.key === "Backspace") && this._energySel !== null && this._model && this._mode === "objects") {
       this.commit(deleteEnergy(this._model, this._energySel));
       this._energySel = null;
@@ -515,6 +529,7 @@ export class HomeslicePanel extends LitElement {
       this._calib = null;
       this._underlayMove = false;
       this._energyPlace = null;
+      this._furn = null;
       this._settings = null;
       this._shortcuts = false;
       this._drag = null;
@@ -668,6 +683,19 @@ export class HomeslicePanel extends LitElement {
       this._room = null;
       return;
     }
+    const hitFurn = this._mode === "objects" ? (target.closest("[data-furniture]") as SVGElement | null) : null;
+    if (hitFurn) {
+      const sel = JSON.parse(hitFurn.dataset.furniture!) as { room: string; index: number };
+      const centre = this.furnitureCentre(sel.room, sel.index);
+      if (centre) {
+        this._furn = sel;
+        this._room = null;
+        this._energySel = null;
+        this._drag = { kind: "furniture", origin: clone(this._model), room: sel.room, index: sel.index, startWorld: world, centre, moved: false };
+        return;
+      }
+    }
+    if (this._mode === "objects") this._furn = null;
     const hitEnergy = this._mode === "objects" ? (target.closest("[data-energy]") as SVGElement | null) : null;
     if (hitEnergy) {
       const index = Number(hitEnergy.dataset.energy);
@@ -788,6 +816,19 @@ export class HomeslicePanel extends LitElement {
       this._hint = { x: screen[0], y: screen[1], lines: [this.moveReadout(delta), ...this.roomReadout()] };
       return;
     }
+    if (drag.kind === "furniture") {
+      const p: Vec2 = [drag.centre[0] + world[0] - drag.startWorld[0], drag.centre[1] + world[1] - drag.startWorld[1]];
+      if (!drag.moved && Math.hypot(p[0] - drag.centre[0], p[1] - drag.centre[1]) * this._view.scale < 4) return;
+      drag.moved = true;
+      const s = snapped(p, { ...this.snapContext(), points: [] });
+      const rooms = (this.levelInput?.rooms ?? []).filter((r) => r.kind !== "void");
+      const into = rooms.find((r) => pointInPolygon(s.p, roomPolygon(this._model!, r)))?.id ?? drag.room;
+      const moved = moveFurniture(drag.origin, this._level, drag.room, drag.index, s.p, into);
+      this._model = moved.model;
+      this._furn = { room: moved.room, index: moved.index };
+      this._guides = { x: s.alignX, y: s.alignY };
+      return;
+    }
     if (drag.kind === "energy") {
       const p: Vec2 = [drag.at[0] + world[0] - drag.startWorld[0], drag.at[1] + world[1] - drag.startWorld[1]];
       if (!drag.moved && Math.hypot(p[0] - drag.at[0], p[1] - drag.at[1]) * this._view.scale < 4) return;
@@ -903,7 +944,7 @@ export class HomeslicePanel extends LitElement {
       this.saveUnderlay({ place: this._underlay.place });
       return;
     }
-    if (drag.kind === "vertex" || drag.kind === "edge" || drag.kind === "opening" || drag.kind === "wall" || drag.kind === "stair-move" || drag.kind === "stair-resize" || drag.kind === "light" || drag.kind === "energy") {
+    if (drag.kind === "vertex" || drag.kind === "edge" || drag.kind === "opening" || drag.kind === "wall" || drag.kind === "stair-move" || drag.kind === "stair-resize" || drag.kind === "light" || drag.kind === "energy" || drag.kind === "furniture") {
       if (JSON.stringify(drag.origin) !== JSON.stringify(this._model)) this.commit(this._model, drag.origin);
     } else if (drag.kind === "rect" && this._rectPreview && this._tool === "stairs") {
       const [[x0, y0], , [x1, y1]] = this._rectPreview;
@@ -1475,6 +1516,7 @@ export class HomeslicePanel extends LitElement {
           </g>`;
         })}
       ${this._stair && this._mode === "rooms" ? this.renderStairHandles() : nothing}
+      ${this.renderFurniture()}
       ${this._mode === "objects" ? this.renderLamps() : nothing}
       ${this._mode === "objects" ? this.renderEnergyMarkers() : nothing}
       ${selPoly.length && this._mode === "rooms" ? this.renderHandles(selPoly, selected ? this.inner(selected, walls) : selPoly) : nothing}
@@ -1516,6 +1558,77 @@ export class HomeslicePanel extends LitElement {
         <title>${this.entityName(l.entity)}${l.auto ? ` (${this.t("editor.light_auto")})` : ""}</title>
       </g>`;
     })}`;
+  }
+
+  private furnitureCentre(roomId: string, index: number): Vec2 | null {
+    const r = this.levelInput?.rooms.find((x) => x.id === roomId);
+    const f = r?.furniture?.[index];
+    if (!r || !f) return null;
+    const { min } = bbox(roomPolygon(this._model!, r));
+    return [min[0] + f.at[0], min[1] + f.at[1]];
+  }
+
+  private rotateFurniture(by: number) {
+    const sel = this._furn;
+    const f = sel && this.levelInput?.rooms.find((x) => x.id === sel.room)?.furniture?.[sel.index];
+    if (!sel || !f) return;
+    this.commit(updateFurniture(this._model!, this._level, sel.room, sel.index, { rotation: (f.rotation ?? 0) + by }));
+  }
+
+  /** Furniture on the plan: outlines with a mark at the front; draggable in objects mode. */
+  private renderFurniture() {
+    const m = this._model!;
+    const objects = this._mode === "objects";
+    return svg`${(this.levelInput?.rooms ?? []).flatMap((r) => {
+      const { min } = bbox(roomPolygon(m, r));
+      return (r.furniture ?? []).map((f, i) => {
+        const [w, d] = f.size ?? FURNITURE[f.type]?.size ?? [1, 1];
+        const [cx, cy] = this.toScreen([min[0] + f.at[0], min[1] + f.at[1]]);
+        const k = this._view.scale;
+        const sel = this._furn?.room === r.id && this._furn.index === i;
+        return svg`<g class="furniture ${objects ? "editable" : ""} ${sel ? "selected" : ""}" data-furniture=${JSON.stringify({ room: r.id, index: i })}
+            transform="translate(${cx} ${cy}) rotate(${f.rotation ?? 0})">
+          <rect x=${(-w * k) / 2} y=${(-d * k) / 2} width=${w * k} height=${d * k} rx="2"></rect>
+          <line class="front" x1=${(-w * k) / 2 + 3} y1=${(d * k) / 2 - 3} x2=${(w * k) / 2 - 3} y2=${(d * k) / 2 - 3}></line>
+          ${objects && Math.min(w, d) * k > 26 ? svg`<text y="4" text-anchor="middle">${this.t(`furniture.${f.type}` as StringKey)}</text>` : nothing}
+        </g>`;
+      });
+    })}`;
+  }
+
+  private renderFurnitureInspector(sel: { room: string; index: number }) {
+    const m = this._model!;
+    const r = this.levelInput?.rooms.find((x) => x.id === sel.room);
+    const f = r?.furniture?.[sel.index];
+    if (!r || !f) return nothing;
+    const set = (patch: Partial<FurnitureInput>) => this.commit(updateFurniture(m, this._level, r.id, sel.index, patch));
+    const [w, d] = f.size ?? FURNITURE[f.type].size;
+    const size = (axis: 0 | 1) => (e: Event) => {
+      const v = Number((e.target as HTMLInputElement).value);
+      if (!(v > 0.05)) return;
+      const next: [number, number] = axis === 0 ? [v, d] : [w, v];
+      const def = FURNITURE[f.type].size;
+      set({ size: next[0] === def[0] && next[1] === def[1] ? undefined : next });
+    };
+    return html`<h2>${this.t(`furniture.${f.type}` as StringKey)}</h2>
+      <p class="muted">${this.roomName(r)} · ${this.t("editor.furniture_drag")}</p>
+      <label>${this.t("editor.furniture_type")}
+        <select @change=${(e: Event) => set({ type: (e.target as HTMLSelectElement).value as FurnitureType, size: undefined })}>
+          ${FURNITURE_TYPES.map((t) => html`<option value=${t} ?selected=${t === f.type}>${this.t(`furniture.${t}` as StringKey)}</option>`)}
+        </select>
+      </label>
+      <div class="row">
+        <label>${this.t("editor.furniture_width")}<input type="number" min="0.1" step="0.05" .value=${String(w)} @change=${size(0)} /></label>
+        <label>${this.t("editor.furniture_depth")}<input type="number" min="0.1" step="0.05" .value=${String(d)} @change=${size(1)} /></label>
+      </div>
+      <div class="row">
+        <button title=${this.t("editor.turn_left")} @click=${() => this.rotateFurniture(-90)}>⟲ 90°</button>
+        <button title=${this.t("editor.turn_right")} @click=${() => this.rotateFurniture(90)}>⟳ 90°</button>
+      </div>
+      <button class="danger" @click=${() => {
+        this.commit(deleteFurniture(m, this._level, r.id, sel.index));
+        this._furn = null;
+      }}>${this.t("editor.furniture_delete")}</button>`;
   }
 
   private renderEnergyMarkers() {
@@ -1702,6 +1815,7 @@ export class HomeslicePanel extends LitElement {
     const l = this.levelInput;
     if (!l) return nothing;
     if (this._settings) return this.renderHouseSettings();
+    if (this._mode === "objects" && this._furn) return this.renderFurnitureInspector(this._furn);
     if (this._mode === "objects") return this.renderObjectsInspector();
     if (this._mode === "openings") {
       if (this._opening) return this.renderOpeningInspector(this._opening);
@@ -2095,7 +2209,35 @@ export class HomeslicePanel extends LitElement {
           </ul>`
         : html`<p class="muted">${this.t("editor.no_lights")}</p>`}
       ${this.entitySelect(this.t("editor.light_add"), "light", r.area_id, undefined, (entity) => entity && this.commit(placeLight(m, this._level, r.id, entity)), (id) => !shown.has(id))}
-      <p class="muted">${this.t("editor.lights_hint")}</p>`;
+      <p class="muted">${this.t("editor.lights_hint")}</p>
+      <h3>${this.t("editor.furniture")}</h3>
+      <label>${this.t("editor.furniture_add")}
+        <select @change=${(e: Event) => {
+          const sel = e.target as HTMLSelectElement;
+          const type = sel.value as FurnitureType;
+          sel.value = "";
+          if (!type) return;
+          // into the middle of the room; then drag it to its place
+          const { min } = bbox(roomPolygon(m, r));
+          const c = labelPoint(this.inner(r));
+          const { model, index } = addFurniture(m, this._level, r.id, { type, at: [c[0] - min[0], c[1] - min[1]] });
+          this.commit(model);
+          this._furn = { room: r.id, index };
+        }}>
+          <option value="">—</option>
+          ${FURNITURE_TYPES.map((t) => html`<option value=${t}>${this.t(`furniture.${t}` as StringKey)}</option>`)}
+        </select>
+      </label>
+      ${(r.furniture ?? []).length
+        ? html`<ul class="lights">
+            ${r.furniture!.map(
+              (f, i) => html`<li>
+                <span class="name">${this.t(`furniture.${f.type}` as StringKey)}</span>
+                <button @click=${() => (this._furn = { room: r.id, index: i })}>${this.t("editor.edit")}</button>
+              </li>`,
+            )}
+          </ul>`
+        : nothing}`;
   }
 
   /** The house as a binary glTF file: floors stacked as built, with the roof. */
@@ -2123,6 +2265,7 @@ export class HomeslicePanel extends LitElement {
       ["V", "editor.key_select"],
       ["R", "editor.key_room"],
       ["S", "editor.key_stairs"],
+      ["R (" + this.t("editor.mode_objects") + ")", "editor.key_turn"],
       ["Del", "editor.key_delete"],
       ["Esc", "editor.key_escape"],
       ["Ctrl+Z / Ctrl+Shift+Z", "editor.key_undo"],
@@ -2656,6 +2799,34 @@ export class HomeslicePanel extends LitElement {
       stroke: rgba(255, 255, 255, 0.75);
       stroke-width: 3px;
       stroke-linejoin: round;
+    }
+    .furniture rect {
+      fill: rgba(60, 64, 70, 0.18);
+      stroke: rgba(60, 64, 70, 0.55);
+      stroke-width: 1;
+    }
+    .furniture {
+      pointer-events: none;
+    }
+    .furniture.editable {
+      pointer-events: auto;
+      cursor: grab;
+    }
+    .furniture.editable rect {
+      fill: rgba(60, 64, 70, 0.35);
+    }
+    .furniture.selected rect {
+      stroke: var(--accent);
+      stroke-width: 2.5;
+    }
+    .furniture .front {
+      stroke: rgba(60, 64, 70, 0.8);
+      stroke-width: 2;
+    }
+    .furniture text {
+      font-size: 10px;
+      fill: #222;
+      pointer-events: none;
     }
     .lamp-marker {
       cursor: grab;

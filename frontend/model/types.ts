@@ -34,6 +34,37 @@ export interface RoomInput extends ShapeInput {
    * evenly; list a light to place it (`at`), hide it, or add one from another area.
    */
   lights?: LightInput[];
+  furniture?: FurnitureInput[];
+}
+
+export type FurnitureType =
+  | "sofa"
+  | "armchair"
+  | "table"
+  | "chair"
+  | "bed"
+  | "bed_single"
+  | "desk"
+  | "wardrobe"
+  | "shelf"
+  | "kitchen"
+  | "tv"
+  | "bathtub"
+  | "shower"
+  | "toilet"
+  | "sink"
+  | "plant"
+  | "car";
+
+/** A simple piece of furniture, drawn from boxes. */
+export interface FurnitureInput {
+  type: FurnitureType;
+  /** Centre, metres from the room's north-west corner. */
+  at: [number, number];
+  /** Degrees clockwise (0: the back is to the north, e.g. a sofa facing south). */
+  rotation?: number;
+  /** Width and depth in metres (default by type). */
+  size?: [number, number];
 }
 
 export interface LightInput {
@@ -199,6 +230,7 @@ export interface Room {
   awning?: string;
   /** As in the input, with `at` in plan coordinates. */
   lights: { entity: string; at?: Vec2; hidden: boolean }[];
+  furniture: { type: FurnitureType; at: Vec2; rotation: number; size: [number, number]; height: number }[];
 }
 
 /** Where an opening is defined: a level's own list, or a façade entry shared by levels. */

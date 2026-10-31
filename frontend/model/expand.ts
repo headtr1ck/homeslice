@@ -3,9 +3,11 @@
 // partly broken file still renders and the user sees every problem at once.
 
 import { bbox, edges, normalizeOrientation, outwardNormal, rectPolygon, sideOf, signedArea } from "./geometry";
+import { FURNITURE } from "./furniture";
 import type {
   Coord,
   Energy,
+  FurnitureType,
   House,
   HouseInput,
   Issue,
@@ -127,7 +129,17 @@ export function expandHouse(input: unknown): ExpandResult {
           return err(`${rp}.lights.${j}`, "at must be [metres east, metres south] of the room's north-west corner.");
         lights.push({ entity: li.entity, at: li.at ? [min[0] + li.at[0], min[1] + li.at[1]] : undefined, hidden: !!li.hidden });
       });
-      const room: Room = { id: ri.id, areaId: ri.area_id, name: ri.name, kind, floor: ri.floor ?? DEFAULTS.floor[kind], polygon, lights };
+      const furniture: Room["furniture"] = [];
+      (ri.furniture ?? []).forEach((fi, j) => {
+        const fp = `${rp}.furniture.${j}`;
+        const def = FURNITURE[fi?.type as FurnitureType];
+        if (!def) return err(fp, `type must be one of ${Object.keys(FURNITURE).join(", ")}, got ${JSON.stringify(fi?.type)}.`);
+        if (!Array.isArray(fi.at) || fi.at.length !== 2) return err(fp, "at must be [metres east, metres south] of the room's north-west corner (the piece's centre).");
+        const size = fi.size ?? def.size;
+        if (!(size[0] > 0 && size[1] > 0)) return err(fp, "size must be [width, depth] in metres.");
+        furniture.push({ type: fi.type, at: [min[0] + fi.at[0], min[1] + fi.at[1]], rotation: (((fi.rotation ?? 0) % 360) + 360) % 360, size: [size[0], size[1]], height: def.height });
+      });
+      const room: Room = { id: ri.id, areaId: ri.area_id, name: ri.name, kind, floor: ri.floor ?? DEFAULTS.floor[kind], polygon, lights, furniture };
       if (ri.awning) room.awning = ri.awning;
       rooms.push(room);
     });
