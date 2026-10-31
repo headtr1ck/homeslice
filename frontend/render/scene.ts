@@ -1111,7 +1111,7 @@ export class HouseRenderer {
     // mirrored in its own frame, before turning
     if (f.mirror) g.scale.x = -1;
     g.traverse((o) => (o.userData.outdoor = true)); // not a tap target: taps go to the room
-    if (this.view.furniture === "detailed" && partsFor(f.type, f.mount, f.model)) this.detail(g, f);
+    if (this.view.furniture === "detailed" && (partsFor(f.type, f.mount, f.model) || f.model?.startsWith("modern:"))) this.detail(g, f);
     return g;
   }
 
@@ -1124,7 +1124,7 @@ export class HouseRenderer {
       let m = converted.get(source);
       if (!m) {
         const s = source as THREE.MeshStandardMaterial;
-        m = new THREE.MeshLambertMaterial({ color: modelColor(source), map: s.map ?? null, transparent: s.transparent, opacity: s.opacity });
+        m = new THREE.MeshLambertMaterial({ color: modelColor(source), map: s.map ?? null, transparent: s.transparent, opacity: s.opacity, side: s.side, emissive: s.emissive ?? 0x000000, emissiveIntensity: s.emissiveIntensity ?? 1 });
         converted.set(source, m);
         materials.add(m);
         // join the level's fading and hover tint as they are now
@@ -1137,9 +1137,17 @@ export class HouseRenderer {
       return m;
     };
     const files = modelFiles(f.type, f.mount, f.model);
-    const done = Promise.all(files.map(async (file) => [file, await loadModel(file)] as const)).then((loaded) => {
+    // Modern pieces are drawn in code (their module loads with the first one)
+    const modern = f.model?.startsWith("modern:") ? import("./modern") : null;
+    const done = Promise.all([modern, ...files.map(async (file) => [file, await loadModel(file)] as const)]).then(([mod, ...loaded]) => {
       if (generation !== this.generation) return;
-      const piece = buildPiece(f.type, f.mount, f.size, f.height, new Map(loaded), convert, f.model);
+      let piece: THREE.Group | null;
+      if (mod) {
+        piece = mod.buildModern(f.model!.slice(7), f.size, f.height, f.finish);
+        piece?.traverse((o) => {
+          if (o instanceof THREE.Mesh) o.material = Array.isArray(o.material) ? o.material.map(convert) : convert(o.material);
+        });
+      } else piece = buildPiece(f.type, f.mount, f.size, f.height, new Map(loaded as [string, THREE.Object3D | null][]), convert, f.model);
       if (!piece) return; // keep the simple shapes
       for (const child of [...g.children]) {
         g.remove(child);

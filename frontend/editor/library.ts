@@ -4,11 +4,12 @@
 // lights and defaults) with the model that shows it.
 
 import { FURNITURE, FURNITURE_GROUPS } from "../model/furniture";
-import type { FurnitureType } from "../model/types";
+import { MODERN_GROUPS } from "../model/modern";
+import type { FurnitureMount, FurnitureType } from "../model/types";
 import { KENNEY_GROUPS, kenneySize } from "./kenney";
 
-export type LibrarySource = "builtin" | "kenney" | "polyhaven" | "custom";
-export const LIBRARY_SOURCES: LibrarySource[] = ["builtin", "kenney", "polyhaven", "custom"];
+export type LibrarySource = "builtin" | "modern" | "kenney" | "polyhaven" | "custom";
+export const LIBRARY_SOURCES: LibrarySource[] = ["builtin", "modern", "kenney", "polyhaven", "custom"];
 
 export interface LibraryItem {
   /** Unique within the library, e.g. `kenney:loungeSofa`. */
@@ -18,6 +19,11 @@ export interface LibraryItem {
   model: string;
   /** The item's own name (models), else the type's. */
   name?: string;
+  /** A translated name instead (Modern pieces: `modern.<kind>`). */
+  nameKey?: string;
+  /** Where it hangs, if not where its type does. */
+  mount?: FurnitureMount;
+  elevation?: number;
   thumb: string;
   /** Its own size (models), else the type's. */
   size?: [number, number];
@@ -69,6 +75,24 @@ export function builtinGroups(): LibraryGroup[] {
   return FURNITURE_GROUPS.map((g) => ({
     id: g.id,
     items: g.types.map((type) => ({ key: `builtin:${type}`, type, model: "builtin", thumb: asset(`thumbs/builtin/${type}.png`) })),
+  }));
+}
+
+export function modernGroups(): LibraryGroup[] {
+  return MODERN_GROUPS.map((g) => ({
+    id: g.id,
+    items: g.kinds.map((k) => ({
+      key: `modern:${k.id}`,
+      type: k.type,
+      model: `modern:${k.id}`,
+      nameKey: `modern.${k.id}`,
+      thumb: asset(`thumbs/modern/${k.id}.png`),
+      size: [k.size[0], k.size[1]] as [number, number],
+      height: k.size[2],
+      tags: [k.id.replace(/_/g, " ")],
+      ...(k.mount ? { mount: k.mount } : {}),
+      ...(k.elevation !== undefined ? { elevation: k.elevation } : {}),
+    })),
   }));
 }
 
@@ -163,6 +187,7 @@ export function filterGroups(groups: LibraryGroup[], query: string, typeName: (t
   const q = query.trim().toLowerCase();
   if (!q) return groups;
   const matches = (i: LibraryItem) => [i.name ?? "", typeName(i.type), i.type, ...(i.tags ?? [])].some((s) => s.toLowerCase().includes(q));
+  // (Modern names are matched through their tags and type; the panel adds the translated name)
   return groups.map((g) => ({ ...g, items: g.items.filter(matches) })).filter((g) => g.items.length);
 }
 
@@ -170,5 +195,6 @@ export function filterGroups(groups: LibraryGroup[], query: string, typeName: (t
 export function planPicture(f: { type: FurnitureType; model?: string }): string {
   if (f.model?.startsWith("kenney:")) return asset(`plan/kenney/${f.model.slice(7)}.png`);
   if (f.model === "builtin") return asset(`plan/builtin/${f.type}.png`);
+  if (f.model?.startsWith("modern:")) return asset(`plan/modern/${f.model.slice(7)}.png`);
   return asset(`plan/${FURNITURE[f.type] ? f.type : "item"}.png`);
 }

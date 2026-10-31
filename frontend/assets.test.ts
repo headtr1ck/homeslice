@@ -1,0 +1,119 @@
+// Checks on every piece in the furniture library, so new ones (e.g. from a pull request)
+// can't break the editor or the cards: it builds, fits its box, stays light enough for a
+// wall tablet, has its pictures and names, and every model file is used and valid.
+import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
+import * as THREE from "three";
+import { describe, expect, it } from "vitest";
+import { KENNEY_ITEMS } from "./editor/kenney";
+import SIZES from "./editor/kenney-sizes.json";
+import en from "./i18n/en.json";
+import de from "./i18n/de.json";
+import { FURNITURE, FURNITURE_TYPES } from "./model/furniture";
+import { FINISHES, MODERN, MODERN_GROUPS } from "./model/modern";
+import { MODELS, WALL_MODELS } from "./render/models";
+import { buildModern } from "./render/modern";
+
+/** Triangles a single piece may have (a garden of trees must still run on a tablet). */
+const MAX_TRIANGLES = 40_000;
+/** A bundled model file at most (bytes). */
+const MAX_MODEL_BYTES = 400_000;
+
+const triangles = (o: THREE.Object3D) => {
+  let n = 0;
+  o.traverse((x) => {
+    if (x instanceof THREE.Mesh) n += (x.geometry.index?.count ?? x.geometry.attributes.position.count) / 3;
+  });
+  return n;
+};
+const hasNaN = (o: THREE.Object3D) => {
+  let bad = false;
+  o.traverse((x) => {
+    if (x instanceof THREE.Mesh && (x.geometry.attributes.position.array as Float32Array).some((n) => !Number.isFinite(n))) bad = true;
+  });
+  return bad;
+};
+const picture = (path: string) => existsSync(`assets/${path}.png`);
+
+describe("Modern pieces", () => {
+  const kinds = MODERN_GROUPS.flatMap((g) => g.kinds);
+
+  it("have unique ids, known types and finishes", () => {
+    expect(new Set(kinds.map((k) => k.id)).size).toBe(kinds.length);
+    for (const k of kinds) {
+      expect(FURNITURE[k.type], k.id).toBeDefined();
+      expect(k.finishes.length, k.id).toBeGreaterThan(0);
+      for (const f of k.finishes) expect(FINISHES[f], `${k.id}: finish ${f}`).toBeDefined();
+    }
+  });
+
+  for (const k of kinds)
+    it(`${k.id}: builds at its size and others, fits its box, stays light`, () => {
+      for (const s of [1, 0.7, 1.6]) {
+        const [w, d, h] = [k.size[0] * s, k.size[1] * s, k.size[2] * (s > 1 ? 1.2 : s)];
+        const piece = buildModern(k.id, [w, d], h, k.finishes.at(-1));
+        expect(piece, k.id).not.toBeNull();
+        expect(hasNaN(piece!), `${k.id}: NaN in its geometry`).toBe(false);
+        expect(triangles(piece!), `${k.id}: triangles`).toBeLessThan(MAX_TRIANGLES);
+        const box = new THREE.Box3().setFromObject(piece!);
+        const size = box.getSize(new THREE.Vector3());
+        // taps, lamp arms and leaves may reach a little out of the box, not more
+        const slack = (m: number) => m * 1.12 + 0.2;
+        expect(size.x, `${k.id}: width at ${s}×`).toBeLessThan(slack(w));
+        expect(size.z, `${k.id}: depth at ${s}×`).toBeLessThan(slack(d));
+        expect(size.y, `${k.id}: height at ${s}×`).toBeLessThan(slack(h));
+        expect(box.min.y, `${k.id}: below its floor`).toBeGreaterThan(-0.05);
+      }
+    });
+
+  it("have names in every language and their pictures", () => {
+    for (const k of kinds) {
+      expect((en as Record<string, string>)[`modern.${k.id}`], k.id).toBeTruthy();
+      expect((de as Record<string, string>)[`modern.${k.id}`], k.id).toBeTruthy();
+      expect(picture(`thumbs/modern/${k.id}`), `thumbs/modern/${k.id}.png: run node scripts/thumbnails.mjs`).toBe(true);
+      expect(picture(`plan/modern/${k.id}`), `plan/modern/${k.id}.png`).toBe(true);
+    }
+    for (const f of Object.keys(FINISHES)) expect((en as Record<string, string>)[`finish.${f}`], f).toBeTruthy();
+  });
+
+  it("are all in the catalogue", () => {
+    expect(Object.keys(MODERN).sort()).toEqual(kinds.map((k) => k.id).sort());
+  });
+});
+
+describe("Kenney's models", () => {
+  /** The texture files a .glb points to. */
+  const images = (file: string): string[] => {
+    const b = readFileSync(`assets/models/${file}.glb`);
+    expect(b.subarray(0, 4).toString(), `${file}.glb is not a binary glTF`).toBe("glTF");
+    const json = JSON.parse(b.subarray(20, 20 + b.readUInt32LE(12)).toString());
+    return (json.images ?? []).map((i: { uri?: string }) => i.uri).filter(Boolean);
+  };
+
+  it("every library item has its file, size, pictures and a known type", () => {
+    for (const item of KENNEY_ITEMS) {
+      expect(FURNITURE[item.type], item.file).toBeDefined();
+      expect(existsSync(`assets/models/${item.file}.glb`), `${item.file}.glb`).toBe(true);
+      expect(statSync(`assets/models/${item.file}.glb`).size, `${item.file}.glb is too large`).toBeLessThan(MAX_MODEL_BYTES);
+      for (const uri of images(item.file)) expect(existsSync(`assets/models/${uri}`), `${item.file}: ${uri}`).toBe(true);
+      expect((SIZES as Record<string, number[]>)[item.file], `${item.file}: size (run node scripts/thumbnails.mjs)`).toHaveLength(3);
+      expect(picture(`thumbs/kenney/${item.file}`), `thumbs/kenney/${item.file}.png`).toBe(true);
+      expect(picture(`plan/kenney/${item.file}`), `plan/kenney/${item.file}.png`).toBe(true);
+    }
+  });
+
+  it("every bundled file is used", () => {
+    const used = new Set([...KENNEY_ITEMS.map((i) => i.file), ...[...Object.values(MODELS), ...Object.values(WALL_MODELS)].flatMap((parts) => (parts ?? []).flatMap((p) => p.files))]);
+    const files = readdirSync("assets/models").filter((f) => f.endsWith(".glb"));
+    expect(files.filter((f) => !used.has(f.slice(0, -4)))).toEqual([]);
+  });
+});
+
+describe("furniture types", () => {
+  it("each has its pictures and a name", () => {
+    for (const t of FURNITURE_TYPES) {
+      expect(picture(`thumbs/${t}`) && picture(`plan/${t}`), t).toBe(true);
+      expect(picture(`thumbs/builtin/${t}`) && picture(`plan/builtin/${t}`), `builtin ${t}`).toBe(true);
+      expect((en as Record<string, string>)[`furniture.${t}`], t).toBeTruthy();
+    }
+  });
+});

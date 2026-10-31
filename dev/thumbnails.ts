@@ -8,6 +8,8 @@ import type { FurnitureType } from "../frontend/model/types";
 import { KENNEY_ITEMS } from "../frontend/editor/kenney";
 import { buildPiece, loadModel, modelColor, modelFiles } from "../frontend/render/models";
 import { simplePiece } from "../frontend/render/simple";
+import { buildModern } from "../frontend/render/modern";
+import { MODERN_GROUPS } from "../frontend/model/modern";
 
 const SIZE = 160;
 
@@ -34,7 +36,7 @@ const convert = (src: THREE.Material) => {
   let m = lambert.get(src);
   if (!m) {
     const s = src as THREE.MeshStandardMaterial;
-    m = new THREE.MeshLambertMaterial({ color: modelColor(src), map: s.map ?? null });
+    m = new THREE.MeshLambertMaterial({ color: modelColor(src), map: s.map ?? null, transparent: s.transparent, opacity: s.opacity, side: s.side, emissive: s.emissive ?? 0x000000 });
     lambert.set(src, m);
   }
   return m;
@@ -119,6 +121,16 @@ async function render() {
     const p = await piece(item.type, [w, d], h, `kenney:${item.file}`);
     if (p) add(`kenney/${item.file}`, shoot(p, [w, d]));
   }
+  // the Modern pieces, as drawn in code (with the cards' materials)
+  for (const g of MODERN_GROUPS)
+    for (const k of g.kinds) {
+      const p = buildModern(k.id, [k.size[0], k.size[1]], k.size[2]);
+      if (!p) throw new Error(`no modern piece ${k.id}`);
+      p.traverse((o) => {
+        if (o instanceof THREE.Mesh) o.material = convert(o.material as THREE.Material);
+      });
+      add(`modern/${k.id}`, shoot(p, [k.size[0], k.size[1]]));
+    }
   return { thumbs, plans, sizes };
 }
 

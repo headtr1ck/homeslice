@@ -79,7 +79,7 @@ export const WALL_MODELS: Partial<Record<FurnitureType, Part[]>> = {
  * else its type's.
  */
 export function partsFor(type: FurnitureType, mount: string, model?: string): Part[] | undefined {
-  if (model === "builtin") return undefined;
+  if (model === "builtin" || model?.startsWith("modern:")) return undefined;
   if (model) return [{ files: [model] }];
   return (mount === "wall" ? WALL_MODELS[type] : undefined) ?? MODELS[type];
 }

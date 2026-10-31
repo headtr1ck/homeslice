@@ -1465,6 +1465,22 @@ console.log("editor");
     const source = (s) => page.locator(`homeslice-panel .inspector .library-sources button[data-source="${s}"]`).click();
     const start = await count();
 
+    await source("modern");
+    assert((await page.locator("homeslice-panel .inspector h4").allTextContents()).includes("Hall"), "no hall group");
+    await dropKey("modern:wardrobe_sliding", ...spot);
+    let w = await last();
+    assert(w.model === "modern:wardrobe_sliding" && w.type === "wardrobe" && JSON.stringify(w.size) === "[2,0.65]" && w.height === 2.2, `modern: ${JSON.stringify(w)}`);
+    await page.locator('homeslice-panel .inspector .finishes button[data-finish="walnut"]').click();
+    w = await last();
+    assert(w.finish === "walnut", `finish: ${JSON.stringify(w)}`);
+    // the 3D preview draws it (its module loads with the first Modern piece)
+    await page.waitForFunction(() => window.panel.shadowRoot.querySelector("homeslice-card, .preview") !== null);
+    await page.waitForTimeout(800);
+    await shot(page, "editor-library-modern");
+    await page.keyboard.press("Escape");
+    await page.keyboard.press("Control+z");
+    await page.keyboard.press("Control+z");
+
     await source("kenney");
     await dropKey("kenney:loungeDesignSofa", ...spot);
     const sizes = JSON.parse(readFileSync(join(root, "frontend/editor/kenney-sizes.json"), "utf8")).loungeDesignSofa;

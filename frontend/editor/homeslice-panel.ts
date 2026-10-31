@@ -18,6 +18,7 @@ import { stairFrame, stairHole } from "../model/stairs";
 import { misalignedWalls } from "../model/checks";
 import { FURNITURE, FURNITURE_TYPES, mountOf } from "../model/furniture";
 import { loadModel } from "../render/models";
+import { FINISHES, MODERN } from "../model/modern";
 import {
   LIBRARY_SOURCES,
   builtinGroups,
@@ -25,6 +26,7 @@ import {
   filterGroups,
   humanize,
   kenneyGroups,
+  modernGroups,
   planPicture,
   polyhavenGroups,
   type CustomAsset,
@@ -2176,6 +2178,15 @@ export class HomeslicePanel extends LitElement {
         }} /></label>
       </div>
       ${f.model ? html`<p class="muted">${this.t("editor.furniture_model")}: ${this.modelName(f.model)}</p>` : nothing}
+      ${f.model?.startsWith("modern:") && MODERN[f.model.slice(7)]
+        ? html`<div class="finishes" role="radiogroup" aria-label=${this.t("editor.furniture_finish")}>
+            <span class="muted">${this.t("editor.furniture_finish")}</span>
+            ${MODERN[f.model.slice(7)].finishes.map(
+              (x, i) => html`<button role="radio" class="swatch ${(f.finish ?? MODERN[f.model!.slice(7)].finishes[0]) === x ? "active" : ""}" aria-checked=${(f.finish ?? MODERN[f.model!.slice(7)].finishes[0]) === x}
+                title=${this.t(`finish.${x}` as StringKey)} data-finish=${x} style="--swatch:${FINISHES[x]}" @click=${() => set({ finish: i === 0 ? undefined : x })}></button>`,
+            )}
+          </div>`
+        : nothing}
       <div class="row">
         <label>${this.t("editor.furniture_mount")}
           <select @change=${(e: Event) => this.setMount(r, sel.index, (e.target as HTMLSelectElement).value as FurnitureMount)}>
@@ -3538,6 +3549,7 @@ export class HomeslicePanel extends LitElement {
     let groups: LibraryGroup[] = [];
     let status: unknown = nothing;
     if (source === "builtin") groups = builtinGroups();
+    else if (source === "modern") groups = modernGroups().map((g) => ({ ...g, items: g.items.map((i) => ({ ...i, name: this.t(i.nameKey as StringKey) })) }));
     else if (source === "kenney") groups = kenneyGroups();
     else if (source === "polyhaven") {
       const c = this._polyhaven;
@@ -3611,6 +3623,7 @@ export class HomeslicePanel extends LitElement {
   private modelName(model: string): string {
     const [source, id] = model.includes(":") ? model.split(":", 2) : [model, ""];
     if (source === "builtin") return this.t("editor.library_builtin");
+    if (source === "modern") return `${this.t("editor.library_modern")} · ${this.t(`modern.${id}` as StringKey)}`;
     const custom = source === "custom" ? this._customModels?.find((m) => m.id === id)?.name : undefined;
     const polyhaven = source === "polyhaven" && this._polyhaven && !("error" in this._polyhaven) ? this._polyhaven.find((a) => a.id === id)?.name : undefined;
     return `${this.t(`editor.library_${source}` as StringKey)} · ${custom ?? polyhaven ?? humanize(id)}`;
@@ -3701,10 +3714,12 @@ export class HomeslicePanel extends LitElement {
     const { min } = bbox(roomPolygon(m, room));
     const def = FURNITURE[type];
     const depth = size?.[1] ?? def.size[1];
-    const onWall = def.mount === "wall" ? wallSnap(this.inner(room), world, depth) : null;
+    const onWall = (item.mount ?? def.mount) === "wall" ? wallSnap(this.inner(room), world, depth) : null;
     const p = onWall?.at ?? world;
     const at: [number, number] = [Math.round((p[0] - min[0]) * 100) / 100, Math.round((p[1] - min[1]) * 100) / 100];
     const piece: FurnitureInput = { type, at, model: item.model, ...(onWall?.rotation ? { rotation: onWall.rotation } : {}) };
+    if (item.mount && item.mount !== (def.mount ?? "floor")) piece.mount = item.mount;
+    if (item.elevation !== undefined && item.elevation !== def.elevation) piece.elevation = item.elevation;
     if (size && (size[0] !== def.size[0] || size[1] !== def.size[1])) piece.size = size;
     if (height !== undefined && height !== def.height) piece.height = height;
     const { model, index } = addFurniture(m, this._level, room.id, piece);
@@ -4651,6 +4666,26 @@ export class HomeslicePanel extends LitElement {
     }
     .library .piece:hover {
       border-color: var(--accent);
+    }
+    .finishes {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 6px;
+      margin: 6px 0;
+    }
+    .swatch {
+      width: 26px;
+      height: 26px;
+      min-width: 0;
+      padding: 0;
+      border-radius: 50%;
+      background: var(--swatch);
+      border: 2px solid var(--divider-color, #555);
+    }
+    .swatch.active {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 40%, transparent);
     }
     .library-sources {
       display: flex;

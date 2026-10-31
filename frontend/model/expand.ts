@@ -6,7 +6,7 @@ import { bbox, edges, normalizeOrientation, outwardNormal, rectPolygon, sideOf, 
 import { FURNITURE } from "./furniture";
 
 /** A furniture model reference (see FurnitureInput.model). */
-const MODEL_REF = /^(builtin|(kenney|polyhaven|custom):[A-Za-z0-9_-]+)$/;
+const MODEL_REF = /^(builtin|(kenney|polyhaven|custom|modern):[A-Za-z0-9_-]+)$/;
 import type {
   Coord,
   Energy,
@@ -163,7 +163,8 @@ export function expandHouse(input: unknown): ExpandResult {
         const elevation = mount === "ceiling" ? null : mount === "wall" ? (fi.elevation ?? def.elevation ?? 1.2) : 0;
         if (fi.height !== undefined && !(typeof fi.height === "number" && fi.height > 0)) return err(fp, "height must be in metres.");
         if (fi.model !== undefined && !(typeof fi.model === "string" && MODEL_REF.test(fi.model)))
-          return err(fp, `model must be builtin, kenney:<name>, polyhaven:<id> or custom:<id>, got ${JSON.stringify(fi.model)}.`);
+          return err(fp, `model must be builtin, kenney:<name>, polyhaven:<id>, custom:<id> or modern:<kind>, got ${JSON.stringify(fi.model)}.`);
+        if (fi.finish !== undefined && typeof fi.finish !== "string") return err(fp, "finish must be a name like oak, white or grey.");
         furniture.push({
           type: fi.type,
           at: [min[0] + fi.at[0], min[1] + fi.at[1]],
@@ -175,6 +176,7 @@ export function expandHouse(input: unknown): ExpandResult {
           mirror: !!fi.mirror,
           ...(fi.entity ? { entity: fi.entity } : {}),
           ...(fi.model ? { model: fi.model } : {}),
+          ...(fi.finish ? { finish: fi.finish } : {}),
         });
       });
       // a piece's light is where the piece stands (it moves with it)
