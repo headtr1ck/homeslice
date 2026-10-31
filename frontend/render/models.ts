@@ -24,6 +24,16 @@ const one = (file: string): Part[] => [{ files: [file] }];
 
 export const MODELS: Partial<Record<FurnitureType, Part[]>> = {
   sofa: one("loungeSofa"),
+  sofa_corner: one("loungeSofaCorner"),
+  coffee_table: one("tableCoffee"),
+  rug: one("rugRectangle"),
+  floor_lamp: one("lampSquareFloor"),
+  nightstand: one("cabinetBedDrawer"),
+  kitchen_upper: [{ files: ["kitchenCabinetUpper"], tile: true }],
+  mirror: one("bathroomMirror"),
+  wall_lamp: one("lampWall"),
+  ceiling_lamp: one("lampSquareCeiling"),
+  ceiling_fan: one("ceilingFan"),
   armchair: one("loungeChair"),
   table: one("table"),
   chair: one("chair"),
@@ -49,8 +59,18 @@ export const MODELS: Partial<Record<FurnitureType, Part[]>> = {
   fridge: one("kitchenFridge"),
 };
 
+/** Pieces that look different on a wall: a TV without its stand. */
+export const WALL_MODELS: Partial<Record<FurnitureType, Part[]>> = {
+  tv: [{ files: ["televisionModern"], height: 0.55 }],
+};
+
+/** The parts of a piece as mounted. */
+export function partsFor(type: FurnitureType, mount: string): Part[] | undefined {
+  return (mount === "wall" ? WALL_MODELS[type] : undefined) ?? MODELS[type];
+}
+
 /** Where the models are: next to the bundle (Home Assistant serves the whole folder). */
-const BASE = new URL("models/", import.meta.url);
+const BASE = new URL(/* @vite-ignore */ "models/", import.meta.url);
 
 const cache = new Map<string, Promise<THREE.Object3D | null>>();
 
@@ -72,8 +92,8 @@ export function loadModel(file: string): Promise<THREE.Object3D | null> {
 }
 
 /** The files a piece needs. */
-export function modelFiles(type: FurnitureType): string[] {
-  return [...new Set((MODELS[type] ?? []).flatMap((p) => p.files))];
+export function modelFiles(type: FurnitureType, mount = "floor"): string[] {
+  return [...new Set((partsFor(type, mount) ?? []).flatMap((p) => p.files))];
 }
 
 /** Most a model is stretched more along one side than the other. */
@@ -86,12 +106,13 @@ const MAX_STRETCH = 1.4;
  */
 export function buildPiece(
   type: FurnitureType,
+  mount: string,
   size: [number, number],
   height: number,
   models: Map<string, THREE.Object3D | null>,
   material: (source: THREE.Material) => THREE.Material,
 ): THREE.Group | null {
-  const parts = MODELS[type];
+  const parts = partsFor(type, mount);
   if (!parts) return null;
   const g = new THREE.Group();
   const [w, d] = size;
@@ -114,7 +135,8 @@ export function buildPiece(
       let sx = pw / count / s.x;
       let sz = pd / s.z;
       // keep proportions within reason: a 4.6 m car spot gets a long car, not a stretched one
-      if (!part.tile) {
+      // (thin pieces like mirrors are as deep as they are, whatever their width)
+      if (!part.tile && Math.min(pw, pd) >= 0.2) {
         if (sx > sz * MAX_STRETCH) sx = sz * MAX_STRETCH;
         if (sz > sx * MAX_STRETCH) sz = sx * MAX_STRETCH;
       }

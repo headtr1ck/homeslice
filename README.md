@@ -32,7 +32,7 @@ Card and editor work; the format may still change before a first release.
      own or switched to *open* (e.g. an open kitchen). Stairs: `S`.
    - **2. Doors & windows:** click a wall to add a window, link its blind and contact.
    - **3. Objects & entities:** lights are placed automatically and can be dragged;
-     add furniture (drag, `R` to turn); place solar, battery, grid and power-measured
+     drag furniture from the library (wall pieces go against a wall; `R` to turn); place solar, battery, grid and power-measured
      devices for the energy overlay.
    - Save (`Ctrl+S`). Cards update at once.
 4. Add a **Homeslice** card to a dashboard. Its visual editor shows a small preview: turn
@@ -124,9 +124,10 @@ levels:
         rect: [0, 0, 6, 8]              # x, y, width, depth (or polygon: [[x, y], …])
         lights:                         # optional: the area's lights are placed automatically
           - { entity: light.reading_lamp, at: [1, 2] }   # metres from the room's north-west corner
-        furniture:                      # optional: sofa, armchair, table, chair, bed, bed_single, desk,
-          - { type: sofa, at: [3, 6.5] } # wardrobe, shelf, kitchen, tv, bathtub, shower, toilet, sink,
-          - { type: table, at: [3, 2], rotation: 90 }    # plant, car, washer, dryer, fridge
+        furniture:                      # optional; the editor's library shows every type
+          - { type: sofa, at: [3, 6.5] }
+          - { type: table, at: [3, 2], rotation: 90 }
+          - { type: tv, at: [3, 7.8], rotation: 180, mount: wall, elevation: 1 }  # wall, ceiling
       - { id: kitchen, area_id: kitchen, rect: [6, 0, 4, 8], floor: tile }
       - { id: garden, area_id: garden, kind: outdoor, rect: [0, 8, 10, 6], awning: cover.awning }
     walls:

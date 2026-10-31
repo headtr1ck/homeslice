@@ -56,6 +56,7 @@ import {
   deleteFreeWall,
   freeWallIndexes,
   resizeSide,
+  wallSnap,
 } from "./ops";
 import { expandHouse } from "../model/expand";
 import { deriveWalls } from "../model/walls";
@@ -433,5 +434,16 @@ describe("walls and building settings", () => {
     const out = resizeSide(m, "g", left, i, 0.5);
     expect(rooms(out).left.rect).toEqual([0, 0, 5.5, 8]);
     expect(rooms(out).right.rect).toEqual([5.5, 0, 4.5, 8]);
+  });
+});
+
+describe("wall-mounted furniture", () => {
+  // a 4 × 3 m room inside its walls
+  const inner: [number, number][] = [[0, 0], [4, 0], [4, 3], [0, 3]];
+  it("goes against the nearest wall, facing into the room", () => {
+    expect(wallSnap(inner, [2, 0.4], 0.35)).toEqual({ at: [2, 0.175], rotation: 0 }); // north wall
+    expect(wallSnap(inner, [3.8, 1.5], 0.04)).toEqual({ at: [3.98, 1.5], rotation: 90 }); // east wall
+    expect(wallSnap(inner, [2, 2.9], 0.3)).toEqual({ at: [2, 2.85], rotation: 180 }); // south wall
+    expect(wallSnap(inner, [0.1, 1], 0.3)).toEqual({ at: [0.15, 1], rotation: 270 }); // west wall
   });
 });

@@ -39,25 +39,38 @@ export interface RoomInput extends ShapeInput {
 
 export type FurnitureType =
   | "sofa"
+  | "sofa_corner"
   | "armchair"
+  | "coffee_table"
+  | "tv"
+  | "shelf"
+  | "rug"
+  | "floor_lamp"
+  | "plant"
   | "table"
   | "chair"
+  | "kitchen"
+  | "kitchen_upper"
+  | "fridge"
   | "bed"
   | "bed_single"
-  | "desk"
+  | "nightstand"
   | "wardrobe"
-  | "shelf"
-  | "kitchen"
-  | "tv"
+  | "desk"
   | "bathtub"
   | "shower"
   | "toilet"
   | "sink"
-  | "plant"
-  | "car"
+  | "mirror"
   | "washer"
   | "dryer"
-  | "fridge";
+  | "wall_lamp"
+  | "ceiling_lamp"
+  | "ceiling_fan"
+  | "car";
+
+/** `wall`: hangs on a wall (its back against it); `ceiling`: hangs from the ceiling. */
+export type FurnitureMount = "floor" | "wall" | "ceiling";
 
 /** A piece of furniture: simple shapes, or a detailed model if the card asks for one. */
 export interface FurnitureInput {
@@ -68,6 +81,10 @@ export interface FurnitureInput {
   rotation?: number;
   /** Width and depth in metres (default by type). */
   size?: [number, number];
+  /** Default by type (upper kitchen cabinets and mirrors hang on a wall, ceiling lamps from the ceiling). */
+  mount?: FurnitureMount;
+  /** Wall pieces: metres from the floor to the piece's bottom (default by type). */
+  elevation?: number;
 }
 
 export interface LightInput {
@@ -237,7 +254,8 @@ export interface Room {
   awning?: string;
   /** As in the input, with `at` in plan coordinates. */
   lights: { entity: string; at?: Vec2; hidden: boolean }[];
-  furniture: { type: FurnitureType; at: Vec2; rotation: number; size: [number, number]; height: number }[];
+  /** `elevation`: bottom above the floor in metres (ceiling pieces: null, they hang from the ceiling). */
+  furniture: { type: FurnitureType; at: Vec2; rotation: number; size: [number, number]; height: number; mount: FurnitureMount; elevation: number | null }[];
 }
 
 /** Where an opening is defined: a level's own list, or a façade entry shared by levels. */

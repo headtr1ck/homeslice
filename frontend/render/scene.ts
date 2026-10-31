@@ -4,7 +4,7 @@
 // transition ends.
 
 import * as THREE from "three";
-import { buildPiece, loadModel, MODELS, modelFiles } from "./models";
+import { buildPiece, loadModel, modelFiles, partsFor } from "./models";
 import type { House, Level, Vec2, Vertical } from "../model/types";
 import { innerPolygon, type Wall, type WallOpening } from "../model/walls";
 import { bbox, pointInPolygon } from "../model/geometry";
@@ -387,7 +387,7 @@ export class HouseRenderer {
       g.add(floor);
     }
 
-    for (const room of level.rooms) for (const f of room.furniture) g.add(this.furniture(f));
+    for (const room of level.rooms) for (const f of room.furniture) g.add(this.furniture(f, level.height));
 
     for (const room of level.rooms) if (room.awning && (room.kind !== "outdoor" || this.view.showOutdoor)) this.awning(g, level, room);
 
@@ -854,7 +854,7 @@ export class HouseRenderer {
    * A piece of furniture from a few boxes: centred on its spot, its back to the north
    * before turning (clockwise, seen from above).
    */
-  private furniture(f: Level["rooms"][number]["furniture"][number]): THREE.Group {
+  private furniture(f: Level["rooms"][number]["furniture"][number], ceiling: number): THREE.Group {
     const g = new THREE.Group();
     const [w, d] = f.size;
     // one material per colour and level (they fade with the level)
@@ -922,8 +922,36 @@ export class HouseRenderer {
         box(w, 0.04, d + 0.02, 0, 0.86, 0, m("#5d5f62"));
         break;
       case "tv":
-        box(w, 0.45, d, 0, 0, 0, wood);
-        box(w * 0.85, 0.62, 0.05, 0, 0.55, back + 0.1, dark);
+        // on a wall: the screen only
+        if (f.mount === "wall") box(w, f.height * 0.55, Math.min(d, 0.06), 0, 0, back + Math.min(d, 0.06) / 2, dark);
+        else {
+          box(w, 0.45, d, 0, 0, 0, wood);
+          box(w * 0.85, 0.62, 0.05, 0, 0.55, back + 0.1, dark);
+        }
+        break;
+      case "coffee_table":
+      case "nightstand":
+        box(w, f.height, d, 0, 0, 0, wood);
+        break;
+      case "sofa_corner":
+        box(w, 0.42, Math.min(d, 0.9), 0, 0, back + Math.min(d, 0.9) / 2, fabric);
+        box(Math.min(w, 0.9), 0.42, d, -w / 2 + Math.min(w, 0.9) / 2, 0, 0, fabric);
+        box(w, 0.4, 0.2, 0, 0.42, back + 0.1, fabric);
+        break;
+      case "rug":
+        box(w, f.height, d, 0, 0, 0, m("#b9a48f"));
+        break;
+      case "kitchen_upper":
+        box(w, f.height, d, 0, 0, 0, white);
+        break;
+      case "mirror":
+        box(w, f.height, d, 0, 0, 0, m("#bcd7e6"));
+        break;
+      case "floor_lamp":
+      case "wall_lamp":
+      case "ceiling_lamp":
+      case "ceiling_fan":
+        box(w, f.height, d, 0, 0, 0, m("#e8dcc0"));
         break;
       case "bathtub":
         box(w, 0.55, d, 0, 0, 0, white);
@@ -973,10 +1001,11 @@ export class HouseRenderer {
         break;
       }
     }
-    g.position.set(f.at[0], 0, f.at[1]);
+    // wall pieces hang at their height; ceiling pieces hang from the ceiling of their level
+    g.position.set(f.at[0], f.elevation ?? Math.max(0, ceiling - f.height), f.at[1]);
     g.rotation.y = -(f.rotation * Math.PI) / 180;
     g.traverse((o) => (o.userData.outdoor = true)); // not a tap target: taps go to the room
-    if (this.view.furniture === "detailed" && MODELS[f.type]) this.detail(g, f);
+    if (this.view.furniture === "detailed" && partsFor(f.type, f.mount)) this.detail(g, f);
     return g;
   }
 
@@ -1001,10 +1030,10 @@ export class HouseRenderer {
       }
       return m;
     };
-    const files = modelFiles(f.type);
+    const files = modelFiles(f.type, f.mount);
     const done = Promise.all(files.map(async (file) => [file, await loadModel(file)] as const)).then((loaded) => {
       if (generation !== this.generation) return;
-      const piece = buildPiece(f.type, f.size, f.height, new Map(loaded), convert);
+      const piece = buildPiece(f.type, f.mount, f.size, f.height, new Map(loaded), convert);
       if (!piece) return; // keep the simple shapes
       for (const child of [...g.children]) {
         g.remove(child);

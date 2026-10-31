@@ -379,6 +379,43 @@ export function setOpeningDefaults(model: HouseInput, type: OpeningType, patch: 
   return m;
 }
 
+/**
+ * A wall piece's spot against the nearest wall of its room: its back on the wall's inside
+ * face, turned to face into the room. `inner` is the room inside its walls.
+ */
+export function wallSnap(inner: Vec2[], p: Vec2, depth: number): { at: Vec2; rotation: number } | null {
+  let best: { d: number; foot: Vec2; n: Vec2 } | null = null;
+  inner.forEach((a, i) => {
+    const b = inner[(i + 1) % inner.length];
+    const len = dist(a, b);
+    if (len < 0.2) return;
+    const u: Vec2 = [(b[0] - a[0]) / len, (b[1] - a[1]) / len];
+    const t = Math.max(0, Math.min(len, (p[0] - a[0]) * u[0] + (p[1] - a[1]) * u[1]));
+    const foot: Vec2 = [a[0] + u[0] * t, a[1] + u[1] * t];
+    const d = dist(foot, p);
+    // the normal that points into the room
+    let n: Vec2 = [-u[1], u[0]];
+    const mid: Vec2 = [(a[0] + b[0]) / 2 + n[0] * 0.01, (a[1] + b[1]) / 2 + n[1] * 0.01];
+    if (!insidePolygon(mid, inner)) n = [u[1], -u[0]];
+    if (!best || d < best.d) best = { d, foot, n };
+  });
+  if (!best) return null;
+  const { foot, n } = best as { d: number; foot: Vec2; n: Vec2 };
+  // rotation 0 has the back to the north; the back goes against the wall (-n)
+  const rotation = ((Math.round((Math.atan2(-n[0], n[1]) * 180) / Math.PI) % 360) + 360) % 360;
+  return { at: [round(foot[0] + (n[0] * depth) / 2), round(foot[1] + (n[1] * depth) / 2)], rotation };
+}
+
+function insidePolygon(p: Vec2, poly: Vec2[]): boolean {
+  let inside = false;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const [xi, yi] = poly[i];
+    const [xj, yj] = poly[j];
+    if (yi > p[1] !== yj > p[1] && p[0] < ((xj - xi) * (p[1] - yi)) / (yj - yi) + xi) inside = !inside;
+  }
+  return inside;
+}
+
 // ----- free-standing walls -----
 
 /** Indexes of a level's free-standing walls in its `walls` list. */

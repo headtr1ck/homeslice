@@ -9,12 +9,12 @@ import { areaEntities, type Hass } from "../ha/hass";
 import { localize, type StringKey } from "../i18n/localize";
 import { DEFAULTS, expandHouse } from "../model/expand";
 import { bbox, labelPoint, pointInPolygon } from "../model/geometry";
-import type { EnergyInput, FurnitureInput, FurnitureType, HouseInput, Issue, OpeningInput, OpeningSource, OpeningType, RoomInput, Side, Vec2, Vertical } from "../model/types";
+import type { EnergyInput, FurnitureInput, FurnitureMount, FurnitureType, HouseInput, Issue, OpeningInput, OpeningSource, OpeningType, RoomInput, Side, Vec2, Vertical } from "../model/types";
 import { deriveWalls, innerPolygon, sideOfRoom, type Wall } from "../model/walls";
 import { HouseRenderer } from "../render/scene";
 import { stairFrame, stairHole } from "../model/stairs";
 import { misalignedWalls } from "../model/checks";
-import { FURNITURE, FURNITURE_TYPES } from "../model/furniture";
+import { FURNITURE, FURNITURE_GROUPS, FURNITURE_TYPES, mountOf } from "../model/furniture";
 import { listedLights, placeLights, type PlacedLight } from "../model/lights";
 import type { EnergyPrefs } from "../ha/energy";
 import { ENERGY_COLORS } from "../render/scene";
@@ -30,6 +30,7 @@ import {
   setPartyWalls,
   setWallThickness,
   updateFreeWall,
+  wallSnap,
   addOpening,
   addRoom,
   addFurniture,
@@ -181,6 +182,9 @@ interface DimTarget {
 
 const cm = (m: number) => Math.round(m * 1000) / 10;
 
+/** Picture of a furniture type for the library (assets/thumbs, next to the bundle). */
+const thumb = (type: FurnitureType) => new URL(/* @vite-ignore */ `thumbs/${type}.png`, import.meta.url).href;
+
 function readPref(key: string): string | null {
   try {
     return localStorage.getItem(key);
@@ -314,6 +318,8 @@ export class HomeslicePanel extends LitElement {
   private _linePreview: [Vec2, Vec2] | null = null;
   /** Selected free-standing wall (index in the level's `walls`). */
   private _freeWall: number | null = null;
+  /** Furniture type being dragged from the library onto the plan. */
+  private libraryDrag: FurnitureType | null = null;
   /** Selected piece of furniture (objects mode). */
   private _furn: { room: string; index: number } | null = null;
   /** Unsaved changes found from an earlier visit, offered for restoring. */
@@ -931,7 +937,12 @@ export class HomeslicePanel extends LitElement {
       const s = snapped(p, { ...this.snapContext(), points: [] });
       const rooms = (this.levelInput?.rooms ?? []).filter((r) => r.kind !== "void");
       const into = rooms.find((r) => pointInPolygon(s.p, roomPolygon(this._model!, r)))?.id ?? drag.room;
-      const moved = moveFurniture(drag.origin, this._level, drag.room, drag.index, s.p, into);
+      const piece = drag.origin.levels.find((l) => l.id === this._level)?.rooms.find((r) => r.id === drag.room)?.furniture?.[drag.index];
+      // wall pieces slide along the walls, their back against them
+      const target = rooms.find((r) => r.id === into);
+      const onWall = piece && target && mountOf(piece) === "wall" ? wallSnap(this.inner(target), s.p, (piece.size ?? FURNITURE[piece.type].size)[1]) : null;
+      let moved = moveFurniture(drag.origin, this._level, drag.room, drag.index, onWall?.at ?? s.p, into);
+      if (onWall) moved = { ...moved, model: updateFurniture(moved.model, this._level, moved.room, moved.index, { rotation: onWall.rotation }) };
       this._model = moved.model;
       this._furn = { room: moved.room, index: moved.index };
       this._guides = { x: s.alignX, y: s.alignY };
@@ -1639,6 +1650,18 @@ export class HomeslicePanel extends LitElement {
       @pointercancel=${this.onPlanUp}
       @dblclick=${this.onPlanDoubleClick}
       @wheel=${this.onPlanWheel}
+      @dragover=${(e: DragEvent) => {
+        if (!this.libraryDrag) return;
+        e.preventDefault();
+        if (e.dataTransfer) e.dataTransfer.dropEffect = "copy";
+      }}
+      @drop=${(e: DragEvent) => {
+        const type = this.libraryDrag;
+        this.libraryDrag = null;
+        if (!type) return;
+        e.preventDefault();
+        this.addFurnitureAt(type, this.eventWorld(e as unknown as PointerEvent));
+      }}
     >
       <defs>
         <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
@@ -1760,7 +1783,7 @@ export class HomeslicePanel extends LitElement {
         const [cx, cy] = this.toScreen([min[0] + f.at[0], min[1] + f.at[1]]);
         const k = this._view.scale;
         const sel = this._furn?.room === r.id && this._furn.index === i;
-        return svg`<g class="furniture ${objects ? "editable" : ""} ${sel ? "selected" : ""}" data-furniture=${JSON.stringify({ room: r.id, index: i })}
+        return svg`<g class="furniture mount-${mountOf(f)} ${objects ? "editable" : ""} ${sel ? "selected" : ""}" data-furniture=${JSON.stringify({ room: r.id, index: i })}
             transform="translate(${cx} ${cy}) rotate(${f.rotation ?? 0})">
           <rect x=${(-w * k) / 2} y=${(-d * k) / 2} width=${w * k} height=${d * k} rx="2"></rect>
           <line class="front" x1=${(-w * k) / 2 + 3} y1=${(d * k) / 2 - 3} x2=${(w * k) / 2 - 3} y2=${(d * k) / 2 - 3}></line>
@@ -1795,6 +1818,22 @@ export class HomeslicePanel extends LitElement {
         <label>${this.t("editor.furniture_width")}<input type="number" min="0.1" step="0.05" .value=${String(w)} @change=${size(0)} /></label>
         <label>${this.t("editor.furniture_depth")}<input type="number" min="0.1" step="0.05" .value=${String(d)} @change=${size(1)} /></label>
       </div>
+      <div class="row">
+        <label>${this.t("editor.furniture_mount")}
+          <select @change=${(e: Event) => this.setMount(r, sel.index, (e.target as HTMLSelectElement).value as FurnitureMount)}>
+            ${(["floor", "wall", "ceiling"] as FurnitureMount[]).map((x) => html`<option value=${x} ?selected=${mountOf(f) === x}>${this.t(`editor.mount_${x}` as StringKey)}</option>`)}
+          </select>
+        </label>
+        ${mountOf(f) === "wall"
+          ? html`<label>${this.t("editor.furniture_elevation")}
+              <input type="number" min="0" max="4" step="0.05" .value=${String(f.elevation ?? FURNITURE[f.type].elevation ?? 1.2)} @change=${(e: Event) => {
+                const v = Number((e.target as HTMLInputElement).value);
+                if (v >= 0 && v <= 4) set({ elevation: v === (FURNITURE[f.type].elevation ?? 1.2) ? undefined : v });
+              }} />
+            </label>`
+          : nothing}
+      </div>
+      <p class="muted">${this.t(`editor.mount_${mountOf(f)}_hint` as StringKey)}</p>
       <div class="row">
         <button title=${this.t("editor.turn_left")} @click=${() => this.rotateFurniture(-90)}>⟲ 90°</button>
         <button title=${this.t("editor.turn_right")} @click=${() => this.rotateFurniture(90)}>⟳ 90°</button>
@@ -2577,6 +2616,7 @@ export class HomeslicePanel extends LitElement {
       return html`<h2>${this.t("editor.mode_objects")}</h2>
         <p class="muted">${this.t("editor.objects_hint")}</p>
         <p class="muted">${this.t("editor.lights_count", { count: lamps.length, auto })}</p>
+        ${this.renderLibrary(null)}
         ${this.renderEnergySection()}`;
     }
     const own = lamps.filter((l) => l.roomId === r.id);
@@ -2607,23 +2647,6 @@ export class HomeslicePanel extends LitElement {
       ${this.entitySelect(this.t("editor.light_add"), "light", r.area_id, undefined, (entity) => entity && this.commit(placeLight(m, this._level, r.id, entity)), (id) => !shown.has(id))}
       <p class="muted">${this.t("editor.lights_hint")}</p>
       <h3>${this.t("editor.furniture")}</h3>
-      <label>${this.t("editor.furniture_add")}
-        <select @change=${(e: Event) => {
-          const sel = e.target as HTMLSelectElement;
-          const type = sel.value as FurnitureType;
-          sel.value = "";
-          if (!type) return;
-          // into the middle of the room; then drag it to its place
-          const { min } = bbox(roomPolygon(m, r));
-          const c = labelPoint(this.inner(r));
-          const { model, index } = addFurniture(m, this._level, r.id, { type, at: [c[0] - min[0], c[1] - min[1]] });
-          this.commit(model);
-          this._furn = { room: r.id, index };
-        }}>
-          <option value="">—</option>
-          ${FURNITURE_TYPES.map((t) => html`<option value=${t}>${this.t(`furniture.${t}` as StringKey)}</option>`)}
-        </select>
-      </label>
       ${(r.furniture ?? []).length
         ? html`<ul class="lights">
             ${r.furniture!.map(
@@ -2633,7 +2656,70 @@ export class HomeslicePanel extends LitElement {
               </li>`,
             )}
           </ul>`
-        : nothing}`;
+        : nothing}
+      ${this.renderLibrary(r)}`;
+  }
+
+  /**
+   * The furniture library, grouped like a home is furnished: drag a piece onto a room, or
+   * click it to put it into the selected room.
+   */
+  private renderLibrary(room: RoomInput | null) {
+    return html`<h3>${this.t("editor.library")}</h3>
+      <p class="muted">${this.t(room ? "editor.library_hint_room" : "editor.library_hint", { room: room ? this.roomName(room) : "" })}</p>
+      ${FURNITURE_GROUPS.map(
+        (g) => html`<h4>${this.t(`furniture.group_${g.id}` as StringKey)}</h4>
+          <div class="library">
+            ${g.types.map(
+              (t) => html`<button class="piece" draggable="true" title=${this.t(`furniture.${t}` as StringKey)} data-type=${t}
+                @dragstart=${(e: DragEvent) => {
+                  this.libraryDrag = t;
+                  e.dataTransfer?.setData("text/plain", t);
+                  if (e.dataTransfer) e.dataTransfer.effectAllowed = "copy";
+                }}
+                @dragend=${() => (this.libraryDrag = null)}
+                @click=${() => room && this.addFurnitureAt(t, labelPoint(this.inner(room)), room.id)}>
+                <img src=${thumb(t)} alt="" loading="lazy" draggable="false" />
+                <span>${this.t(`furniture.${t}` as StringKey)}</span>
+              </button>`,
+            )}
+          </div>`,
+      )}`;
+  }
+
+  /** Adds a piece where it was dropped (wall pieces go against the nearest wall) and selects it. */
+  private addFurnitureAt(type: FurnitureType, world: Vec2, roomId?: string) {
+    const m = this._model!;
+    const rooms = (this.levelInput?.rooms ?? []).filter((r) => r.kind !== "void");
+    const room = rooms.find((r) => r.id === roomId) ?? rooms.find((r) => pointInPolygon(world, this.inner(r))) ?? rooms.find((r) => pointInPolygon(world, roomPolygon(m, r)));
+    if (!room) return;
+    const { min } = bbox(roomPolygon(m, room));
+    const def = FURNITURE[type];
+    const onWall = def.mount === "wall" ? wallSnap(this.inner(room), world, def.size[1]) : null;
+    const p = onWall?.at ?? world;
+    const at: [number, number] = [Math.round((p[0] - min[0]) * 100) / 100, Math.round((p[1] - min[1]) * 100) / 100];
+    const { model, index } = addFurniture(m, this._level, room.id, { type, at, ...(onWall?.rotation ? { rotation: onWall.rotation } : {}) });
+    this.commit(model);
+    this._room = room.id;
+    this._furn = { room: room.id, index };
+  }
+
+  /** Changes how a piece is mounted; on a wall it moves against the nearest one. */
+  private setMount(room: RoomInput, index: number, mount: FurnitureMount) {
+    const m = this._model!;
+    const f = room.furniture?.[index];
+    if (!f) return;
+    const patch: Partial<FurnitureInput> = { mount: mount === (FURNITURE[f.type].mount ?? "floor") ? undefined : mount };
+    if (mount !== "wall") patch.elevation = undefined;
+    else {
+      const { min } = bbox(roomPolygon(m, room));
+      const snapped = wallSnap(this.inner(room), [min[0] + f.at[0], min[1] + f.at[1]], (f.size ?? FURNITURE[f.type].size)[1]);
+      if (snapped) {
+        patch.at = [snapped.at[0] - min[0], snapped.at[1] - min[1]];
+        patch.rotation = snapped.rotation;
+      }
+    }
+    this.commit(updateFurniture(m, this._level, room.id, index, patch));
   }
 
   /** The house as a binary glTF file: floors stacked as built, with the roof. */
@@ -3247,6 +3333,48 @@ export class HomeslicePanel extends LitElement {
     .furniture.selected rect {
       stroke: var(--accent);
       stroke-width: 2.5;
+    }
+    /* hanging pieces: dashed, ceiling ones lighter */
+    .furniture.mount-wall rect {
+      stroke-dasharray: 4 2;
+    }
+    .furniture.mount-ceiling rect {
+      stroke-dasharray: 2 3;
+      fill: rgba(60, 64, 70, 0.08);
+    }
+    .library {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(78px, 1fr));
+      gap: 6px;
+    }
+    .library .piece {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+      padding: 4px 2px 6px;
+      min-height: 0;
+      cursor: grab;
+      font-size: 11px;
+      line-height: 1.2;
+      text-align: center;
+    }
+    .library .piece:hover {
+      border-color: var(--accent);
+    }
+    .library .piece img {
+      width: 56px;
+      height: 56px;
+      object-fit: contain;
+      pointer-events: none;
+    }
+    .inspector h4 {
+      margin: 10px 0 4px;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--secondary-text-color);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
     }
     .furniture .front {
       stroke: rgba(60, 64, 70, 0.8);

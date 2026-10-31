@@ -1070,7 +1070,7 @@ console.log("editor");
     await page.locator("homeslice-panel .modes button", { hasText: "Objects" }).click();
     const kb = await page.locator('homeslice-panel svg.plan g[data-room="kitchen"] polygon').boundingBox();
     await page.mouse.click(kb.x + kb.width * 0.8, kb.y + kb.height * 0.85);
-    await page.locator("homeslice-panel .inspector label", { hasText: "Add furniture" }).locator("select").selectOption("table");
+    await page.locator('homeslice-panel .inspector .library button[data-type="table"]').click();
     assert((await room("kitchen")).furniture?.[0]?.type === "table", `kitchen: ${JSON.stringify((await room("kitchen")).furniture)}`);
     assert((await page.locator("homeslice-panel .inspector h2").textContent()) === "Table", "new table not selected");
     const piece = await page.locator("homeslice-panel svg.plan g.furniture.selected rect").boundingBox();
@@ -1086,6 +1086,59 @@ console.log("editor");
     await shot(page, "editor-furniture");
     await page.keyboard.press("Delete");
     assert(!(await room("living")).furniture, "not deleted");
+    await page.keyboard.press("Escape");
+    await page.locator("homeslice-panel .modes button", { hasText: "Rooms" }).click();
+    assert(errors.length === 0, errors.join(" | "));
+  });
+
+  await test("furniture library: grouped with pictures; drag pieces onto rooms, wall pieces go against a wall", async () => {
+    await page.keyboard.press("Escape");
+    await page.locator("homeslice-panel .modes button", { hasText: "Objects" }).click();
+    const groups = await page.locator("homeslice-panel .inspector h4").allTextContents();
+    assert(groups[0] === "Living" && groups.includes("Bathroom") && groups.includes("Lighting"), `groups: ${groups.join(", ")}`);
+    // every type has its picture
+    await page.locator("homeslice-panel .inspector .library").last().scrollIntoViewIfNeeded();
+    await page.waitForFunction(() => [...window.panel.shadowRoot.querySelectorAll(".library img")].every((i) => i.complete && i.naturalWidth > 0), null, { timeout: 10000 });
+    await page.locator("homeslice-panel .inspector h3", { hasText: "Furniture library" }).scrollIntoViewIfNeeded();
+    await shot(page, "editor-library-panel");
+    // HTML drag and drop from the library onto the plan, as the browser does it
+    const dropPiece = (type, x, y) =>
+      page.evaluate(({ type, x, y }) => {
+        const root = window.panel.shadowRoot;
+        const dt = new DataTransfer();
+        root.querySelector(`.library button[data-type="${type}"]`).dispatchEvent(new DragEvent("dragstart", { bubbles: true, composed: true, dataTransfer: dt }));
+        const plan = root.querySelector("svg.plan");
+        const at = { bubbles: true, composed: true, cancelable: true, dataTransfer: dt, clientX: x, clientY: y };
+        const over = new DragEvent("dragover", at);
+        plan.dispatchEvent(over);
+        if (!over.defaultPrevented) return "the plan refused the drop";
+        plan.dispatchEvent(new DragEvent("drop", at));
+        return "ok";
+      }, { type, x, y });
+    const living = await page.locator('homeslice-panel svg.plan g[data-room="living"] polygon').boundingBox();
+    assert((await dropPiece("sofa", living.x + living.width * 0.3, living.y + living.height * 0.75)) === "ok", "drop refused");
+    assert((await room("living")).furniture?.some((f) => f.type === "sofa"), `living: ${JSON.stringify((await room("living")).furniture)}`);
+    assert((await page.locator("homeslice-panel .inspector h2").textContent()) === "Sofa", "dropped sofa not selected");
+    // a mirror dropped near the hall's west wall hangs on it, facing east
+    await page.keyboard.press("Escape");
+    const hall = await page.locator('homeslice-panel svg.plan g[data-room="hall"] polygon').boundingBox();
+    await dropPiece("mirror", hall.x + 12, hall.y + hall.height * 0.6);
+    const mirror = (await room("hall")).furniture?.find((f) => f.type === "mirror");
+    // the hall's inside face of the west wall is 0.36 m from the room's corner; a 4 cm mirror sits 2 cm in front
+    assert(mirror && mirror.rotation === 270 && Math.abs(mirror.at[0] - 0.38) < 0.011, `mirror: ${JSON.stringify(mirror)}`);
+    assert((await page.locator("homeslice-panel .inspector label", { hasText: "Mounted" }).locator("select").inputValue()) === "wall", "mirror not shown as on a wall");
+    // a table can go on the wall too… and back
+    const sofaIndex = (await room("living")).furniture.findIndex((f) => f.type === "sofa");
+    await page.evaluate((i) => (window.panel._furn = { room: "living", index: i }), sofaIndex);
+    await page.locator("homeslice-panel .inspector label", { hasText: "Mounted" }).locator("select").selectOption("ceiling");
+    assert((await room("living")).furniture[sofaIndex].mount === "ceiling", "mount not set");
+    await page.locator("homeslice-panel .inspector label", { hasText: "Mounted" }).locator("select").selectOption("floor");
+    assert((await room("living")).furniture[sofaIndex].mount === undefined, "floor is the default and not written");
+    await shot(page, "editor-library");
+    await page.keyboard.press("Control+z");
+    await page.keyboard.press("Control+z");
+    await page.keyboard.press("Control+z");
+    await page.keyboard.press("Control+z");
     await page.keyboard.press("Escape");
     await page.locator("homeslice-panel .modes button", { hasText: "Rooms" }).click();
     assert(errors.length === 0, errors.join(" | "));
