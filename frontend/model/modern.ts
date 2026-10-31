@@ -42,7 +42,7 @@ export const FINISHES: Record<string, string> = {
 const WOOD = ["oak", "white", "walnut", "black", "anthracite"];
 const FABRIC = ["grey", "beige", "anthracite", "green", "blue", "terracotta", "pink"];
 const LAMP = ["black", "white", "oak", "sand"];
-const POT = ["white", "terracotta", "anthracite", "concrete"];
+const POT = ["white", "terracotta", "anthracite", "concrete", "sand", "green", "pink", "black"];
 const FRONTS = ["white", "anthracite", "oak", "green", "blue", "black", "walnut"];
 const WORKTOP = ["marble", "concrete", "white", "oak", "black", "anthracite"];
 const TAPS = ["chrome", "black", "brass"];
@@ -220,6 +220,20 @@ export const MODERN_GROUPS: { id: string; kinds: ModernKind[] }[] = [
       k("olive_tree", "plant", [0.6, 0.6, 1.5], POT),
       k("plant_hanging", "plant", [0.45, 0.45, 0.75], POT, { mount: "ceiling" }),
       k("plant_small", "plant", [0.22, 0.22, 0.3], POT),
+      k("peace_lily", "plant", [0.55, 0.55, 0.75], POT),
+      k("rubber_tree", "plant", [0.6, 0.6, 1.5], POT),
+      k("palm_kentia", "plant", [1.1, 1.1, 1.8], POT),
+      k("fern", "plant", [0.7, 0.7, 0.55], POT),
+      k("dracaena", "plant", [0.55, 0.55, 1.5], POT),
+      k("yucca", "plant", [0.7, 0.7, 1.5], POT),
+      k("zz_plant", "plant", [0.5, 0.5, 0.7], POT),
+      k("pothos_stand", "plant", [0.42, 0.42, 0.95], POT),
+      k("cactus_column", "plant", [0.4, 0.4, 1.1], POT),
+      k("cactus_round", "plant", [0.22, 0.22, 0.28], POT),
+      k("succulent_bowl", "plant", [0.36, 0.36, 0.16], POT),
+      k("aloe", "plant", [0.32, 0.32, 0.5], POT),
+      k("bird_of_paradise", "plant", [0.9, 0.9, 1.7], POT),
+      k("money_tree", "plant", [0.65, 0.65, 1.3], POT),
     ],
   },
   {

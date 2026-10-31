@@ -2024,6 +2024,197 @@ const BUILDERS: Record<string, Build> = {
       b.add(geo, f, (rand() - 0.5) * w * 0.15, h / 2, -d / 2 + (d / n) * (i + 0.5)).rotation.y = rand() * 0.5;
     }
   },
+  // ----- more indoor plants (the pot in the finish) -----
+  peace_lily: (b, w, d, h, f) => {
+    const rand = random(181);
+    const ph = Math.min(0.24, h * 0.32);
+    pot(b, Math.min(w, d) * 0.3, ph, f);
+    for (let i = 0; i < 18; i++) {
+      const a = (i / 18) * Math.PI * 2 + rand() * 0.4;
+      const reach = (Math.min(w, d) / 2) * (0.35 + rand() * 0.4);
+      const top = v(Math.cos(a) * reach * 0.5, ph + (h - ph) * (0.35 + rand() * 0.3), Math.sin(a) * reach * 0.5);
+      stem(b, v(0, ph, 0), top, 0.004, C.leaf);
+      b.batch(leafGeometry(0.22 + rand() * 0.08, 0.09, 0.45), leafMat(i % 3 ? "#2f5a2f" : "#3d6d3a"), matrix(top.x, top.y, top.z, -0.5 - rand() * 0.5, -a + Math.PI / 2, 0));
+    }
+    for (let i = 0; i < 4; i++) {
+      const a = (i / 4) * Math.PI * 2 + 0.6;
+      const top = v(Math.cos(a) * 0.06, h - 0.12 - rand() * 0.08, Math.sin(a) * 0.06);
+      stem(b, v(0, ph, 0), top, 0.004, C.leaf);
+      b.batch(leafGeometry(0.11, 0.07, -0.25), leafMat("#f4f3ec"), matrix(top.x, top.y, top.z, 0.15, -a + Math.PI / 2, 0));
+      b.batch(new THREE.CylinderGeometry(0.008, 0.01, 0.05, 6), mat("#e8dfa0"), matrix(top.x, top.y + 0.04, top.z));
+    }
+  },
+  rubber_tree: (b, w, d, h, f) => {
+    // Ficus elastica: a stem with big glossy oval leaves, red tips
+    const rand = random(191);
+    const ph = 0.3;
+    pot(b, Math.min(w, d) * 0.32, ph, f);
+    for (const [ox, top] of [[-0.03, h], [0.05, h * 0.78]] as const) {
+      b.cyl(0.012, 0.02, top - ph, ox, ph, 0, mat("#5a4632"), 8);
+      const n = Math.round((top - ph) / 0.07);
+      for (let i = 0; i < n; i++) {
+        const y = ph + 0.15 + ((top - ph - 0.2) * i) / n;
+        const a = i * 2.3 + ox * 10;
+        const size = 0.18 + rand() * 0.06;
+        b.batch(leafGeometry(size, size * 0.6, 0.12), leafMat(rand() > 0.3 ? "#22382a" : "#2f4a35"), matrix(ox + Math.cos(a) * 0.03, y, Math.sin(a) * 0.03, -0.9 + (i / n) * 0.5, -a + Math.PI / 2, 0));
+      }
+      b.batch(new THREE.ConeGeometry(0.012, 0.08, 6), mat("#8a3a32"), matrix(ox, top + 0.03, 0));
+    }
+  },
+  palm_kentia: (b, w, d, h, f) => palm(b, w, d, h, f, 193, { fronds: 9, leaflets: 26, droop: 0.9, color: [C.leafDark, "#3a6a35"], width: 0.03 }),
+  fern: (b, w, d, h, f) => {
+    const ph = Math.min(0.25, h * 0.4);
+    pot(b, Math.min(w, d) * 0.3, ph, f);
+    const rand = random(197);
+    for (let s = 0; s < 22; s++) {
+      const a = (s / 22) * Math.PI * 2 + rand() * 0.3;
+      const out = (Math.min(w, d) / 2) * (0.7 + rand() * 0.3);
+      const curve = new THREE.QuadraticBezierCurve3(v(0, ph, 0), v(Math.cos(a) * out * 0.4, h, Math.sin(a) * out * 0.4), v(Math.cos(a) * out, ph * 0.6 + rand() * 0.1, Math.sin(a) * out));
+      for (let k = 2; k < 16; k++) {
+        const t = k / 16;
+        const p = curve.getPoint(t);
+        for (const side of [-1, 1]) b.batch(leafGeometry(0.07 * (1 - t * 0.6), 0.018, 0.2), leafMat(k % 2 ? "#5f9a3f" : "#4c8a35"), matrix(p.x, p.y, p.z, -1.2 - t, -a + Math.PI / 2 + side * 1.2, side * 0.3));
+      }
+    }
+  },
+  dracaena: (b, w, d, h, f) => {
+    // three bare canes of different heights, each with a spiky crown
+    const rand = random(199);
+    const ph = 0.28;
+    pot(b, Math.min(w, d) * 0.34, ph, f);
+    for (const [ox, oz, top] of [[0, 0, h * 0.95], [0.05, 0.03, h * 0.72], [-0.04, 0.04, h * 0.55]] as const) {
+      b.rod(v(ox, ph, oz), v(ox * 2, top - 0.1, oz * 2), 0.013, mat("#7a6a55"), 6);
+      for (let i = 0; i < 26; i++) {
+        const a = rand() * Math.PI * 2;
+        b.batch(leafGeometry(0.22 + rand() * 0.1, 0.02, 0.25), leafMat(i % 3 ? "#3f6d38" : "#7a3b3b"), matrix(ox * 2, top - 0.1, oz * 2, -0.2 - rand() * 1.0, a, 0));
+      }
+    }
+  },
+  yucca: (b, w, d, h, f) => {
+    const rand = random(211);
+    const ph = 0.3;
+    pot(b, Math.min(w, d) * 0.35, ph, f);
+    for (const [ox, top] of [[0, h * 0.75], [0.06, h * 0.55]] as const) {
+      b.cyl(0.035, 0.05, top - ph, ox, ph, 0, mat("#8a7a62", { roughness: 1 }), 10);
+      for (let i = 0; i < 34; i++) {
+        const a = rand() * Math.PI * 2;
+        b.batch(leafGeometry(0.32 + rand() * 0.1, 0.035, 0.12), leafMat(i % 2 ? "#4d7a3a" : "#6b8f45"), matrix(ox, top, 0, -0.15 - rand() * 1.1, a, 0));
+      }
+    }
+  },
+  zz_plant: (b, w, d, h, f) => {
+    const rand = random(223);
+    const ph = 0.2;
+    pot(b, Math.min(w, d) * 0.32, ph, f);
+    for (let s = 0; s < 9; s++) {
+      const a = (s / 9) * Math.PI * 2 + rand() * 0.3;
+      const top = v(Math.cos(a) * w * 0.25, ph + (h - ph) * (0.7 + rand() * 0.3), Math.sin(a) * d * 0.25);
+      stem(b, v(Math.cos(a) * 0.02, ph, Math.sin(a) * 0.02), top, 0.008, "#3d5a2a");
+      for (let k = 3; k < 12; k++) {
+        const t = k / 12;
+        const p = v(Math.cos(a) * 0.02, ph, Math.sin(a) * 0.02).lerp(top, t);
+        for (const side of [-1, 1]) b.batch(leafGeometry(0.06, 0.035, 0.05), leafMat(k % 2 ? "#1f3d22" : "#2a4f2c"), matrix(p.x, p.y, p.z, -0.6, -a + Math.PI / 2 + side * 1.3, 0));
+      }
+    }
+  },
+  pothos_stand: (b, w, d, h, f) => {
+    // on a plant stand: vines trailing down its sides
+    const rand = random(227);
+    const ph = 0.18;
+    const top = h - ph - 0.05;
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) b.rod(v(sx * w * 0.25, top, sz * d * 0.25), v(sx * w * 0.38, 0, sz * d * 0.38), 0.012, surface("oak", 0.7), 6);
+    b.cyl(Math.min(w, d) * 0.3, Math.min(w, d) * 0.3, 0.02, 0, top - 0.02, 0, surface("oak", 0.7), 24);
+    const r = Math.min(w, d) * 0.22;
+    pot(b, r, ph, f, top);
+    foliage(b, rand, 0, top + ph + 0.04, 0, r * 1.1, 0.06, r * 1.1, 40, 0.07, ["#5d9a3f", "#a8c45a"], true);
+    for (let s = 0; s < 9; s++) {
+      const a = (s / 9) * Math.PI * 2 + rand() * 0.4;
+      const len = 0.25 + rand() * (top - 0.1);
+      for (let k = 0; k < 12; k++) {
+        const t = k / 12;
+        const p = v(Math.cos(a) * (r + 0.02 + t * 0.06), top + ph - t * len, Math.sin(a) * (r + 0.02 + t * 0.06));
+        b.batch(leafGeometry(0.06, 0.05, 0.15), leafMat(k % 2 ? "#5d9a3f" : "#a8c45a"), matrix(p.x, p.y, p.z, 1.4 + rand() * 0.5, -a + Math.PI / 2 + rand(), 0));
+      }
+    }
+  },
+  cactus_column: (b, w, d, h, f) => {
+    const ph = Math.min(0.28, h * 0.25);
+    pot(b, Math.min(w, d) * 0.36, ph, f);
+    const r = Math.min(w, d) * 0.13;
+    ribbed(b, r, h - ph - r, 0, ph, 0);
+    for (const [side, y, len] of [[1, 0.45, 0.3], [-1, 0.6, 0.22]] as const) {
+      const ay = ph + (h - ph) * y;
+      b.rod(v(0, ay, 0), v(side * r * 2.2, ay + 0.04, 0), r * 0.6, mat("#4f7a45"), 10);
+      ribbed(b, r * 0.65, (h - ph) * len, side * r * 2.2, ay, 0);
+    }
+  },
+  cactus_round: (b, w, d, h, f) => {
+    const ph = h * 0.45;
+    pot(b, Math.min(w, d) * 0.42, ph, f);
+    const r = Math.min(w, d) * 0.34;
+    const ball = new THREE.SphereGeometry(r, 20, 12);
+    ribs(ball, 14, 0.07);
+    b.add(ball, mat("#4f7a45", { roughness: 0.9 }), 0, ph + r * 0.75, 0).scale.y = Math.min(1, (h - ph) / (r * 1.75));
+    b.sphere(r * 0.18, 0, ph + r * 1.6, 0, mat("#e85a8a"), 1, 0.5, 1, 10);
+  },
+  succulent_bowl: (b, w, d, h, f) => {
+    const rand = random(229);
+    const r = Math.min(w, d) / 2;
+    b.add(new THREE.LatheGeometry([[0.001, 0], [0.7, 0], [1, 0.9], [0.94, 1], [0.001, 0.75]].map(([x, y]) => new THREE.Vector2(x * r, y * h * 0.6)), 28), f);
+    for (let i = 0; i < 6; i++) {
+      const a = (i / 6) * Math.PI * 2 + rand();
+      const rr = i ? r * 0.55 : 0;
+      rosette(b, Math.cos(a) * rr, h * 0.5, Math.sin(a) * rr, 0.05 + rand() * 0.03, i % 2 ? "#8fb39a" : "#a6b58a", rand);
+    }
+  },
+  aloe: (b, w, d, h, f) => {
+    const rand = random(233);
+    const ph = h * 0.35;
+    pot(b, Math.min(w, d) * 0.38, ph, f);
+    for (let i = 0; i < 16; i++) {
+      const a = (i / 16) * Math.PI * 2 * 2.6;
+      const len = (h - ph) * (0.7 + rand() * 0.4);
+      const leaf = new THREE.ConeGeometry(0.025, len, 4);
+      leaf.translate(0, len / 2, 0);
+      leaf.scale(1.6, 1, 0.6);
+      b.batch(leaf, leafMat(i % 2 ? "#6f9a6a" : "#7fa877"), matrix(0, ph * 0.9, 0, 0.25 + (i / 16) * 0.5, a, 0));
+    }
+  },
+  bird_of_paradise: (b, w, d, h, f) => {
+    // Strelitzia: big paddle leaves high on long upright stems
+    const rand = random(239);
+    const ph = 0.34;
+    pot(b, Math.min(w, d) * 0.3, ph, f);
+    for (let i = 0; i < 9; i++) {
+      const a = (i / 9) * Math.PI * 2 + rand() * 0.4;
+      const len = 0.38 + rand() * 0.12;
+      const top = v(Math.cos(a) * w * 0.32, h - len - rand() * 0.35, Math.sin(a) * d * 0.32);
+      stem(b, v(0, ph, 0), top, 0.008, "#4d7040");
+      b.batch(leafGeometry(len, 0.17, 0.08), leafMat(i % 2 ? "#3f6a3a" : "#4f7d45"), matrix(top.x, top.y, top.z, -0.25 - rand() * 0.3, -a + Math.PI / 2, 0));
+    }
+  },
+  money_tree: (b, w, d, h, f) => {
+    // Pachira: a braided trunk, a crown of hand-shaped leaves
+    const rand = random(241);
+    const ph = 0.26;
+    pot(b, Math.min(w, d) * 0.32, ph, f);
+    const top = h * 0.55;
+    for (let k = 0; k < 3; k++) {
+      const pts: THREE.Vector3[] = [];
+      for (let i = 0; i <= 8; i++) {
+        const t = i / 8;
+        const ang = (k / 3) * Math.PI * 2 + t * Math.PI * 3;
+        pts.push(v(Math.cos(ang) * 0.025, ph + t * (top - ph), Math.sin(ang) * 0.025));
+      }
+      b.add(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 24, 0.014, 6), mat("#7d6a50"));
+    }
+    for (let s = 0; s < 16; s++) {
+      const a = rand() * Math.PI * 2;
+      const tip = v(Math.cos(a) * w * (0.15 + rand() * 0.25), top + rand() * (h - top - 0.1), Math.sin(a) * d * (0.15 + rand() * 0.25));
+      stem(b, v(0, top, 0), tip, 0.004, "#4d7040");
+      for (let l = 0; l < 5; l++) b.batch(leafGeometry(0.12, 0.045, 0.15), leafMat(l % 2 ? C.leaf : C.leafLight), matrix(tip.x, tip.y, tip.z, -0.9, -a + Math.PI / 2 + (l - 2) * 0.45, 0));
+    }
+  },
   // ----- vehicles -----
   car_hatchback: (b, w, d, h, _f, color) => car(b, w, d, h, color, "hatchback"),
   car_estate: (b, w, d, h, _f, color) => car(b, w, d, h, color, "estate"),
@@ -2436,6 +2627,62 @@ function laundry(b: Builder, w: number, d: number, h: number, f: THREE.Material,
   b.add(new THREE.TorusGeometry(r, 0.028, 10, 36), a, 0, cy, d / 2 + 0.012);
   b.add(new THREE.CircleGeometry(r * 0.94, 36), mat(kind === "washer" ? "#2c3e48" : "#3a3f44", { roughness: 0.1, metalness: 0.3 }), 0, cy, d / 2 + 0.006);
   b.add(new THREE.CircleGeometry(r * 0.7, 36), mat("#8e9398", { metalness: 0.6, roughness: 0.4 }), 0, cy, d / 2 + 0.003);
+}
+
+/** A thin green stem from a to b (merged with the leaves). */
+function stem(b: Builder, a: THREE.Vector3, c: THREE.Vector3, r: number, color: string) {
+  const len = a.distanceTo(c);
+  b.batch(new THREE.CylinderGeometry(r * 0.8, r, len, 5), mat(color), new THREE.Matrix4().compose(a.clone().add(c).multiplyScalar(0.5), new THREE.Quaternion().setFromUnitVectors(v(0, 1, 0), c.clone().sub(a).normalize()), v(1, 1, 1)));
+}
+
+/** A palm in a pot: arching fronds with leaflets on both sides. */
+function palm(b: Builder, w: number, d: number, h: number, f: THREE.Material, seed: number, o: { fronds: number; leaflets: number; droop: number; color: string[]; width: number }) {
+  const rand = random(seed);
+  const ph = 0.34;
+  pot(b, Math.min(w, d) * 0.25, ph, f);
+  for (let s = 0; s < o.fronds; s++) {
+    const a = (s / o.fronds) * Math.PI * 2 + rand() * 0.4;
+    const len = (h - ph) * (0.8 + rand() * 0.25);
+    const out = (Math.min(w, d) / 2) * (0.7 + rand() * 0.3);
+    const curve = new THREE.QuadraticBezierCurve3(v(0, ph, 0), v(Math.cos(a) * out * 0.25, ph + len, Math.sin(a) * out * 0.25), v(Math.cos(a) * out, ph + len * (1 - o.droop * 0.5), Math.sin(a) * out));
+    b.batch(new THREE.TubeGeometry(curve, 10, 0.007, 4, false), mat("#4d6a35"));
+    for (let k = 4; k < o.leaflets; k++) {
+      const t = k / o.leaflets;
+      const p = curve.getPoint(t);
+      for (const side of [-1, 1]) b.batch(leafGeometry(0.3 * (1 - t * 0.5), o.width, 0.5), leafMat(o.color[k % o.color.length]), matrix(p.x, p.y, p.z, -1.3 - t * 0.6 * o.droop, -a + Math.PI / 2 + side * 1.0, side * 0.5));
+    }
+  }
+}
+
+/** Ribs around a round shape (cacti): pushes vertices out and in around y. */
+function ribs(geo: THREE.BufferGeometry, n: number, depth: number) {
+  const pos = geo.attributes.position;
+  for (let i = 0; i < pos.count; i++) {
+    const ang = Math.atan2(pos.getZ(i), pos.getX(i));
+    const k = 1 + depth * Math.cos(ang * n);
+    pos.setX(i, pos.getX(i) * k);
+    pos.setZ(i, pos.getZ(i) * k);
+  }
+  geo.computeVertexNormals();
+}
+
+/** A ribbed column with a rounded top (a cactus stem), from y up by len. */
+function ribbed(b: Builder, r: number, len: number, x: number, y: number, z: number) {
+  const geo = new THREE.CapsuleGeometry(r, Math.max(0.01, len - r), 6, 20);
+  ribs(geo, 10, 0.08);
+  b.add(geo, mat("#4f7a45", { roughness: 0.9 }), x, y + len / 2, z);
+}
+
+/** A succulent rosette: rings of fat pointed leaves. */
+function rosette(b: Builder, x: number, y: number, z: number, r: number, color: string, rand: () => number) {
+  for (let ring = 0; ring < 3; ring++)
+    for (let i = 0; i < 7; i++) {
+      const a = (i / 7) * Math.PI * 2 + ring * 0.45;
+      const leaf = new THREE.SphereGeometry(r * (0.55 - ring * 0.12), 8, 6);
+      leaf.scale(0.6, 0.35, 1.2);
+      leaf.translate(0, 0, r * (0.5 - ring * 0.12));
+      b.batch(leaf, mat(color, { roughness: 0.6 }), matrix(x, y + ring * r * 0.25, z, -0.3 - ring * 0.35 - rand() * 0.1, a, 0));
+    }
 }
 
 function tvPanel(b: Builder, w: number, h: number, y: number, z: number) {
