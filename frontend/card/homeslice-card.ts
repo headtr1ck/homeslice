@@ -232,6 +232,7 @@ export class HomesliceCard extends LitElement {
   private holdTimer = 0;
   private swallowClick = false;
   private holdFrom: { x: number; y: number } | null = null;
+  private swipeFrom: { x: number; y: number; at: number } | null = null;
   private _energyLabels: EnergyLabel[] = [];
   private _robotLabels: { key: string; entity: string; x: number; y: number; name: string; text: string; battery: number | null; color: string; icon: string }[] = [];
   private robotReadings: RobotReading[] = [];
@@ -930,6 +931,8 @@ export class HomesliceCard extends LitElement {
   }
 
   private onPointerDown(e: PointerEvent) {
+    // a plan: a sideways swipe goes to the next floor (phones have little room for buttons)
+    if (this.plan && e.isPrimary) this.swipeFrom = { x: e.clientX, y: e.clientY, at: Date.now() };
     // a long press on a linked piece opens its details (colours for a lamp), turning or not
     clearTimeout(this.holdTimer);
     if (this.renderer && !this.transitioning) {
@@ -997,6 +1000,22 @@ export class HomesliceCard extends LitElement {
   }
 
   private onPointerUp(e: PointerEvent) {
+    const sw = this.swipeFrom;
+    this.swipeFrom = null;
+    if (sw && this.plan && this.house && e.type === "pointerup") {
+      const dx = e.clientX - sw.x;
+      const dy = e.clientY - sw.y;
+      if (Math.abs(dx) > 60 && Math.abs(dy) < Math.abs(dx) / 2 && Date.now() - sw.at < 800) {
+        // left: the floor above, right: the floor below
+        const levels = this.house.levels;
+        const i = levels.findIndex((l) => l.id === this._level);
+        const next = levels[i + (dx < 0 ? 1 : -1)];
+        if (next) {
+          this.swallowClick = true;
+          void this.selectLevel(next.id);
+        }
+      }
+    }
     clearTimeout(this.holdTimer);
     this.holdFrom = null;
     this.pointers.delete(e.pointerId);
@@ -1156,7 +1175,7 @@ export class HomesliceCard extends LitElement {
           : nothing}
         <div class="wrap">
           <canvas
-            class=${this.interactive ? "interactive" : ""}
+            class="${this.interactive ? "interactive" : ""} ${this.plan ? "swipe" : ""}"
             @click=${this.onCanvasClick}
             @dblclick=${this.onDoubleClick}
             @pointerdown=${this.onPointerDown}
@@ -1353,6 +1372,10 @@ export class HomesliceCard extends LitElement {
     canvas.interactive {
       /* drags turn the house instead of scrolling the page */
       touch-action: none;
+    }
+    canvas.swipe:not(.interactive) {
+      /* sideways swipes change floors; the page still scrolls up and down */
+      touch-action: pan-y;
     }
     .event {
       position: absolute;

@@ -1035,6 +1035,16 @@ console.log("demo house, tilted plan");
     const floors = await page.locator("homeslice-card nav.levels button").allTextContents();
     assert(!floors.some((f) => f.includes("All floors")), `floor buttons: ${floors}`);
     await shot(page, "demo-tilted");
+    // a sideways swipe: the next floor
+    const before = await page.evaluate(() => window.card._level);
+    const box = await page.locator("homeslice-card canvas").boundingBox();
+    await page.mouse.move(box.x + box.width * 0.7, box.y + box.height * 0.6);
+    await page.mouse.down();
+    await page.mouse.move(box.x + box.width * 0.3, box.y + box.height * 0.6, { steps: 4 });
+    await page.mouse.up();
+    await page.waitForFunction((b) => window.card._level !== b, before, { timeout: 5000 });
+    assert((await page.evaluate(() => window.card._level)) === "first", `after the swipe: ${await page.evaluate(() => window.card._level)}`);
+    assert((await page.locator("homeslice-card .popup").count()) === 0, "the swipe opened a popup");
     assert(errors.length === 0, errors.join(" | "));
   });
   await page.close();
