@@ -1436,7 +1436,8 @@ export class HouseRenderer {
       const height = this.levelHeights[i] ?? 2.6;
       // each part glows in the light's colour times k while it is on
       const glow = (geometry: THREE.BufferGeometry, k: number, map = this.glowTexture!, side: THREE.Side = THREE.FrontSide) => {
-        const mesh = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({ map, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side }));
+        // drawn just in front of what it lies on (a rug's top, a floor): no shimmer as the camera turns
+        const mesh = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({ map, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4 }));
         mesh.visible = false;
         mesh.renderOrder = 2;
         mesh.userData.outdoor = true; // not a tap target for rooms
@@ -2915,7 +2916,7 @@ export class HouseRenderer {
     const probe: Vec2 = [base[0] + w.normal[0] * 0.6, base[1] + w.normal[1] * 0.6];
     if (!level.rooms.some((r) => r.kind === "outdoor" && pointInPolygon(probe, r.polygon))) return;
     this.fadeTexture ??= fadeTexture();
-    const m = new THREE.MeshBasicMaterial({ color: "#ffd59a", map: this.fadeTexture, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending });
+    const m = new THREE.MeshBasicMaterial({ color: "#ffd59a", map: this.fadeTexture, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4 });
     const geo = new THREE.PlaneGeometry(width, depth);
     // the texture fades from its top: the window side
     geo.rotateX(-Math.PI / 2);
@@ -3333,8 +3334,17 @@ export class HouseRenderer {
    * Gives the pool's lights to the lamps that are on: the brightest, on levels in view
    * (the focused one first), placed under the ceiling where each lamp is.
    */
+  /** Which group of lamps each pool light showed last frame (it keeps it while it can). */
+  private poolKeys: string[] = [];
+
+  /**
+   * The few real lights go to the lamps that are on, grouped: lamps close together on one
+   * floor (a row of spots, a strip, two pendants) become one light at their middle, with
+   * their brightness added. So switching one lamp never takes the light from another room,
+   * and a light keeps its group from frame to frame.
+   */
   private placeLights() {
-    const candidates: { score: number; pos: THREE.Vector3; look: LightLook; share: number }[] = [];
+    const groups = new Map<string, { score: number; pos: THREE.Vector3; rgb: [number, number, number]; weight: number; count: number }>();
     for (const [entity, places] of this.lampPlaces) {
       const look = this.lampLooks.get(entity);
       if (!look) continue;
@@ -3342,21 +3352,38 @@ export class HouseRenderer {
         const level = this.levels[p.level];
         if (!level?.group.visible || level.opacity < 0.5) continue;
         const pos = level.group.localToWorld(new THREE.Vector3(p.at[0], (this.levelHeights[p.level] ?? 2.6) * (p.high ? 0.92 : 0.78), p.at[1]));
-        // a row of spots shares its light's brightness
-        candidates.push({ score: look.brightness + (this.focus === p.level ? 2 : 0), pos, look, share: 1 / Math.sqrt(places.length) });
+        // about one light per three metres of a floor
+        const key = `${p.level}/${Math.floor(p.at[0] / 3)}/${Math.floor(p.at[1] / 3)}`;
+        const w = look.brightness / Math.sqrt(places.length);
+        const g = groups.get(key);
+        if (!g) groups.set(key, { score: look.brightness + (this.focus === p.level ? 2 : 0), pos: pos.multiplyScalar(w), rgb: [look.rgb[0] * w, look.rgb[1] * w, look.rgb[2] * w], weight: w, count: 1 });
+        else {
+          g.score += look.brightness * 0.25;
+          g.pos.addScaledVector(pos, w);
+          g.rgb = [g.rgb[0] + look.rgb[0] * w, g.rgb[1] + look.rgb[1] * w, g.rgb[2] + look.rgb[2] * w];
+          g.weight += w;
+          g.count++;
+        }
       }
     }
-    candidates.sort((a, b) => b.score - a.score);
+    // the strongest groups; the ones lit last frame first among equals (no jumping around)
+    const kept = new Set(this.poolKeys);
+    const order = [...groups.entries()].sort(([ka, a], [kb, b]) => b.score + (kept.has(kb) ? 0.5 : 0) - (a.score + (kept.has(ka) ? 0.5 : 0)) || (ka < kb ? -1 : 1));
+    const chosen = order.slice(0, this.lightPool.length);
+    // a group keeps its pool light where it can
+    const slots: (string | undefined)[] = this.lightPool.map((_, i) => (chosen.some(([k]) => k === this.poolKeys[i]) ? this.poolKeys[i] : undefined));
+    for (const [k] of chosen) if (!slots.includes(k)) slots[slots.findIndex((x) => x === undefined)] = k;
+    this.poolKeys = slots.map((k) => k ?? "");
     this.lightPool.forEach((light, i) => {
-      const c = candidates[i];
-      if (!c) {
+      const g = slots[i] ? groups.get(slots[i]!) : undefined;
+      if (!g || g.weight <= 0) {
         light.intensity = 0;
         return;
       }
-      light.position.copy(c.pos);
-      light.color.setRGB(c.look.rgb[0] / 255, c.look.rgb[1] / 255, c.look.rgb[2] / 255, THREE.SRGBColorSpace);
-      // stronger at night, when it is what lights the room
-      light.intensity = (2.5 + 7 * this.night) * (0.3 + 0.7 * c.look.brightness) * c.share;
+      light.position.copy(g.pos).multiplyScalar(1 / g.weight);
+      light.color.setRGB(g.rgb[0] / g.weight / 255, g.rgb[1] / g.weight / 255, g.rgb[2] / g.weight / 255, THREE.SRGBColorSpace);
+      // stronger at night, when it is what lights the room; a group a little more than one lamp
+      light.intensity = (2.5 + 7 * this.night) * (0.3 + 0.7 * Math.min(1, g.weight)) * Math.min(1.8, Math.sqrt(g.count));
     });
   }
 
