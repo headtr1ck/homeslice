@@ -1,6 +1,6 @@
 {
   "name": "homeslice",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "description": "Model your house once and show it as an interactive, exploded isometric 3D view in Home Assistant.",
   "license": "MIT",
   "private": true,
