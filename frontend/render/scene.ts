@@ -953,6 +953,13 @@ export class HouseRenderer {
     this.setSun(this.sunAt?.azimuth ?? null, this.sunAt?.elevation ?? null);
   }
 
+  /** A light's colour as the look shows it: the blueprint's blue (brighter), else its own. */
+  private lightRgb(rgb: [number, number, number]): [number, number, number] {
+    if (this.look !== "blueprint") return rgb;
+    const k = Math.max(rgb[0], rgb[1], rgb[2]) / 255;
+    return [120 * k, 178 * k, 255 * k];
+  }
+
   /** Door swings on plans, for their look. */
   private swingMaterials: LineMaterial[] = [];
 
@@ -1386,7 +1393,8 @@ export class HouseRenderer {
     if (!light) m.emissive.setRGB(0, 0, 0);
     else {
       const k = 0.18 + 0.32 * light.brightness;
-      m.emissive.setRGB((light.rgb[0] / 255) * k, (light.rgb[1] / 255) * k, (light.rgb[2] / 255) * k, THREE.SRGBColorSpace);
+      const rgb = this.lightRgb(light.rgb);
+      m.emissive.setRGB((rgb[0] / 255) * k, (rgb[1] / 255) * k, (rgb[2] / 255) * k, THREE.SRGBColorSpace);
     }
   }
 
@@ -1821,7 +1829,8 @@ export class HouseRenderer {
     // the piece itself: bulbs and shades lit in the light's colour, dull when off
     for (const m of this.pieceGlows.get(entity) ?? []) {
       if (light) {
-        m.emissive.setRGB(light.rgb[0] / 255, light.rgb[1] / 255, light.rgb[2] / 255, THREE.SRGBColorSpace);
+        const rgb = this.lightRgb(light.rgb);
+        m.emissive.setRGB(rgb[0] / 255, rgb[1] / 255, rgb[2] / 255, THREE.SRGBColorSpace);
         m.emissiveIntensity = 0.25 + 0.75 * light.brightness;
       } else {
         m.emissive.setRGB(0, 0, 0);
@@ -1833,7 +1842,8 @@ export class HouseRenderer {
         glow.visible = false;
         continue;
       }
-      const c = new THREE.Color().setRGB(light.rgb[0] / 255, light.rgb[1] / 255, light.rgb[2] / 255, THREE.SRGBColorSpace);
+      const rgb = this.lightRgb(light.rgb);
+      const c = new THREE.Color().setRGB(rgb[0] / 255, rgb[1] / 255, rgb[2] / 255, THREE.SRGBColorSpace);
       // by day the room's real light does most of it: the pool on the floor stays soft
       glow.material.color.copy(c).multiplyScalar((0.35 + 0.65 * light.brightness) * (0.4 + 0.6 * this.night) * ((glow.userData.k as number | undefined) ?? 1));
       glow.visible = true;
@@ -2976,7 +2986,10 @@ export class HouseRenderer {
       const light = this.roomLightLooks.get(key);
       const k = light ? this.night * (0.35 + 0.65 * light.brightness) : 0;
       for (const m of list) {
-        if (light) m.color.setRGB(light.rgb[0] / 255, light.rgb[1] / 255, light.rgb[2] / 255, THREE.SRGBColorSpace);
+        if (light) {
+          const rgb = this.lightRgb(light.rgb);
+          m.color.setRGB(rgb[0] / 255, rgb[1] / 255, rgb[2] / 255, THREE.SRGBColorSpace);
+        }
         m.opacity = 0.75 * k;
       }
     }
@@ -3417,7 +3430,8 @@ export class HouseRenderer {
         return;
       }
       light.position.copy(g.pos).multiplyScalar(1 / g.weight);
-      light.color.setRGB(g.rgb[0] / g.weight / 255, g.rgb[1] / g.weight / 255, g.rgb[2] / g.weight / 255, THREE.SRGBColorSpace);
+      const rgb = this.lightRgb([g.rgb[0] / g.weight, g.rgb[1] / g.weight, g.rgb[2] / g.weight]);
+      light.color.setRGB(rgb[0] / 255, rgb[1] / 255, rgb[2] / 255, THREE.SRGBColorSpace);
       // stronger at night, when it is what lights the room; a group a little more than one lamp
       light.intensity = (2.5 + 7 * this.night) * (0.3 + 0.7 * Math.min(1, g.weight)) * Math.min(1.8, Math.sqrt(g.count));
     });

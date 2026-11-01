@@ -41,8 +41,8 @@ levels:
       - { room: hall, side: west, at: 1.5, width: 0.9, type: door }
       - { room: kitchen, side: west, at: 1.6, width: 0.9, type: door }
       - { room: kitchen, side: south, at: 0.9, width: 0.9, type: door }
-      # the garage door on the street side, in front of the car
-      - { room: garage, side: north, at: 0.4, width: 2.6, type: garage_door, cover: cover.garage }
+      # the garage door onto the drive, in front of the car
+      - { room: garage, side: south, at: 0.4, width: 2.6, type: garage_door, cover: cover.garage }
   - id: first
     floor_id: first_floor
     rooms:

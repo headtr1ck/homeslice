@@ -17,10 +17,7 @@ jobs:
       - run: npm ci
       - run: npm run typecheck
       - run: npm test
-      - name: Browser tests
-        run: |
-          npx playwright-core install --with-deps chromium
-          npm run test:browser
+      - run: npx playwright-core install --with-deps chromium
       # the library's pictures come from the code: render them again and fail if a
       # piece's picture is missing or was not committed;
       # test-results/library.html shows every piece for review (in the screenshots artifact)
@@ -35,7 +32,30 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: screenshots
+          name: library
+          path: test-results/
+
+  # the browser tests in five groups, each its own job side by side (scripts/browser-tests.mjs)
+  browser:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1, 2, 3, 4]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npx playwright-core install --with-deps chromium
+      - run: npx vite build
+      - run: node scripts/browser-tests.mjs --shard ${{ matrix.shard }}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: screenshots-${{ matrix.shard }}
           path: test-results/
 
   integration:

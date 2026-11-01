@@ -42,6 +42,16 @@ const loadFixture = (file) => {
   return f;
 };
 
+// --- sections: BT_ONLY="editor,demo house, roof" runs only those (scripts/browser-tests.mjs
+// runs the sections side by side); without it, everything ---
+const only = process.env.BT_ONLY ? process.env.BT_ONLY.split("|").map((x) => x.trim()) : null;
+let current = "";
+const selected = () => !only || only.includes(current);
+function section(name) {
+  current = name;
+  if (selected()) console.log(name);
+}
+
 // --- tiny test framework ---
 const results = [];
 let failed = 0;
@@ -97,8 +107,8 @@ async function act(page, action) {
 const lamp = (page, label) => page.locator(`homeslice-card button.lamp[aria-label$="lights in ${label}"]`);
 
 // --- demo house ---
-console.log("demo house");
-{
+section("demo house");
+if (selected()) {
   const { page, errors } = await open("dev/fixtures/demo-hass.json");
 
   await test("renders walls, floors and every room label", async () => {
@@ -500,8 +510,8 @@ console.log("demo house");
 }
 
 console.log(results.splice(0).join("\n"));
-console.log("demo house, camera controls");
-{
+section("demo house, camera controls");
+if (selected()) {
   const { page, errors } = await open("dev/fixtures/demo-hass.json", { interactive: true });
   const canvasBox = await page.locator("homeslice-card canvas").boundingBox();
   const cx = canvasBox.x + canvasBox.width / 2;
@@ -563,7 +573,7 @@ console.log("demo house, camera controls");
   });
   await page.close();
 }
-{
+if (selected()) {
   const { page } = await open("dev/fixtures/demo-hass.json");
   await test("the camera is locked unless interactive is on", async () => {
     const b = await page.locator("homeslice-card canvas").boundingBox();
@@ -578,8 +588,8 @@ console.log("demo house, camera controls");
 }
 
 console.log(results.splice(0).join("\n"));
-console.log("demo house, roof");
-{
+section("demo house, roof");
+if (selected()) {
   const { page, errors } = await open("dev/fixtures/demo-hass.json", { view: { azimuth: 200, elevation: 45, roof: true } });
   await test("furniture is drawn", async () => {
     // counted once every piece is drawn in detail, before and after
@@ -1416,7 +1426,7 @@ console.log("demo house, roof");
   });
   await page.close();
 }
-{
+if (selected()) {
   const page = await browser.newPage({ viewport: { width: 700, height: 900 } });
   const errors = [];
   page.on("pageerror", (e) => errors.push(e.message));
@@ -1452,8 +1462,8 @@ console.log("demo house, roof");
   await page.close();
 }
 
-console.log("demo house, energy");
-{
+section("demo house, energy");
+if (selected()) {
   const { page, errors } = await open("dev/fixtures/demo-hass.json", { energy: true }, undefined, (f) => {
     f.model.energy = [
       { kind: "solar" },
@@ -1517,8 +1527,8 @@ console.log("demo house, energy");
   await page.close();
 }
 
-console.log("demo house, looks");
-{
+section("demo house, looks");
+if (selected()) {
   // auto: night once the sun is down
   const sunSet = (f) => ({ ...f, states: { ...f.states, "sun.sun": { entity_id: "sun.sun", state: "below_horizon", attributes: { azimuth: 300, elevation: -12 } } } });
   const { page, errors } = await open("dev/fixtures/demo-hass.json", { look: "auto" }, undefined, sunSet);
@@ -1539,8 +1549,8 @@ console.log("demo house, looks");
   await page.close();
 }
 
-console.log("demo house, white model and blueprint");
-for (const look of ["white", "blueprint"]) {
+section("demo house, white model and blueprint");
+for (const look of selected() ? ["white", "blueprint"] : []) {
   const { page, errors } = await open("dev/fixtures/demo-hass.json", { look });
   await test(`look ${look}: every surface in the look's colour, textures off`, async () => {
     await page.evaluate(() => window.card.renderer.modelsReady());
@@ -1567,8 +1577,8 @@ for (const look of ["white", "blueprint"]) {
   await page.close();
 }
 
-console.log("demo house, following events");
-{
+section("demo house, following events");
+if (selected()) {
   const { page, errors } = await open("dev/fixtures/demo-hass.json", { follow: ["binary_sensor.kitchen_motion"], follow_seconds: 1.5 });
   const setMotion = (state) =>
     page.evaluate((state) => {
@@ -1597,8 +1607,8 @@ console.log("demo house, following events");
   await page.close();
 }
 
-console.log("demo house, low quality");
-{
+section("demo house, low quality");
+if (selected()) {
   const { page, errors } = await open("dev/fixtures/demo-hass.json", { quality: "low" });
   await test("quality low: no shadows, plain colours, simple furniture", async () => {
     const r = await page.evaluate(() => {
@@ -1618,8 +1628,8 @@ console.log("demo house, low quality");
   await page.close();
 }
 
-console.log("demo house, heatmap");
-{
+section("demo house, heatmap");
+if (selected()) {
   const { page, errors } = await open("dev/fixtures/demo-hass.json", { heatmap: "temperature" });
   await test("heatmap: cool rooms blue, comfortable rooms as they are", async () => {
     const tint = (k) => page.evaluate((k) => window.card.renderer.floors.get(k)?.material.userData.tint ?? null, k);
@@ -1631,8 +1641,8 @@ console.log("demo house, heatmap");
   await page.close();
 }
 
-console.log("demo house, all floors side by side");
-{
+section("demo house, all floors side by side");
+if (selected()) {
   const { page, errors } = await open("dev/fixtures/demo-hass.json", { mode: "plan", floors: "all" });
   await test("plan with all floors: side by side from above, labels on each", async () => {
     const r = await page.evaluate(() => ({ level: window.card._level, xs: window.card.renderer.levels.map((l) => l.group.position.x), o: window.card.renderer.orientation }));
@@ -1646,8 +1656,8 @@ console.log("demo house, all floors side by side");
   await page.close();
 }
 
-console.log("demo house, lux");
-{
+section("demo house, lux");
+if (selected()) {
   const withLux = (f) => ({
     ...f,
     states: { ...f.states, "sensor.living_lux": { entity_id: "sensor.living_lux", state: "3", attributes: { device_class: "illuminance", unit_of_measurement: "lx" } } },
@@ -1672,8 +1682,8 @@ console.log("demo house, lux");
   await page.close();
 }
 
-console.log("demo house, tilted plan");
-{
+section("demo house, tilted plan");
+if (selected()) {
   const { page, errors } = await open("dev/fixtures/demo-hass.json", { mode: "tilted" });
   await test("tilted plan: one floor at an angle, walls cut low", async () => {
     await page.waitForFunction(() => window.card.renderer.focusedIndex !== null, null, { timeout: 5000 });
@@ -1709,8 +1719,8 @@ console.log("demo house, tilted plan");
   await page.close();
 }
 
-console.log("demo house, floor plan");
-{
+section("demo house, floor plan");
+if (selected()) {
   const { page, errors } = await open("dev/fixtures/demo-hass.json", { mode: "plan" });
   await test("plan mode: one floor at a time from straight above, starting on the entrance floor", async () => {
     await page.waitForFunction(() => window.card.renderer.orientation.elevation === 90, null, { timeout: 5000 }).catch(() => {});
@@ -1738,8 +1748,8 @@ console.log("demo house, floor plan");
   await page.close();
 }
 
-console.log("demo house, German");
-{
+section("demo house, German");
+if (selected()) {
   const { page, errors } = await open("dev/fixtures/demo-hass.json", {}, undefined, (f) => ({ ...f, language: "de" }));
   await test("in German: the card speaks the user's language", async () => {
     const buttons = await page.locator("homeslice-card nav.levels button").allTextContents();
@@ -1749,8 +1759,8 @@ console.log("demo house, German");
   await page.close();
 }
 
-console.log("demo house, phone");
-{
+section("demo house, phone");
+if (selected()) {
   const { page, errors } = await open("dev/fixtures/demo-hass.json", {}, { width: 390, height: 800 });
   await test("on a phone the popup is a bottom sheet that closes when swiped down", async () => {
     await shot(page, "phone-card");
@@ -1776,8 +1786,8 @@ console.log("demo house, phone");
   await page.close();
 }
 
-console.log("demo house, outdoor areas hidden");
-{
+section("demo house, outdoor areas hidden");
+if (selected()) {
   const { page, errors } = await open("dev/fixtures/demo-hass.json", { view: { show_outdoor: false } });
   await test("show_outdoor: false leaves out gardens and their labels", async () => {
     const names = await labelNames(page);
@@ -1788,8 +1798,8 @@ console.log("demo house, outdoor areas hidden");
 }
 
 console.log(results.splice(0).join("\n"));
-console.log("demo house, per-level camera");
-{
+section("demo house, per-level camera");
+if (selected()) {
   const { page, errors } = await open("dev/fixtures/demo-hass.json", {
     view: { focus: { azimuth: 160, elevation: 70 }, levels: { first: { azimuth: 200, elevation: 90, projection: "isometric" } } },
   });
@@ -1811,8 +1821,8 @@ console.log("demo house, per-level camera");
 }
 
 console.log(results.splice(0).join("\n"));
-console.log("editor");
-{
+section("editor");
+if (selected()) {
   const page = await browser.newPage({ viewport: { width: 1600, height: 900 } });
   const errors = [];
   page.on("pageerror", (e) => errors.push(e.message));
@@ -2861,8 +2871,8 @@ console.log("editor");
   await page.close();
 }
 
-console.log("editor, phone");
-{
+section("editor, phone");
+if (selected()) {
   const page = await browser.newPage({ viewport: { width: 390, height: 844 }, hasTouch: true });
   const errors = [];
   page.on("pageerror", (e) => errors.push(e.message));
@@ -2895,8 +2905,8 @@ console.log("editor, phone");
   await page.close();
 }
 
-console.log("editor, unsaved changes");
-{
+section("editor, unsaved changes");
+if (selected()) {
   const page = await browser.newPage({ viewport: { width: 1600, height: 900 } });
   const errors = [];
   page.on("pageerror", (e) => errors.push(e.message));
@@ -2969,8 +2979,8 @@ console.log("editor, unsaved changes");
   await page.close();
 }
 
-console.log("editor, starting from scratch");
-{
+section("editor, starting from scratch");
+if (selected()) {
   const page = await browser.newPage({ viewport: { width: 1600, height: 900 } });
   const errors = [];
   page.on("pageerror", (e) => errors.push(e.message));
@@ -3291,8 +3301,9 @@ console.log("editor, starting from scratch");
 }
 
 // --- private fixtures (real houses, not in git) ---
+section("private");
 const privateDir = join(root, "dev/fixtures/private");
-for (const file of existsSync(privateDir) ? readdirSync(privateDir).filter((f) => f.endsWith(".json")) : []) {
+for (const file of selected() && existsSync(privateDir) ? readdirSync(privateDir).filter((f) => f.endsWith(".json")) : []) {
   console.log(results.splice(0).join("\n"));
   console.log(`private: ${file}`);
   const { page, errors } = await open(`dev/fixtures/private/${file}`, { view: { azimuth: 250, elevation: 38, explode: 2.6 } }, { width: 1888, height: 1050 });

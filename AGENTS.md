@@ -27,7 +27,8 @@ before changing code; `CONTRIBUTING.md` has the setup.
 npm run check            # everything CI runs (below), before every pull request
 npm run typecheck
 npm test                 # vitest: model, editor ops, i18n, assets, validation cases
-npm run test:browser     # build, then the card and editor in headless Chromium (fake hass)
+npm run test:browser     # build, then the card and editor in headless Chromium (fake hass), sections side by side
+node scripts/browser-tests.mjs "editor"   # only some sections (after a build); test:browser:serial runs them one by one
 .venv/bin/python -m pytest
 node scripts/thumbnails.mjs   # after changing furniture: library pictures
 node scripts/catalog.mjs      # after changing types, kinds, models: custom_components/homeslice/catalog.json
