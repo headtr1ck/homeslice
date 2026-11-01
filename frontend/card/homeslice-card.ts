@@ -9,6 +9,7 @@ import { deriveWalls, innerPolygon, type Wall } from "../model/walls";
 import { formatPower, readEnergy, type EnergyPrefs, type EnergyReading } from "../ha/energy";
 import { readRobot, type RobotReading, type RobotStatus } from "../ha/robots";
 import { deviceLook } from "../ha/devices";
+import { activation, whereIs } from "../ha/follow";
 import { ENERGY_COLORS, HouseRenderer, viewOptions, type Look, type ViewOptions } from "../render/scene";
 
 export interface PopupOverride {
@@ -40,6 +41,16 @@ export interface HomesliceCardConfig {
   look?: "day" | "night" | "auto" | "white" | "blueprint";
   /** The night look's outline colour (CSS colour, default light blue). */
   accent?: string;
+  /**
+   * Turn to where something happens: these entities (a doorbell's event or binary sensor,
+   * a washer's state, a door contact…) going active show their floor with a note, then
+   * the card goes back. Nothing moves while someone uses the card.
+   */
+  follow?: string[];
+  /** Also turn to leak, smoke and gas alarms (default false). */
+  follow_alarms?: boolean;
+  /** How long to stay there, in seconds (default 30). */
+  follow_seconds?: number;
   /** Rooms with a lux sensor look as bright as it reads, and show it on their label (default false). */
   lux?: boolean;
   /** Mark rooms with someone in them (motion, occupancy, presence sensors; default true). Leak, smoke and gas alarms always show. */
@@ -192,6 +203,7 @@ export class HomesliceCard extends LitElement {
     _labels: { state: true },
     _lampButtons: { state: true },
     _dim: { state: true },
+    _event: { state: true },
     _energyLabels: { state: true },
     _robotLabels: { state: true },
     _level: { state: true },
@@ -207,6 +219,13 @@ export class HomesliceCard extends LitElement {
   private _loading = true;
   private _labels: Label[] = [];
   private _lampButtons: LampButton[] = [];
+  /** What just happened, shown while the card turned to it. */
+  private _event: string | null = null;
+  private followed = new Map<string, string>();
+  private lastTouch = 0;
+  private eventTimer = 0;
+  /** The floor to go back to after an event (null: all floors). */
+  private eventReturn: string | null | undefined = undefined;
   /** The brightness shown while dimming a lamp by dragging. */
   private _dim: { x: number; y: number; pct: number } | null = null;
   private gesture: { id: number; y: number; start: number; pct: number; entities: string[]; dimming: boolean; done: boolean; at: { x: number; y: number } } | null = null;
@@ -377,6 +396,8 @@ export class HomesliceCard extends LitElement {
   override connectedCallback() {
     super.connectedCallback();
     window.addEventListener("keydown", this.onKey);
+    // someone using the card: events don't move it for a while
+    this.addEventListener("pointerdown", this.onTouch, { capture: true });
     this.resizeObserver = new ResizeObserver(() => this.scheduleDraw());
     this.updateComplete.then(() => {
       const wrap = this.renderRoot.querySelector(".wrap");
@@ -394,6 +415,8 @@ export class HomesliceCard extends LitElement {
   override disconnectedCallback() {
     super.disconnectedCallback();
     window.removeEventListener("keydown", this.onKey);
+    this.removeEventListener("pointerdown", this.onTouch, { capture: true });
+    clearTimeout(this.eventTimer);
     this.resizeObserver?.disconnect();
     this.intersection?.disconnect();
     document.removeEventListener("visibilitychange", this.onVisibility);
@@ -590,6 +613,7 @@ export class HomesliceCard extends LitElement {
   private syncStates() {
     if (!this.hass || !this.renderer || !this.house) return;
     const hass = this.hass;
+    this.followEvents(hass);
     this.syncLamps(hass);
     const lights = this.rooms.map((r) => lightsLook(hass, this.roomLights(r.key)));
     const lamps = this.lamps.map((l) => lightsLook(hass, [l.entity]));
@@ -638,6 +662,56 @@ export class HomesliceCard extends LitElement {
     });
     this.animateFlows();
     this.scheduleDraw();
+  }
+
+  // ----- following events -----
+
+  private onTouch = () => {
+    this.lastTouch = Date.now();
+  };
+
+  /** Turns to the first followed entity (or alarm) that just went active. */
+  private followEvents(hass: Hass) {
+    const house = this.house!;
+    let hit: { entity: string; text: string } | null = null;
+    for (const id of this.config.follow ?? []) {
+      const now = hass.states[id]?.state;
+      if (activation(id, this.followed.get(id), now) && !hit) hit = { entity: id, text: (hass.states[id]?.attributes.friendly_name as string | undefined) ?? id };
+      if (now !== undefined) this.followed.set(id, now);
+    }
+    if (this.config.follow_alarms)
+      for (const r of this.rooms) {
+        const alerts = this.roomSensors(r.room).alerts.join(",");
+        const before = this.followed.get(`alarm:${r.key}`);
+        if (before !== undefined && alerts && alerts !== before && !hit) hit = { entity: `alarm:${r.key}`, text: this.t(`card.alert_${alerts.split(",")[0]}` as StringKey) };
+        this.followed.set(`alarm:${r.key}`, alerts);
+      }
+    if (!hit) return;
+    const where = hit.entity.startsWith("alarm:") ? { levelId: hit.entity.slice(6).split("/")[0], roomId: hit.entity.slice(6).split("/")[1] } : whereIs(house, hass, hit.entity, this.openings);
+    // someone is using the card, or a popup is open: leave it be
+    if (!where || Date.now() - this.lastTouch < 20000 || this._popup) return;
+    void this.showEvent(where, hit.text);
+  }
+
+  private async showEvent(where: { levelId: string; roomId?: string }, text: string) {
+    const room = where.roomId ? this.rooms.find((r) => r.key === `${where.levelId}/${where.roomId}`) : undefined;
+    this._event = room ? `${text} · ${this.roomName(room)}` : text;
+    // where to go back to (an event already shown keeps the first)
+    if (this.eventReturn === undefined) this.eventReturn = this._level;
+    if (this._level !== where.levelId) await this.selectLevel(where.levelId);
+    clearTimeout(this.eventTimer);
+    this.eventTimer = window.setTimeout(() => void this.endEvent(), (this.config.follow_seconds ?? 30) * 1000);
+  }
+
+  private async endEvent() {
+    const back = this.eventReturn;
+    this.eventReturn = undefined;
+    this._event = null;
+    // not if someone took over in the meantime
+    if (back === undefined || Date.now() - this.lastTouch < 20000 || this._level === back) return;
+    if (back === null) {
+      if (this._level) await this.selectLevel(this._level);
+    } else await this.selectLevel(back);
   }
 
   /** A room's lux reading for its label, when the card shows them. */
@@ -1091,6 +1165,7 @@ export class HomesliceCard extends LitElement {
             @wheel=${this.onWheel}
           ></canvas>
           ${this._readout ? html`<div class="readout">${this._readout}</div>` : nothing}
+          ${this._event ? html`<div class="event" role="status"><ha-icon icon="mdi:bell-ring-outline"></ha-icon>${this._event}</div>` : nothing}
           ${this.interactive && !this.plan
             ? html`<div class="views">
                 <button title=${this.t("card.view_left")} @click=${() => this.turnView(-90)}><ha-icon icon="mdi:rotate-left"></ha-icon></button>
@@ -1276,6 +1351,23 @@ export class HomesliceCard extends LitElement {
     canvas.interactive {
       /* drags turn the house instead of scrolling the page */
       touch-action: none;
+    }
+    .event {
+      position: absolute;
+      top: 12px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      padding: 8px 14px;
+      border-radius: 14px;
+      background: var(--card-background-color, rgba(20, 24, 28, 0.9));
+      border: 1px solid var(--primary-color, #03a9f4);
+      color: var(--primary-text-color, #fff);
+      font-weight: 600;
+      pointer-events: none;
+      --mdc-icon-size: 20px;
     }
     .views {
       position: absolute;
