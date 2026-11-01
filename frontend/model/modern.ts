@@ -57,6 +57,8 @@ export const MODERN_GROUPS: { id: string; kinds: ModernKind[] }[] = [
   {
     id: "living",
     kinds: [
+      k("record_player", "item", [0.45, 0.35, 0.13], ["walnut", "black", "white", "oak"]),
+      k("game_console", "item", [0.3, 0.27, 0.1], ["white", "black"]),
       k("sofa", "sofa", [2.2, 0.95, 0.8], FABRIC, { accents: ["black", "oak", "brass", "chrome"] }),
       k("sofa_corner", "sofa_corner", [2.8, 1.9, 0.8], FABRIC, { accents: ["black", "oak", "brass", "chrome"] }),
       k("sofa_chaise", "sofa_corner", [2.6, 1.6, 0.8], FABRIC, { accents: ["black", "oak", "brass", "chrome"] }),
@@ -210,6 +212,8 @@ export const MODERN_GROUPS: { id: string; kinds: ModernKind[] }[] = [
   {
     id: "office",
     kinds: [
+      k("filing_cabinet", "item", [0.42, 0.6, 1.02], ["grey", "white", "anthracite", "black"]),
+      k("whiteboard", "item", [1.2, 0.04, 0.9], ["white"], { mount: "wall", elevation: 0.95, accents: ["silver", "black", "oak"] }),
       k("desk", "desk", [1.4, 0.7, 0.75], ["oak", "white", "walnut", "black"], { accents: ["black", "white", "chrome", "oak"] }),
       k("desk_drawers", "desk", [1.4, 0.7, 0.75], WOOD, { accents: ["black", "chrome", "white", "oak"] }),
       k("desk_standing", "desk", [1.6, 0.8, 1.05], ["oak", "white", "walnut", "black"], { accents: ["black", "white", "silver"] }),
@@ -226,6 +230,8 @@ export const MODERN_GROUPS: { id: string; kinds: ModernKind[] }[] = [
   {
     id: "kids",
     kinds: [
+      k("slide", "item", [0.6, 2.4, 1.5], ["blue", "red", "green", "terracotta"], { accents: ["white", "oak", "anthracite"] }),
+      k("play_kitchen", "item", [0.85, 0.32, 0.95], ["white", "oak", "pink", "green"], { accents: ["oak", "white", "silver"] }),
       k("crib", "bed_single", [0.68, 1.28, 0.95], ["white", "oak", "green", "pink", "blue"]),
       k("bunk_bed", "bed_single", [1.0, 2.05, 1.6], ["oak", "white", "walnut", "black"]),
       k("changing_table", "shelf", [0.8, 0.55, 1.0], ["white", "oak", "green", "pink", "blue"], { accents: ["oak", "white", "black"] }),
@@ -445,6 +451,9 @@ export const MODERN_GROUPS: { id: string; kinds: ModernKind[] }[] = [
   {
     id: "utility",
     kinds: [
+      k("vacuum_stick", "item", [0.28, 0.24, 1.15], ["grey", "white", "anthracite"], { accents: ["red", "blue", "brass"] }),
+      k("step_ladder", "item", [0.48, 0.7, 1.3], ["silver", "white"], { accents: ["blue", "red", "black"] }),
+      k("tool_wall", "item", [1.2, 0.08, 0.9], ["oak", "white", "anthracite"], { mount: "wall", elevation: 1.0 }),
       k("washer", "washer", [0.6, 0.6, 0.85], ["white", "anthracite", "silver"], { accents: ["chrome", "black", "white"] }),
       k("dryer", "dryer", [0.6, 0.6, 0.85], ["white", "anthracite", "silver"], { accents: ["chrome", "black", "white"] }),
       k("washer_dryer_stack", "washer", [0.6, 0.62, 1.75], ["white", "anthracite", "silver"], { accents: ["chrome", "black", "white"] }),
@@ -509,6 +518,12 @@ export const MODERN_GROUPS: { id: string; kinds: ModernKind[] }[] = [
   {
     id: "garden",
     kinds: [
+      k("barrel_sauna", "item", [2.0, 2.4, 2.1], ["oak", "walnut", "anthracite"]),
+      k("gazebo", "item", [3.0, 3.0, 2.7], ["anthracite", "white", "oak"], { accents: ["beige", "white", "grey", "green"] }),
+      k("patio_heater", "item", [0.8, 0.8, 2.25], ["silver", "black", "anthracite"]),
+      k("outdoor_shower", "item", [0.5, 0.5, 2.2], ["oak", "silver", "black"]),
+      k("hose_reel", "item", [0.5, 0.35, 0.75], ["green", "anthracite", "blue"]),
+      k("bird_bath", "item", [0.55, 0.55, 0.75], ["concrete", "sand", "terracotta", "anthracite"]),
       k("bbq_kettle", "item", [0.6, 0.6, 1.0], ["black", "red", "green"]),
       k("bbq_gas", "item", [1.35, 0.6, 1.15], ["black", "silver", "anthracite"]),
       k("fire_pit", "item", [0.9, 0.9, 0.4], ["terracotta", "black", "concrete"]),
@@ -531,6 +546,8 @@ export const MODERN_GROUPS: { id: string; kinds: ModernKind[] }[] = [
   {
     id: "vehicles",
     kinds: [
+      k("motorcycle", "car", [0.8, 2.15, 1.15], PAINT),
+      k("e_scooter", "item", [0.45, 1.1, 1.2], ["black", "white", "red", "anthracite"]),
       k("car_hatchback", "car", [1.8, 4.1, 1.48], PAINT),
       k("car_estate", "car", [1.85, 4.8, 1.5], PAINT),
       k("car_suv", "car", [1.95, 4.7, 1.7], PAINT),

@@ -471,6 +471,38 @@
  },
  "modern": [
   {
+   "model": "modern:record_player",
+   "name": "Record player",
+   "group": "living",
+   "type": "item",
+   "size": [
+    0.45,
+    0.35,
+    0.13
+   ],
+   "finishes": [
+    "walnut",
+    "black",
+    "white",
+    "oak"
+   ]
+  },
+  {
+   "model": "modern:game_console",
+   "name": "Games console",
+   "group": "living",
+   "type": "item",
+   "size": [
+    0.3,
+    0.27,
+    0.1
+   ],
+   "finishes": [
+    "white",
+    "black"
+   ]
+  },
+  {
    "model": "modern:sofa",
    "name": "Sofa",
    "group": "living",
@@ -3334,6 +3366,44 @@
    ]
   },
   {
+   "model": "modern:filing_cabinet",
+   "name": "Filing cabinet",
+   "group": "office",
+   "type": "item",
+   "size": [
+    0.42,
+    0.6,
+    1.02
+   ],
+   "finishes": [
+    "grey",
+    "white",
+    "anthracite",
+    "black"
+   ]
+  },
+  {
+   "model": "modern:whiteboard",
+   "name": "Whiteboard",
+   "group": "office",
+   "type": "item",
+   "size": [
+    1.2,
+    0.04,
+    0.9
+   ],
+   "finishes": [
+    "white"
+   ],
+   "accents": [
+    "silver",
+    "black",
+    "oak"
+   ],
+   "mount": "wall",
+   "elevation": 0.95
+  },
+  {
    "model": "modern:desk",
    "name": "Desk",
    "group": "office",
@@ -3553,6 +3623,50 @@
    ],
    "finishes": [
     "white"
+   ]
+  },
+  {
+   "model": "modern:slide",
+   "name": "Slide",
+   "group": "kids",
+   "type": "item",
+   "size": [
+    0.6,
+    2.4,
+    1.5
+   ],
+   "finishes": [
+    "blue",
+    "red",
+    "green",
+    "terracotta"
+   ],
+   "accents": [
+    "white",
+    "oak",
+    "anthracite"
+   ]
+  },
+  {
+   "model": "modern:play_kitchen",
+   "name": "Play kitchen",
+   "group": "kids",
+   "type": "item",
+   "size": [
+    0.85,
+    0.32,
+    0.95
+   ],
+   "finishes": [
+    "white",
+    "oak",
+    "pink",
+    "green"
+   ],
+   "accents": [
+    "oak",
+    "white",
+    "silver"
    ]
   },
   {
@@ -6961,6 +7075,65 @@
    ]
   },
   {
+   "model": "modern:vacuum_stick",
+   "name": "Cordless vacuum",
+   "group": "utility",
+   "type": "item",
+   "size": [
+    0.28,
+    0.24,
+    1.15
+   ],
+   "finishes": [
+    "grey",
+    "white",
+    "anthracite"
+   ],
+   "accents": [
+    "red",
+    "blue",
+    "brass"
+   ]
+  },
+  {
+   "model": "modern:step_ladder",
+   "name": "Step ladder",
+   "group": "utility",
+   "type": "item",
+   "size": [
+    0.48,
+    0.7,
+    1.3
+   ],
+   "finishes": [
+    "silver",
+    "white"
+   ],
+   "accents": [
+    "blue",
+    "red",
+    "black"
+   ]
+  },
+  {
+   "model": "modern:tool_wall",
+   "name": "Tool wall",
+   "group": "utility",
+   "type": "item",
+   "size": [
+    1.2,
+    0.08,
+    0.9
+   ],
+   "finishes": [
+    "oak",
+    "white",
+    "anthracite"
+   ],
+   "mount": "wall",
+   "elevation": 1
+  },
+  {
    "model": "modern:washer",
    "name": "Washing machine",
    "group": "utility",
@@ -7860,6 +8033,109 @@
    ]
   },
   {
+   "model": "modern:barrel_sauna",
+   "name": "Barrel sauna",
+   "group": "garden",
+   "type": "item",
+   "size": [
+    2,
+    2.4,
+    2.1
+   ],
+   "finishes": [
+    "oak",
+    "walnut",
+    "anthracite"
+   ]
+  },
+  {
+   "model": "modern:gazebo",
+   "name": "Gazebo",
+   "group": "garden",
+   "type": "item",
+   "size": [
+    3,
+    3,
+    2.7
+   ],
+   "finishes": [
+    "anthracite",
+    "white",
+    "oak"
+   ],
+   "accents": [
+    "beige",
+    "white",
+    "grey",
+    "green"
+   ]
+  },
+  {
+   "model": "modern:patio_heater",
+   "name": "Patio heater",
+   "group": "garden",
+   "type": "item",
+   "size": [
+    0.8,
+    0.8,
+    2.25
+   ],
+   "finishes": [
+    "silver",
+    "black",
+    "anthracite"
+   ]
+  },
+  {
+   "model": "modern:outdoor_shower",
+   "name": "Outdoor shower",
+   "group": "garden",
+   "type": "item",
+   "size": [
+    0.5,
+    0.5,
+    2.2
+   ],
+   "finishes": [
+    "oak",
+    "silver",
+    "black"
+   ]
+  },
+  {
+   "model": "modern:hose_reel",
+   "name": "Hose reel",
+   "group": "garden",
+   "type": "item",
+   "size": [
+    0.5,
+    0.35,
+    0.75
+   ],
+   "finishes": [
+    "green",
+    "anthracite",
+    "blue"
+   ]
+  },
+  {
+   "model": "modern:bird_bath",
+   "name": "Bird bath",
+   "group": "garden",
+   "type": "item",
+   "size": [
+    0.55,
+    0.55,
+    0.75
+   ],
+   "finishes": [
+    "concrete",
+    "sand",
+    "terracotta",
+    "anthracite"
+   ]
+  },
+  {
    "model": "modern:bbq_kettle",
    "name": "Kettle grill",
    "group": "garden",
@@ -8131,6 +8407,43 @@
     1.07
    ],
    "finishes": [
+    "anthracite"
+   ]
+  },
+  {
+   "model": "modern:motorcycle",
+   "name": "Motorcycle",
+   "group": "vehicles",
+   "type": "car",
+   "size": [
+    0.8,
+    2.15,
+    1.15
+   ],
+   "finishes": [
+    "silver",
+    "white",
+    "black",
+    "anthracite",
+    "blue",
+    "red",
+    "green"
+   ]
+  },
+  {
+   "model": "modern:e_scooter",
+   "name": "E-scooter",
+   "group": "vehicles",
+   "type": "item",
+   "size": [
+    0.45,
+    1.1,
+    1.2
+   ],
+   "finishes": [
+    "black",
+    "white",
+    "red",
     "anthracite"
    ]
   },

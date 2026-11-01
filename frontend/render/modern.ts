@@ -3620,6 +3620,263 @@ const BUILDERS: Record<string, Build> = {
     for (let i = 0; i < 6; i++) b.box(w - 0.12, 0.006, 0.006, 0, 0.05 + i * 0.025, d / 2 + 0.002, mat("#aeb3b8"));
     b.box(0.04, 0.012, 0.004, w * 0.3, h * 0.75, d / 2 + 0.001, ledMat());
   },
+  // ----- office, utility, garage -----
+  filing_cabinet: (b, w, d, h, f) => {
+    // four drawers with label holders and recessed pulls
+    b.box(w, h, d, 0, 0, 0, f, 0.006);
+    const n = 4;
+    const dh = (h - 0.04) / n;
+    for (let i = 0; i < n; i++) {
+      const y = 0.02 + i * dh;
+      b.box(w - 0.02, dh - 0.012, 0.012, 0, y + 0.006, d / 2, f, 0.004);
+      b.box(w * 0.4, 0.025, 0.006, 0, y + dh * 0.62, d / 2 + 0.008, mat(C.chrome, { metalness: 0.7, roughness: 0.3 }), 0.004);
+      b.box(w * 0.18, 0.035, 0.003, 0, y + dh * 0.78, d / 2 + 0.007, mat("#f4f1ea"));
+    }
+  },
+  whiteboard: (b, w, d, h, _f, _c, a) => {
+    // an aluminium frame, the white board, a pen tray with markers
+    b.box(w, h, d * 0.5, 0, 0, back(d) + d * 0.25, a, 0.006);
+    b.box(w - 0.04, h - 0.04, 0.004, 0, 0.02, back(d) + d * 0.5 + 0.002, mat("#fbfbf8", { roughness: 0.2 }));
+    b.box(w * 0.4, 0.02, 0.05, 0, -0.005, back(d) + d * 0.5 + 0.02, a, 0.004);
+    ["#2b2c2e", "#c0392b", "#2e6fb5"].forEach((c, i) => b.add(new THREE.CylinderGeometry(0.008, 0.008, 0.13, 8).rotateZ(Math.PI / 2), mat(c), -w * 0.1 + i * 0.05, 0.022, back(d) + d * 0.5 + 0.025));
+    // a few lines and boxes drawn on it
+    const ink = mat("#3a5f9f", { roughness: 1 });
+    for (let i = 0; i < 4; i++) b.box(w * (0.25 + (i % 2) * 0.15), 0.006, 0.002, -w * 0.18 + (i % 2) * 0.05, h * (0.75 - i * 0.12), back(d) + d * 0.5 + 0.005, ink);
+    b.box(w * 0.22, h * 0.3, 0.002, w * 0.25, h * 0.45, back(d) + d * 0.5 + 0.004, mat("#e8a53c", { roughness: 1 }));
+  },
+  vacuum_stick: (b, w, d, h, f, _c, a) => {
+    // a cordless vacuum on its wall dock: floor head, wand, motor with dust bin, handle
+    b.box(w * 0.6, 0.02, 0.04, 0, h * 0.72, back(d) + 0.02, mat(C.black), 0.006);
+    b.box(w, 0.05, d * 0.45, 0, 0, d * 0.12, f, 0.02);
+    b.box(w * 0.85, 0.012, 0.02, 0, 0.005, d * 0.12 + d * 0.22, a, 0.004);
+    b.rod(v(0, 0.05, d * 0.05), v(0, h * 0.68, back(d) + 0.06), 0.014, mat(C.chrome, { metalness: 0.8, roughness: 0.25 }), 10);
+    b.cyl(0.045, 0.045, 0.2, 0, h * 0.62, back(d) + 0.07, mat("#cfe3ea", { transparent: true, opacity: 0.6 }), 16);
+    b.box(0.1, 0.16, 0.12, 0, h * 0.78, back(d) + 0.08, a, 0.03);
+    b.box(0.04, 0.16, 0.04, 0, h * 0.85, back(d) + 0.16, f, 0.015);
+  },
+  step_ladder: (b, w, d, h, f, _c, a) => {
+    // two aluminium frames meeting at the top, four treads, a platform
+    const steel = f;
+    const top = v(0, h, -d * 0.05);
+    for (const sx of [-1, 1]) {
+      b.rod(v(sx * w * 0.45, 0, d * 0.45), v(sx * w * 0.36, h, -d * 0.02), 0.016, steel, 8);
+      b.rod(v(sx * w * 0.45, 0, -d * 0.45), v(sx * w * 0.36, h * 0.96, -d * 0.1), 0.014, steel, 8);
+    }
+    for (let i = 1; i <= 4; i++) {
+      const t = i / 5;
+      b.box(w * (0.88 - t * 0.17), 0.025, 0.09, 0, h * t - 0.03, d * 0.45 - t * d * 0.47, steel, 0.004);
+    }
+    b.box(w * 0.74, 0.04, d * 0.22, top.x, h - 0.04, top.z, a, 0.008);
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) b.box(0.05, 0.03, 0.05, sx * w * 0.45, 0, sz * d * 0.45, mat(C.black), 0.008);
+  },
+  tool_wall: (b, w, d, h, f) => {
+    // a pegboard with hooks and tools: hammer, saw, screwdrivers, a spirit level, pliers
+    b.box(w, h, 0.02, 0, 0, back(d) + 0.01, f);
+    const holes = mat("#3a3530");
+    for (let x = -w / 2 + 0.05; x < w / 2 - 0.02; x += 0.05) for (let y = 0.05; y < h - 0.02; y += 0.05) b.add(new THREE.CircleGeometry(0.004, 6), holes, x, y, back(d) + 0.0205);
+    const z = back(d) + 0.035;
+    const red = mat("#c0392b");
+    const steel = mat(C.steel, { metalness: 0.7, roughness: 0.3 });
+    const wood = mat(C.trunk);
+    b.box(0.03, 0.3, 0.02, -w * 0.35, h * 0.45, z, wood, 0.006);
+    b.box(0.12, 0.04, 0.03, -w * 0.35, h * 0.45 + 0.29, z, steel, 0.006);
+    b.add(new THREE.ShapeGeometry(new THREE.Shape([new THREE.Vector2(0, 0), new THREE.Vector2(0.42, 0.04), new THREE.Vector2(0.42, 0.14), new THREE.Vector2(0, 0.12)])), steel, -w * 0.18, h * 0.55, z);
+    b.box(0.1, 0.12, 0.03, -w * 0.21, h * 0.57, z, red, 0.02);
+    for (let i = 0; i < 4; i++) {
+      b.box(0.025, 0.1, 0.025, w * 0.18 + i * 0.05, h * 0.62, z, i % 2 ? red : mat("#f0c02b"), 0.008);
+      b.box(0.006, 0.12, 0.006, w * 0.18 + i * 0.05, h * 0.5, z, steel);
+    }
+    b.box(0.6, 0.05, 0.03, w * 0.05, h * 0.18, z, mat("#f0c02b"), 0.006);
+    b.box(0.08, 0.012, 0.012, w * 0.05, h * 0.18 + 0.02, z + 0.015, mat("#7bd1e8", { transparent: true, opacity: 0.8 }));
+    for (const sx of [-1, 1]) b.rod(v(w * 0.4 + sx * 0.02, h * 0.62, z), v(w * 0.4 - sx * 0.03, h * 0.42, z), 0.007, red, 6);
+  },
+  motorcycle: (b, w, d, h, _f, color) => {
+    // along z: two wheels, a frame from the steering head to the rear axle, the engine
+    // under the tank, the seat, the fork and handlebar, lights
+    const paint = mat(FINISHES[color] ?? FINISHES.red, { roughness: 0.35, metalness: 0.3 });
+    const black = mat(C.black, { roughness: 0.6 });
+    const steel = mat(C.chrome, { metalness: 0.8, roughness: 0.25 });
+    const r = Math.min(0.33, h * 0.29);
+    const front = d / 2 - r;
+    const rear = -d / 2 + r;
+    for (const z of [rear, front]) {
+      b.add(new THREE.TorusGeometry(r * 0.8, r * 0.2, 10, 28).rotateY(Math.PI / 2), mat("#1a1a1a", { roughness: 0.9 }), 0, r, z);
+      b.add(new THREE.CylinderGeometry(r * 0.58, r * 0.58, 0.025, 20).rotateZ(Math.PI / 2), mat("#3a3d41", { metalness: 0.5 }), 0, r, z);
+      b.add(new THREE.CylinderGeometry(r * 0.12, r * 0.12, 0.12, 12).rotateZ(Math.PI / 2), steel, 0, r, z);
+    }
+    const head = v(0, h * 0.8, front - d * 0.17);
+    const seatBack = v(0, h * 0.62, rear + d * 0.12);
+    // frame: head to the seat's back, head down to the engine, the swing arms to the rear axle
+    b.rod(head, seatBack, 0.03, black, 8);
+    b.rod(head, v(0, r * 0.75, -d * 0.02), 0.03, black, 8);
+    for (const sx of [-1, 1]) b.rod(v(sx * 0.07, r * 0.85, -d * 0.12), v(sx * 0.07, r, rear), 0.02, black, 8);
+    b.rod(seatBack, v(0, r * 1.05, rear + 0.05), 0.022, black, 8);
+    // engine: block, cylinders, exhaust to the back
+    b.box(0.26, 0.26, 0.42, 0, r * 0.45, -d * 0.04, mat("#55595f", { metalness: 0.5, roughness: 0.4 }), 0.04);
+    for (const sx of [-1, 1]) b.add(new THREE.CylinderGeometry(0.07, 0.07, 0.16, 12).rotateZ((sx * Math.PI) / 3), mat("#7a7f86", { metalness: 0.6 }), sx * 0.13, r * 0.95, d * 0.02);
+    b.rod(v(0.12, r * 0.55, d * 0.05), v(0.16, r * 0.75, rear - 0.05), 0.04, steel, 12);
+    // tank, seat, rear cowl
+    b.add(new THREE.SphereGeometry(0.2, 18, 12).scale(0.75, 0.55, 1.35), paint, 0, h * 0.7, front - d * 0.33);
+    b.box(0.26, 0.08, d * 0.3, 0, h * 0.6, rear + d * 0.27, black, 0.035);
+    b.box(0.22, 0.07, d * 0.16, 0, h * 0.6, rear + d * 0.07, paint, 0.03);
+    // fork, handlebar, mirrors, headlight, tail light, front mudguard
+    for (const sx of [-1, 1]) b.rod(v(sx * 0.06, r, front), v(sx * 0.06, h * 0.82, head.z + 0.03), 0.022, steel, 8);
+    b.rod(v(-w * 0.43, h * 0.92, head.z - 0.04), v(w * 0.43, h * 0.92, head.z - 0.04), 0.014, black, 8);
+    b.rod(v(0, h * 0.82, head.z + 0.03), v(0, h * 0.92, head.z - 0.04), 0.02, steel, 8);
+    for (const sx of [-1, 1]) b.sphere(0.03, sx * w * 0.36, h * 0.99, head.z - 0.04, steel, 1.4, 1, 0.5, 8);
+    b.sphere(0.08, 0, h * 0.74, head.z + 0.1, mat("#f4f1e6", { emissive: "#fff4d6", emissiveIntensity: 0.3 }), 1, 1, 0.7, 14);
+    b.box(0.1, 0.035, 0.03, 0, h * 0.58, rear - 0.02, mat("#b3261e", { emissive: "#7a120d", emissiveIntensity: 0.4 }), 0.01);
+    b.add(new THREE.CylinderGeometry(r * 1.05, r * 1.05, 0.12, 20, 1, true, -0.2, 1.4).rotateZ(Math.PI / 2), mat((paint as THREE.MeshStandardMaterial).color.getStyle(), { side: THREE.DoubleSide, roughness: 0.4 }), 0, r, front);
+  },
+  e_scooter: (b, w, d, h, f) => {
+    // a deck on two small wheels, the stem and the handlebar
+    const r = 0.1;
+    for (const z of [-d / 2 + r, d / 2 - r]) {
+      b.add(new THREE.TorusGeometry(r * 0.75, r * 0.25, 8, 20).rotateY(Math.PI / 2), mat("#1a1a1a", { roughness: 0.9 }), 0, r, z);
+      b.add(new THREE.CylinderGeometry(r * 0.5, r * 0.5, 0.05, 14).rotateZ(Math.PI / 2), mat(C.steel, { metalness: 0.6 }), 0, r, z);
+    }
+    b.box(0.16, 0.05, d - 2 * r - 0.05, 0, r * 0.7, 0, f, 0.02);
+    b.box(0.13, 0.006, d - 2 * r - 0.15, 0, r * 0.7 + 0.05, 0, mat("#1d1d1d", { roughness: 1 }));
+    b.rod(v(0, r, d / 2 - r), v(0, h - 0.04, d / 2 - r - 0.08), 0.022, f, 10);
+    b.rod(v(-w * 0.45, h - 0.04, d / 2 - r - 0.08), v(w * 0.45, h - 0.04, d / 2 - r - 0.08), 0.014, mat(C.black), 8);
+    b.box(0.07, 0.04, 0.04, 0, h - 0.07, d / 2 - r - 0.06, mat(C.black), 0.01);
+    b.box(0.04, 0.012, 0.004, 0, h - 0.045, d / 2 - r - 0.035, ledMat("#3fa8ff"));
+  },
+  // ----- garden -----
+  barrel_sauna: (b, w, d, h, f) => {
+    // a barrel of staves on two cradles, steel bands, a glass front with a door
+    const r = Math.min(w, h) / 2;
+    const len = d - 0.1;
+    const staves = 28;
+    for (let i = 0; i < staves; i++) {
+      const a = (i / staves) * Math.PI * 2;
+      const stave = b.add(new THREE.BoxGeometry(r * 0.23, 0.05, len), mat(i % 2 ? FINISHES.oak : "#b98f62"), Math.cos(a) * r * 0.97, r + 0.08 + Math.sin(a) * r * 0.97, 0);
+      stave.rotation.z = a + Math.PI / 2;
+    }
+    for (const z of [-len / 2 + 0.25, len / 2 - 0.25]) {
+      b.add(new THREE.TorusGeometry(r + 0.01, 0.012, 6, 40), mat(C.black), 0, r + 0.08, z);
+      b.box(w * 0.9, 0.14, 0.12, 0, 0, z, f, 0.01);
+    }
+    // the back wall and the glass front with its door and handle
+    b.add(new THREE.CircleGeometry(r * 0.98, 40), f, 0, r + 0.08, -len / 2 - 0.001).rotation.y = Math.PI;
+    b.add(new THREE.CircleGeometry(r * 0.98, 40), mat("#b7d6e6", { transparent: true, opacity: 0.45, roughness: 0.05, side: THREE.DoubleSide }), 0, r + 0.08, len / 2 - 0.02);
+    b.box(0.6, Math.min(1.75, 2 * r * 0.85), 0.03, 0, r + 0.08 - Math.min(1.75, 2 * r * 0.85) / 2, len / 2 - 0.01, mat("#9cc0d2", { transparent: true, opacity: 0.5, roughness: 0.05 }));
+    b.box(0.02, 0.25, 0.04, 0.26, r * 0.95, len / 2 + 0.02, mat(C.trunk), 0.008);
+    b.cyl(0.05, 0.06, 0.4, r * 0.3, 2 * r + 0.1, -len * 0.3, mat(C.black), 12);
+  },
+  gazebo: (b, w, d, h, f, _c, a) => {
+    // four posts, a hipped canopy in the accent, curtains tied at the posts
+    const post = 0.08;
+    const eaves = h * 0.78;
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
+      b.box(post, eaves, post, sx * (w / 2 - post), 0, sz * (d / 2 - post), f, 0.01);
+      b.cyl(0.07, 0.04, eaves * 0.8, sx * (w / 2 - post - 0.06), 0.1, sz * (d / 2 - post - 0.06), mat((a as THREE.MeshStandardMaterial).color.getStyle(), { roughness: 1 }), 10);
+    }
+    for (const sz of [-1, 1]) b.box(w - 0.1, 0.1, 0.06, 0, eaves - 0.1, sz * (d / 2 - post), f, 0.01);
+    for (const sx of [-1, 1]) b.box(0.06, 0.1, d - 0.1, sx * (w / 2 - post), eaves - 0.1, 0, f, 0.01);
+    const roof = new THREE.ConeGeometry(Math.hypot(w, d) / 2 + 0.1, h - eaves, 4, 1, true).rotateY(Math.PI / 4);
+    roof.scale(w / Math.min(w, d), 1, d / Math.min(w, d));
+    b.add(roof, mat((a as THREE.MeshStandardMaterial).color.getStyle(), { side: THREE.DoubleSide, roughness: 1 }), 0, eaves + (h - eaves) / 2, 0);
+    b.cyl(0.04, 0.06, 0.15, 0, h - 0.05, 0, f, 8);
+  },
+  patio_heater: (b, w, d, h, f) => {
+    // a weighted base, the gas tank housing, a pole, the burner and its reflector hood
+    const r = Math.min(w, d) / 2;
+    b.cyl(r * 0.5, r * 0.55, 0.05, 0, 0, 0, f, 24);
+    b.cyl(0.17, 0.17, 0.75, 0, 0.05, 0, f, 20);
+    b.cyl(0.04, 0.04, h - 1.0, 0, 0.8, 0, f, 12);
+    b.cyl(0.09, 0.12, 0.22, 0, h - 0.38, 0, mat("#3a3d41"), 16);
+    b.cyl(0.07, 0.07, 0.12, 0, h - 0.3, 0, part(mat("#ff7a2e", { emissive: "#ff5a1a", emissiveIntensity: 0.6 }), "fire"), 16);
+    b.add(new THREE.ConeGeometry(r, 0.18, 32, 1, true).rotateX(Math.PI), mat(C.chrome, { metalness: 0.8, roughness: 0.3, side: THREE.DoubleSide }), 0, h - 0.09, 0);
+  },
+  outdoor_shower: (b, w, d, h, f) => {
+    // a post with a rain head, a hand shower, a mixer, a slatted floor
+    const r = Math.min(w, d) / 2;
+    b.box(w, 0.04, d, 0, 0, 0, mat(FINISHES.oak), 0.008);
+    for (let i = 0; i < 6; i++) b.box(0.006, 0.042, d - 0.02, -w / 2 + ((i + 1) * w) / 7, 0, 0, mat("#3a2a20"));
+    b.box(0.09, h, 0.09, 0, 0.04, back(d) + 0.06, f, 0.01);
+    b.rod(v(0, h - 0.05, back(d) + 0.06), v(0, h - 0.05, back(d) + 0.06 + r * 0.9), 0.015, mat(C.chrome, { metalness: 0.8 }), 8);
+    b.cyl(0.12, 0.12, 0.02, 0, h - 0.07, back(d) + 0.06 + r * 0.9, mat(C.chrome, { metalness: 0.8, roughness: 0.25 }), 24);
+    b.cyl(0.03, 0.03, 0.06, 0.08, 1.05, back(d) + 0.12, mat(C.chrome, { metalness: 0.8 }), 12).rotation.x = Math.PI / 2;
+    b.rod(v(0.05, 1.3, back(d) + 0.11), v(0.05, 1.5, back(d) + 0.12), 0.012, mat(C.chrome, { metalness: 0.8 }), 8);
+  },
+  hose_reel: (b, w, d, h, f) => {
+    // a frame on two small wheels, the drum with green hose wound on it, a crank
+    const r = Math.min(h * 0.38, 0.28);
+    for (const sx of [-1, 1]) {
+      b.box(0.03, h - 0.05, 0.04, sx * (w / 2 - 0.03), 0.05, 0, f, 0.008);
+      b.add(new THREE.TorusGeometry(0.06, 0.02, 6, 16).rotateY(Math.PI / 2), mat(C.black), sx * (w / 2 - 0.02), 0.08, d * 0.25);
+    }
+    b.rod(v(-w / 2 + 0.03, h - 0.05, 0), v(w / 2 - 0.03, h - 0.05, 0), 0.015, f, 8);
+    b.add(new THREE.CylinderGeometry(r, r, w - 0.12, 24).rotateZ(Math.PI / 2), mat("#3c8a3c", { roughness: 0.7 }), 0, h * 0.5, 0);
+    for (const sx of [-1, 1]) b.add(new THREE.CylinderGeometry(r * 1.15, r * 1.15, 0.015, 24).rotateZ(Math.PI / 2), f, sx * (w / 2 - 0.07), h * 0.5, 0);
+    b.box(0.02, 0.12, 0.02, w / 2, h * 0.5 + 0.05, 0, f, 0.006);
+  },
+  bird_bath: (b, w, d, h, f) => {
+    // a pedestal and a shallow bowl of water
+    const r = Math.min(w, d) / 2;
+    b.cyl(r * 0.4, r * 0.45, 0.06, 0, 0, 0, f, 20);
+    b.add(new THREE.LatheGeometry([0.12, 0.08, 0.07, 0.09, 0.14].map((x, i) => new THREE.Vector2(x * (r / 0.27), 0.06 + (i * (h - 0.2)) / 4)), 20), f);
+    const bowl = [v(0.001, h - 0.14, 0), v(r * 0.5, h - 0.13, 0), v(r, h - 0.03, 0), v(r * 0.95, h, 0), v(r * 0.85, h - 0.04, 0), v(0.001, h - 0.09, 0)].map((p) => new THREE.Vector2(p.x, p.y));
+    b.add(new THREE.LatheGeometry(bowl, 32), f);
+    b.add(new THREE.CircleGeometry(r * 0.84, 32).rotateX(-Math.PI / 2), mat("#7fb2cf", { roughness: 0.05, transparent: true, opacity: 0.8 }), 0, h - 0.05, 0);
+  },
+  // ----- kids and living -----
+  slide: (b, w, d, h, f, _c, a) => {
+    // a ladder at the back, a platform, the slide down to the front with raised edges
+    const frame = a;
+    const top = h * 0.75;
+    for (const sx of [-1, 1]) {
+      b.rod(v(sx * w * 0.42, 0, -d / 2 + 0.05), v(sx * w * 0.42, h, -d / 2 + 0.25), 0.025, frame, 8);
+      b.rod(v(sx * w * 0.42, 0, -d / 2 + 0.55), v(sx * w * 0.42, h, -d / 2 + 0.55), 0.025, frame, 8);
+    }
+    for (let i = 1; i < 5; i++) b.rod(v(-w * 0.42, (top * i) / 5, -d / 2 + 0.05 + (0.2 * i) / 5), v(w * 0.42, (top * i) / 5, -d / 2 + 0.05 + (0.2 * i) / 5), 0.018, frame, 8);
+    b.box(w * 0.88, 0.04, 0.35, 0, top, -d / 2 + 0.4, frame, 0.01);
+    const curve = new THREE.CubicBezierCurve3(v(0, top, -d / 2 + 0.6), v(0, top * 0.75, -d / 2 + 1.0), v(0, 0.25, d / 2 - 0.6), v(0, 0.2, d / 2 - 0.05));
+    const n = 16;
+    for (let i = 0; i < n; i++) {
+      const p0 = curve.getPoint(i / n);
+      const p1 = curve.getPoint((i + 1) / n);
+      const seg = p0.distanceTo(p1);
+      const mid = p0.clone().add(p1).multiplyScalar(0.5);
+      const tilt = Math.atan2(p0.y - p1.y, p1.z - p0.z);
+      b.add(new THREE.BoxGeometry(w * 0.8, 0.025, seg + 0.01), f, mid.x, mid.y, mid.z).rotation.x = tilt;
+      for (const sx of [-1, 1]) b.add(new THREE.BoxGeometry(0.04, 0.12, seg + 0.01), f, mid.x + sx * w * 0.42, mid.y + 0.05, mid.z).rotation.x = tilt;
+    }
+  },
+  play_kitchen: (b, w, d, h, f, _c, a) => {
+    // a little kitchen: an oven door, a hob, a sink, a back panel with knobs and hooks
+    const top = h * 0.55;
+    b.box(w, top, d, 0, 0, 0, f, 0.01);
+    b.box(w + 0.02, 0.03, d + 0.02, 0, top, 0, a, 0.006);
+    b.box(w, h - top, 0.03, 0, top + 0.03, back(d) + 0.015, f, 0.01);
+    b.box(w * 0.42, top * 0.7, 0.01, -w * 0.25, top * 0.12, d / 2, mat("#2f3a40", { roughness: 0.1 }), 0.01);
+    for (const [x, z] of [[-0.12, 0.05], [-0.25, -0.05]]) b.add(new THREE.TorusGeometry(0.045, 0.008, 6, 20).rotateX(Math.PI / 2), mat(C.black), w * x * 2, top + 0.035, z);
+    b.cyl(0.11, 0.09, 0.06, w * 0.25, top - 0.03, 0, mat(C.steel, { metalness: 0.7, side: THREE.DoubleSide }), 20, true);
+    b.rod(v(w * 0.25, top + 0.03, back(d) + 0.04), v(w * 0.25, top + 0.15, back(d) + 0.04), 0.01, mat(C.chrome, { metalness: 0.8 }), 8);
+    for (let i = 0; i < 3; i++) b.cyl(0.02, 0.02, 0.015, -w * 0.32 + i * 0.07, top + 0.12, back(d) + 0.035, mat(["#e74c3c", "#f1c40f", "#3498db"][i]), 12).rotation.x = Math.PI / 2;
+    for (let i = 0; i < 3; i++) b.box(0.04, 0.08, 0.02, -w * 0.1 + i * 0.08, h - 0.15, back(d) + 0.04, mat(["#e8a53c", "#c0392b", "#27ae60"][i]), 0.01);
+  },
+  record_player: (b, w, d, h, f) => {
+    // a plinth, the platter with a record, the tone arm, two knobs
+    b.box(w, h * 0.55, d, 0, 0, 0, f, 0.01);
+    const r = Math.min(w, d) * 0.4;
+    b.cyl(r, r, 0.015, -w * 0.08, h * 0.55, 0, mat(C.steel, { metalness: 0.6 }), 32);
+    b.cyl(r * 0.96, r * 0.96, 0.004, -w * 0.08, h * 0.55 + 0.015, 0, mat("#141414", { roughness: 0.3 }), 32);
+    b.cyl(r * 0.3, r * 0.3, 0.005, -w * 0.08, h * 0.55 + 0.016, 0, mat("#c0392b"), 20);
+    b.cyl(0.02, 0.02, 0.04, w * 0.36, h * 0.55, -d * 0.3, mat(C.chrome, { metalness: 0.8 }), 12);
+    b.rod(v(w * 0.36, h * 0.55 + 0.035, -d * 0.3), v(w * 0.05, h * 0.55 + 0.03, d * 0.15), 0.004, mat(C.chrome, { metalness: 0.8 }), 6);
+    for (const x of [0.3, 0.4]) b.cyl(0.012, 0.012, 0.01, w * x, h * 0.55, d * 0.38, mat(C.chrome, { metalness: 0.8 }), 10);
+  },
+  game_console: (b, w, d, h, f) => {
+    // a console with a vent line and a light, and a controller in front
+    b.box(w, h, d * 0.75, 0, 0, back(d) + d * 0.375, f, 0.015);
+    b.box(w * 0.92, 0.004, 0.003, 0, h * 0.6, back(d) + d * 0.75 + 0.001, mat(C.black));
+    b.box(0.03, 0.004, 0.002, -w * 0.38, h * 0.3, back(d) + d * 0.75 + 0.001, ledMat("#3fa8ff"));
+    const c = mat(C.black, { roughness: 0.5 });
+    b.box(0.13, 0.025, 0.07, w * 0.05, 0, d / 2 - 0.05, c, 0.012);
+    for (const sx of [-1, 1]) b.sphere(0.022, w * 0.05 + sx * 0.055, 0.012, d / 2 - 0.03, c, 1, 0.6, 1.2, 10);
+  },
   // ----- smart home: small devices whose status light follows their entity -----
   smoke_detector: (b, w, d, h, f) => {
     // a ceiling disc: a ring of slits, a test button with its light
