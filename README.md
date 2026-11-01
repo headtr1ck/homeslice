@@ -232,6 +232,8 @@ buttons:                       # shortcuts in the bottom right: scenes/scripts r
 rain: binary_sensor.rain       # warn about open windows while it rains (default: the weather entity)
 power_outage: binary_sensor.grid_down   # a warning on the card while it is on
 heating: true                  # underfloor heating loops glow while they heat (rooms with underfloor:)
+warnings: true                 # a strip of what needs attention (alarms, leaks, jammed locks, silent sensors, robots);
+                               #   a tap shows where
 climate_hints: true            # humid rooms: "air the room" (when the air outside is drier, from weather:), mould risk from 70 %
 badges: true                   # notes above linked pieces: bin pickup today/tomorrow, thirsty plants, post, time left
 weather: weather.home          # its condition and temperature in a corner (tap: forecast); rain, snow and fog

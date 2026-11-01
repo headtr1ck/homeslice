@@ -163,6 +163,8 @@ export interface HomesliceCardConfig {
   heating?: boolean;
   /** `smooth`: the heatmap blends across the floors between the readings; `rooms` (default): one colour per room. */
   heatmap_style?: "rooms" | "smooth";
+  /** A strip of what needs attention now (alarms, leaks, jammed locks, silent sensors, robots); a tap shows where (default false). */
+  warnings?: boolean;
   /** Notes on humid rooms: air it (when the air outside, from `weather`, is drier) or a mould risk (default false). */
   climate_hints?: boolean;
 }
@@ -1364,6 +1366,44 @@ export class HomesliceCard extends LitElement {
     return out;
   }
 
+  /** What needs attention now, most urgent first, each with where it is. */
+  private warnings() {
+    if (!this.house || !this.hass) return [];
+    const hass = this.hass;
+    const out: { icon: string; text: string; where: { levelId: string; roomId?: string }; urgent: boolean }[] = [];
+    for (const r of this.rooms)
+      for (const a of hardAlerts(this.roomSensors(r.room, r.levelId).alerts))
+        out.push({ icon: alertIcon(a), text: `${this.t(`card.alert_${a}` as StringKey)} · ${this.roomName(r)}`, where: { levelId: r.levelId, roomId: r.room.id }, urgent: true });
+    const alarm = alarmTriggered(hass);
+    for (const o of this.openings) {
+      const where = { levelId: o.levelId, roomId: o.room };
+      if (o.lock && hass.states[o.lock]?.state === "jammed") out.push({ icon: "mdi:lock-alert", text: this.t("card.lock_jammed"), where, urgent: true });
+      const c = o.contact ? hass.states[o.contact] : undefined;
+      if (o.contact && (!c || c.state === "unavailable" || c.state === "unknown")) out.push({ icon: "mdi:access-point-off", text: this.t("card.sensor_silent", { name: this.entityName(o.contact) }), where, urgent: false });
+      else if (alarm && o.contact && contactOpen(hass, o.contact)) out.push({ icon: "mdi:alarm-light", text: this.t("card.alarm_open", { name: this.entityName(o.contact) }), where, urgent: true });
+    }
+    this.house.robots.forEach((r, i) => {
+      const items = this.robotNeeds[i] ?? [];
+      const level = this.house!.levels[r.levelIndex];
+      if (items.length && level) out.push({ icon: "mdi:robot-vacuum-alert", text: `${this.entityName(r.entity)}: ${items.join(", ")}`, where: { levelId: level.id }, urgent: false });
+    });
+    return out.sort((a, b) => Number(b.urgent) - Number(a.urgent));
+  }
+
+  private renderWarnings() {
+    const list = this.warnings();
+    if (!list.length) return nothing;
+    const shown = list.slice(0, 3);
+    return html`<div class="warnings ${this.powerOut ? "below" : ""}" role="list" aria-label=${this.t("card.warnings")}>
+      ${shown.map(
+        (w) => html`<button role="listitem" class=${w.urgent ? "urgent" : ""} @click=${() => void this.showEvent(w.where, w.text)}>
+          <ha-icon icon=${w.icon}></ha-icon><span>${w.text}</span>
+        </button>`,
+      )}
+      ${list.length > shown.length ? html`<span class="more">+${list.length - shown.length}</span>` : nothing}
+    </div>`;
+  }
+
   /** The weather's temperature and humidity outside, if the card has a weather entity. */
   private outsideAir() {
     const a = this.config.weather ? this.hass?.states[this.config.weather]?.attributes : undefined;
@@ -2293,6 +2333,7 @@ export class HomesliceCard extends LitElement {
           ></canvas>
           ${this._readout ? html`<div class="readout">${this._readout}</div>` : nothing}
           ${this.powerOut ? html`<div class="outage" role="alert"><ha-icon icon="mdi:power-plug-off"></ha-icon>${this.t("card.power_outage")}</div>` : nothing}
+          ${this.config.warnings && !this._event ? this.renderWarnings() : nothing}
           ${this._event ? html`<div class="event" role="status"><ha-icon icon="mdi:bell-ring-outline"></ha-icon>${this._event}</div>` : nothing}
           ${this.renderOverlays("front")}
           ${this.renderShortcuts()}
@@ -2594,6 +2635,48 @@ export class HomesliceCard extends LitElement {
     canvas.swipe:not(.interactive) {
       /* sideways swipes change floors; the page still scrolls up and down */
       touch-action: pan-y;
+    }
+    .warnings {
+      position: absolute;
+      top: 12px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 6px;
+      max-width: min(70%, 640px);
+      z-index: 2;
+    }
+    .warnings.below {
+      top: 56px;
+    }
+    .warnings button {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      max-width: 100%;
+      padding: 4px 10px;
+      border-radius: 14px;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      background: rgba(20, 24, 28, 0.85);
+      color: #fff;
+      font-size: 12px;
+      cursor: pointer;
+      --mdc-icon-size: 16px;
+    }
+    .warnings button.urgent {
+      background: rgba(200, 40, 30, 0.92);
+    }
+    .warnings button span {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .warnings .more {
+      align-self: center;
+      font-size: 12px;
+      color: var(--secondary-text-color, #aaa);
     }
     .event {
       position: absolute;

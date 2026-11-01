@@ -238,6 +238,29 @@ if (selected()) {
     );
   });
 
+  await test("warnings: a strip of what needs attention; a tap shows where", async () => {
+    await page.evaluate(() => window.card.setConfig({ ...window.card.config, warnings: true }));
+    await act(page, () => page.evaluate(() => window.card.hass.setState("binary_sensor.kids_room_leak", "on")));
+    const strip = page.locator("homeslice-card .warnings button");
+    await strip.first().waitFor();
+    const text = await strip.first().textContent();
+    assert(text.includes("Leak") && text.includes("Kids Room") && (await strip.first().getAttribute("class")).includes("urgent"), `strip: ${text}`);
+    await strip.first().click();
+    await page.waitForFunction(() => window.card._level === "first" && window.card._event?.includes("Kids Room"));
+    await act(page, () =>
+      page.evaluate(() => {
+        window.card.hass.setState("binary_sensor.kids_room_leak", "off");
+        const { warnings, ...config } = window.card.config;
+        window.card.setConfig(config);
+        clearTimeout(window.card.eventTimer);
+        window.card._event = null;
+        window.card.eventReturn = undefined;
+      }),
+    );
+    await act(page, () => page.locator("homeslice-card nav.levels button", { hasText: "All floors" }).click());
+    await page.waitForFunction(() => !window.card.transitioning);
+  });
+
   await test("hidden entities don't count and aren't switched", async () => {
     await act(page, () => lamp(page, "Living Room").click());
     assert((await calls(page)).at(-1).service === "turn_off", "living room lamp should have turned lights off");
