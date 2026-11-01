@@ -11,7 +11,7 @@
 > bugs. Keep a copy of your house (editor → ⚙ → *Download* YAML) and expect to adjust it
 > after updates. Feedback and issues are very welcome.
 
-**A 3D floor plan for Home Assistant.** Draw your home in the built-in floor plan editor —
+**A 3D floor plan (floorplan) for Home Assistant.** Draw your home in the built-in floor plan editor —
 floors, rooms, walls, doors, windows, furniture, garden — linked to Home Assistant's own
 floors, areas and entities, and see it live on your dashboards as an interactive,
 exploded isometric 3D house or a 2D floor plan: a Lovelace card that turns your home into a
