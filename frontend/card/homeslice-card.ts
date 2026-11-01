@@ -261,8 +261,56 @@ export class HomesliceCard extends LitElement {
       this.view.levels = {};
       this.view.roof = false;
       this.view.plan = true;
-    }
+    } else this.applySavedViews();
     this.loadedFor = undefined;
+  }
+
+  // ----- views: buttons to turn, and a start view saved on this device -----
+
+  private get viewKey() {
+    return `homeslice-view:${this.config.house ?? "home"}`;
+  }
+
+  private savedViews(): { all?: { azimuth: number; elevation: number }; levels?: Record<string, { azimuth: number; elevation: number }> } {
+    try {
+      return JSON.parse(localStorage.getItem(this.viewKey) ?? "{}") ?? {};
+    } catch {
+      return {};
+    }
+  }
+
+  /** A start view saved on this device wins over the card's (a wall tablet keeps its own). */
+  private applySavedViews() {
+    const saved = this.savedViews();
+    if (saved.all) Object.assign(this.view, saved.all);
+    if (saved.levels) this.view.levels = { ...this.view.levels, ...saved.levels };
+  }
+
+  private async turnView(dAzimuth: number | null, elevation?: number) {
+    if (!this.renderer || this.transitioning) return;
+    const o = this.renderer.orientation;
+    // a quarter turn keeps the angle to the walls (an overview from a corner stays one)
+    this._labels = [];
+    this._lampButtons = [];
+    await this.renderer.turnTo(o.azimuth + (dAzimuth ?? 0), elevation ?? o.elevation);
+    this.placeLabels();
+    this.afterCameraMove();
+  }
+
+  private saveView() {
+    if (!this.renderer) return;
+    const o = this.renderer.keepView();
+    const saved = this.savedViews();
+    if (this._level) saved.levels = { ...saved.levels, [this._level]: o };
+    else saved.all = o;
+    try {
+      localStorage.setItem(this.viewKey, JSON.stringify(saved));
+    } catch {
+      // no storage (private window): kept until the page reloads
+    }
+    this._readout = this.t("card.view_saved");
+    clearTimeout(this.readoutTimer);
+    this.readoutTimer = window.setTimeout(() => (this._readout = ""), 2500);
   }
 
   static getConfigElement() {
@@ -1010,6 +1058,15 @@ export class HomesliceCard extends LitElement {
             @wheel=${this.onWheel}
           ></canvas>
           ${this._readout ? html`<div class="readout">${this._readout}</div>` : nothing}
+          ${this.interactive && !this.plan
+            ? html`<div class="views">
+                <button title=${this.t("card.view_left")} @click=${() => this.turnView(-90)}><ha-icon icon="mdi:rotate-left"></ha-icon></button>
+                <button title=${this.t("card.view_top")} @click=${() => this.turnView(null, 89)}><ha-icon icon="mdi:arrow-collapse-down"></ha-icon></button>
+                <button title=${this.t("card.view_tilt")} @click=${() => this.turnView(null, 35)}><ha-icon icon="mdi:angle-acute"></ha-icon></button>
+                <button title=${this.t("card.view_right")} @click=${() => this.turnView(90)}><ha-icon icon="mdi:rotate-right"></ha-icon></button>
+                <button title=${this.t("card.view_save")} @click=${() => this.saveView()}><ha-icon icon="mdi:pin-outline"></ha-icon></button>
+              </div>`
+            : nothing}
           ${this._labels.map(
             (l) => html`<div class="label ${this._hover !== null && l.levelIndex > this._hover ? "faded" : ""} ${l.alerts.length ? "alert" : ""}" style="left:${l.x}px;top:${l.y}px">
               ${l.hasLights
@@ -1186,6 +1243,26 @@ export class HomesliceCard extends LitElement {
     canvas.interactive {
       /* drags turn the house instead of scrolling the page */
       touch-action: none;
+    }
+    .views {
+      position: absolute;
+      left: 12px;
+      bottom: 12px;
+      display: flex;
+      gap: 4px;
+    }
+    .views button {
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      background: var(--card-background-color, rgba(20, 24, 28, 0.85));
+      color: var(--primary-text-color, #ddd);
+      display: grid;
+      place-items: center;
+      padding: 0;
+      cursor: pointer;
+      --mdc-icon-size: 20px;
     }
     .readout {
       position: absolute;

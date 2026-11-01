@@ -412,6 +412,29 @@ console.log("demo house, camera controls");
     assert(c.azimuth === 250 && c.elevation === 38 && c.zoom === 1, `camera after reset ${JSON.stringify(c)}`);
     await page.waitForTimeout(400);
     assert((await page.locator("homeslice-card .popup").count()) === 0, "the double-click also opened a popup");
+  });
+  await test("view buttons turn and tilt; a kept view is the start view on this device", async () => {
+    const views = page.locator("homeslice-card .views button");
+    assert((await views.count()) === 5, `view buttons: ${await views.count()}`);
+    await views.nth(3).click(); // turn right
+    await page.waitForFunction(() => Math.abs(window.card.renderer.orientation.azimuth - 340) < 0.5, null, { timeout: 5000 });
+    await views.nth(1).click(); // from above
+    await page.waitForFunction(() => Math.abs(window.card.renderer.orientation.elevation - 89) < 0.5, null, { timeout: 5000 });
+    await views.nth(2).click(); // tilted
+    await page.waitForFunction(() => Math.abs(window.card.renderer.orientation.elevation - 35) < 0.5, null, { timeout: 5000 });
+    await views.nth(4).click(); // keep
+    assert((await page.locator("homeslice-card .readout").textContent()).includes("Start view kept"), "no confirmation");
+    const saved = await page.evaluate(() => JSON.parse(localStorage.getItem("homeslice-view:demo") ?? localStorage.getItem("homeslice-view:home") ?? "null"));
+    assert(saved?.all?.azimuth === 340 && saved.all.elevation === 35, `saved: ${JSON.stringify(saved)}`);
+    // reset goes to the kept view now, and so does a new card
+    await page.mouse.move(cx, cy);
+    await page.mouse.down();
+    await page.mouse.move(cx + 120, cy, { steps: 5 });
+    await page.mouse.up();
+    await act(page, () => page.mouse.dblclick(cx, cy));
+    const c = await camera();
+    assert(c.azimuth === 340 && c.elevation === 35, `reset to the kept view: ${JSON.stringify(c)}`);
+    await page.evaluate(() => Object.keys(localStorage).filter((k) => k.startsWith("homeslice-view")).forEach((k) => localStorage.removeItem(k)));
     assert(errors.length === 0, errors.join(" | "));
   });
   await page.close();

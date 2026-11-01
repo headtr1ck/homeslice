@@ -368,6 +368,7 @@ export class HouseRenderer {
   /** Door leaves and window panes that open with their contact, by opening. */
   private leaves = new Map<string, LeafView[]>();
   private lastSpin = 0;
+  private turnFrame = 0;
   private lampObjects: THREE.Object3D[] = [];
   private glowTexture?: THREE.Texture;
   private fadeTexture?: THREE.Texture;
@@ -2033,6 +2034,39 @@ export class HouseRenderer {
   /** Animates back to the configured camera of the current focus. */
   resetView(): Promise<void> {
     return this.setFocus(this.focus);
+  }
+
+  /** Turns the camera to an angle over a moment (view buttons); the zoom stays. */
+  turnTo(azimuth: number, elevation: number): Promise<void> {
+    const from = { ...this.orientation };
+    let to = ((azimuth % 360) + 360) % 360;
+    // the short way round
+    if (to - from.azimuth > 180) to -= 360;
+    if (from.azimuth - to > 180) to += 360;
+    cancelAnimationFrame(this.turnFrame);
+    const start = performance.now();
+    return new Promise((resolve) => {
+      const step = (now: number) => {
+        const t = Math.min(1, (now - start) / 450);
+        const e = t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2;
+        this.orientation = { ...from, azimuth: (((from.azimuth + (to - from.azimuth) * e) % 360) + 360) % 360, elevation: from.elevation + (elevation - from.elevation) * e };
+        this.draw();
+        if (t < 1) this.turnFrame = requestAnimationFrame(step);
+        else resolve();
+      };
+      this.turnFrame = requestAnimationFrame(step);
+    });
+  }
+
+  /**
+   * Makes the current angle the start view of what is shown (the whole house, or the
+   * focused floor), as reset and the next visit use it. Returns it, for the card to keep.
+   */
+  keepView(): { azimuth: number; elevation: number } {
+    const o = { azimuth: Math.round(this.orientation.azimuth), elevation: Math.round(this.orientation.elevation) };
+    if (this.focus === null) this.view = { ...this.view, ...o };
+    else this.view = { ...this.view, levels: { ...this.view.levels, [this.levelIds[this.focus]]: { ...this.view.levels[this.levelIds[this.focus]], ...o } } };
+    return o;
   }
 
   // ----- camera -----
