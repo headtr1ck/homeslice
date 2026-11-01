@@ -69,7 +69,8 @@ Alpha: card and editor work and are used daily on one house, but nothing is stab
 - **Energy:** solar, battery, grid and devices with animated power flows and their readings.
 - **Around the house:** the real sun and its path today, weather (rain, snow, fog), a
   garden with trees and hedges, balconies and roof terraces.
-- **Using it:** tap to switch, drag to dim, long press for details; room panels with HA's
+- **Using it:** tap to switch, drag to dim, long press for details; a TV or speaker opens a media panel
+  (play, volume, sources); room panels with HA's
   own cards; shortcut buttons; layers viewers switch; time travel through the last day;
   walk through the house at eye level; the card flies to what happens (a doorbell) or to
   what you ask Assist for ("Show the kitchen").

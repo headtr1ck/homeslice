@@ -145,6 +145,31 @@ if (selected()) {
     });
   });
 
+  await test("a tap on a TV opens its media panel: play, sources, volume, details", async () => {
+    await page.evaluate(() => window.card.hass.setState("media_player.living_room_tv", "idle", { media_title: "News" }));
+    await page.evaluate(() => window.card.useEntity("media_player.living_room_tv"));
+    const panel = page.locator("homeslice-card .popup .media");
+    await panel.waitFor();
+    assert((await panel.locator(".what strong").textContent()) === "News", "not showing what plays");
+    await panel.locator("button[aria-label='Play']").click();
+    await page.waitForFunction(() => window.card.hass.states["media_player.living_room_tv"].state === "playing");
+    await panel.locator("button[aria-label='Pause']").waitFor();
+    await panel.locator(".sources button", { hasText: "Netflix" }).click();
+    await page.waitForFunction(() => window.card.hass.states["media_player.living_room_tv"].attributes.source === "Netflix");
+    await panel.locator(".sources button.on", { hasText: "Netflix" }).waitFor();
+    await shot(page, "demo-media");
+    await panel.locator(".volume input").fill("60");
+    await page.waitForFunction(() => window.card.hass.states["media_player.living_room_tv"].attributes.volume_level === 0.6);
+    await page.evaluate(() => {
+      window.moreInfo = [];
+      window.addEventListener("hass-more-info", (e) => window.moreInfo.push(e.detail.entityId));
+    });
+    await panel.locator("button.details").click();
+    assert((await page.evaluate(() => window.moreInfo)).includes("media_player.living_room_tv"), "details didn't open");
+    assert(!(await page.locator("homeslice-card .popup").count()), "panel still open");
+    await page.evaluate(() => window.card.hass.setState("media_player.living_room_tv", "off", { media_title: undefined, source: "Live TV", volume_level: 0.3 }));
+  });
+
   await test("hidden entities don't count and aren't switched", async () => {
     await act(page, () => lamp(page, "Living Room").click());
     assert((await calls(page)).at(-1).service === "turn_off", "living room lamp should have turned lights off");

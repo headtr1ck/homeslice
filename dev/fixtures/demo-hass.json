@@ -291,7 +291,12 @@
       "entity_id": "media_player.living_room_tv",
       "state": "off",
       "attributes": {
-        "friendly_name": "TV"
+        "friendly_name": "TV",
+        "supported_features": 149949,
+        "volume_level": 0.3,
+        "is_volume_muted": false,
+        "source_list": ["Live TV", "Netflix", "YouTube", "HDMI 1"],
+        "source": "Live TV"
       }
     },
     "cover.awning": {

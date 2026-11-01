@@ -318,6 +318,8 @@ interface Popup {
   key: string;
   name: string;
   areaId?: string;
+  /** A media player's own panel instead of the area's cards. */
+  media?: string;
   sections: { title: string; cards: Record<string, unknown>[] }[];
 }
 
@@ -654,6 +656,7 @@ export class HomesliceCard extends LitElement {
     });
     if (!hass || !this.config) return;
     for (const c of this.popupCards) c.hass = hass;
+    if (this._popup?.media) this.requestUpdate();
     for (const c of this.overlayCards.values()) c.hass = hass;
     if (this.loadedFor !== this.config.house) {
       this.loadedFor = this.config.house;
@@ -846,7 +849,8 @@ export class HomesliceCard extends LitElement {
     if (this.ownAction(entity, "tap")) return;
     const domain = entity.split(".")[0];
     // (a blind or an awning opens or closes)
-    if (["light", "switch", "fan", "input_boolean", "cover"].includes(domain)) {
+    if (domain === "media_player") this._popup = { key: entity, name: this.entityName(entity), media: entity, sections: [] };
+    else if (["light", "switch", "fan", "input_boolean", "cover"].includes(domain)) {
       this.noteToggle(entity);
       void this.hass?.callService("homeassistant", "toggle", {}, { entity_id: entity });
     } else this.moreInfo(entity);
@@ -2346,6 +2350,60 @@ export class HomesliceCard extends LitElement {
     else sheet.style.transform = "";
   }
 
+  /** A TV's or speaker's panel: what plays, play/pause, volume, its sources; the full details are one tap away. */
+  private renderMedia(entity: string) {
+    const st = this.hass?.states[entity];
+    if (!st) return html`<p class="empty">${this.t("popup.empty")}</p>`;
+    const a = st.attributes;
+    const features = Number(a.supported_features ?? 0);
+    const has = (bit: number) => (features & bit) !== 0;
+    const call = (service: string, data: Record<string, unknown> = {}) => void this.hass!.callService("media_player", service, data, { entity_id: entity });
+    const off = st.state === "off" || st.state === "standby" || st.state === "unavailable";
+    const playing = st.state === "playing";
+    const title = a.media_title as string | undefined;
+    const artist = (a.media_artist ?? a.media_series_title ?? a.app_name) as string | undefined;
+    const sources = (a.source_list as string[] | undefined) ?? [];
+    const volume = typeof a.volume_level === "number" ? Math.round((a.volume_level as number) * 100) : null;
+    const button = (icon: string, label: string, service: string, cls = "") =>
+      html`<button class="media-button ${cls}" title=${label} aria-label=${label} @click=${() => call(service)}><ha-icon icon=${icon}></ha-icon></button>`;
+    return html`<div class="media">
+      <div class="now">
+        ${a.entity_picture && !off ? html`<img class="art" src=${a.entity_picture as string} alt="" />` : html`<div class="art blank"><ha-icon icon=${entity.includes("speaker") ? "mdi:speaker" : "mdi:television"}></ha-icon></div>`}
+        <div class="what">
+          <strong>${off ? this.t("media.off") : (title ?? this.t(`media.${playing ? "playing" : st.state === "paused" ? "paused" : "idle"}` as StringKey))}</strong>
+          ${!off && artist ? html`<span>${artist}</span>` : nothing}
+        </div>
+      </div>
+      <div class="controls">
+        ${has(256) || has(128) ? button("mdi:power", this.t(off ? "media.turn_on" : "media.turn_off"), off ? "turn_on" : "turn_off", off ? "" : "on") : nothing}
+        ${!off && has(16) ? button("mdi:skip-previous", this.t("media.previous"), "media_previous_track") : nothing}
+        ${!off && (has(1) || has(16384)) ? button(playing ? "mdi:pause" : "mdi:play", this.t(playing ? "media.pause" : "media.play"), "media_play_pause", "big") : nothing}
+        ${!off && has(32) ? button("mdi:skip-next", this.t("media.next"), "media_next_track") : nothing}
+      </div>
+      ${!off && has(4) && volume !== null
+        ? html`<label class="volume">
+            ${has(8)
+              ? html`<button class="media-button" aria-label=${this.t("media.mute")} @click=${() => call("volume_mute", { is_volume_muted: !a.is_volume_muted })}>
+                  <ha-icon icon=${a.is_volume_muted ? "mdi:volume-off" : "mdi:volume-high"}></ha-icon>
+                </button>`
+              : html`<ha-icon icon="mdi:volume-high"></ha-icon>`}
+            <input type="range" min="0" max="100" .value=${String(volume)} aria-label=${this.t("media.volume")}
+              @change=${(e: Event) => call("volume_set", { volume_level: Number((e.target as HTMLInputElement).value) / 100 })} />
+            <span>${volume} %</span>
+          </label>`
+        : nothing}
+      ${!off && has(2048) && sources.length
+        ? html`<div class="sources">
+            ${sources.map((src) => html`<button class=${src === a.source ? "on" : ""} @click=${() => call("select_source", { source: src })}>${src}</button>`)}
+          </div>`
+        : nothing}
+      <button class="details" @click=${() => {
+        this.closePopup();
+        this.moreInfo(entity);
+      }}>${this.t(has(131072) ? "media.browse" : "media.details")}</button>
+    </div>`;
+  }
+
   private renderPopup(p: Popup) {
     const temperature = p.areaId && this.hass ? areaTemperature(this.hass, p.areaId) : null;
     return html`<div class="backdrop" @click=${() => this.closePopup()}>
@@ -2366,7 +2424,9 @@ export class HomesliceCard extends LitElement {
             <ha-icon icon="mdi:close"></ha-icon>
           </button>
         </header>
-        ${p.sections.length
+        ${p.media
+          ? this.renderMedia(p.media)
+          : p.sections.length
           ? p.sections.map(
               (s) => html`<section>
                 ${s.title ? html`<h3>${s.title}</h3>` : nothing}
@@ -2770,6 +2830,104 @@ export class HomesliceCard extends LitElement {
       .label.alert button.name {
         animation: none;
       }
+    }
+    .media {
+      display: grid;
+      gap: 12px;
+      padding: 4px 4px 8px;
+    }
+    .media .now {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+    }
+    .media .art {
+      width: 64px;
+      height: 64px;
+      border-radius: 8px;
+      object-fit: cover;
+      flex: none;
+    }
+    .media .art.blank {
+      display: grid;
+      place-items: center;
+      background: var(--secondary-background-color, rgba(127, 127, 127, 0.2));
+      color: var(--secondary-text-color);
+    }
+    .media .what {
+      display: grid;
+      gap: 2px;
+      min-width: 0;
+    }
+    .media .what strong,
+    .media .what span {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .media .what span {
+      color: var(--secondary-text-color);
+      font-size: 13px;
+    }
+    .media .controls {
+      display: flex;
+      justify-content: center;
+      gap: 12px;
+    }
+    .media-button {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      border: none;
+      background: var(--secondary-background-color, rgba(127, 127, 127, 0.2));
+      color: var(--primary-text-color);
+      display: grid;
+      place-items: center;
+      cursor: pointer;
+    }
+    .media-button.big {
+      width: 56px;
+      height: 56px;
+      background: var(--primary-color, #03a9f4);
+      color: var(--text-primary-color, #fff);
+    }
+    .media-button.on {
+      color: var(--primary-color, #03a9f4);
+    }
+    .media .volume {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .media .volume input {
+      flex: 1;
+    }
+    .media .volume span {
+      width: 44px;
+      text-align: right;
+      font-size: 13px;
+    }
+    .media .sources {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    .media .sources button,
+    .media .details {
+      border: 1px solid var(--divider-color, #ccc);
+      background: none;
+      color: var(--primary-text-color);
+      border-radius: 16px;
+      padding: 6px 12px;
+      cursor: pointer;
+    }
+    .media .sources button.on {
+      background: var(--primary-color, #03a9f4);
+      border-color: transparent;
+      color: var(--text-primary-color, #fff);
+    }
+    .media .details {
+      justify-self: start;
     }
     .note {
       position: absolute;
