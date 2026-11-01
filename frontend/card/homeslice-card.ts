@@ -426,9 +426,9 @@ export class HomesliceCard extends LitElement {
     this.syncStates();
   }
 
-  /** Whether something moves: energy flowing, a linked fan or drum turning. */
+  /** Whether something moves: energy flowing, a linked fan or drum turning, a door opening. */
   private get moving() {
-    return !!this.renderer && ((!!this.config.energy && this.renderer.flowing) || this.renderer.spinning);
+    return !!this.renderer && ((!!this.config.energy && this.renderer.flowing) || this.renderer.spinning || this.renderer.leavesMoving);
   }
 
   /**
@@ -440,7 +440,7 @@ export class HomesliceCard extends LitElement {
     if (!this.moving || !this.visible || document.visibilityState === "hidden") return;
     const step = (now: number) => {
       if (!this.renderer || !this.moving || !this.visible || document.visibilityState === "hidden") return;
-      const frame = this.config.energy && this.renderer.flowing ? 33 : 66;
+      const frame = (this.config.energy && this.renderer.flowing) || this.renderer.leavesMoving ? 33 : 66;
       if (now - this.lastFlowFrame >= frame && !this.transitioning) {
         this.lastFlowFrame = now;
         this.renderer.draw(now);
@@ -541,7 +541,6 @@ export class HomesliceCard extends LitElement {
     this.renderer.setSun(sunAt?.[0] ?? null, sunAt?.[1] ?? null);
     this.house.robots.forEach((r, i) => this.renderer!.setRobotState(`robot-${r.index}`, this.robotReadings[i].at, ROBOT_COLORS[this.robotReadings[i].status]));
     if (this.config.energy) this.renderer.setFlows(Object.fromEntries(this.house.energy.map((e, i) => [`energy-${e.index}`, this.energyReadings[i]?.flow ?? null])));
-    this.animateFlows();
     this.rooms.forEach((r, i) => {
       this.renderer!.setRoomLight(r.levelId, r.room.id, lights[i]);
       if (r.room.awning) this.renderer!.setAwning(r.levelId, r.room.id, awnings[i]);
@@ -550,6 +549,7 @@ export class HomesliceCard extends LitElement {
       this.renderer!.setCover(o.id, covers[i]);
       this.renderer!.setContact(o.id, contacts[i]);
     });
+    this.animateFlows();
     this.scheduleDraw();
   }
 

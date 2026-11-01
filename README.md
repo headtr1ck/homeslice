@@ -33,7 +33,7 @@ energy flows. Free and open source (MIT), installed with HACS, made for wall tab
 Alpha: card and editor work and are used daily on one house, but nothing is stable yet.
 
 - **Card:** exploded 3D view with live lights (lamps light their rooms, more so at night;
-  a linked lamp lights up itself), blinds, garage doors, window contacts, temperatures and
+  a linked lamp lights up itself), blinds, garage doors, doors and windows that open with their contacts, temperatures and
   awnings; linked devices show their state (TV screens, fires, fans and outdoor units
   turning, washers running, curtains); one
   floor on its own (the others slide away) and hover; tap a linked piece to switch it;

@@ -264,6 +264,26 @@ export interface DeviceLook {
   speed?: number | null;
 }
 
+type LeafHow = "swing" | "tilt" | "slide";
+
+interface LeafView {
+  pivot: THREE.Group;
+  how: LeafHow;
+  /** +1: the leaf runs from its hinge along the wall's direction, -1 against it. */
+  dir: number;
+  u: Vec2;
+  n: Vec2;
+  /** +1: it opens to the n side of the wall, -1 to the other. */
+  swing: number;
+  width: number;
+  /** 0 closed … 1 open: where it goes, and where it is. */
+  target: number;
+  now: number;
+  shown?: boolean;
+  /** Adds a part that moves with the leaf (glass in a door). */
+  add(s0: number, s1: number, z0: number, z1: number, material: THREE.Material, thickness: number): THREE.Mesh;
+}
+
 interface DeviceParts {
   materials: THREE.MeshLambertMaterial[];
   spinners: THREE.Object3D[];
@@ -307,6 +327,8 @@ export class HouseRenderer {
   /** The parts of linked pieces their device drives (screens, flames, fans…), by entity. */
   private devices = new Map<string, DeviceParts[]>();
   private deviceLooks = new Map<string, DeviceLook | null>();
+  /** Door leaves and window panes that open with their contact, by opening. */
+  private leaves = new Map<string, LeafView[]>();
   private lastSpin = 0;
   private lampObjects: THREE.Object3D[] = [];
   private glowTexture?: THREE.Texture;
@@ -435,6 +457,7 @@ export class HouseRenderer {
     this.floors.clear();
     this.pieceGlows.clear();
     this.devices.clear();
+    this.leaves.clear();
     this.linked = [];
     this.covers.clear();
     this.glasses.clear();
@@ -560,11 +583,25 @@ export class HouseRenderer {
         const mid = (o.start + o.end) / 2;
         // a bar in the middle (double windows, sliding doors)
         const bar = () => box(mid - 0.03, mid + 0.03, o.sill, top, wallMat, 0.07);
+        // with a contact, leaves and panes move: they are drawn on their own, around their hinge
+        const moving = o.contact ? this.opener(g, w, o, rooms, cutAt, cuttable) : null;
+        const pane = (s0: number, s1: number, z0: number, z1: number, m: THREE.Material, t: number, how: LeafHow) => (moving ? moving(s0, s1, z0, z1, m, t, how) : box(s0, s1, z0, z1, m, t));
         // windows, and glass doors (sliding and terrace doors)
         if (o.type === "window" || (o.type === "door" && ["sliding_glass", "glass", "glass_double"].includes(o.style))) {
           const mat = o.contact ? this.lambert(COLORS.glass, { transparent: true, opacity: 0.45 }) : glass;
           if (o.contact) this.glasses.set(o.id, mat);
-          box(o.start, o.end, o.sill, top, mat, 0.03);
+          if (!moving) box(o.start, o.end, o.sill, top, mat, 0.03);
+          else if (o.type === "door" && o.style === "sliding_glass") {
+            // two panels: the one on the hinge side slides over the other
+            pane(o.start, mid + 0.03, o.sill, top, mat, 0.03, "slide");
+            box(mid - 0.03, o.end, o.sill, top, mat, 0.03);
+          } else if (o.type === "door") {
+            if (o.style === "glass_double") {
+              pane(o.start, mid, o.sill, top, mat, 0.03, "swing");
+              pane(mid, o.end, o.sill, top, mat, 0.03, "swing");
+            } else pane(o.start, o.end, o.sill, top, mat, 0.03, "swing");
+          } else if (o.style === "fixed" || o.style === "split" || o.style === "split_single") box(o.start, o.end, o.sill, top, mat, 0.03);
+          else pane(o.start, o.end, o.sill, top, mat, 0.03, "tilt");
           if (o.style === "double" || o.style === "sliding_glass" || o.style === "glass_double") bar();
           if (o.style === "triple") {
             const third = (o.end - o.start) / 3;
@@ -580,17 +617,26 @@ export class HouseRenderer {
           // white entrance doors with frosted glass: a strip, small panes, or a side panel
           const w = o.end - o.start;
           const leafEnd = o.style === "entrance_sidelight" ? o.start + w * 0.72 : o.end;
-          box(o.start, leafEnd, o.sill, top, whiteLeaf, 0.045);
-          const pane = (s0: number, s1: number, z0: number, z1: number) => box(s0, s1, z0, z1, frosted, 0.055);
-          if (o.style === "entrance_sidelight") pane(leafEnd + 0.04, o.end, o.sill + 0.05, top - 0.05);
-          else if (o.style === "entrance_strip") pane(o.start + w * 0.3 - 0.06, o.start + w * 0.3 + 0.06, o.sill + 0.3, top - 0.3);
-          else for (let i = 0; i < 4; i++) pane(mid - 0.09, mid + 0.09, o.sill + 1.05 + i * 0.27, o.sill + 1.23 + i * 0.27);
+          if (moving) {
+            // the leaf and its glass swing together (the side panel stays)
+            const leaf = moving(o.start, leafEnd, o.sill, top, whiteLeaf, 0.045, "swing");
+            const glassAt = (s0: number, s1: number, z0: number, z1: number) => leaf?.add(s0, s1, z0, z1, frosted, 0.055);
+            if (o.style === "entrance_strip") glassAt(o.start + w * 0.3 - 0.06, o.start + w * 0.3 + 0.06, o.sill + 0.3, top - 0.3);
+            else if (o.style !== "entrance_sidelight") for (let i = 0; i < 4; i++) glassAt(mid - 0.09, mid + 0.09, o.sill + 1.05 + i * 0.27, o.sill + 1.23 + i * 0.27);
+            if (o.style === "entrance_sidelight") box(leafEnd + 0.04, o.end, o.sill + 0.05, top - 0.05, frosted, 0.055);
+          } else {
+            box(o.start, leafEnd, o.sill, top, whiteLeaf, 0.045);
+            const glassPane = (s0: number, s1: number, z0: number, z1: number) => box(s0, s1, z0, z1, frosted, 0.055);
+            if (o.style === "entrance_sidelight") glassPane(leafEnd + 0.04, o.end, o.sill + 0.05, top - 0.05);
+            else if (o.style === "entrance_strip") glassPane(o.start + w * 0.3 - 0.06, o.start + w * 0.3 + 0.06, o.sill + 0.3, top - 0.3);
+            else for (let i = 0; i < 4; i++) glassPane(mid - 0.09, mid + 0.09, o.sill + 1.05 + i * 0.27, o.sill + 1.23 + i * 0.27);
+          }
         } else if (o.type === "door") {
           // closed leaves: one, or two meeting in the middle
           if (o.style === "double") {
-            box(o.start, mid - 0.005, o.sill, top, doorLeaf, 0.045);
-            box(mid + 0.005, o.end, o.sill, top, doorLeaf, 0.045);
-          } else box(o.start, o.end, o.sill, top, doorLeaf, 0.045);
+            pane(o.start, mid - 0.005, o.sill, top, doorLeaf, 0.045, "swing");
+            pane(mid + 0.005, o.end, o.sill, top, doorLeaf, 0.045, "swing");
+          } else pane(o.start, o.end, o.sill, top, doorLeaf, 0.045, o.style === "sliding" ? "slide" : "swing");
         } else if (o.type === "opening" && o.style === "arch") {
           // the wall fills the corners above a round arch (in steps)
           const r = Math.min((o.end - o.start) / 2, o.height);
@@ -615,6 +661,105 @@ export class HouseRenderer {
     // one flight of stairs per storey the stairwell passes through
     for (const v of vertical) if (v.kind === "stairs" && level.index >= v.from && level.index < v.to) g.add(this.stairs(v, level));
     return g;
+  }
+
+  /**
+   * Draws an opening's moving parts (with a contact): each leaf or pane turns around its
+   * hinge (seen from the room, as the plan draws it) into its swing side, a window tilts
+   * in at the top, a sliding leaf slides. Returns the function that draws one part; parts
+   * of a double door hinge at their own outer ends.
+   */
+  private opener(g: THREE.Group, w: Wall, o: WallOpening, rooms: Level["rooms"], cutAt: number, cuttable: boolean) {
+    const len = Math.hypot(w.b[0] - w.a[0], w.b[1] - w.a[1]) || 1;
+    const u: Vec2 = [(w.b[0] - w.a[0]) / len, (w.b[1] - w.a[1]) / len];
+    const at = (t: number): Vec2 => [w.a[0] + u[0] * t, w.a[1] + u[1] * t];
+    const n: Vec2 = [-u[1], u[0]];
+    const room = rooms.find((r) => r.id === o.room);
+    const m = at((o.start + o.end) / 2);
+    const inward = room && pointInPolygon([m[0] + n[0] * 0.3, m[1] + n[1] * 0.3], room.polygon) ? 1 : -1;
+    const swing = o.swing === "out" ? -inward : inward;
+    // the hinge end, seen from the room facing the wall: left is the end towards -u × inward
+    const hingeAtStart = (o.hinge === "right") === (inward > 0);
+    const list = this.leaves.get(o.id) ?? [];
+    this.leaves.set(o.id, list);
+    return (s0: number, s1: number, z0: number, z1: number, material: THREE.Material, thickness: number, how: LeafHow) => {
+      // double doors: each half hinges at its own outer end
+      const half = s1 - s0 < (o.end - o.start) * 0.75;
+      const fromStart = half ? Math.abs(s0 - o.start) < 0.01 : hingeAtStart;
+      const hinge = fromStart ? s0 : s1;
+      const pivot = new THREE.Group();
+      const face = how === "slide" ? swing * 0.04 : swing * Math.max(0, w.thickness / 2 - thickness / 2);
+      const p = at(hinge);
+      pivot.position.set(p[0] + n[0] * face, how === "tilt" ? z0 : 0, p[1] + n[1] * face);
+      g.add(pivot);
+      const leaf: LeafView = {
+        pivot,
+        how,
+        dir: fromStart ? 1 : -1,
+        u,
+        n,
+        swing,
+        width: s1 - s0,
+        target: 0,
+        now: 0,
+        add: (a0, a1, b0, b1, mat, t) => {
+          const mesh = this.mesh(new THREE.BoxGeometry(a1 - a0, b1 - b0, t), mat);
+          // along the leaf from its hinge, up from the floor (or the sill, tilting)
+          mesh.position.set(((a0 + a1) / 2 - hinge) * leaf.dir, (b0 + b1) / 2 - (how === "tilt" ? z0 : 0), 0);
+          pivot.add(mesh);
+          if (cuttable && b1 > cutAt + 1e-3) this.cuttables.push({ mesh, normal: w.normal });
+          return mesh;
+        },
+      };
+      leaf.add(s0, s1, z0, z1, material, thickness);
+      list.push(leaf);
+      this.placeLeaf(leaf);
+      return leaf;
+    };
+  }
+
+  /** Turns, tilts or slides a leaf to how far open it is now (0 closed … 1 open). */
+  private placeLeaf(l: LeafView) {
+    const k = l.now;
+    const along: Vec2 = [l.u[0] * l.dir, l.u[1] * l.dir];
+    let v = along;
+    if (l.how === "swing") {
+      const a = k * THREE.MathUtils.degToRad(80);
+      v = [along[0] * Math.cos(a) + l.n[0] * l.swing * Math.sin(a), along[1] * Math.cos(a) + l.n[1] * l.swing * Math.sin(a)];
+    }
+    // local x along the leaf, as walls are turned
+    l.pivot.rotation.set(0, Math.atan2(-v[1], v[0]), 0);
+    if (l.how === "tilt") {
+      // the top leans to the swing side (local z is the plan's n times dir)
+      l.pivot.rotateX(k * THREE.MathUtils.degToRad(12) * l.swing * l.dir);
+    }
+    const shift = l.how === "slide" ? k * l.width * 0.6 : 0;
+    l.pivot.children.forEach((c) => {
+      c.userData.base ??= c.position.x;
+      c.position.x = (c.userData.base as number) + shift;
+    });
+  }
+
+  /** Whether a door or window is still moving (the card animates only then). */
+  get leavesMoving() {
+    for (const list of this.leaves.values()) for (const l of list) if (Math.abs(l.target - l.now) > 1e-3) return true;
+    return false;
+  }
+
+  /** For tests: how far an opening's leaves are open (0 … 1). */
+  leafState(openingId: string) {
+    return this.leaves.get(openingId)?.map((l) => ({ how: l.how, open: l.now })) ?? null;
+  }
+
+  private moveLeaves(dt: number) {
+    for (const list of this.leaves.values())
+      for (const l of list) {
+        if (Math.abs(l.target - l.now) <= 1e-3) continue;
+        // about 0.6 s from closed to open
+        const step = dt / 0.6;
+        l.now = l.target > l.now ? Math.min(l.target, l.now + step) : Math.max(l.target, l.now - step);
+        this.placeLeaf(l);
+      }
   }
 
   /**
@@ -985,9 +1130,12 @@ export class HouseRenderer {
   }
 
   private spin(now: number) {
-    const dt = Math.min(0.2, (now - this.lastSpin) / 1000);
+    // after a pause (nothing moved, no frames) start again with one frame's step
+    const gap = (now - this.lastSpin) / 1000;
+    const dt = gap > 0.15 ? 1 / 30 : gap;
     this.lastSpin = now;
     if (!dt) return;
+    this.moveLeaves(dt);
     for (const [entity, list] of this.devices) {
       const look = this.deviceLooks.get(entity);
       if (!look?.active) continue;
@@ -1500,6 +1648,15 @@ export class HouseRenderer {
   setContact(openingId: string, open: boolean) {
     this.glasses.get(openingId)?.color.set(open ? COLORS.glassOpen : COLORS.glass);
     if (this.covers.get(openingId)?.byContact) this.setCover(openingId, open ? 1 : 0);
+    for (const l of this.leaves.get(openingId) ?? []) {
+      l.target = open ? 1 : 0;
+      // the first state after drawing is shown at once, not animated
+      if (!l.shown) {
+        l.now = l.target;
+        l.shown = true;
+        this.placeLeaf(l);
+      }
+    }
   }
 
   /** Hides the upper parts of outer walls facing a low camera; shows strips instead of shutters there. */
@@ -1934,7 +2091,7 @@ export class HouseRenderer {
     this.fitCamera();
     this.placeLights();
     if (this.flows.length) this.updateFlows(now);
-    if (this.devices.size) this.spin(now);
+    if (this.devices.size || this.leaves.size) this.spin(now);
     this.applyCuts();
     this.renderer.render(this.scene, this.camera);
   }

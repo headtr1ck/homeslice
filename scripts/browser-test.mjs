@@ -575,6 +575,32 @@ console.log("demo house, roof");
     assert(!(await byContact()).shutterVisible, "garage door shown with its contact open");
     await act(page, () => page.evaluate(() => window.card.hass.callService("homeassistant", "toggle", {}, { entity_id: "binary_sensor.kids_room_leak" })));
   });
+  await test("doors swing and windows tilt with their contacts", async () => {
+    await act(page, async () => {
+      await page.evaluate(() => {
+        const m = structuredClone(window.__demoModel);
+        Object.assign(m.levels[0].openings[3], { contact: "binary_sensor.kids_room_leak" });
+        Object.assign(m.levels[0].openings[4], { contact: "binary_sensor.kids_room_leak" });
+        window.card.hass.pushModel(m);
+      });
+    });
+    const leaves = () => page.evaluate(() => [window.card.renderer.leafState("living_south_3"), window.card.renderer.leafState("living_west_4")]);
+    let [door, win] = await leaves();
+    assert(door?.length === 1 && door[0].how === "swing" && door[0].open === 0, `closed door: ${JSON.stringify(door)}`);
+    assert(win?.length === 1 && win[0].how === "tilt" && win[0].open === 0, `closed window: ${JSON.stringify(win)}`);
+    await page.evaluate(() => window.card.hass.callService("homeassistant", "toggle", {}, { entity_id: "binary_sensor.kids_room_leak" }));
+    // it opens over a moment, not at once
+    await page.waitForTimeout(150);
+    [door] = await leaves();
+    assert(door[0].open > 0 && door[0].open < 1, `door should be opening: ${JSON.stringify(door)}`);
+    await page.waitForFunction(() => window.card.renderer.leafState("living_south_3")[0].open === 1, null, { timeout: 3000 });
+    [door, win] = await leaves();
+    assert(win[0].open === 1, `window not tilted: ${JSON.stringify(win)}`);
+    await page.waitForTimeout(200);
+    await shot(page, "demo-door-open");
+    await page.evaluate(() => window.card.hass.callService("homeassistant", "toggle", {}, { entity_id: "binary_sensor.kids_room_leak" }));
+    await page.waitForFunction(() => window.card.renderer.leafState("living_south_3")[0].open === 0, null, { timeout: 3000 });
+  });
   await test("a lamp linked to a light glows with it, and a tap on it toggles the light", async () => {
     await act(page, async () => {
       await page.evaluate(() => {
