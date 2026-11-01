@@ -6,7 +6,7 @@ import type { Hass } from "../ha/hass";
 import { localize, type StringKey } from "../i18n/localize";
 import { expandHouse } from "../model/expand";
 import { deriveWalls, type Wall } from "../model/walls";
-import { DEFAULT_VIEW, HouseRenderer, viewOptions } from "../render/scene";
+import { DEFAULT_ACCENT, DEFAULT_VIEW, HouseRenderer, viewOptions } from "../render/scene";
 import type { HomesliceCardConfig } from "./homeslice-card";
 
 type View = NonNullable<HomesliceCardConfig["view"]>;
@@ -210,6 +210,22 @@ export class HomesliceCardEditor extends LitElement {
         ><input type="checkbox" .checked=${this._config.energy === true} @change=${(e: Event) => this.change({ energy: (e.target as HTMLInputElement).checked || undefined })} />
         ${this.t("cardeditor.energy")}</label
       >
+      <label
+        >${this.t("cardeditor.look")}
+        <select @change=${(e: Event) => {
+          const look = (e.target as HTMLSelectElement).value;
+          this.change({ look: look === "day" ? undefined : (look as "night" | "auto") });
+        }}>
+          ${(["day", "night", "auto"] as const).map((l) => html`<option value=${l} ?selected=${(this._config.look ?? "day") === l}>${this.t(`cardeditor.look_${l}`)}</option>`)}
+        </select>
+      </label>
+      <label ?hidden=${(this._config.look ?? "day") === "day"}
+        >${this.t("cardeditor.accent")}
+        <input type="color" .value=${this._config.accent ?? DEFAULT_ACCENT} @change=${(e: Event) => {
+          const accent = (e.target as HTMLInputElement).value;
+          this.change({ accent: accent === DEFAULT_ACCENT ? undefined : accent });
+        }} />
+      </label>
       <label class="check"
         ><input type="checkbox" .checked=${this._config.sun !== false} @change=${(e: Event) => this.change({ sun: (e.target as HTMLInputElement).checked ? undefined : false })} />
         ${this.t("cardeditor.sun")}</label

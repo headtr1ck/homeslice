@@ -11,6 +11,8 @@ import { finishLook, onFinishLoaded } from "./finishes";
 import { Line2 } from "three/examples/jsm/lines/Line2.js";
 import { LineGeometry } from "three/examples/jsm/lines/LineGeometry.js";
 import { LineMaterial } from "three/examples/jsm/lines/LineMaterial.js";
+import { LineSegments2 } from "three/examples/jsm/lines/LineSegments2.js";
+import { LineSegmentsGeometry } from "three/examples/jsm/lines/LineSegmentsGeometry.js";
 import type { House, Level, Side, Vec2, Vertical } from "../model/types";
 import { innerPolygon, type Wall, type WallOpening } from "../model/walls";
 import { bbox, overlap, pointInPolygon } from "../model/geometry";
@@ -101,6 +103,9 @@ interface CameraState {
   elevation: number;
   fov: number;
 }
+
+/** The night look's outlines, unless the card picks another colour. */
+export const DEFAULT_ACCENT = "#4fc3f7";
 
 const COLORS = {
   wall: "#eeeae3",
@@ -327,6 +332,9 @@ export class HouseRenderer {
   /** The parts of linked pieces their device drives (screens, flames, fans…), by entity. */
   private devices = new Map<string, DeviceParts[]>();
   private deviceLooks = new Map<string, DeviceLook | null>();
+  private look: "day" | "night" = "day";
+  private accent = DEFAULT_ACCENT;
+  private outlines: THREE.Group[] = [];
   /** Door leaves and window panes that open with their contact, by opening. */
   private leaves = new Map<string, LeafView[]>();
   private lastSpin = 0;
@@ -458,6 +466,7 @@ export class HouseRenderer {
     this.pieceGlows.clear();
     this.devices.clear();
     this.leaves.clear();
+    this.outlines = [];
     this.linked = [];
     this.covers.clear();
     this.glasses.clear();
@@ -660,7 +669,63 @@ export class HouseRenderer {
 
     // one flight of stairs per storey the stairwell passes through
     for (const v of vertical) if (v.kind === "stairs" && level.index >= v.from && level.index < v.to) g.add(this.stairs(v, level));
+    g.add(this.outline(level, walls));
     return g;
+  }
+
+  /**
+   * The night look's glowing lines: the tops of the walls and the edges of the room
+   * floors, one line object per level (hidden by day).
+   */
+  private outline(level: Level, walls: Wall[]): THREE.Group {
+    const pts: number[] = [];
+    const seg = (a: Vec2, b: Vec2, y: number) => pts.push(a[0], y, a[1], b[0], y, b[1]);
+    for (const w of walls) {
+      if (w.type === "open") continue;
+      const len = Math.hypot(w.b[0] - w.a[0], w.b[1] - w.a[1]) || 1;
+      const u: Vec2 = [(w.b[0] - w.a[0]) / len, (w.b[1] - w.a[1]) / len];
+      const t = w.thickness / 2;
+      const p = (along: number, side: number): Vec2 => [w.a[0] + u[0] * along + w.normal[0] * t * side, w.a[1] + u[1] * along + w.normal[1] * t * side];
+      const [s0, s1] = [-w.extendStart, len + w.extendEnd];
+      const y = w.height + 0.002;
+      seg(p(s0, 1), p(s1, 1), y);
+      seg(p(s0, -1), p(s1, -1), y);
+      seg(p(s0, 1), p(s0, -1), y);
+      seg(p(s1, 1), p(s1, -1), y);
+    }
+    for (const room of level.rooms) {
+      if (room.kind !== "room") continue;
+      const poly = innerPolygon(room.polygon, walls);
+      poly.forEach((a, i) => seg(a, poly[(i + 1) % poly.length], 0.012));
+    }
+    // a sharp line over a wide faint one: a soft glow
+    const lines = new THREE.Group();
+    for (const [linewidth, opacity] of [[6, 0.22], [1.6, 0.95]]) {
+      const geo = new LineSegmentsGeometry().setPositions(pts);
+      const material = new LineMaterial({ color: this.accent, linewidth, transparent: true, opacity, depthWrite: false });
+      material.resolution.set(this.size.width, this.size.height);
+      this.building?.add(material);
+      lines.add(new LineSegments2(geo, material));
+    }
+    lines.visible = this.look === "night";
+    lines.traverse((o) => (o.userData.outdoor = true)); // not a tap target
+    this.outlines.push(lines);
+    return lines;
+  }
+
+  /**
+   * The look: `day` (as lit by the sun) or `night` (dark, lamps and glowing outlines in the
+   * accent colour stand out; for wall tablets at night).
+   */
+  setLook(look: "day" | "night", accent = DEFAULT_ACCENT) {
+    if (look === this.look && accent === this.accent) return;
+    this.look = look;
+    this.accent = accent;
+    for (const l of this.outlines) {
+      l.visible = look === "night";
+      for (const line of l.children as LineSegments2[]) line.material.color.set(accent);
+    }
+    this.setSun(this.sunAt?.azimuth ?? null, this.sunAt?.elevation ?? null);
   }
 
   /**
@@ -1130,9 +1195,10 @@ export class HouseRenderer {
   }
 
   private spin(now: number) {
-    // after a pause (nothing moved, no frames) start again with one frame's step
+    // after a pause (nothing moved, no frames) start again with one frame's step; slow
+    // devices still move in real time
     const gap = (now - this.lastSpin) / 1000;
-    const dt = gap > 0.15 ? 1 / 30 : gap;
+    const dt = gap > 0.5 ? 1 / 30 : gap;
     this.lastSpin = now;
     if (!dt) return;
     this.moveLeaves(dt);
@@ -1950,7 +2016,8 @@ export class HouseRenderer {
    */
   setSun(azimuth: number | null, elevation: number | null) {
     this.sunAt = azimuth === null || elevation === null ? null : { azimuth, elevation };
-    const e = this.sunAt?.elevation ?? 45;
+    // the night look is night whatever the sun does (it still sets the shadows' direction)
+    const e = this.look === "night" ? -10 : (this.sunAt?.elevation ?? 45);
     // day: full light, a little warmer and weaker when the sun is low; night: dim and cool
     const day = Math.max(0, Math.min(1, (e + 4) / 14));
     this.sun.intensity = 2.2 * day;
@@ -1958,6 +2025,12 @@ export class HouseRenderer {
     this.sky.intensity = 0.55 + 0.85 * day;
     this.sky.color.set(day > 0.5 ? 0xffffff : 0xb8c4ff);
     this.ambient.intensity = 0.2 + 0.15 * day;
+    if (this.look === "night") {
+      // darker than a plain night, a little blue, so lamps and outlines carry the picture
+      this.sky.intensity = 0.32;
+      this.sky.color.set(0x8f9cff);
+      this.ambient.intensity = 0.1;
+    }
     this.night = 1 - day;
     this.placeSun();
   }
@@ -2053,6 +2126,7 @@ export class HouseRenderer {
     this.size = { width, height };
     // wide lines are sized in pixels
     for (const f of this.flows) for (const m of [f.line.material, f.pulse, f.glow]) m.resolution.set(width, height);
+    for (const l of this.outlines) for (const line of l.children as LineSegments2[]) line.material.resolution.set(width, height);
     this.draw();
   }
 

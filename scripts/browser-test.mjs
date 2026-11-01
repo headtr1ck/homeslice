@@ -533,7 +533,7 @@ console.log("demo house, roof");
     const unit = await state("climate.living_room");
     assert(unit.turn.length === 1 && unit.lit, `outdoor unit: ${JSON.stringify(unit)}`);
     assert(await page.evaluate(() => window.card.renderer.spinning), "not spinning while heating");
-    await page.waitForTimeout(400);
+    await page.waitForFunction((t) => window.card.renderer.deviceState("climate.living_room").turn[0] !== t, unit.turn[0], { timeout: 8000 }).catch(() => {});
     assert((await state("climate.living_room")).turn[0] !== unit.turn[0], "the fan did not turn");
     await shot(page, "demo-devices");
     await act(page, () => page.evaluate(() => window.card.hass.callService("climate", "turn_off", {}, { entity_id: "climate.living_room" })));
@@ -590,16 +590,16 @@ console.log("demo house, roof");
     assert(win?.length === 1 && win[0].how === "tilt" && win[0].open === 0, `closed window: ${JSON.stringify(win)}`);
     await page.evaluate(() => window.card.hass.callService("homeassistant", "toggle", {}, { entity_id: "binary_sensor.kids_room_leak" }));
     // it opens over a moment, not at once
-    await page.waitForTimeout(150);
+    await page.waitForFunction(() => window.card.renderer.leafState("living_south_3")[0].open > 0, null, { timeout: 10000 });
     [door] = await leaves();
-    assert(door[0].open > 0 && door[0].open < 1, `door should be opening: ${JSON.stringify(door)}`);
-    await page.waitForFunction(() => window.card.renderer.leafState("living_south_3")[0].open === 1, null, { timeout: 3000 });
+    assert(door[0].open < 1, `door should open over a moment, not at once: ${JSON.stringify(door)}`);
+    await page.waitForFunction(() => window.card.renderer.leafState("living_south_3")[0].open === 1, null, { timeout: 10000 });
     [door, win] = await leaves();
     assert(win[0].open === 1, `window not tilted: ${JSON.stringify(win)}`);
     await page.waitForTimeout(200);
     await shot(page, "demo-door-open");
     await page.evaluate(() => window.card.hass.callService("homeassistant", "toggle", {}, { entity_id: "binary_sensor.kids_room_leak" }));
-    await page.waitForFunction(() => window.card.renderer.leafState("living_south_3")[0].open === 0, null, { timeout: 3000 });
+    await page.waitForFunction(() => window.card.renderer.leafState("living_south_3")[0].open === 0, null, { timeout: 10000 });
   });
   await test("a lamp linked to a light glows with it, and a tap on it toggles the light", async () => {
     await act(page, async () => {
@@ -792,6 +792,28 @@ console.log("demo house, energy");
     const focused = await page.locator("homeslice-card .energy-label").count();
     assert(focused === 3, `labels on the ground floor: ${focused}`);
     assert((await page.locator("homeslice-card .energy-label.above").count()) === 3, "labels on a picked floor should sit at their markers");
+    assert(errors.length === 0, errors.join(" | "));
+  });
+  await page.close();
+}
+
+console.log("demo house, looks");
+{
+  // auto: night once the sun is down
+  const sunSet = (f) => ({ ...f, states: { ...f.states, "sun.sun": { entity_id: "sun.sun", state: "below_horizon", attributes: { azimuth: 300, elevation: -12 } } } });
+  const { page, errors } = await open("dev/fixtures/demo-hass.json", { look: "auto" }, undefined, sunSet);
+  await test("look auto: the night look after sunset, glowing outlines in the accent colour", async () => {
+    const outlines = () => page.evaluate(() => window.card.renderer.outlines.map((l) => l.visible));
+    assert((await outlines()).length === 2 && (await outlines()).every(Boolean), `outlines: ${await outlines()}`);
+    await shot(page, "demo-look-night");
+    // sunrise: back to day
+    await act(page, () =>
+      page.evaluate(() => {
+        const h = window.card.hass;
+        window.card.hass = { ...h, states: { ...h.states, "sun.sun": { entity_id: "sun.sun", state: "above_horizon", attributes: { azimuth: 120, elevation: 20 } } } };
+      }),
+    );
+    assert(!(await outlines()).some(Boolean), "outlines by day");
     assert(errors.length === 0, errors.join(" | "));
   });
   await page.close();
