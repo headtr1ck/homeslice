@@ -135,6 +135,7 @@
   "editor.stairs_delete": "Treppe löschen",
   "card.light_on": "{light} einschalten",
   "card.light_off": "{light} ausschalten",
+  "card.lamp_hint": "Tippen: an/aus · nach oben oder unten ziehen: dimmen · halten: Details",
   "editor.objects_hint": "Einen Raum anklicken, um seine Lampen zu sehen. Eine Lampe dorthin ziehen, wo sie wirklich ist; in einen anderen Raum ziehen, um sie dorthin zu verschieben. Gestrichelt: automatisch platziert.",
   "editor.lights_count": "{count} Lampen auf dieser Ebene, {auto} automatisch platziert.",
   "editor.lights": "Lampen",

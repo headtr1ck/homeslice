@@ -135,6 +135,7 @@
   "editor.stairs_delete": "Delete stairs",
   "card.light_on": "Turn on {light}",
   "card.light_off": "Turn off {light}",
+  "card.lamp_hint": "Tap: on/off · drag up or down: dim · hold: details",
   "editor.objects_hint": "Click a room to see its lights. Drag a light to where it really is; drop it into another room to move it there. Dashed: placed automatically.",
   "editor.lights_count": "{count} lights on this level, {auto} placed automatically.",
   "editor.lights": "Lights",

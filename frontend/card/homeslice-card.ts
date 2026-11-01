@@ -181,6 +181,7 @@ export class HomesliceCard extends LitElement {
     _loading: { state: true },
     _labels: { state: true },
     _lampButtons: { state: true },
+    _dim: { state: true },
     _energyLabels: { state: true },
     _robotLabels: { state: true },
     _level: { state: true },
@@ -196,6 +197,12 @@ export class HomesliceCard extends LitElement {
   private _loading = true;
   private _labels: Label[] = [];
   private _lampButtons: LampButton[] = [];
+  /** The brightness shown while dimming a lamp by dragging. */
+  private _dim: { x: number; y: number; pct: number } | null = null;
+  private gesture: { id: number; y: number; start: number; pct: number; entities: string[]; dimming: boolean; done: boolean; at: { x: number; y: number } } | null = null;
+  private holdTimer = 0;
+  private swallowClick = false;
+  private holdFrom: { x: number; y: number } | null = null;
   private _energyLabels: EnergyLabel[] = [];
   private _robotLabels: { key: string; entity: string; x: number; y: number; name: string; text: string; battery: number | null; color: string; icon: string }[] = [];
   private robotReadings: RobotReading[] = [];
@@ -615,6 +622,60 @@ export class HomesliceCard extends LitElement {
     void this.hass.callService("light", label.on ? "turn_off" : "turn_on", {}, { entity_id });
   }
 
+  // ----- lamp gestures: tap toggles, drag up or down dims, a long press opens the details -----
+
+  private lampDown(e: PointerEvent, entities: string[], long: () => void) {
+    if (!entities.length || !this.hass) return;
+    e.stopPropagation();
+    const button = e.currentTarget as HTMLElement;
+    button.setPointerCapture(e.pointerId);
+    // where the brightest of them is now (0 when off)
+    const start = Math.max(0, ...entities.map((id) => (this.hass!.states[id]?.state === "on" ? Math.round((((this.hass!.states[id].attributes.brightness as number | undefined) ?? 255) / 255) * 100) : 0)));
+    const rect = button.getBoundingClientRect();
+    const wrap = this.renderRoot.querySelector<HTMLElement>(".wrap")!.getBoundingClientRect();
+    this.gesture = { id: e.pointerId, y: e.clientY, start, pct: start, entities, dimming: false, done: false, at: { x: rect.left + rect.width / 2 - wrap.left, y: rect.top - wrap.top } };
+    clearTimeout(this.holdTimer);
+    this.holdTimer = window.setTimeout(() => {
+      if (!this.gesture || this.gesture.dimming) return;
+      this.gesture.done = true;
+      long();
+    }, 550);
+  }
+
+  private lampMove = (e: PointerEvent) => {
+    const g = this.gesture;
+    if (!g || g.id !== e.pointerId || g.done) return;
+    const dy = g.y - e.clientY;
+    if (!g.dimming && Math.abs(dy) < 8) return;
+    // a drag: no long press any more; 1 % per 1.5 px, up is brighter
+    g.dimming = true;
+    clearTimeout(this.holdTimer);
+    g.pct = Math.max(0, Math.min(100, Math.round(g.start + dy / 1.5)));
+    this._dim = { x: g.at.x, y: g.at.y, pct: g.pct };
+  };
+
+  private lampUp = (e: PointerEvent) => {
+    const g = this.gesture;
+    if (!g || g.id !== e.pointerId) return;
+    clearTimeout(this.holdTimer);
+    if (g.dimming) {
+      g.done = true;
+      this._dim = null;
+      void this.hass?.callService("light", g.pct > 0 ? "turn_on" : "turn_off", g.pct > 0 ? { brightness_pct: g.pct } : {}, { entity_id: g.entities });
+    }
+    // the click that follows belongs to the gesture when it dimmed or held
+    this.swallowClick = g.done;
+    this.gesture = null;
+  };
+
+  private lampClick(tap: () => void) {
+    if (this.swallowClick) {
+      this.swallowClick = false;
+      return;
+    }
+    tap();
+  }
+
   private toggleLamp(lamp: LampButton) {
     void this.hass?.callService("light", lamp.on ? "turn_off" : "turn_on", {}, { entity_id: lamp.entity });
   }
@@ -711,6 +772,21 @@ export class HomesliceCard extends LitElement {
   }
 
   private onPointerDown(e: PointerEvent) {
+    // a long press on a linked piece opens its details (colours for a lamp), turning or not
+    clearTimeout(this.holdTimer);
+    if (this.renderer && !this.transitioning) {
+      const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+      const entity = this.renderer.pickEntity(e.clientX - rect.left, e.clientY - rect.top);
+      if (entity) {
+        const from = { x: e.clientX, y: e.clientY };
+        this.holdFrom = from;
+        this.holdTimer = window.setTimeout(() => {
+          if (this.holdFrom !== from) return;
+          this.swallowClick = true;
+          this.moreInfo(entity);
+        }, 550);
+      }
+    }
     if (!this.interactive || !this.renderer || this.transitioning) return;
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
     this.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
@@ -727,6 +803,10 @@ export class HomesliceCard extends LitElement {
   }
 
   private onPointerMove(e: PointerEvent) {
+    if (this.holdFrom && Math.hypot(e.clientX - this.holdFrom.x, e.clientY - this.holdFrom.y) > 8) {
+      clearTimeout(this.holdTimer);
+      this.holdFrom = null;
+    }
     if (!this.renderer || this.transitioning) return;
     const last = this.pointers.get(e.pointerId);
     if (last) {
@@ -759,6 +839,8 @@ export class HomesliceCard extends LitElement {
   }
 
   private onPointerUp(e: PointerEvent) {
+    clearTimeout(this.holdTimer);
+    this.holdFrom = null;
     this.pointers.delete(e.pointerId);
     if (this.pointers.size < 2) this.pinch = 0;
   }
@@ -796,6 +878,11 @@ export class HomesliceCard extends LitElement {
   }
 
   private onCanvasClick(e: MouseEvent) {
+    if (this.swallowClick) {
+      // the end of a long press
+      this.swallowClick = false;
+      return;
+    }
     if (this.dragged) {
       this.dragged = false;
       return;
@@ -928,7 +1015,12 @@ export class HomesliceCard extends LitElement {
                 ? html`<button
                     class="lamp ${l.on ? "on" : ""}"
                     aria-label=${this.t(l.on ? "card.lights_off" : "card.lights_on", { room: l.name })}
-                    @click=${() => this.toggleLights(l)}
+                    title=${this.t("card.lamp_hint")}
+                    @pointerdown=${(e: PointerEvent) => this.lampDown(e, this.roomLights(l.key), () => this.openPopup(l.key))}
+                    @pointermove=${this.lampMove}
+                    @pointerup=${this.lampUp}
+                    @pointercancel=${this.lampUp}
+                    @click=${() => this.lampClick(() => this.toggleLights(l))}
                   >
                     <ha-icon icon=${l.on ? "mdi:lightbulb-on" : "mdi:lightbulb-outline"}></ha-icon>
                   </button>`
@@ -971,12 +1063,18 @@ export class HomesliceCard extends LitElement {
               class="lamp single ${b.on ? "on" : ""}"
               style="left:${b.x}px;top:${b.y}px"
               title=${b.name}
+              aria-description=${this.t("card.lamp_hint")}
               aria-label=${this.t(b.on ? "card.light_off" : "card.light_on", { light: b.name })}
-              @click=${() => this.toggleLamp(b)}
+              @pointerdown=${(e: PointerEvent) => this.lampDown(e, [b.entity], () => this.moreInfo(b.entity))}
+              @pointermove=${this.lampMove}
+              @pointerup=${this.lampUp}
+              @pointercancel=${this.lampUp}
+              @click=${() => this.lampClick(() => this.toggleLamp(b))}
             >
               <ha-icon icon=${b.on ? "mdi:lightbulb-on" : "mdi:lightbulb-outline"}></ha-icon>
             </button>`,
           )}
+          ${this._dim ? html`<div class="dim" style="left:${this._dim.x}px;top:${this._dim.y}px"><div class="bar" style="height:${this._dim.pct}%"></div><span>${this._dim.pct} %</span></div>` : nothing}
           ${this._loading ? html`<div class="overlay">${this.t("card.loading")}</div>` : nothing}
           ${this._error ? html`<div class="overlay error">${this._error}</div>` : nothing}
         </div>
@@ -1169,8 +1267,38 @@ export class HomesliceCard extends LitElement {
         animation: none;
       }
     }
+    .dim {
+      position: absolute;
+      transform: translate(-50%, calc(-100% - 8px));
+      width: 44px;
+      height: 120px;
+      border-radius: 14px;
+      background: rgba(20, 24, 28, 0.9);
+      border: 1px solid rgba(255, 255, 255, 0.25);
+      overflow: hidden;
+      pointer-events: none;
+      display: grid;
+      align-items: end;
+    }
+    .dim .bar {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: linear-gradient(#ffe7a8, #ffc451);
+    }
+    .dim span {
+      position: relative;
+      text-align: center;
+      font-size: 12px;
+      font-weight: 600;
+      color: #fff;
+      text-shadow: 0 0 3px #000;
+      padding-bottom: 6px;
+    }
     .lamp {
       pointer-events: auto;
+      touch-action: none;
       width: 40px;
       height: 40px;
       border-radius: 50%;

@@ -601,6 +601,42 @@ console.log("demo house, roof");
     await page.evaluate(() => window.card.hass.callService("homeassistant", "toggle", {}, { entity_id: "binary_sensor.kids_room_leak" }));
     await page.waitForFunction(() => window.card.renderer.leafState("living_south_3")[0].open === 0, null, { timeout: 10000 });
   });
+  await test("lamp gestures: drag to dim, hold for the room, tap toggles", async () => {
+    const lamp = page.locator("homeslice-card .label", { has: page.locator("button.name", { hasText: "Living Room" }) }).locator("button.lamp");
+    const box = await lamp.boundingBox();
+    const [x, y] = [box.x + box.width / 2, box.y + box.height / 2];
+    const calls = () => page.evaluate(() => window.card.hass.calls.length);
+    // drag up: brighter, the level shown while dragging, one call at the end
+    const before = await calls();
+    await page.mouse.move(x, y);
+    await page.mouse.down();
+    await page.mouse.move(x, y - 40, { steps: 5 });
+    await page.mouse.move(x, y - 75, { steps: 5 });
+    assert((await page.locator("homeslice-card .dim").count()) === 1, "no brightness shown while dragging");
+    await page.mouse.up();
+    const call = await page.evaluate(() => window.card.hass.calls.at(-1));
+    assert((await calls()) === before + 1 && call.domain === "light" && call.service === "turn_on" && call.data.brightness_pct >= 50, `dim call: ${JSON.stringify(call)}`);
+    assert((await page.locator("homeslice-card .dim").count()) === 0, "brightness still shown");
+    await page.waitForTimeout(100);
+    assert((await calls()) === before + 1, "the drag also toggled");
+    // drag all the way down: off
+    await page.mouse.move(x, y);
+    await page.mouse.down();
+    await page.mouse.move(x, y + 200, { steps: 8 });
+    await page.mouse.up();
+    assert((await page.evaluate(() => window.card.hass.calls.at(-1).service)) === "turn_off", "dragging down did not turn off");
+    // hold: the room's popup with its lights
+    await page.mouse.move(x, y);
+    await page.mouse.down();
+    await page.waitForTimeout(800);
+    await page.mouse.up();
+    await page.waitForSelector("homeslice-card .popup", { timeout: 3000 });
+    await page.keyboard.press("Escape");
+    // a tap still toggles
+    const n = await calls();
+    await lamp.click();
+    assert((await calls()) === n + 1, "tap did not toggle");
+  });
   await test("a lamp linked to a light glows with it, and a tap on it toggles the light", async () => {
     await act(page, async () => {
       await page.evaluate(() => {
@@ -634,6 +670,16 @@ console.log("demo house, roof");
     await shot(page, "demo-lamp-linked");
     await page.mouse.click(at.x, at.y);
     await page.waitForFunction((b) => window.card.hass.states["light.reading_lamp"].state === b, before, { timeout: 3000 });
+    // a long press opens its details (colour, temperature) instead
+    await page.evaluate(() => (window.__moreInfo = null, window.card.addEventListener("hass-more-info", (e) => (window.__moreInfo = e.detail.entityId))));
+    const n = await page.evaluate(() => window.card.hass.calls.length);
+    await page.mouse.move(at.x, at.y);
+    await page.mouse.down();
+    await page.waitForTimeout(800);
+    await page.mouse.up();
+    await page.waitForTimeout(400);
+    assert((await page.evaluate(() => window.__moreInfo)) === "light.reading_lamp", "a long press did not open the lamp's details");
+    assert((await page.evaluate(() => window.card.hass.calls.length)) === n, "a long press also toggled");
     // the pointer off the house again (hovering a level hides the roof)
     await page.mouse.move(5, 5);
     await page.waitForTimeout(400);

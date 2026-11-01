@@ -36,7 +36,7 @@ Alpha: card and editor work and are used daily on one house, but nothing is stab
   a linked lamp lights up itself), blinds, garage doors, doors and windows that open with their contacts, temperatures and
   awnings; linked devices show their state (TV screens, fires, fans and outdoor units
   turning, washers running, curtains); one
-  floor on its own (the others slide away) and hover; tap a linked piece to switch it;
+  floor on its own (the others slide away) and hover; tap a linked piece to switch it; on a lamp button drag up or down to dim, hold for details;
   room popups (a bottom sheet on phones); optional roof and energy overlay (solar,
   battery, grid and devices with animated power flows).
 - **Editor** (admin sidebar page *Homeslice*): start a house from Home Assistant's floors
