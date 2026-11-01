@@ -145,6 +145,7 @@ interactive: false             # true: drag to turn, scroll/pinch to zoom, doubl
 energy: false                  # true: energy overlay (shows the roof unless view.roof: false)
 mode: 3d                       # or plan: a drawn floor plan from above (dark walls, door swings),
                                #   or tilted: a plan at an angle with low walls; both one floor at a time
+floors: one                    # plan only: all shows every floor at once, side by side
 sun: true                      # light from the real sun (sun.sun), darker at night
 look: day                      # or night (dark, glowing outlines), auto (night after sunset),
                                #   white (a white model) or blueprint (dark blue, glowing edges)

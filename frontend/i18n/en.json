@@ -1452,5 +1452,6 @@
   "alias.keypad": "keypad, alarm panel, security, code",
   "editor.import": "Import",
   "editor.import_sh3d": "From Sweet Home 3D (.sh3d)",
-  "editor.import_hint": "Rooms, doors, windows and furniture land in the box above as YAML: check them, link the rooms to your areas, then use it. Rooms grow to the middle of their walls."
+  "editor.import_hint": "Rooms, doors, windows and furniture land in the box above as YAML: check them, link the rooms to your areas, then use it. Rooms grow to the middle of their walls.",
+  "cardeditor.floors_all": "All floors side by side"
 }

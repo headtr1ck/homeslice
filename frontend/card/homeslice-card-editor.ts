@@ -165,6 +165,10 @@ export class HomesliceCardEditor extends LitElement {
           <option value="plan" ?selected=${this._config.mode === "plan"}>${this.t("cardeditor.mode_plan")}</option>
         </select>
       </label>
+      <label class="check" ?hidden=${this._config.mode !== "plan"}
+        ><input type="checkbox" .checked=${this._config.floors === "all"} @change=${(e: Event) => this.change({ floors: (e.target as HTMLInputElement).checked ? "all" : undefined })} />
+        ${this.t("cardeditor.floors_all")}</label
+      >
       <!-- a plan has no camera angle, floor gap or roof (kept in the page: the preview needs its canvas) -->
       <div class="three-d" ?hidden=${this._config.mode === "plan"}>
       <div class="preview">

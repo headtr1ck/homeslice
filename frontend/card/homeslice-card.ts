@@ -73,6 +73,8 @@ export interface HomesliceCardConfig {
    * time. Default `3d`.
    */
   mode?: "3d" | "plan" | "tilted";
+  /** Plans: `all` shows every floor at once, side by side (default: one at a time). */
+  floors?: "one" | "all";
   /** The floor shown first (level id); default: the whole house, or in plan mode the entrance floor. */
   level?: string;
 }
@@ -305,6 +307,11 @@ export class HomesliceCard extends LitElement {
       this.view.levels = {};
       this.view.roof = false;
       this.view.plan = true;
+      if (config.floors === "all") {
+        // every floor at once, next to each other, from straight above
+        this.view.sideBySide = true;
+        Object.assign(this.view, { azimuth: 180, elevation: 90, projection: "isometric" });
+      }
     } else if (config.mode === "tilted") {
       // a plan at an angle: walls cut low so every room is seen into
       this.view.focus = { azimuth: 180, elevation: 52, projection: "isometric", ...config.view?.focus };
@@ -763,8 +770,8 @@ export class HomesliceCard extends LitElement {
   // ----- floors -----
 
   private get plan() {
-    // one floor at a time: the plan and the tilted plan
-    return this.config?.mode === "plan" || this.config?.mode === "tilted";
+    // one floor at a time: the plan and the tilted plan (unless a plan shows all floors)
+    return (this.config?.mode === "plan" && this.config.floors !== "all") || this.config?.mode === "tilted";
   }
 
   /** The floor shown first: the configured one, else the entrance floor (HA floor level 0), else the lowest. */
@@ -949,7 +956,8 @@ export class HomesliceCard extends LitElement {
   }
 
   private hoverLevel(index: number | null) {
-    if (!this.renderer || this.transitioning || index === this._hover || this.plan) return;
+    // plans don't lift floors (side by side, nothing is above anything)
+    if (!this.renderer || this.transitioning || index === this._hover || this.plan || this.config.floors === "all") return;
     this._hover = index;
     void this.renderer.setHover(index);
   }

@@ -1452,5 +1452,6 @@
   "alias.keypad": "Bedienteil, Alarmanlage, Tastatur, Code",
   "editor.import": "Importieren",
   "editor.import_sh3d": "Aus Sweet Home 3D (.sh3d)",
-  "editor.import_hint": "Räume, Türen, Fenster und Möbel landen als YAML im Feld oben: prüfen, Räume den Bereichen zuordnen, dann übernehmen. Räume wachsen bis zur Wandmitte."
+  "editor.import_hint": "Räume, Türen, Fenster und Möbel landen als YAML im Feld oben: prüfen, Räume den Bereichen zuordnen, dann übernehmen. Räume wachsen bis zur Wandmitte.",
+  "cardeditor.floors_all": "Alle Stockwerke nebeneinander"
 }

@@ -53,6 +53,8 @@ export interface ViewOptions {
   furniture: "simple" | "detailed";
   /** A floor plan: no shadows (they read as dirt from above), gardens framed with the floor, walls dark as on a drawn plan, door swings on the floor. */
   plan: boolean;
+  /** Floors next to each other, left to right from the lowest, instead of stacked (a plan of every floor). */
+  sideBySide: boolean;
   /** Walls (and doors, windows) end at this height: a tilted plan that looks into the rooms (null: full height). */
   lowWalls: number | null;
 }
@@ -70,6 +72,7 @@ export const DEFAULT_VIEW: ViewOptions = {
   roof: false,
   furniture: "detailed",
   plan: false,
+  sideBySide: false,
   lowWalls: null,
 };
 
@@ -404,6 +407,8 @@ export class HouseRenderer {
   private leaves = new Map<string, LeafView[]>();
   private lastSpin = 0;
   private turnFrame = 0;
+  /** Where the next floor starts when floors are side by side. */
+  private sideX = 0;
   private lampObjects: THREE.Object3D[] = [];
   private glowTexture?: THREE.Texture;
   private fadeTexture?: THREE.Texture;
@@ -495,14 +500,21 @@ export class HouseRenderer {
   setModel(house: House, walls: Map<string, Wall[]>, view: Partial<ViewOptions> = {}) {
     this.view = { ...DEFAULT_VIEW, ...view, focus: { ...DEFAULT_VIEW.focus, ...view.focus }, levels: view.levels ?? {} };
     this.clear();
+    this.sideX = 0;
     this.facade = house.facade;
     for (const level of house.levels) {
       const materials = new Set<THREE.Material>();
       this.building = materials;
       const group = this.buildLevel(level, walls.get(level.id) ?? [], house.vertical);
       this.building = null;
-      const baseY = level.elevation + level.index * this.view.explode;
+      const baseY = this.view.sideBySide ? 0 : level.elevation + level.index * this.view.explode;
       group.position.y = baseY;
+      if (this.view.sideBySide) {
+        // each floor to the right of the one below, a gap between
+        const { min, max } = bbox(level.outline.length ? level.outline : level.rooms.flatMap((r) => r.polygon));
+        group.position.x = this.sideX - min[0];
+        this.sideX += max[0] - min[0] + 2;
+      }
       this.root.add(group);
       const floorMaterials = new Set(level.rooms.map((r) => this.floors.get(`${level.id}/${r.id}`)?.material));
       const tintable = [...materials].filter((m): m is THREE.MeshLambertMaterial => m instanceof THREE.MeshLambertMaterial && !floorMaterials.has(m));
@@ -2442,7 +2454,7 @@ export class HouseRenderer {
   project(levelId: string, [x, y]: Vec2, h = 0): { x: number; y: number } | null {
     const l = this.levels[this.levelIds.indexOf(levelId)];
     if (!l) return null;
-    const v = new THREE.Vector3(x, l.group.position.y + h, y).project(this.camera);
+    const v = new THREE.Vector3(x + l.group.position.x, l.group.position.y + h, y + l.group.position.z).project(this.camera);
     return { x: ((v.x + 1) / 2) * this.size.width, y: ((1 - v.y) / 2) * this.size.height };
   }
 
