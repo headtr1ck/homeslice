@@ -641,6 +641,8 @@ export class HouseRenderer {
     this.levels = [];
     this.levelIds = [];
     this.floors.clear();
+    for (const f of this.heatFields.values()) f.texture.dispose();
+    this.heatFields.clear();
     this.pieceGlows.clear();
     this.devices.clear();
     this.underfloors.clear();
@@ -1371,6 +1373,99 @@ export class HouseRenderer {
     if (color) m.userData.tint = color;
     else delete m.userData.tint;
     this.themeMaterial(m);
+  }
+
+  /** Smooth heatmaps per level: one canvas over the level's indoor floors. */
+  private heatFields = new Map<string, { texture: THREE.CanvasTexture; material: THREE.MeshBasicMaterial; meshes: THREE.Mesh[] }>();
+
+  /**
+   * A reading spread smoothly across a level's rooms (heatmap_style: smooth): each point of
+   * the floor takes the inverse-distance mean of the samples (room middles, placed sensors)
+   * and that value's colour; null removes it.
+   */
+  setHeatField(levelId: string, samples: { at: Vec2; value: number }[] | null, color: (v: number) => [number, number, number, number]) {
+    const old = this.heatFields.get(levelId);
+    const l = this.levels[this.levelIds.indexOf(levelId)];
+    if (!samples?.length || !l) {
+      if (old) {
+        for (const m of old.meshes) m.removeFromParent();
+        old.texture.dispose();
+        old.material.dispose();
+        l?.materials.delete(old.material);
+        this.heatFields.delete(levelId);
+        this.draw();
+      }
+      return;
+    }
+    const floors = [...this.floors.entries()].filter(([k, f]) => k.startsWith(`${levelId}/`) && !f.userData.outdoor).map(([, f]) => f);
+    if (!floors.length) return;
+    const box = new THREE.Box3();
+    for (const f of floors) box.expandByObject(f);
+    const g = l.group.position;
+    const min: Vec2 = [box.min.x - g.x, box.min.z - g.z];
+    const size: Vec2 = [Math.max(0.5, box.max.x - box.min.x), Math.max(0.5, box.max.z - box.min.z)];
+    // 10 px a metre, at most 384 across
+    const res = Math.min(10, 384 / Math.max(...size));
+    const w = Math.max(2, Math.ceil(size[0] * res));
+    const h = Math.max(2, Math.ceil(size[1] * res));
+    const canvas = (old?.texture.image as HTMLCanvasElement | undefined) ?? document.createElement("canvas");
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext("2d")!;
+    const img = ctx.createImageData(w, h);
+    for (let j = 0; j < h; j++) {
+      const y = min[1] + (j + 0.5) / res;
+      for (let i = 0; i < w; i++) {
+        const x = min[0] + (i + 0.5) / res;
+        let num = 0;
+        let den = 0;
+        let exact: number | null = null;
+        for (const s of samples) {
+          const d2 = (s.at[0] - x) ** 2 + (s.at[1] - y) ** 2;
+          if (d2 < 1e-4) {
+            exact = s.value;
+            break;
+          }
+          const k = 1 / d2;
+          num += s.value * k;
+          den += k;
+        }
+        const c = color(exact ?? num / den);
+        if (!c[3]) continue;
+        const o = (j * w + i) * 4;
+        img.data[o] = c[0];
+        img.data[o + 1] = c[1];
+        img.data[o + 2] = c[2];
+        img.data[o + 3] = Math.round(c[3] * 255);
+      }
+    }
+    ctx.putImageData(img, 0, 0);
+    const texture = old?.texture ?? new THREE.CanvasTexture(canvas);
+    texture.colorSpace = THREE.SRGBColorSpace;
+    // floor uvs are plan metres (x, −y): this puts the canvas over the level's floors
+    texture.repeat.set(1 / size[0], 1 / size[1]);
+    texture.offset.set(-min[0] / size[0], (min[1] + size[1]) / size[1]);
+    texture.needsUpdate = true;
+    const material = old?.material ?? new THREE.MeshBasicMaterial({ map: texture, transparent: true, opacity: 0.6, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
+    if (!old) {
+      const meshes = floors.map((f) => {
+        const m = new THREE.Mesh(f.geometry, material);
+        m.position.y = 0.003;
+        m.renderOrder = 1;
+        m.raycast = () => {};
+        f.add(m);
+        return m;
+      });
+      l.materials.add(material);
+      this.heatFields.set(levelId, { texture, material, meshes });
+      this.applyLevel(l);
+    }
+    this.draw();
+  }
+
+  /** Levels with a smooth heatmap (tests). */
+  get heatFieldLevels() {
+    return [...this.heatFields.keys()];
   }
 
   /**

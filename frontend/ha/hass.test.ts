@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { absoluteHumidity, areaReading, climateHint, hardAlerts, areaEntities, areaLight, areaPopup, areaValues, areaSensors, areaTemperature, coverOpen, daylight, HEATMAP_STEPS, stepColor, type Hass } from "./hass";
+import { stepBlend, absoluteHumidity, areaReading, climateHint, hardAlerts, areaEntities, areaLight, areaPopup, areaValues, areaSensors, areaTemperature, coverOpen, daylight, HEATMAP_STEPS, stepColor, type Hass } from "./hass";
 
 const fixture = JSON.parse(readFileSync("dev/fixtures/demo-hass.json", "utf8"));
 const hass = (): Hass => ({ ...fixture, callWS: async () => null, callService: async () => null });
@@ -130,5 +130,16 @@ describe("heatmap steps", () => {
     expect(climateHint(humid("74"), "living_room", { temperature: 28, humidity: 70 })).toBe("mould");
     expect(absoluteHumidity(20, 50)).toBeCloseTo(8.6, 1);
     expect(hardAlerts(["rain", "air", "smoke", "mould"])).toEqual(["smoke"]);
+  });
+
+  it("shades step colours into each other for a smooth heatmap", () => {
+    const t = HEATMAP_STEPS.temperature;
+    // well inside a step: its colour; comfortable: see-through
+    expect(stepBlend(19, t)).toEqual([0x6f, 0xb7, 0xe8, 1]);
+    expect(stepBlend(22, t)[3]).toBe(0);
+    // at the 20 °C step: half-way faded out of the cool blue
+    const edge = stepBlend(20, t);
+    expect(edge.slice(0, 3)).toEqual([0x6f, 0xb7, 0xe8]);
+    expect(edge[3]).toBeCloseTo(0.5);
   });
 });

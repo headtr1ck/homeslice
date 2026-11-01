@@ -189,6 +189,8 @@ presence: true                 # mark rooms with motion/occupancy/presence; leak
 lux: false                     # true: rooms as bright as their lux sensor reads (dark rooms look dark), with the reading
 quality: auto                  # low: for weak wall tablets (no shadows, plain colours, simple furniture); high; auto picks
 heatmap: temperature           # optional: tint rooms by temperature (blue cold … red hot), humidity, carbon_dioxide or pm25
+heatmap_style: smooth          # rooms (default): one colour per room; smooth: blended across the floor between the
+                               #   readings (room middles and placed sensor pieces)
 values: [temperature, humidity, carbon_dioxide]   # readings on the room labels (default: temperature), a dot when out of range
 thresholds:                    # optional: own colour steps (labels and heatmap)
   carbon_dioxide: [{ value: 800, color: orange }, { value: 1200, color: red }]

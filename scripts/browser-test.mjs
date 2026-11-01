@@ -1761,6 +1761,20 @@ if (selected()) {
     await shot(page, "demo-heatmap");
     assert(errors.length === 0, errors.join(" | "));
   });
+  await test("heatmap_style: smooth spreads the readings across each floor, no room tints", async () => {
+    await act(page, () => page.evaluate(() => window.card.setConfig({ ...window.card.config, heatmap_style: "smooth" })));
+    const r = await page.evaluate(() => ({ levels: window.card.renderer.heatFieldLevels, tint: window.card.renderer.floors.get("first/bedroom")?.material.userData.tint ?? null }));
+    assert(r.levels.includes("first") && r.tint === null, JSON.stringify(r));
+    await shot(page, "demo-heatmap-smooth");
+    await act(page, () =>
+      page.evaluate(() => {
+        const { heatmap_style, ...config } = window.card.config;
+        window.card.setConfig(config);
+      }),
+    );
+    assert(!(await page.evaluate(() => window.card.renderer.heatFieldLevels.length)), "smooth field left behind");
+    assert(errors.length === 0, errors.join(" | "));
+  });
   await page.close();
 }
 

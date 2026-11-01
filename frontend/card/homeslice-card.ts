@@ -1,5 +1,5 @@
 import { LitElement, css, html, nothing, svg, type PropertyValues } from "lit";
-import { HEATMAP_STEPS, areaEntities, areaValues, type AreaValue, areaIlluminance, areaPopup, areaReading, areaTemperature, daylight, stepColor, contactOpen, coverOpen, lightsLook, type Hass, type PopupSection, alertIcon, areaSensors, type AreaSensors, alarmTriggered, climateHint, hardAlerts } from "../ha/hass";
+import { HEATMAP_STEPS, areaEntities, areaValues, type AreaValue, areaIlluminance, areaPopup, areaReading, areaTemperature, daylight, stepColor, stepBlend, contactOpen, coverOpen, lightsLook, type Hass, type PopupSection, alertIcon, areaSensors, type AreaSensors, alarmTriggered, climateHint, hardAlerts } from "../ha/hass";
 import { formatNumber, loadLanguage, localize, type StringKey } from "../i18n/localize";
 import { expandHouse } from "../model/expand";
 import { labelPoint } from "../model/geometry";
@@ -161,6 +161,8 @@ export interface HomesliceCardConfig {
   weather_effects?: boolean;
   /** Show underfloor heating loops glowing in the floor while they heat (default false). */
   heating?: boolean;
+  /** `smooth`: the heatmap blends across the floors between the readings; `rooms` (default): one colour per room. */
+  heatmap_style?: "rooms" | "smooth";
   /** Notes on humid rooms: air it (when the air outside, from `weather`, is drier) or a mould risk (default false). */
   climate_hints?: boolean;
 }
@@ -489,7 +491,7 @@ export class HomesliceCard extends LitElement {
     } else this.applySavedViews();
     this.loadedFor = undefined;
     // a changed look or what the rooms show applies at once (a new house is drawn by load())
-    const visual = ["look", "accent", "heatmap", "values", "thresholds", "lux", "presence", "heating", "badges", "climate_hints"] as const;
+    const visual = ["look", "accent", "heatmap", "values", "thresholds", "lux", "presence", "heating", "badges", "climate_hints", "heatmap_style"] as const;
     if (this.renderer && this.house && this.hass && visual.some((k) => JSON.stringify(previous?.[k]) !== JSON.stringify(config[k]))) {
       this.stateSignature = "";
       this.syncStates();
@@ -1345,6 +1347,23 @@ export class HomesliceCard extends LitElement {
     });
   }
 
+  /** Per level: where a reading is known, from the rooms' sensors (at their middles) and placed sensor pieces. */
+  private heatSamples(hass: Hass, kind: string, roomValues: (number | null)[]) {
+    const out: Record<string, { at: Vec2; value: number }[]> = {};
+    this.rooms.forEach((r, i) => {
+      const v = roomValues[i];
+      if (v !== null) (out[r.levelId] ??= []).push({ at: r.point, value: v });
+    });
+    for (const l of this.house!.levels)
+      for (const room of l.rooms)
+        for (const f of room.furniture) {
+          const s = f.entity?.startsWith("sensor.") ? hass.states[f.entity] : undefined;
+          const v = Number(s?.state);
+          if (s?.attributes.device_class === kind && Number.isFinite(v)) (out[l.id] ??= []).push({ at: f.at, value: v });
+        }
+    return out;
+  }
+
   /** The weather's temperature and humidity outside, if the card has a weather entity. */
   private outsideAir() {
     const a = this.config.weather ? this.hass?.states[this.config.weather]?.attributes : undefined;
@@ -1490,12 +1509,15 @@ export class HomesliceCard extends LitElement {
         : this.config.look === "auto" && hass.states["sun.sun"]?.state === "below_horizon"
           ? "night"
           : "day";
+    const smooth = this.config.heatmap_style === "smooth";
     const heat = this.rooms.map((r) => {
       const kind = this.config.heatmap;
       const v = kind && r.room.areaId && r.room.kind === "room" ? areaReading(hass, r.room.areaId, kind) : null;
-      return v === null || !kind ? null : stepColor(v, this.steps[kind] ?? []);
+      return v === null || !kind ? null : smooth ? v : stepColor(v, this.steps[kind] ?? []);
     });
-    const signature = JSON.stringify([look, this.config.accent, lux, heat, lights, lamps, covers, contacts, doorNotes, values, sensors, awnings, devices, roofWindows, underfloor, badges, energyDetails, weather, this.placedPeople(hass).map((p) => [p.key, p.levelId, p.at]), this.config.weather ? hass.states[this.config.weather]?.attributes.temperature : null, cameras, this.energyReadings, this.robotReadings, this.robotNeeds, sunAt]);
+    // smooth: each level's readings where they are (room middles, placed sensors), spread across its floors
+    const fields = smooth && this.config.heatmap ? this.heatSamples(hass, this.config.heatmap, heat as (number | null)[]) : null;
+    const signature = JSON.stringify([look, this.config.accent, lux, heat, fields, lights, lamps, covers, contacts, doorNotes, values, sensors, awnings, devices, roofWindows, underfloor, badges, energyDetails, weather, this.placedPeople(hass).map((p) => [p.key, p.levelId, p.at]), this.config.weather ? hass.states[this.config.weather]?.attributes.temperature : null, cameras, this.energyReadings, this.robotReadings, this.robotNeeds, sunAt]);
     if (signature === this.stateSignature) return;
     this.stateSignature = signature;
     this.lamps.forEach((l, i) => this.renderer!.setLamp(l.entity, lamps[i]));
@@ -1512,9 +1534,11 @@ export class HomesliceCard extends LitElement {
     this.rooms.forEach((r, i) => {
       this.renderer!.setRoomLight(r.levelId, r.room.id, lights[i]);
       this.renderer!.setRoomDaylight(r.levelId, r.room.id, lux[i]);
-      this.renderer!.setRoomTint(r.levelId, r.room.id, heat[i]);
+      this.renderer!.setRoomTint(r.levelId, r.room.id, smooth ? null : (heat[i] as string | null));
       if (r.room.awning) this.renderer!.setAwning(r.levelId, r.room.id, awnings[i]);
     });
+    const kind = this.config.heatmap;
+    for (const l of this.house.levels) this.renderer.setHeatField(l.id, fields?.[l.id] ?? null, (v) => (kind ? stepBlend(v, this.steps[kind] ?? []) : [0, 0, 0, 0]));
     this.openings.forEach((o, i) => {
       this.renderer!.setCover(o.id, covers[i]);
       this.renderer!.setContact(o.id, contacts[i]);

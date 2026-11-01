@@ -211,6 +211,29 @@ export function stepColor(value: number, steps: Steps): string | null {
   return color;
 }
 
+const hexRgb = (c: string) => [1, 3, 5].map((i) => parseInt(c.slice(i, i + 2), 16));
+
+/**
+ * A step colour that shades into the next around each step (over a third of the gap to
+ * its neighbours), as [r, g, b, alpha 0…1]; comfortable (null) is see-through.
+ */
+export function stepBlend(value: number, steps: Steps): [number, number, number, number] {
+  const rgba = (c: string | null): [number, number, number, number] => (c ? [...(hexRgb(c) as [number, number, number]), 1] : [0, 0, 0, 0]);
+  for (let k = 1; k < steps.length; k++) {
+    const at = steps[k].value;
+    const gaps = [at - steps[k - 1].value, (steps[k + 1]?.value ?? Infinity) - at].filter(Number.isFinite);
+    const half = gaps.length ? Math.min(...gaps) / 3 : 1;
+    if (value < at - half || value > at + half) continue;
+    const t = (value - (at - half)) / (2 * half);
+    const [a, b] = [rgba(steps[k - 1].color), rgba(steps[k].color)];
+    // into or out of see-through: keep the colour, fade only its strength
+    const from = a[3] ? a : ([b[0], b[1], b[2], 0] as const);
+    const to = b[3] ? b : ([a[0], a[1], a[2], 0] as const);
+    return [0, 1, 2, 3].map((i) => from[i] + (to[i] - from[i]) * t) as [number, number, number, number];
+  }
+  return rgba(stepColor(value, steps));
+}
+
 /** The area's light level in lux: its first illuminance sensor, or null. */
 export function areaIlluminance(hass: Hass, areaId: string): number | null {
   const id = areaEntities(hass, areaId, "sensor").find((e) => hass.states[e]?.attributes.device_class === "illuminance");

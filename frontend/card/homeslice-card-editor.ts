@@ -237,6 +237,12 @@ export class HomesliceCardEditor extends LitElement {
           ${(["", "temperature", "humidity", "carbon_dioxide", "pm25"] as const).map((h) => html`<option value=${h} ?selected=${(this._config.heatmap ?? "") === h}>${this.t(`cardeditor.heatmap_${h || "none"}`)}</option>`)}
         </select>
       </label>
+      <label ?hidden=${!this._config.heatmap}
+        >${this.t("cardeditor.heatmap_style")}
+        <select @change=${(e: Event) => this.change({ heatmap_style: (e.target as HTMLSelectElement).value === "smooth" ? "smooth" : undefined })}>
+          ${(["rooms", "smooth"] as const).map((v) => html`<option value=${v} ?selected=${(this._config.heatmap_style ?? "rooms") === v}>${this.t(`cardeditor.heatmap_style_${v}`)}</option>`)}
+        </select>
+      </label>
       <label
         >${this.t("cardeditor.lamp_style")}
         <select @change=${(e: Event) => this.change({ lamp_style: (e.target as HTMLSelectElement).value === "circle" ? "circle" : undefined })}>
