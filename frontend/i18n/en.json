@@ -420,6 +420,7 @@
   "cardeditor.look_auto": "Auto (night after sunset)",
   "cardeditor.accent": "Outline colour",
   "cardeditor.sun": "Light from the real sun, darker at night (needs sun.sun)",
+  "cardeditor.lux": "Rooms as bright as their lux sensor reads, with the reading",
   "editor.north": "Real north (°)",
   "editor.north_hint": "The plan doesn't have to face north: its top is \"north\" in the house file. Enter which way the top of the plan really faces, in degrees east of true north (e.g. 23 if the house is turned a little clockwise). The cards light the house from the real sun with it.",
   "editor.compass": "Real north: {deg}° from the plan's top (click to change)",

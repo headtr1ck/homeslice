@@ -101,6 +101,21 @@ export function areaTemperature(hass: Hass, areaId: string): string | null {
   return `${formatNumber(hass.locale, Number(s.state), 1)} ${unit}`.trim();
 }
 
+/** The area's light level in lux: its first illuminance sensor, or null. */
+export function areaIlluminance(hass: Hass, areaId: string): number | null {
+  const id = areaEntities(hass, areaId, "sensor").find((e) => hass.states[e]?.attributes.device_class === "illuminance");
+  const v = id ? Number(hass.states[id]?.state) : NaN;
+  return Number.isFinite(v) ? v : null;
+}
+
+/**
+ * How bright a room looks from its lux reading, 0 (dark) … 1 (daylight, 300 lx and
+ * more), on a log scale as eyes see it.
+ */
+export function daylight(lux: number): number {
+  return Math.max(0, Math.min(1, Math.log10(Math.max(0, lux) + 1) / Math.log10(301)));
+}
+
 export interface PopupSection {
   title: "lights" | "covers" | "climate" | "media" | "devices" | "sensors";
   cards: Record<string, unknown>[];

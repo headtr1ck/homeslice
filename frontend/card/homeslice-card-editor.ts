@@ -231,6 +231,10 @@ export class HomesliceCardEditor extends LitElement {
         ${this.t("cardeditor.sun")}</label
       >
       <label class="check"
+        ><input type="checkbox" .checked=${this._config.lux === true} @change=${(e: Event) => this.change({ lux: (e.target as HTMLInputElement).checked || undefined })} />
+        ${this.t("cardeditor.lux")}</label
+      >
+      <label class="check"
         ><input type="checkbox" .checked=${this._config.presence !== false} @change=${(e: Event) => this.change({ presence: (e.target as HTMLInputElement).checked ? undefined : false })} />
         ${this.t("cardeditor.presence")}</label
       >

@@ -420,6 +420,7 @@
   "cardeditor.look_auto": "Automatisch (Nacht nach Sonnenuntergang)",
   "cardeditor.accent": "Farbe der Umrisse",
   "cardeditor.sun": "Licht von der echten Sonne, nachts dunkler (benötigt sun.sun)",
+  "cardeditor.lux": "Räume so hell, wie ihr Lux-Sensor misst, mit dem Messwert",
   "editor.north": "Echtes Nord (°)",
   "editor.north_hint": "Der Plan muss nicht nach Norden zeigen: seine Oberseite heißt in der Hausdatei „north“. Gib an, wohin die Oberseite des Plans tatsächlich zeigt, in Grad östlich von geografisch Nord (z. B. 23, wenn das Haus etwas im Uhrzeigersinn gedreht ist). Die Karten beleuchten das Haus damit von der echten Sonne.",
   "editor.compass": "Echtes Nord: {deg}° zur Oberseite des Plans (klicken zum Ändern)",

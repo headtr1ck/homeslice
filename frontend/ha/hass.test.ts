@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { areaEntities, areaLight, areaPopup, areaSensors, areaTemperature, coverOpen, type Hass } from "./hass";
+import { areaEntities, areaLight, areaPopup, areaSensors, areaTemperature, coverOpen, daylight, type Hass } from "./hass";
 
 const fixture = JSON.parse(readFileSync("dev/fixtures/demo-hass.json", "utf8"));
 const hass = (): Hass => ({ ...fixture, callWS: async () => null, callService: async () => null });
@@ -56,5 +56,14 @@ describe("inverted covers", () => {
   it("reads the position the other way round", () => {
     expect(coverOpen(hass, "cover.a")).toBeCloseTo(0.7);
     expect(coverOpen(hass, "cover.a", true)).toBeCloseTo(0.3);
+  });
+});
+
+describe("daylight from lux", () => {
+  it("is 0 in the dark, 1 from 300 lx, on a log scale", () => {
+    expect(daylight(0)).toBe(0);
+    expect(daylight(300)).toBeCloseTo(1);
+    expect(daylight(5000)).toBe(1);
+    expect(daylight(17)).toBeCloseTo(0.5, 1);
   });
 });

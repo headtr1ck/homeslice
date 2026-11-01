@@ -145,6 +145,7 @@ sun: true                      # light from the real sun (sun.sun), darker at ni
 look: day                      # or night (dark, glowing outlines) or auto (night after sunset)
 accent: "#4fc3f7"              # the night look's outline colour
 presence: true                 # mark rooms with motion/occupancy/presence; leak, smoke and gas alarms always show
+lux: false                     # true: rooms as bright as their lux sensor reads (dark rooms look dark), with the reading
 level: ground                  # optional: the floor shown first (plan: default the entrance floor)
 view:                          # all optional
   azimuth: 250                 # overview camera: 0 north, 90 east, 180 south, 270 west

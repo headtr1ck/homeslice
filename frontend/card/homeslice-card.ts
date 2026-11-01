@@ -1,5 +1,5 @@
 import { LitElement, css, html, nothing, svg, type PropertyValues } from "lit";
-import { areaEntities, areaPopup, areaTemperature, contactOpen, coverOpen, lightsLook, type Hass, type PopupSection, alertIcon, areaSensors, type AreaSensors } from "../ha/hass";
+import { areaEntities, areaIlluminance, areaPopup, areaTemperature, daylight, contactOpen, coverOpen, lightsLook, type Hass, type PopupSection, alertIcon, areaSensors, type AreaSensors } from "../ha/hass";
 import { formatNumber, localize, type StringKey } from "../i18n/localize";
 import { expandHouse } from "../model/expand";
 import { labelPoint } from "../model/geometry";
@@ -36,6 +36,8 @@ export interface HomesliceCardConfig {
   look?: "day" | "night" | "auto";
   /** The night look's outline colour (CSS colour, default light blue). */
   accent?: string;
+  /** Rooms with a lux sensor look as bright as it reads, and show it on their label (default false). */
+  lux?: boolean;
   /** Mark rooms with someone in them (motion, occupancy, presence sensors; default true). Leak, smoke and gas alarms always show. */
   presence?: boolean;
   /** `plan`: a flat floor plan seen from straight above, one floor at a time (default `3d`). */
@@ -580,6 +582,8 @@ export class HomesliceCard extends LitElement {
     const covers = this.openings.map((o) => (o.cover ? coverOpen(hass, o.cover, inverted.has(o.cover)) : null));
     const contacts = this.openings.map((o) => (o.contact ? contactOpen(hass, o.contact) : false));
     const temperatures = this.rooms.map((r) => (r.room.areaId ? areaTemperature(hass, r.room.areaId) : null));
+    // lux readings, rounded so small changes don't redraw (outside, the sun does it)
+    const lux = this.rooms.map((r) => (this.config.lux && r.room.areaId && r.room.kind === "room" ? areaIlluminance(hass, r.room.areaId) : null)).map((v) => (v === null ? null : Math.round(daylight(v) * 20) / 20));
     // an alarm turns the room's floor red, over its lights
     const sensors = this.rooms.map((r) => this.roomSensors(r.room));
     sensors.forEach((s, i) => {
@@ -594,7 +598,7 @@ export class HomesliceCard extends LitElement {
     const sunAt = typeof sun?.azimuth === "number" && typeof sun?.elevation === "number" ? [Math.round(sun.azimuth - this.house.north), Math.round(sun.elevation)] : null;
     // the look: auto follows the sun (night while it is below the horizon)
     const look = this.config.look === "night" || (this.config.look === "auto" && hass.states["sun.sun"]?.state === "below_horizon") ? "night" : "day";
-    const signature = JSON.stringify([look, this.config.accent, lamps, covers, contacts, temperatures, sensors, awnings, devices, this.energyReadings, this.robotReadings, sunAt]);
+    const signature = JSON.stringify([look, this.config.accent, lux, lights, lamps, covers, contacts, temperatures, sensors, awnings, devices, this.energyReadings, this.robotReadings, sunAt]);
     if (signature === this.stateSignature) return;
     this.stateSignature = signature;
     this.lamps.forEach((l, i) => this.renderer!.setLamp(l.entity, lamps[i]));
@@ -605,6 +609,7 @@ export class HomesliceCard extends LitElement {
     if (this.config.energy) this.renderer.setFlows(Object.fromEntries(this.house.energy.map((e, i) => [`energy-${e.index}`, this.energyReadings[i]?.flow ?? null])));
     this.rooms.forEach((r, i) => {
       this.renderer!.setRoomLight(r.levelId, r.room.id, lights[i]);
+      this.renderer!.setRoomDaylight(r.levelId, r.room.id, lux[i]);
       if (r.room.awning) this.renderer!.setAwning(r.levelId, r.room.id, awnings[i]);
     });
     this.openings.forEach((o, i) => {
@@ -613,6 +618,13 @@ export class HomesliceCard extends LitElement {
     });
     this.animateFlows();
     this.scheduleDraw();
+  }
+
+  /** A room's lux reading for its label, when the card shows them. */
+  private luxText(r: PlacedRoom): string | null {
+    if (!this.config.lux || !this.hass || !r.room.areaId || r.room.kind !== "room") return null;
+    const v = areaIlluminance(this.hass, r.room.areaId);
+    return v === null ? null : `${formatNumber(this.hass.locale, Math.round(v), 0)} lx`;
   }
 
   /** A room's motion/presence and alarm sensors, as the card shows them. */
@@ -993,7 +1005,7 @@ export class HomesliceCard extends LitElement {
         levelIndex: r.levelIndex,
         ...p,
         name: this.roomName(r),
-        temperature: areaId ? areaTemperature(this.hass, areaId) : null,
+        temperature: [areaId ? areaTemperature(this.hass, areaId) : null, this.luxText(r)].filter(Boolean).join(" · ") || null,
         areaId,
         ...this.roomSensors(r.room),
         hasLights: this.roomLights(r.key).length > 0,

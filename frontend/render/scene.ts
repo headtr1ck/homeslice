@@ -1016,6 +1016,17 @@ export class HouseRenderer {
   // ----- live state -----
 
   /** Lights a room's floor in the light's colour; `null` switches it off. */
+  /**
+   * How much daylight a room gets (0 dark … 1 bright, from its lux sensor), or null to
+   * follow the sun alone: its floor dims, its lights still glow.
+   */
+  setRoomDaylight(levelId: string, roomId: string, k: number | null) {
+    const m = this.floors.get(`${levelId}/${roomId}`)?.material;
+    if (!m) return;
+    const base = (m.userData.daylightBase ??= m.color.clone()) as THREE.Color;
+    m.color.copy(base).multiplyScalar(k === null ? 1 : 0.3 + 0.7 * k);
+  }
+
   setRoomLight(levelId: string, roomId: string, light: LightLook | null) {
     const m = this.floors.get(`${levelId}/${roomId}`)?.material;
     if (!m) return;
