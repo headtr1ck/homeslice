@@ -2987,6 +2987,14 @@ export class HomesliceCard extends LitElement {
     }
     /* narrow cards (phones): the floors become a row of chips above the house */
     @container homeslice (max-width: 600px) {
+      /* the floors are a row along the top: the weather and the clock go below it */
+      .weather,
+      .clock {
+        top: 60px;
+      }
+      .weather.below-clock {
+        top: 100px;
+      }
       .levels {
         position: static;
         flex-direction: row;

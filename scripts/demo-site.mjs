@@ -20,6 +20,8 @@ const f = showcase(fixture());
 f.states["sun.sun"] = { entity_id: "sun.sun", state: "above_horizon", attributes: { azimuth: 200, elevation: 35, friendly_name: "Sun" } };
 f.states["weather.home"] = { entity_id: "weather.home", state: "partlycloudy", attributes: { temperature: 18, temperature_unit: "°C", friendly_name: "Home" } };
 f.config = { latitude: 48.4, longitude: 10.9 };
+// covers (blinds, the awning) move over a moment, as real ones report
+f.instantCovers = false;
 writeFileSync(join(out, "demo.json"), JSON.stringify(f));
 
 // only the icons the code names (all of them would be megabytes)

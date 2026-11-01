@@ -115,7 +115,7 @@ interface CameraState {
 /** How the house is drawn: by day, at night, as a white model or as a blueprint. */
 export type Look = "day" | "night" | "white" | "blueprint";
 
-const BLUEPRINT = { background: "#0b1a33", surface: "#2f5c9e", glass: "#6aa6ff" };
+const BLUEPRINT = { background: "#0b1a33", surface: "#2f5c9e", glass: "#6aa6ff", piece: "#7fb2f0" };
 
 /** The night look's outlines, unless the card picks another colour. */
 export const DEFAULT_ACCENT = "#4fc3f7";
@@ -666,6 +666,7 @@ export class HouseRenderer {
     this.lamps.clear();
     this.lampObjects = [];
     this.cuttables = [];
+    this.swingMaterials = [];
   }
 
   private mesh<M extends THREE.Material | THREE.Material[]>(geometry: THREE.BufferGeometry, material: M, shadows = true) {
@@ -761,6 +762,8 @@ export class HouseRenderer {
     const garage = this.lambert(COLORS.garageDoor);
     const doorLeaf = this.lambert(COLORS.door);
     const whiteLeaf = this.lambert(COLORS.entranceDoor);
+    // doors stand out from their walls in the white and blueprint looks, like furniture
+    for (const m of [garage, doorLeaf, whiteLeaf]) m.userData.piece = true;
     const frosted = this.lambert(COLORS.frosted, { transparent: true, opacity: 0.85 });
     for (const w of walls) {
       if (w.type === "open") continue; // rooms open to each other: no wall
@@ -950,8 +953,17 @@ export class HouseRenderer {
     this.setSun(this.sunAt?.azimuth ?? null, this.sunAt?.elevation ?? null);
   }
 
+  /** Door swings on plans, for their look. */
+  private swingMaterials: LineMaterial[] = [];
+
+  private themeSwing(m: LineMaterial) {
+    m.color.set(this.look === "white" ? "#b9bdc1" : this.look === "blueprint" ? BLUEPRINT.glass : COLORS.planWall);
+    m.opacity = this.look === "white" ? 0.55 : 0.8;
+  }
+
   /** Every material in the house in the look's colours (or back in its own). */
   private applyTheme() {
+    for (const m of this.swingMaterials) this.themeSwing(m);
     for (const level of this.levels) for (const m of level.materials) this.themeMaterial(m);
   }
 
@@ -967,8 +979,9 @@ export class HouseRenderer {
     const plain = this.look === "white" || this.look === "blueprint";
     const see = m.transparent && ((m.userData.baseOpacity as number | undefined) ?? m.opacity) < 0.9;
     if (!plain) m.color.copy(own.color);
-    else if (this.look === "white") m.color.set(see ? "#dfe8ee" : "#f1f0ec");
-    else m.color.set(see ? BLUEPRINT.glass : BLUEPRINT.surface);
+    // furniture a shade off the rooms, so it shows even with every lamp off
+    else if (this.look === "white") m.color.set(see ? "#dfe8ee" : m.userData.piece ? "#dcdad4" : "#f1f0ec");
+    else m.color.set(see ? BLUEPRINT.glass : m.userData.piece ? BLUEPRINT.piece : BLUEPRINT.surface);
     const map = plain ? null : own.map;
     if (m.map !== map) {
       m.map = map;
@@ -1072,6 +1085,9 @@ export class HouseRenderer {
       }
     }
     const material = new LineMaterial({ color: COLORS.planWall, linewidth: 1.2, transparent: true, opacity: 0.8 });
+    // (in the look's colours: soft on a white model, glowing on a blueprint)
+    this.swingMaterials.push(material);
+    this.themeSwing(material);
     material.resolution.set(this.size.width, this.size.height);
     this.building?.add(material);
     const line = new LineSegments2(new LineSegmentsGeometry().setPositions(pts), material);
@@ -1169,6 +1185,7 @@ export class HouseRenderer {
   }
 
   private moveLeaves(dt: number) {
+
     for (const list of this.leaves.values())
       for (const l of list) {
         if (l.now === l.target) continue;
@@ -1414,13 +1431,21 @@ export class HouseRenderer {
     mesh.rotation.y = Math.atan2(n[0], n[1]);
     mesh.rotation.x = Math.atan2(drop, reach);
     mesh.userData.outdoor = true;
+    // the cassette on the wall: the fabric rolls out of it and back in (it stays when rolled up)
+    const cassette = this.mesh(new THREE.CylinderGeometry(0.09, 0.09, len, 16).rotateZ(Math.PI / 2), this.lambert("#d9d9d4"));
+    cassette.position.copy(mesh.position).add(new THREE.Vector3(n[0] * 0.09, 0.02, n[1] * 0.09));
+    cassette.rotation.y = mesh.rotation.y;
+    cassette.userData.outdoor = true;
     // a tap on it works it, like on any linked piece
     if (room.awning) {
-      mesh.userData.entity = room.awning;
-      this.linked.push(mesh);
+      for (const m of [mesh, cassette]) {
+        m.userData.entity = room.awning;
+        this.linked.push(m);
+      }
     }
+    mesh.visible = false;
     this.awnings.set(`${level.id}/${room.id}`, mesh);
-    g.add(mesh);
+    g.add(mesh, cassette);
   }
 
   /**
@@ -2580,6 +2605,8 @@ export class HouseRenderer {
         m = new THREE.MeshLambertMaterial({ color: modelColor(source), map: s.map ?? null, transparent: s.transparent, opacity: s.opacity, side: s.side, emissive: s.emissive ?? 0x000000, emissiveIntensity: s.emissiveIntensity ?? 1 });
         if (source.userData.glow) m.userData.glow = true;
         if (source.userData.part) m.userData.part = source.userData.part;
+        // furniture: its own shade in the white and blueprint looks
+        m.userData.piece = true;
         converted.set(source, m);
         materials.add(m);
         this.themeMaterial(m);
@@ -2642,6 +2669,7 @@ export class HouseRenderer {
   }
 
   /** Awning position: 1 fully extended, 0 retracted, null unknown (drawn retracted). */
+  /** How far an awning is out (0…1), as its cover reports it (a moving awning reports as it goes). */
   setAwning(levelId: string, roomId: string, open: number | null) {
     const m = this.awnings.get(`${levelId}/${roomId}`);
     if (!m) return;

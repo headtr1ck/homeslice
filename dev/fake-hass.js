@@ -26,6 +26,29 @@ export function makeHass(fixture, onChange) {
     states = { ...states, [id]: { ...states[id], state, attributes: { ...states[id].attributes, ...attributes } } };
   };
 
+  // covers move like real ones: a tenth a step, reporting opening/closing on the way
+  // (instant with `fixture.instantCovers`, which the browser tests use)
+  const moving = new Map();
+  const move = (id, to) => {
+    clearInterval(moving.get(id));
+    const from = states[id]?.attributes.current_position ?? (states[id]?.state === "open" ? 100 : 0);
+    if (fixture.instantCovers !== false || from === to) {
+      set(id, to > 0 ? "open" : "closed", { current_position: to });
+      return;
+    }
+    let pos = from;
+    set(id, to > from ? "opening" : "closing", { current_position: pos });
+    moving.set(
+      id,
+      setInterval(() => {
+        pos = to > pos ? Math.min(to, pos + 4) : Math.max(to, pos - 4);
+        set(id, pos === to ? (to > 0 ? "open" : "closed") : to > from ? "opening" : "closing", { current_position: pos });
+        onChange(snapshot());
+        if (pos === to) clearInterval(moving.get(id));
+      }, 120),
+    );
+  };
+
   const hass = {
     locale: { language: fixture.language ?? "en" },
     areas: fixture.areas,
@@ -187,11 +210,10 @@ export function makeHass(fixture, onChange) {
         const cur = states[id]?.state;
         if (service === "turn_on") set(id, "on", { brightness: data.brightness ?? 255 });
         else if (service === "turn_off") set(id, "off");
-        else if (service === "toggle" && id.startsWith("cover."))
-          cur === "closed" ? set(id, "open", { current_position: 100 }) : set(id, "closed", { current_position: 0 });
+        else if (service === "toggle" && id.startsWith("cover.")) move(id, cur === "closed" || cur === "closing" ? 100 : 0);
         else if (service === "toggle") set(id, cur === "on" ? "off" : "on");
-        else if (service === "open_cover") set(id, "open", { current_position: 100 });
-        else if (service === "close_cover") set(id, "closed", { current_position: 0 });
+        else if (service === "open_cover") move(id, 100);
+        else if (service === "close_cover") move(id, 0);
         else if (service === "set_cover_position")
           set(id, data.position > 0 ? "open" : "closed", { current_position: data.position });
       }

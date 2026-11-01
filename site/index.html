@@ -51,7 +51,8 @@
     el.setConfig(config);
     document.getElementById("card").replaceChildren(el);
     hass = hass ?? makeHass(fixture, (h) => (card.hass = h));
-    el.hass = hass;
+    // the house as it is now (lights switched, blinds moved), not as it started
+    el.hass = card?.hass ?? hass;
     card = el;
   };
   mount();
