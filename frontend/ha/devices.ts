@@ -41,6 +41,11 @@ export function deviceLook(hass: Hass, entityId: string, inverted = false): Devi
       if (!Number.isNaN(n)) return { on: n > 2, active: n > 2 };
       return { on: !OFF.has(state), active: RUNNING.has(state) || !OFF.has(state) };
     }
+    case "binary_sensor": {
+      // alarms (smoke, water, gas…) light up red, other sensors green while on
+      const alarm = ["smoke", "moisture", "gas", "carbon_monoxide", "safety", "problem", "tamper"].includes(String(s.attributes.device_class));
+      return { on: state === "on", active: state === "on", tone: alarm && state === "on" ? "alarm" : null };
+    }
     default:
       return { on: !OFF.has(state), active: RUNNING.has(state) || !OFF.has(state) };
   }
@@ -60,6 +65,13 @@ export function linkDomain(type: string, kind: string | undefined): string | und
   if (/^(tv_|monitor|projector|speaker)/.test(kind)) return "media_player";
   if (/^(fireplace|fire_pit)/.test(kind)) return "switch";
   if (/^(garden_light|string_lights|lantern|aquarium)/.test(kind)) return "light";
+  if (/^(smoke_detector|leak_sensor|motion_sensor|contact_sensor)/.test(kind)) return "binary_sensor";
+  if (kind === "thermostat") return "climate";
+  if (kind === "climate_sensor") return "sensor";
+  if (kind === "smart_plug") return "switch";
+  if (/^(doorbell_camera|security_camera)/.test(kind)) return "camera";
+  if (kind === "smart_speaker") return "media_player";
+  if (kind === "keypad") return "alarm_control_panel";
   if (/^(washer|dryer|kitchen_dishwasher|wallbox|water_heater)/.test(kind)) return "sensor";
   return undefined;
 }

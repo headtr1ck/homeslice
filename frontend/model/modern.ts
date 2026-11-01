@@ -408,6 +408,23 @@ export const MODERN_GROUPS: { id: string; kinds: ModernKind[] }[] = [
     ],
   },
   {
+    id: "smart",
+    kinds: [
+      k("smoke_detector", "item", [0.12, 0.12, 0.045], ["white"], { mount: "ceiling" }),
+      k("leak_sensor", "item", [0.07, 0.07, 0.025], ["white", "black"]),
+      k("motion_sensor", "item", [0.07, 0.06, 0.09], ["white", "black"], { mount: "wall", elevation: 2.1 }),
+      k("contact_sensor", "item", [0.06, 0.02, 0.05], ["white", "black"], { mount: "wall", elevation: 1.9 }),
+      k("thermostat", "item", [0.09, 0.025, 0.09], ["white", "black", "silver"], { mount: "wall", elevation: 1.45 }),
+      k("climate_sensor", "item", [0.06, 0.02, 0.06], ["white", "black"], { mount: "wall", elevation: 1.5 }),
+      k("smart_plug", "item", [0.06, 0.04, 0.06], ["white", "black"], { mount: "wall", elevation: 0.3 }),
+      k("doorbell_camera", "item", [0.05, 0.03, 0.14], ["black", "silver", "white"], { mount: "wall", elevation: 1.35 }),
+      k("security_camera", "item", [0.09, 0.14, 0.1], ["white", "black"], { mount: "wall", elevation: 2.3 }),
+      k("smart_hub", "item", [0.12, 0.12, 0.03], ["white", "black"]),
+      k("smart_speaker", "item", [0.1, 0.1, 0.15], ["grey", "black", "white", "sand"]),
+      k("keypad", "item", [0.08, 0.02, 0.12], ["white", "black"], { mount: "wall", elevation: 1.4 }),
+    ],
+  },
+  {
     id: "climate",
     kinds: [
       k("ac_split", "item", [0.9, 0.25, 0.3], ["white", "silver", "black"], { mount: "wall", elevation: 2.0 }),

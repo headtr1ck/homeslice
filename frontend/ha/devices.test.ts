@@ -29,6 +29,13 @@ describe("linked devices", () => {
     expect(deviceLook(h, "sensor.done")?.active).toBe(false);
     expect(deviceLook(h, "switch.fire")?.on).toBe(true);
   });
+  it("lights alarms red", () => {
+    const h = hass({ "binary_sensor.smoke": ["on", { device_class: "smoke" }], "binary_sensor.motion": ["on", { device_class: "motion" }], "binary_sensor.leak": ["off", { device_class: "moisture" }] });
+    expect(deviceLook(h, "binary_sensor.smoke")).toEqual({ on: true, active: true, tone: "alarm" });
+    expect(deviceLook(h, "binary_sensor.motion")?.tone).toBeNull();
+    expect(deviceLook(h, "binary_sensor.leak")).toEqual({ on: false, active: false, tone: null });
+    expect(linkDomain("item", "smoke_detector")).toBe("binary_sensor");
+  });
   it("suggests what to link", () => {
     expect(linkDomain("table_lamp", "lamp_table_globe")).toBe("light");
     expect(linkDomain("item", "ac_split")).toBe("climate");

@@ -6539,6 +6539,206 @@
    "mount": "ceiling"
   },
   {
+   "model": "modern:smoke_detector",
+   "name": "Smoke detector",
+   "group": "smart",
+   "type": "item",
+   "size": [
+    0.12,
+    0.12,
+    0.045
+   ],
+   "finishes": [
+    "white"
+   ],
+   "mount": "ceiling"
+  },
+  {
+   "model": "modern:leak_sensor",
+   "name": "Water leak sensor",
+   "group": "smart",
+   "type": "item",
+   "size": [
+    0.07,
+    0.07,
+    0.025
+   ],
+   "finishes": [
+    "white",
+    "black"
+   ]
+  },
+  {
+   "model": "modern:motion_sensor",
+   "name": "Motion sensor",
+   "group": "smart",
+   "type": "item",
+   "size": [
+    0.07,
+    0.06,
+    0.09
+   ],
+   "finishes": [
+    "white",
+    "black"
+   ],
+   "mount": "wall",
+   "elevation": 2.1
+  },
+  {
+   "model": "modern:contact_sensor",
+   "name": "Door/window contact",
+   "group": "smart",
+   "type": "item",
+   "size": [
+    0.06,
+    0.02,
+    0.05
+   ],
+   "finishes": [
+    "white",
+    "black"
+   ],
+   "mount": "wall",
+   "elevation": 1.9
+  },
+  {
+   "model": "modern:thermostat",
+   "name": "Thermostat",
+   "group": "smart",
+   "type": "item",
+   "size": [
+    0.09,
+    0.025,
+    0.09
+   ],
+   "finishes": [
+    "white",
+    "black",
+    "silver"
+   ],
+   "mount": "wall",
+   "elevation": 1.45
+  },
+  {
+   "model": "modern:climate_sensor",
+   "name": "Temperature/humidity sensor",
+   "group": "smart",
+   "type": "item",
+   "size": [
+    0.06,
+    0.02,
+    0.06
+   ],
+   "finishes": [
+    "white",
+    "black"
+   ],
+   "mount": "wall",
+   "elevation": 1.5
+  },
+  {
+   "model": "modern:smart_plug",
+   "name": "Smart plug",
+   "group": "smart",
+   "type": "item",
+   "size": [
+    0.06,
+    0.04,
+    0.06
+   ],
+   "finishes": [
+    "white",
+    "black"
+   ],
+   "mount": "wall",
+   "elevation": 0.3
+  },
+  {
+   "model": "modern:doorbell_camera",
+   "name": "Video doorbell",
+   "group": "smart",
+   "type": "item",
+   "size": [
+    0.05,
+    0.03,
+    0.14
+   ],
+   "finishes": [
+    "black",
+    "silver",
+    "white"
+   ],
+   "mount": "wall",
+   "elevation": 1.35
+  },
+  {
+   "model": "modern:security_camera",
+   "name": "Security camera",
+   "group": "smart",
+   "type": "item",
+   "size": [
+    0.09,
+    0.14,
+    0.1
+   ],
+   "finishes": [
+    "white",
+    "black"
+   ],
+   "mount": "wall",
+   "elevation": 2.3
+  },
+  {
+   "model": "modern:smart_hub",
+   "name": "Smart home hub",
+   "group": "smart",
+   "type": "item",
+   "size": [
+    0.12,
+    0.12,
+    0.03
+   ],
+   "finishes": [
+    "white",
+    "black"
+   ]
+  },
+  {
+   "model": "modern:smart_speaker",
+   "name": "Smart speaker",
+   "group": "smart",
+   "type": "item",
+   "size": [
+    0.1,
+    0.1,
+    0.15
+   ],
+   "finishes": [
+    "grey",
+    "black",
+    "white",
+    "sand"
+   ]
+  },
+  {
+   "model": "modern:keypad",
+   "name": "Alarm keypad",
+   "group": "smart",
+   "type": "item",
+   "size": [
+    0.08,
+    0.02,
+    0.12
+   ],
+   "finishes": [
+    "white",
+    "black"
+   ],
+   "mount": "wall",
+   "elevation": 1.4
+  },
+  {
    "model": "modern:ac_split",
    "name": "Air conditioner (indoor unit)",
    "group": "climate",

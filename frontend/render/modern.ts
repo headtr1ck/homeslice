@@ -3620,6 +3620,97 @@ const BUILDERS: Record<string, Build> = {
     for (let i = 0; i < 6; i++) b.box(w - 0.12, 0.006, 0.006, 0, 0.05 + i * 0.025, d / 2 + 0.002, mat("#aeb3b8"));
     b.box(0.04, 0.012, 0.004, w * 0.3, h * 0.75, d / 2 + 0.001, ledMat());
   },
+  // ----- smart home: small devices whose status light follows their entity -----
+  smoke_detector: (b, w, d, h, f) => {
+    // a ceiling disc: a ring of slits, a test button with its light
+    const r = Math.min(w, d) / 2;
+    b.cyl(r * 0.98, r, h * 0.7, 0, h * 0.3, 0, f, 32);
+    b.cyl(r * 0.8, r * 0.9, h * 0.3, 0, 0, 0, f, 32);
+    for (let i = 0; i < 24; i++) {
+      const a = (i / 24) * Math.PI * 2;
+      b.box(0.004, h * 0.18, 0.012, Math.cos(a) * r * 0.86, h * 0.07, Math.sin(a) * r * 0.86, mat("#9aa0a6"))!.rotation.y = -a;
+    }
+    b.cyl(r * 0.25, r * 0.25, 0.004, 0, -0.002, 0, mat("#e3e3df"), 20);
+    b.cyl(0.004, 0.004, 0.003, r * 0.4, -0.003, 0, ledMat("#ff3b30"), 8);
+  },
+  leak_sensor: (b, w, d, h, f) => {
+    // a puck on the floor with metal contacts underneath
+    const r = Math.min(w, d) / 2;
+    b.cyl(r * 0.9, r, h, 0, 0, 0, f, 28);
+    for (const a of [0, 2.1, 4.2]) b.cyl(0.004, 0.004, 0.003, Math.cos(a) * r * 0.6, -0.001, Math.sin(a) * r * 0.6, mat(C.chrome, { metalness: 0.8 }), 8);
+    b.cyl(0.004, 0.004, 0.002, 0, h, r * 0.5, ledMat("#3fa8ff"), 8);
+  },
+  motion_sensor: (b, w, d, h, f) => {
+    // a corner-style block with a faceted lens
+    b.box(w, h, d * 0.5, 0, 0, back(d) + d * 0.25, f, 0.01);
+    b.sphere(Math.min(w, h) * 0.38, 0, h * 0.5, back(d) + d * 0.5, mat("#f3f2ee", { roughness: 0.3, transparent: true, opacity: 0.9 }), 1, 1, 0.9, 10);
+    b.box(0.006, 0.006, 0.003, w * 0.3, h * 0.15, back(d) + d * 0.5 + 0.001, ledMat("#3fd27a"));
+  },
+  contact_sensor: (b, w, d, h, f) => {
+    // the sensor on the frame and its magnet on the leaf
+    b.box(w * 0.62, h, d, -w * 0.18, 0, 0, f, 0.004);
+    b.box(w * 0.3, h * 0.8, d * 0.8, w * 0.33, h * 0.1, 0, f, 0.004);
+    b.box(0.004, 0.004, 0.002, -w * 0.18, h * 0.8, d / 2 + 0.001, ledMat("#ff9a2a"));
+  },
+  thermostat: (b, w, d, h, f) => {
+    // a square with a round dial and a small display
+    b.box(w, h, d * 0.6, 0, 0, back(d) + d * 0.3, f, 0.01);
+    b.add(new THREE.CylinderGeometry(w * 0.3, w * 0.32, d * 0.5, 32).rotateX(Math.PI / 2), mat(C.chrome, { metalness: 0.7, roughness: 0.3 }), 0, h / 2, back(d) + d * 0.85);
+    b.add(new THREE.CircleGeometry(w * 0.24, 32), screenMat(), 0, h / 2, back(d) + d * 1.105);
+    b.box(0.008, 0.004, 0.002, 0, h * 0.12, back(d) + d * 0.61, ledMat("#ff8a3a"));
+  },
+  climate_sensor: (b, w, d, h, f) => {
+    // a small square with an e-ink face
+    b.box(w, h, d, 0, 0, 0, f, 0.008);
+    b.box(w * 0.75, h * 0.6, 0.002, 0, h * 0.25, d / 2 + 0.001, mat("#d7d9d3", { roughness: 1 }));
+    b.box(w * 0.35, 0.006, 0.001, 0, h * 0.62, d / 2 + 0.002, mat("#333"));
+    b.box(w * 0.2, 0.004, 0.001, 0, h * 0.45, d / 2 + 0.002, mat("#333"));
+  },
+  smart_plug: (b, w, d, h, f) => {
+    // a plug on the socket, a button with its ring light
+    b.box(w * 1.2, h * 1.2, 0.01, 0, -h * 0.1, back(d) + 0.005, mat(C.ceramic), 0.008);
+    b.box(w, h, d - 0.01, 0, 0, back(d) + 0.01 + (d - 0.01) / 2, f, 0.012);
+    b.cyl(w * 0.18, w * 0.18, 0.004, 0, h * 0.7, d / 2, f, 20).rotation.x = Math.PI / 2;
+    b.add(new THREE.TorusGeometry(w * 0.2, 0.002, 4, 20), ledMat("#3fa8ff"), 0, h * 0.7, d / 2 + 0.002);
+  },
+  doorbell_camera: (b, w, d, h, f) => {
+    // a slim upright: the lens at the top, the ring button below
+    b.box(w, h, d, 0, 0, 0, f, 0.01);
+    b.cyl(w * 0.22, w * 0.22, 0.004, 0, h * 0.78, d / 2, mat("#111", { roughness: 0.1 }), 20).rotation.x = Math.PI / 2;
+    b.cyl(w * 0.3, w * 0.3, 0.004, 0, h * 0.28, d / 2, mat("#2b2c2e"), 24).rotation.x = Math.PI / 2;
+    b.add(new THREE.TorusGeometry(w * 0.3, 0.003, 4, 24), ledMat("#3fa8ff"), 0, h * 0.28, d / 2 + 0.003);
+  },
+  security_camera: (b, w, d, h, f) => {
+    // a wall bracket and a bullet camera looking down and out
+    b.box(w * 0.7, h * 0.8, 0.012, 0, h * 0.1, back(d) + 0.006, f, 0.004);
+    b.rod(v(0, h * 0.5, back(d) + 0.01), v(0, h * 0.62, back(d) + d * 0.35), 0.008, f, 8);
+    // the body along its axis, tilted down; the lens at its front end
+    const tilt = Math.PI / 2 + 0.35;
+    const len = d * 0.7;
+    const centre = v(0, h * 0.62, back(d) + d * 0.6);
+    const axis = v(0, Math.cos(tilt), Math.sin(tilt));
+    b.add(new THREE.CylinderGeometry(w * 0.42, w * 0.42, len, 20), f, centre.x, centre.y, centre.z).rotation.x = tilt;
+    const front = centre.clone().addScaledVector(axis, len / 2 + 0.002);
+    b.add(new THREE.CylinderGeometry(w * 0.3, w * 0.3, 0.004, 20), mat("#111", { roughness: 0.1 }), front.x, front.y, front.z).rotation.x = tilt;
+    b.box(0.006, 0.006, 0.003, w * 0.25, h * 0.75, back(d) + d * 0.6, ledMat("#ff3b30"));
+  },
+  smart_hub: (b, w, d, h, f) => {
+    b.box(w, h, d, 0, 0, 0, f, 0.012);
+    b.box(w * 0.5, 0.003, 0.004, 0, h * 0.45, d / 2, ledMat("#3fd27a"));
+  },
+  smart_speaker: (b, w, d, h, f) => {
+    // a fabric cylinder with a light ring on top
+    const r = Math.min(w, d) / 2;
+    b.cyl(r, r, h * 0.95, 0, 0, 0, f, 32);
+    b.cyl(r * 0.96, r * 0.96, h * 0.05, 0, h * 0.95, 0, mat(C.black, { roughness: 0.4 }), 32);
+    b.add(new THREE.TorusGeometry(r * 0.8, 0.004, 4, 32).rotateX(Math.PI / 2), ledMat("#3fa8ff"), 0, h + 0.001, 0);
+  },
+  keypad: (b, w, d, h, f) => {
+    // an alarm keypad: twelve keys and a status light
+    b.box(w, h, d, 0, 0, 0, f, 0.008);
+    for (let r = 0; r < 4; r++) for (let c = 0; c < 3; c++) b.box(w * 0.2, h * 0.12, 0.004, (c - 1) * w * 0.26, h * (0.12 + r * 0.17), d / 2, mat("#d9dcdf"), 0.002);
+    b.box(w * 0.5, 0.005, 0.002, 0, h * 0.88, d / 2 + 0.001, ledMat("#3fd27a"));
+  },
   ac_outdoor: (b, w, d, h, f) => outdoorUnit(b, w, d, h, f, false),
   ac_outdoor_wall: (b, w, d, h, f) => outdoorUnit(b, w, d, h, f, true),
   fan_standing: (b, w, d, h, f, _c, a) => {

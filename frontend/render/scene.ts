@@ -309,8 +309,8 @@ export interface DeviceLook {
   active: boolean;
   /** Covers: 1 open … 0 closed. */
   open?: number | null;
-  /** Climate: what it is doing, for the status light's colour. */
-  tone?: "heat" | "cool" | null;
+  /** Climate: what it is doing, for the status light's colour; alarms are red. */
+  tone?: "heat" | "cool" | "alarm" | null;
   /** Fans: 0 … 1. */
   speed?: number | null;
 }
@@ -1478,8 +1478,8 @@ export class HouseRenderer {
           m.emissive.set(look.active ? "#6f8fc4" : "#3c4f6e");
           m.emissiveIntensity = look.on ? (look.active ? 0.75 : 0.45) : 0;
         } else if (role === "led") {
-          m.emissive.set(look.tone === "heat" ? "#ff8a3a" : look.tone === "cool" ? "#3fa8ff" : look.active ? "#3fd27a" : "#9fd6b0");
-          m.emissiveIntensity = look.on ? (look.active ? 0.9 : 0.3) : 0;
+          m.emissive.set(look.tone === "alarm" ? "#ff2a1f" : look.tone === "heat" ? "#ff8a3a" : look.tone === "cool" ? "#3fa8ff" : look.active ? "#3fd27a" : "#9fd6b0");
+          m.emissiveIntensity = look.on ? (look.active ? (look.tone === "alarm" ? 1.4 : 0.9) : 0.3) : 0;
         } else {
           m.emissive.copy(lit);
           m.emissiveIntensity = look.on ? Math.max(0.5, m.userData.litIntensity as number) : 0;
