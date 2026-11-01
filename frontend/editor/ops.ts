@@ -3,7 +3,8 @@
 
 import { bbox, dist, normalizeOrientation, project, signedArea } from "../model/geometry";
 import { expandHouse } from "../model/expand";
-import type { CameraInput, Coord, EnergyInput, FacadeOpeningInput, FurnitureInput, HouseInput, LevelInput, LightType, OpeningInput, OpeningSource, OpeningType, RoomInput, ShapeInput, RobotInput, RoofInput, Side, Vec2, VerticalInput, WallInput, WallThickness } from "../model/types";
+import type {
+  RoofPartInput, CameraInput, Coord, EnergyInput, FacadeOpeningInput, FurnitureInput, HouseInput, LevelInput, LightType, OpeningInput, OpeningSource, OpeningType, RoomInput, ShapeInput, RobotInput, RoofInput, Side, Vec2, VerticalInput, WallInput, WallThickness } from "../model/types";
 
 /** Points closer than this count as the same corner (shared by neighbouring rooms). */
 export const SAME_POINT = 0.01;
@@ -1174,6 +1175,101 @@ export function setRoof(model: HouseInput, roof: Partial<RoofInput> | null): Hou
     for (const [k, v] of Object.entries(roof)) if (v === undefined) delete (next as Record<string, unknown>)[k];
     m.roof = next;
   }
+  return m;
+}
+
+/** Ready-made roofs: a preset fills a roof part's shape, ridge, pitch and covering. */
+export const ROOF_PRESETS: Record<string, Partial<RoofPartInput>> = {
+  gable_left_right: { shape: "gable", ridge: "left_right", pitch: 38 },
+  gable_up_down: { shape: "gable", ridge: "up_down", pitch: 38 },
+  tuscan: { shape: "hip", pitch: 22, finish: "roof_clay" },
+  hip: { shape: "hip", pitch: 30 },
+  shed: { shape: "shed", pitch: 10, finish: "roof_metal" },
+  flat: { shape: "flat", finish: "roof_green" },
+};
+
+/**
+ * Adds a roof level on top: one part over the top floor (from the house's roof, if it has
+ * one, which it replaces).
+ */
+export function addRoofLevel(model: HouseInput, cover: [number, number, number, number], preset = "gable_left_right"): { model: HouseInput; id: string } {
+  const m = clone(model);
+  const old = m.roof;
+  const part: RoofPartInput = {
+    id: "main",
+    rect: cover,
+    ...ROOF_PRESETS[preset],
+    ...(old?.shape ? { shape: old.shape } : {}),
+    ...(old?.ridge ? { ridge: old.ridge === "north_south" ? "up_down" : "left_right" } : {}),
+    ...(old?.pitch ? { pitch: old.pitch } : {}),
+    ...(old?.overhang !== undefined ? { overhang: old.overhang } : {}),
+    ...(old?.finish ? { finish: old.finish } : {}),
+    ...(old?.high ? { high: old.high } : {}),
+    ...(old?.dormers?.length ? { dormers: old.dormers } : {}),
+    ...(old?.windows?.length ? { windows: old.windows } : {}),
+  };
+  delete m.roof;
+  const ids = new Set(m.levels.map((l) => l.id));
+  let id = "roof";
+  for (let n = 2; ids.has(id); n++) id = `roof_${n}`;
+  m.levels.push({ id, kind: "roof", name: "Roof", rooms: [], roofs: [part] });
+  return { model: m, id };
+}
+
+/** Changes a roof part (`undefined` removes a field); a preset first, then the patch. */
+export function updateRoofPart(model: HouseInput, levelId: string, index: number, patch: Partial<RoofPartInput>, preset?: string): HouseInput {
+  const m = clone(model);
+  const parts = level(m, levelId).roofs ?? [];
+  const part = parts[index];
+  if (!part) return m;
+  const next: RoofPartInput = { ...part, ...(preset ? ROOF_PRESETS[preset] : {}), ...patch };
+  for (const [k, v] of Object.entries(patch)) if (v === undefined) delete (next as unknown as Record<string, unknown>)[k];
+  // a preset sets its shape fresh: no high side or covering left from another
+  if (preset) for (const k of ["high"] as const) if (!(k in ROOF_PRESETS[preset])) delete next[k];
+  parts[index] = next;
+  return m;
+}
+
+export function addRoofPart(model: HouseInput, levelId: string, rect: [number, number, number, number]): { model: HouseInput; index: number } {
+  const m = clone(model);
+  const l = level(m, levelId);
+  const parts = (l.roofs ??= []);
+  const ids = new Set(parts.map((p) => p.id));
+  let id = `part_${parts.length + 1}`;
+  for (let n = parts.length + 2; ids.has(id); n++) id = `part_${n}`;
+  parts.push({ id, rect, shape: "gable", ridge: "left_right" });
+  return { model: m, index: parts.length - 1 };
+}
+
+export function removeRoofPart(model: HouseInput, levelId: string, index: number): HouseInput {
+  const m = clone(model);
+  const l = level(m, levelId);
+  l.roofs = (l.roofs ?? []).filter((_, i) => i !== index);
+  return m;
+}
+
+/**
+ * Solar panels on a roof part: `rows` × `columns` of `modern:solar_panel`, upright, in a
+ * block centred on the slope facing `side` (pieces at part-relative positions).
+ */
+export function addSolarPanels(model: HouseInput, levelId: string, index: number, rows: number, columns: number, side: "near" | "far"): HouseInput {
+  const m = clone(model);
+  const part = level(m, levelId).roofs?.[index];
+  if (!part?.rect) return m;
+  const [, , w, d] = part.rect;
+  const upDown = part.ridge === "up_down";
+  // panels: 1.13 along the eave, 1.72 up the slope; their block centred on its slope
+  const along = upDown ? d : w;
+  const across = upDown ? w : d;
+  const slopeMid = side === "far" ? across * 0.72 : across * 0.28;
+  const pieces: FurnitureInput[] = [];
+  for (let r = 0; r < rows; r++)
+    for (let c = 0; c < columns; c++) {
+      const a = along / 2 + (c - (columns - 1) / 2) * 1.15;
+      const u = slopeMid + (r - (rows - 1) / 2) * 1.75 * (side === "far" ? -1 : 1);
+      pieces.push({ type: "item", model: "modern:solar_panel", at: upDown ? [u, a] : [a, u], rotation: upDown ? 90 : 0 });
+    }
+  part.furniture = [...(part.furniture ?? []), ...pieces];
   return m;
 }
 

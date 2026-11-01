@@ -232,6 +232,13 @@ export interface OpeningInput {
 
 export interface LevelInput {
   id: string;
+  /**
+   * `floor` (default) or `roof`: the roof as a level of its own on top (not a Home
+   * Assistant floor, no rooms), made of roof parts.
+   */
+  kind?: "floor" | "roof";
+  /** A roof level's parts: one roof each over its own rectangle or polygon. */
+  roofs?: RoofPartInput[];
   floor_id?: string;
   /**
    * More Home Assistant floors whose areas are on this level, e.g. an "Outside" floor
@@ -356,6 +363,32 @@ export interface RoofInput {
   finish?: string;
   /** Windows in the slopes, optionally with an outside roller shutter (`cover`) and a contact. */
   windows?: RoofWindowInput[];
+}
+
+/**
+ * One roof over part of the house (a roof level's `roofs`): its own shape, ridge
+ * direction, pitch, covering, dormers, windows and solar panels.
+ */
+export interface RoofPartInput extends ShapeInput {
+  id?: string;
+  /** `gable` (default), `hip`, `shed` or `flat`. */
+  shape?: "gable" | "hip" | "shed" | "flat";
+  /** The ridge: `left_right` (default), `up_down`, or degrees from left–right (clockwise). */
+  ridge?: "left_right" | "up_down" | number;
+  /** Degrees (default 35). */
+  pitch?: number;
+  /** Metres past the walls (default 0.3). */
+  overhang?: number;
+  /** Where the roof starts, in metres from the roof level's floor (the top of the floor below); negative when it starts lower, e.g. on the floor below that. */
+  offset?: number;
+  /** A shed roof's high side. */
+  high?: Side;
+  /** The covering (see RoofInput.finish). */
+  finish?: string;
+  dormers?: DormerInput[];
+  windows?: RoofWindowInput[];
+  /** Pieces on it, e.g. solar panels (`modern:solar_panel`): `at` from its north-west corner; they lie on the slope (or stand tilted on a flat roof). */
+  furniture?: FurnitureInput[];
 }
 
 export interface RoofWindowInput {
@@ -502,8 +535,28 @@ export interface Opening {
   contact?: string;
 }
 
+/** A roof part as drawn: its polygon in plan coordinates and everything filled in. */
+export interface RoofPart {
+  id: string;
+  polygon: Vec2[];
+  shape: "gable" | "hip" | "shed" | "flat";
+  /** Ridge direction in degrees from the plan's x axis (0: left–right, 90: up–down). */
+  angle: number;
+  pitch: number;
+  overhang: number;
+  offset: number;
+  high: Side;
+  finish: string;
+  dormers: Required<DormerInput>[];
+  windows: House["roof"]["windows"];
+  furniture: Room["furniture"];
+}
+
 export interface Level {
   id: string;
+  kind: "floor" | "roof";
+  /** A roof level's parts (empty for floors). */
+  roofs: RoofPart[];
   floorId?: string;
   name: string;
   index: number;

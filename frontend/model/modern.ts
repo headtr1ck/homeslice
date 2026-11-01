@@ -548,6 +548,8 @@ export const MODERN_GROUPS: { id: string; kinds: ModernKind[] }[] = [
       k("robot_mower", "item", [0.55, 0.65, 0.27], ["white", "anthracite", "green"]),
       k("rotary_dryer", "item", [2.6, 2.6, 1.9], ["silver", "white", "anthracite"]),
       k("wheelie_bins", "item", [2.4, 0.75, 1.07], ["anthracite"]),
+      k("solar_panel", "item", [1.13, 1.72, 0.04], ["black", "blue"]),
+      k("satellite_dish", "item", [0.65, 0.55, 0.7], ["white", "anthracite", "grey"], { mount: "wall", elevation: 2.2 }),
       k("wheelie_bin", "item", [0.58, 0.74, 1.07], ["anthracite", "green", "grey", "black"], { accents: ["anthracite", "blue", "brown", "yellow", "green", "red"] }),
       k("mailbox", "item", [0.38, 0.12, 0.34], ["anthracite", "black", "white", "silver", "red"], { mount: "wall", elevation: 1.1 }),
       k("mailbox_post", "item", [0.42, 0.35, 1.25], ["anthracite", "black", "white", "silver"]),
@@ -577,7 +579,7 @@ export const MODERN_GROUPS: { id: string; kinds: ModernKind[] }[] = [
  */
 export type Tag =
   | "light" | "media_player" | "screen" | "speaker" | "climate" | "heating" | "fan" | "humidifier" | "cover" | "fire"
-  | "detector" | "sensor" | "switch" | "camera" | "alarm" | "appliance" | "charger" | "vehicle" | "bin" | "mailbox" | "plant";
+  | "detector" | "sensor" | "switch" | "camera" | "alarm" | "appliance" | "charger" | "vehicle" | "bin" | "mailbox" | "plant" | "solar";
 
 const LAMP_TYPES: FurnitureType[] = ["floor_lamp", "table_lamp", "wall_lamp", "ceiling_lamp"];
 const TAG_RULES: [RegExp, Tag[]][] = [
@@ -601,6 +603,7 @@ const TAG_RULES: [RegExp, Tag[]][] = [
   [/^(car_|motorcycle|e_scooter|bicycle)/, ["vehicle"]],
   [/^(wheelie_bin|bin_store|kitchen_bin|compost_bin)/, ["bin"]],
   [/^mailbox/, ["mailbox"]],
+  [/^solar_panel/, ["solar"]],
 ];
 
 /** A kind's tags (its group's too: everything in Plants is a plant). */
@@ -621,7 +624,7 @@ export function kindTags(kind: string | undefined, type?: FurnitureType): Tag[] 
 export const TAG_DOMAINS: Partial<Record<Tag, string>> = {
   light: "light", media_player: "media_player", climate: "climate", fan: "fan", humidifier: "humidifier", cover: "cover", fire: "switch",
   detector: "binary_sensor", sensor: "sensor", switch: "switch", camera: "camera", alarm: "alarm_control_panel", appliance: "sensor",
-  charger: "sensor", vehicle: "device_tracker", bin: "sensor", mailbox: "binary_sensor", plant: "plant",
+  charger: "sensor", vehicle: "device_tracker", bin: "sensor", mailbox: "binary_sensor", plant: "plant", solar: "sensor",
 };
 
 export const MODERN: Record<string, ModernKind> = Object.fromEntries(MODERN_GROUPS.flatMap((g) => g.kinds.map((x) => [x.id, x])));

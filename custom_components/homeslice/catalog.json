@@ -8856,6 +8856,42 @@
    ]
   },
   {
+   "model": "modern:solar_panel",
+   "name": "Solar panel",
+   "group": "garden",
+   "type": "item",
+   "size": [
+    1.13,
+    1.72,
+    0.04
+   ],
+   "finishes": [
+    "black",
+    "blue"
+   ],
+   "tags": [
+    "solar"
+   ]
+  },
+  {
+   "model": "modern:satellite_dish",
+   "name": "Satellite dish",
+   "group": "garden",
+   "type": "item",
+   "size": [
+    0.65,
+    0.55,
+    0.7
+   ],
+   "finishes": [
+    "white",
+    "anthracite",
+    "grey"
+   ],
+   "mount": "wall",
+   "elevation": 2.2
+  },
+  {
    "model": "modern:wheelie_bin",
    "name": "Wheelie bin",
    "group": "garden",

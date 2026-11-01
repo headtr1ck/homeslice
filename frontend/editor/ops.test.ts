@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 import type { HouseInput } from "../model/types";
 import {
+  addRoofLevel,
+  addRoofPart,
+  addSolarPanels,
+  removeRoofPart,
+  updateRoofPart,
   History,
   addOpening,
   addRoom,
@@ -609,5 +614,36 @@ describe("mirroring furniture", () => {
     // turned a quarter: the plan's left–right is the piece's front–back
     expect(flipFurniture({ type: "sofa_corner", at: [0, 0], rotation: 90 }, "x")).toEqual({ mirror: true, rotation: 270 });
     expect(flipFurniture({ type: "sofa_corner", at: [0, 0], rotation: 90, mirror: true }, "y")).toEqual({ mirror: undefined });
+  });
+});
+
+describe("roof levels", () => {
+  const base = (): HouseInput => ({ schema: 1, id: "h", outline: { rect: [0, 0, 10, 8] }, roof: { pitch: 30, ridge: "north_south", finish: "roof_slate" }, levels: [{ id: "g", rooms: [{ id: "a", rect: [0, 0, 10, 8] }] }] });
+
+  it("adds a roof level from the house's roof, which it replaces", () => {
+    const { model, id } = addRoofLevel(base(), [0, 0, 10, 8]);
+    expect(model.roof).toBeUndefined();
+    const roof = model.levels.find((l) => l.id === id)!;
+    expect(roof.kind).toBe("roof");
+    expect(roof.roofs![0]).toMatchObject({ rect: [0, 0, 10, 8], ridge: "up_down", pitch: 30, finish: "roof_slate" });
+    expect(expandHouse(model).issues.filter((i) => i.severity === "error")).toEqual([]);
+  });
+
+  it("presets set the shape; parts are added and removed", () => {
+    let { model, id } = addRoofLevel(base(), [0, 0, 10, 8]);
+    model = updateRoofPart(model, id, 0, {}, "tuscan");
+    expect(model.levels.at(-1)!.roofs![0]).toMatchObject({ shape: "hip", pitch: 22, finish: "roof_clay" });
+    const added = addRoofPart(model, id, [10, 0, 3, 4]);
+    expect(added.model.levels.at(-1)!.roofs!.length).toBe(2);
+    expect(removeRoofPart(added.model, id, 1).levels.at(-1)!.roofs!.length).toBe(1);
+  });
+
+  it("lays out solar panels on a slope", () => {
+    const { model, id } = addRoofLevel(base(), [0, 0, 10, 8], "gable_left_right");
+    const m = addSolarPanels(updateRoofPart(model, id, 0, { ridge: "left_right" }), id, 0, 2, 3, "far");
+    const pieces = m.levels.at(-1)!.roofs![0].furniture!;
+    expect(pieces).toHaveLength(6);
+    expect(pieces.every((p) => p.model === "modern:solar_panel")).toBe(true);
+    expect(expandHouse(m).issues.filter((i) => i.severity === "error")).toEqual([]);
   });
 });

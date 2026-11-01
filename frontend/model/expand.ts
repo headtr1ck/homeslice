@@ -12,6 +12,10 @@ const MODEL_REF = /^(builtin|(kenney|polyhaven|custom|modern):[A-Za-z0-9_-]+)$/;
 /** How a light can look (see LightInput.type). */
 export const LIGHT_TYPES: LightType[] = ["lamp", "spot", "strip", "indirect"];
 import type {
+  DormerInput,
+  RoofPart,
+  RoofWindowInput,
+  FurnitureInput,
   Coord,
   Energy,
   FurnitureType,
@@ -132,6 +136,72 @@ export function expandHouse(input: unknown): ExpandResult {
   const houseOutline = shape(h.outline, "outline");
   if (h.facade !== undefined && !finishOk(h.facade, WALL_FINISHES)) err("facade", `facade must be ${WALL_HINT}, got ${JSON.stringify(h.facade)}.`);
 
+  /** Pieces in a room or on a roof part: `at` from the shape's north-west corner (`min`). */
+  const parseFurniture = (list: FurnitureInput[] | undefined, rp: string, min: Vec2) => {
+    const furniture: Room["furniture"] = [];
+    (list ?? []).forEach((fi, j) => {
+      const fp = `${rp}.furniture.${j}`;
+      const def = FURNITURE[fi?.type as FurnitureType];
+      if (!def) return err(fp, `type must be one of ${Object.keys(FURNITURE).join(", ")}, got ${JSON.stringify(fi?.type)}.`);
+      if (!Array.isArray(fi.at) || fi.at.length !== 2) return err(fp, "at must be [metres east, metres south] of the room's north-west corner (the piece's centre).");
+      const size = fi.size ?? def.size;
+      if (!(size[0] > 0 && size[1] > 0)) return err(fp, "size must be [width, depth] in metres.");
+      const mount = fi.mount ?? def.mount ?? "floor";
+      if (!["floor", "wall", "ceiling"].includes(mount)) return err(fp, `mount must be floor, wall or ceiling, got ${JSON.stringify(fi.mount)}.`);
+      const elevation = mount === "ceiling" ? null : mount === "wall" ? (fi.elevation ?? def.elevation ?? 1.2) : 0;
+      if (fi.height !== undefined && !(typeof fi.height === "number" && fi.height > 0)) return err(fp, "height must be in metres.");
+      if (fi.model !== undefined && !(typeof fi.model === "string" && MODEL_REF.test(fi.model)))
+        return err(fp, `model must be modern:<kind>, polyhaven:<id>, custom:<id> or builtin, got ${JSON.stringify(fi.model)}.`);
+      if (fi.finish !== undefined && typeof fi.finish !== "string") return err(fp, "finish must be a name like oak, white or grey.");
+      if (fi.accent !== undefined && typeof fi.accent !== "string") return err(fp, "accent must be a name like black, brass or oak.");
+      if (fi.readings !== undefined && !(Array.isArray(fi.readings) && fi.readings.every((r) => typeof r === "string" && r.includes("."))))
+        return err(fp, "readings must be a list of entity ids, e.g. [sensor.car_battery].");
+      furniture.push({
+        type: fi.type,
+        at: [min[0] + fi.at[0], min[1] + fi.at[1]],
+        rotation: (((fi.rotation ?? 0) % 360) + 360) % 360,
+        size: [size[0], size[1]],
+        height: fi.height ?? def.height,
+        mount,
+        elevation,
+        mirror: !!fi.mirror,
+        ...(fi.entity ? { entity: fi.entity } : {}),
+        ...(fi.model ? { model: fi.model } : {}),
+        ...(fi.finish ? { finish: fi.finish } : {}),
+        ...(fi.accent ? { accent: fi.accent } : {}),
+        ...(fi.readings?.length ? { readings: fi.readings } : {}),
+      });
+    });
+    return furniture;
+  };
+
+  // dormers and roof windows: on the house's roof or a roof level's parts
+  const parseDormers = (list: DormerInput[] | undefined, path: string) => {
+    const out: Required<DormerInput>[] = [];
+    (list ?? []).forEach((d, i) => {
+      const dp = `${path}.${i}`;
+      if (!d || !SIDES.includes(d.side) || typeof d.at !== "number") return err(dp, "A dormer needs side (north, south, east or west) and at (metres along the ridge).");
+      if (d.width !== undefined && !(typeof d.width === "number" && d.width >= 0.5 && d.width <= 6)) return err(`${dp}.width`, "width must be in metres (0.5–6).");
+      if (d.shape !== undefined && d.shape !== "gable" && d.shape !== "shed") return err(`${dp}.shape`, "shape must be gable or shed.");
+      out.push({ side: d.side, at: d.at, width: d.width ?? 1.6, shape: d.shape ?? "gable" });
+    });
+    return out;
+  };
+  const parseWindows = (list: RoofWindowInput[] | undefined, path: string) => {
+    const out: House["roof"]["windows"] = [];
+    (list ?? []).forEach((w, i) => {
+      const wp = `${path}.${i}`;
+      if (!w || !SIDES.includes(w.side) || typeof w.at !== "number") return err(wp, "A roof window needs side (north, south, east or west) and at (metres along the ridge).");
+      for (const [k, lo, hi] of [["up", 0, 20], ["width", 0.3, 3], ["height", 0.3, 3]] as const)
+        if (w[k] !== undefined && !(typeof w[k] === "number" && w[k]! >= lo && w[k]! <= hi)) return err(`${wp}.${k}`, `${k} must be in metres (${lo}–${hi}).`);
+      if (w.cover !== undefined && !(typeof w.cover === "string" && w.cover.startsWith("cover."))) return err(`${wp}.cover`, "cover must be a cover entity, e.g. cover.….");
+      if (w.contact !== undefined && !(typeof w.contact === "string" && w.contact.includes("."))) return err(`${wp}.contact`, "contact must be an entity id, e.g. binary_sensor.….");
+      out.push({ side: w.side, at: w.at, up: w.up ?? 1.2, width: w.width ?? 0.78, height: w.height ?? 1.18, ...(w.cover ? { cover: w.cover } : {}), ...(w.contact ? { contact: w.contact } : {}) });
+    });
+    return out;
+  };
+  const ROOF_SHAPES = ["gable", "hip", "shed", "flat"];
+
   const ids = new Set<string>();
   const levels: Level[] = [];
   let elevation = 0;
@@ -191,40 +261,7 @@ export function expandHouse(input: unknown): ExpandResult {
           ...(li.height !== undefined ? { height: li.height } : {}),
         });
       });
-      const furniture: Room["furniture"] = [];
-      (ri.furniture ?? []).forEach((fi, j) => {
-        const fp = `${rp}.furniture.${j}`;
-        const def = FURNITURE[fi?.type as FurnitureType];
-        if (!def) return err(fp, `type must be one of ${Object.keys(FURNITURE).join(", ")}, got ${JSON.stringify(fi?.type)}.`);
-        if (!Array.isArray(fi.at) || fi.at.length !== 2) return err(fp, "at must be [metres east, metres south] of the room's north-west corner (the piece's centre).");
-        const size = fi.size ?? def.size;
-        if (!(size[0] > 0 && size[1] > 0)) return err(fp, "size must be [width, depth] in metres.");
-        const mount = fi.mount ?? def.mount ?? "floor";
-        if (!["floor", "wall", "ceiling"].includes(mount)) return err(fp, `mount must be floor, wall or ceiling, got ${JSON.stringify(fi.mount)}.`);
-        const elevation = mount === "ceiling" ? null : mount === "wall" ? (fi.elevation ?? def.elevation ?? 1.2) : 0;
-        if (fi.height !== undefined && !(typeof fi.height === "number" && fi.height > 0)) return err(fp, "height must be in metres.");
-        if (fi.model !== undefined && !(typeof fi.model === "string" && MODEL_REF.test(fi.model)))
-          return err(fp, `model must be modern:<kind>, polyhaven:<id>, custom:<id> or builtin, got ${JSON.stringify(fi.model)}.`);
-        if (fi.finish !== undefined && typeof fi.finish !== "string") return err(fp, "finish must be a name like oak, white or grey.");
-        if (fi.accent !== undefined && typeof fi.accent !== "string") return err(fp, "accent must be a name like black, brass or oak.");
-        if (fi.readings !== undefined && !(Array.isArray(fi.readings) && fi.readings.every((r) => typeof r === "string" && r.includes("."))))
-          return err(fp, "readings must be a list of entity ids, e.g. [sensor.car_battery].");
-        furniture.push({
-          type: fi.type,
-          at: [min[0] + fi.at[0], min[1] + fi.at[1]],
-          rotation: (((fi.rotation ?? 0) % 360) + 360) % 360,
-          size: [size[0], size[1]],
-          height: fi.height ?? def.height,
-          mount,
-          elevation,
-          mirror: !!fi.mirror,
-          ...(fi.entity ? { entity: fi.entity } : {}),
-          ...(fi.model ? { model: fi.model } : {}),
-          ...(fi.finish ? { finish: fi.finish } : {}),
-          ...(fi.accent ? { accent: fi.accent } : {}),
-          ...(fi.readings?.length ? { readings: fi.readings } : {}),
-        });
-      });
+      const furniture = parseFurniture(ri.furniture, rp, min);
       // a piece's light is where the piece stands (it moves with it)
       for (const f of furniture) {
         if (!f.entity?.startsWith("light.")) continue;
@@ -311,10 +348,46 @@ export function expandHouse(input: unknown): ExpandResult {
 
     if (li.include_floors !== undefined && !(Array.isArray(li.include_floors) && li.include_floors.every((f) => typeof f === "string")))
       err(`${lp}.include_floors`, "include_floors must be a list of Home Assistant floor ids.");
-    const height = li.height ?? DEFAULTS.levelHeight;
-    const slab = li.slab ?? DEFAULTS.slab;
+    const kind = li.kind ?? "floor";
+    if (kind !== "floor" && kind !== "roof") err(`${lp}.kind`, `kind must be floor or roof, got ${JSON.stringify(li.kind)}.`);
+    if (kind === "roof" && index !== h.levels.length - 1) err(`${lp}.kind`, "A roof level must be the top level.");
+    if (kind !== "roof" && li.roofs?.length) err(`${lp}.roofs`, "roofs belong on a roof level (kind: roof).");
+    const roofs: RoofPart[] = [];
+    if (kind === "roof")
+      (li.roofs ?? []).forEach((ri, i) => {
+        const rp = `${lp}.roofs.${ri?.id ?? i}`;
+        const polygon = ri && (ri.rect || ri.polygon) ? shape(ri, rp) : null;
+        if (!polygon) return err(rp, "A roof part needs rect: [x, y, width, depth] or polygon.");
+        if (ri.shape !== undefined && !ROOF_SHAPES.includes(ri.shape)) return err(`${rp}.shape`, `shape must be gable, hip, shed or flat, got ${JSON.stringify(ri.shape)}.`);
+        if (ri.ridge !== undefined && ri.ridge !== "left_right" && ri.ridge !== "up_down" && typeof ri.ridge !== "number") return err(`${rp}.ridge`, `ridge must be left_right, up_down or degrees, got ${JSON.stringify(ri.ridge)}.`);
+        if (ri.pitch !== undefined && !(typeof ri.pitch === "number" && ri.pitch > 0 && ri.pitch < 75)) return err(`${rp}.pitch`, `pitch must be between 0 and 75 degrees, got ${JSON.stringify(ri.pitch)}.`);
+        if (ri.overhang !== undefined && !(typeof ri.overhang === "number" && ri.overhang >= 0 && ri.overhang <= 2)) return err(`${rp}.overhang`, "overhang must be in metres (0–2).");
+        if (ri.offset !== undefined && !(typeof ri.offset === "number" && ri.offset >= -10 && ri.offset <= 10)) return err(`${rp}.offset`, "offset must be in metres (-10–10).");
+        if (ri.high !== undefined && !SIDES.includes(ri.high)) return err(`${rp}.high`, `high must be one of ${SIDES.join(", ")}.`);
+        if (ri.finish !== undefined && !finishOk(ri.finish, ROOF_FINISHES)) return err(`${rp}.finish`, `finish must be ${ROOF_HINT}, got ${JSON.stringify(ri.finish)}.`);
+        const angle = ri.ridge === "up_down" ? 90 : typeof ri.ridge === "number" ? ri.ridge : 0;
+        roofs.push({
+          id: ri.id ?? `roof_${i + 1}`,
+          polygon,
+          shape: ri.shape ?? "gable",
+          angle,
+          pitch: ri.pitch ?? 35,
+          overhang: ri.overhang ?? 0.3,
+          offset: ri.offset ?? 0,
+          high: ri.high ?? (angle === 90 ? "east" : "south"),
+          finish: ri.finish ?? "roof_clay",
+          dormers: parseDormers(ri.dormers, `${rp}.dormers`),
+          windows: parseWindows(ri.windows, `${rp}.windows`),
+          furniture: parseFurniture(ri.furniture, rp, bbox(polygon).min),
+        });
+      });
+    // a roof level has no storey of its own: it sits on the floor below
+    const height = li.height ?? (kind === "roof" ? 0 : DEFAULTS.levelHeight);
+    const slab = li.slab ?? (kind === "roof" ? 0 : DEFAULTS.slab);
     levels.push({
       id: li.id,
+      kind,
+      roofs,
       floorId: li.floor_id,
       name: li.name ?? li.id,
       index,
@@ -416,28 +489,11 @@ export function expandHouse(input: unknown): ExpandResult {
   if (!(pitch > 0 && pitch < 75)) err("roof", `pitch must be between 0 and 75 degrees, got ${pitch}.`);
   const top = levels[levels.length - 1];
   const tb = bbox(top?.outline.length ? top.outline : [[0, 0], [1, 1]]);
-  const dormers: Required<NonNullable<typeof r.dormers>[number]>[] = [];
-  (r.dormers ?? []).forEach((d, i) => {
-    const dp = `roof.dormers.${i}`;
-    if (!d || !SIDES.includes(d.side) || typeof d.at !== "number") return err(dp, "A dormer needs side (north, south, east or west) and at (metres along the ridge).");
-    if (d.width !== undefined && !(typeof d.width === "number" && d.width >= 0.5 && d.width <= 6)) return err(`${dp}.width`, "width must be in metres (0.5–6).");
-    if (d.shape !== undefined && d.shape !== "gable" && d.shape !== "shed") return err(`${dp}.shape`, "shape must be gable or shed.");
-    dormers.push({ side: d.side, at: d.at, width: d.width ?? 1.6, shape: d.shape ?? "gable" });
-  });
-  const ROOF_SHAPES = ["gable", "hip", "shed", "flat"];
+  const dormers = parseDormers(r.dormers, "roof.dormers");
   if (r.shape !== undefined && !ROOF_SHAPES.includes(r.shape)) err("roof.shape", `shape must be gable, hip, shed or flat, got ${JSON.stringify(r.shape)}.`);
   if (r.high !== undefined && !SIDES.includes(r.high)) err("roof.high", `high must be one of ${SIDES.join(", ")}.`);
   if (r.finish !== undefined && !finishOk(r.finish, ROOF_FINISHES)) err("roof.finish", `finish must be ${ROOF_HINT}, got ${JSON.stringify(r.finish)}.`);
-  const windows: House["roof"]["windows"] = [];
-  (r.windows ?? []).forEach((w, i) => {
-    const wp = `roof.windows.${i}`;
-    if (!w || !SIDES.includes(w.side) || typeof w.at !== "number") return err(wp, "A roof window needs side (north, south, east or west) and at (metres along the ridge).");
-    for (const [k, lo, hi] of [["up", 0, 20], ["width", 0.3, 3], ["height", 0.3, 3]] as const)
-      if (w[k] !== undefined && !(typeof w[k] === "number" && w[k]! >= lo && w[k]! <= hi)) return err(`${wp}.${k}`, `${k} must be in metres (${lo}–${hi}).`);
-    if (w.cover !== undefined && !(typeof w.cover === "string" && w.cover.startsWith("cover."))) return err(`${wp}.cover`, "cover must be a cover entity, e.g. cover.….");
-    if (w.contact !== undefined && !(typeof w.contact === "string" && w.contact.includes("."))) return err(`${wp}.contact`, "contact must be an entity id, e.g. binary_sensor.….");
-    windows.push({ side: w.side, at: w.at, up: w.up ?? 1.2, width: w.width ?? 0.78, height: w.height ?? 1.18, ...(w.cover ? { cover: w.cover } : {}), ...(w.contact ? { contact: w.contact } : {}) });
-  });
+  const windows = parseWindows(r.windows, "roof.windows");
   const ridge = r.ridge ?? (tb.max[0] - tb.min[0] >= tb.max[1] - tb.min[1] ? "east_west" : "north_south");
   const roof: House["roof"] = {
     shape: r.shape && ROOF_SHAPES.includes(r.shape) ? r.shape : "gable",

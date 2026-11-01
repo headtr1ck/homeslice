@@ -1359,6 +1359,30 @@ const BUILDERS: Record<string, Build> = {
       b.box(0.35, 0.45, 0.01, Math.cos(a) * rr * 0.7, h - 0.62, Math.sin(a) * rr * 0.7, mat(C.clothes[Math.floor(rand() * C.clothes.length)], { side: THREE.DoubleSide }))!.rotation.y = -a;
     }
   },
+  solar_panel: (b, w, d, h, f) => {
+    // lying flat: an aluminium frame, cells in a grid under glass (6 × 10 for a full panel)
+    b.box(w, h, d, 0, 0, 0, mat(C.steel, { metalness: 0.5, roughness: 0.4 }), 0.004);
+    const cols = Math.max(2, Math.round(w / 0.18));
+    const rows = Math.max(2, Math.round(d / 0.17));
+    const cw = (w - 0.04) / cols;
+    const rd = (d - 0.04) / rows;
+    const cell = f;
+    for (let i = 0; i < cols; i++) for (let j = 0; j < rows; j++) b.box(cw - 0.006, 0.002, rd - 0.006, -w / 2 + 0.02 + (i + 0.5) * cw, h, -d / 2 + 0.02 + (j + 0.5) * rd, cell);
+  },
+  satellite_dish: (b, w, d, h, f) => {
+    // a dish on an arm from the wall, tilted up, the receiver on its feed arm
+    const r = Math.min(w, h) * 0.45;
+    const dish = new THREE.LatheGeometry(
+      Array.from({ length: 9 }, (_, i) => new THREE.Vector2((i / 8) * r, ((i / 8) * r) ** 2 / (4 * r * 0.6))),
+      28,
+    );
+    const m = b.add(dish, f, 0, h * 0.55, back(d) + d * 0.55);
+    m.rotation.x = Math.PI / 2 - 0.45;
+    b.box(0.05, 0.05, d * 0.5, 0, h * 0.45, back(d) + d * 0.25, mat(C.steel));
+    b.box(0.12, 0.2, 0.03, 0, h * 0.35, back(d) + 0.015, mat(C.steel));
+    b.rod(v(0, h * 0.4, back(d) + d * 0.55), v(0, h * 0.5, back(d) + d * 0.98), 0.012, mat(C.steel), 6);
+    b.box(0.06, 0.05, 0.09, 0, h * 0.48, back(d) + d * 0.95, mat(C.black), 0.01);
+  },
   wheelie_bin: (b, w, d, h, f, _c, a) => wheelieBin(b, 0, w - 0.03, d, h, f, a),
   mailbox: (b, w, d, h, f) => {
     // a wall letterbox: a rounded body, a slanted lid with the slot, a name plate, a lock

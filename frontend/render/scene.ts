@@ -15,7 +15,7 @@ import { LineGeometry } from "three/examples/jsm/lines/LineGeometry.js";
 import { LineMaterial } from "three/examples/jsm/lines/LineMaterial.js";
 import { LineSegments2 } from "three/examples/jsm/lines/LineSegments2.js";
 import { LineSegmentsGeometry } from "three/examples/jsm/lines/LineSegmentsGeometry.js";
-import type { House, Level, LightType, Side, Vec2, Vertical } from "../model/types";
+import type { RoofPart, Room, House, Level, LightType, Side, Vec2, Vertical } from "../model/types";
 import { innerPolygon, type Wall, type WallOpening } from "../model/walls";
 import { bbox, overlap, pointInPolygon } from "../model/geometry";
 import { stairFrame, stairHole } from "../model/stairs";
@@ -581,6 +581,8 @@ export class HouseRenderer {
     this.clear();
     this.sideX = 0;
     this.facade = house.facade;
+    this.roofLevel = house.levels.find((l) => l.kind === "roof") ?? null;
+    this.clipSets = [];
     for (const level of house.levels) {
       const materials = new Set<THREE.Material>();
       this.building = materials;
@@ -606,7 +608,8 @@ export class HouseRenderer {
     }
     const top = house.levels[house.levels.length - 1];
     this.roofInfo = top ? { level: top, shape: house.roof } : null;
-    if (this.view.roof && top) {
+    // (a roof level brings its own roofs)
+    if (this.view.roof && top && top.kind !== "roof") {
       this.roof = this.buildRoof(top, house.roof);
       const l = this.levels[this.levels.length - 1];
       l.group.add(this.roof);
@@ -678,6 +681,13 @@ export class HouseRenderer {
     this.modelMaterials = new Map();
     g.name = level.id;
     const holes = holesFor(level, vertical);
+
+    // a roof level: only its roof parts, sitting on the floor below
+    if (level.kind === "roof") {
+      if (this.view.roof) level.roofs.forEach((part, i) => g.add(this.buildRoofPart(part, 0, i + 1)));
+      g.userData.roofLevel = true;
+      return g;
+    }
 
     // slab under the level
     if (level.outline.length) {
@@ -867,6 +877,7 @@ export class HouseRenderer {
     // one flight of stairs per storey the stairwell passes through
     for (const v of vertical) if (v.kind === "stairs" && level.index >= v.from && level.index < v.to) g.add(this.stairs(v, level));
     g.add(this.outline(walls));
+    this.trimUnderRoof(g, level);
     return g;
   }
 
@@ -1237,6 +1248,8 @@ export class HouseRenderer {
     const m = this.mesh(geo, mat);
     m.position.set(w.a[0] + ux * mid + w.normal[0] * offset, (z0 + z1) / 2, w.a[1] + uy * mid + w.normal[1] * offset);
     m.rotation.y = Math.atan2(-dy, dx);
+    // (where it stands, for trimming under a roof that starts lower)
+    m.userData.wallAt = [w.a[0] + ux * mid, w.a[1] + uy * mid];
     return m;
   }
 
@@ -1794,21 +1807,53 @@ export class HouseRenderer {
   }
 
   /** A gable roof on top of the level: a prism over its outline's bounds, with overhang. */
+  /** The house's single roof (houses without a roof level): one part over the top level. */
   private buildRoof(level: Level, roof: RoofShape): THREE.Group {
+    const part: RoofPart = {
+      id: "roof",
+      polygon: level.outline,
+      shape: roof.shape,
+      angle: roof.ridge === "east_west" ? 0 : 90,
+      pitch: roof.pitch,
+      overhang: roof.overhang,
+      offset: 0,
+      high: roof.high,
+      finish: roof.finish,
+      dormers: roof.dormers,
+      windows: roof.windows,
+      furniture: [],
+    };
+    return this.buildRoofPart(part, level.height, 0);
+  }
+
+  /**
+   * A roof part's frame: `a` along the ridge, `c` across it (both in plan metres), the
+   * part's extent in them, and P(a, c, z) to a point in the level.
+   */
+  private roofFrame(part: RoofPart, base: number) {
+    const th = (part.angle * Math.PI) / 180;
+    const d: Vec2 = [Math.cos(th), Math.sin(th)];
+    const n: Vec2 = [-Math.sin(th), Math.cos(th)];
+    const as = part.polygon.map((p) => p[0] * d[0] + p[1] * d[1]);
+    const cs = part.polygon.map((p) => p[0] * n[0] + p[1] * n[1]);
+    const P = (a: number, c: number, z: number) => new THREE.Vector3(a * d[0] + c * n[0], z, a * d[1] + c * n[1]);
+    // which slope a side means: the one facing it (c growing: the far one)
+    const SIDE: Record<Side, Vec2> = { north: [0, -1], south: [0, 1], east: [1, 0], west: [-1, 0] };
+    const facing = (side: Side) => SIDE[side][0] * n[0] + SIDE[side][1] * n[1];
+    return { d, n, P, r0: Math.min(...as), r1: Math.max(...as), u0: Math.min(...cs), u1: Math.max(...cs), base, t: Math.tan((part.pitch * Math.PI) / 180), facing };
+  }
+
+  /** One roof part: its faces textured with its covering, gable ends, dormers, windows, pieces. */
+  private buildRoofPart(part: RoofPart, levelBase: number, partIndex: number): THREE.Group {
     const g = new THREE.Group();
-    const { min, max } = bbox(level.outline);
-    const o = roof.overhang;
-    const t = Math.tan((roof.pitch * Math.PI) / 180);
-    const eastWest = roof.ridge === "east_west";
-    // a: along the ridge, c: across it, z: up
-    const [u0, u1] = eastWest ? [min[1], max[1]] : [min[0], max[0]];
-    const [r0, r1] = eastWest ? [min[0], max[0]] : [min[1], max[1]];
-    const base = level.height;
-    const P = (a: number, c: number, z: number) => (eastWest ? new THREE.Vector3(a, z, c) : new THREE.Vector3(c, z, a));
-    const covering = this.finish(roof.finish);
+    const base = levelBase + part.offset;
+    const f = this.roofFrame(part, base);
+    const { P, r0, r1, u0, u1, t } = f;
+    const o = part.overhang;
+    const covering = this.finish(part.finish);
     const mat = new THREE.MeshLambertMaterial({ color: covering.color, map: covering.map, side: THREE.DoubleSide });
     const ends = new THREE.MeshLambertMaterial({ color: COLORS.wall, side: THREE.DoubleSide });
-    for (const m of [mat, ends]) this.levels[this.levels.length - 1]?.materials.add(m);
+    for (const m of [mat, ends]) this.building ? this.building.add(m) : this.levels[this.levels.length - 1]?.materials.add(m);
     const faces: { pts: THREE.Vector3[]; along: THREE.Vector3 }[] = [];
     const walls: THREE.Vector3[][] = [];
     const A0 = r0 - o;
@@ -1818,21 +1863,18 @@ export class HouseRenderer {
     const zE = base - o * t;
     const alongA = P(1, 0, 0).sub(P(0, 0, 0));
     const alongC = P(0, 1, 0).sub(P(0, 0, 0));
-    if (roof.shape === "flat") {
-      // a slab with a low parapet; the covering on top
+    if (part.shape === "flat") {
       const top = base + 0.25;
       faces.push({ pts: [P(r0, u0, top), P(r1, u0, top), P(r1, u1, top), P(r0, u1, top)], along: alongA });
-      const p = 0.45;
       for (const [a, b] of [
         [P(r0, u0, base), P(r1, u0, base)],
         [P(r1, u0, base), P(r1, u1, base)],
         [P(r1, u1, base), P(r0, u1, base)],
         [P(r0, u1, base), P(r0, u0, base)],
       ])
-        walls.push([a, b, b.clone().setY(base + p), a.clone().setY(base + p)]);
-    } else if (roof.shape === "shed") {
-      // one slope; the high side is a wall up to the roof
-      const highFar = eastWest ? roof.high !== "north" : roof.high !== "west";
+        walls.push([a, b, b.clone().setY(base + 0.45), a.clone().setY(base + 0.45)]);
+    } else if (part.shape === "shed") {
+      const highFar = f.facing(part.high) >= 0;
       const lowC = highFar ? C0 : C1;
       const highC = highFar ? C1 : C0;
       const wallHigh = highFar ? u1 : u0;
@@ -1844,8 +1886,7 @@ export class HouseRenderer {
       const half = (C1 - C0) / 2;
       const Cm = C0 + half;
       const zR = zE + half * t;
-      if (roof.shape === "hip") {
-        // the ridge stops half a width from each end: slopes on all four sides
+      if (part.shape === "hip") {
         const inset = Math.min(half, (A1 - A0) / 2);
         const Ra0 = A0 + inset;
         const Ra1 = A1 - inset;
@@ -1856,53 +1897,87 @@ export class HouseRenderer {
       } else {
         faces.push({ pts: [P(A0, C0, zE), P(A1, C0, zE), P(A1, Cm, zR), P(A0, Cm, zR)], along: alongA });
         faces.push({ pts: [P(A1, C1, zE), P(A0, C1, zE), P(A0, Cm, zR), P(A1, Cm, zR)], along: alongA.clone().negate() });
-        // the gable ends: wall up to the roof
         for (const a of [r0, r1]) walls.push([P(a, u0, base), P(a, u1, base), P(a, Cm, base + (Cm - u0) * t)]);
       }
     }
     g.add(this.mesh(roofGeometry(faces), mat));
     if (walls.length) g.add(this.mesh(roofGeometry(walls.map((pts) => ({ pts, along: pts[1].clone().sub(pts[0]).normalize() }))), ends));
-    if (roof.shape === "gable" || roof.shape === "hip") for (const d of roof.dormers ?? []) this.dormer(g, d, { eastWest, u0, u1, r0, r1, base, t, mat });
-    if (roof.shape !== "flat") roof.windows.forEach((w, i) => this.roofWindow(g, w, i, roof, { eastWest, u0, u1, r0, r1, base, t }));
+    if (part.shape === "gable" || part.shape === "hip") for (const d of part.dormers) this.dormer(g, d, f, mat);
+    if (part.shape !== "flat") part.windows.forEach((w, i) => this.roofWindow(g, w, partIndex * 100 + i, part, f));
+    for (const piece of part.furniture) g.add(this.roofPiece(piece, part, f));
     g.userData.outdoor = true;
     g.traverse((x) => (x.userData.outdoor = true));
     return g;
   }
 
-  /** Roof windows by their place in `roof.windows`: the shutter and the sash, for their states. */
+  /** Height of a roof part's surface over a plan point (null: outside it). */
+  private roofHeight(part: RoofPart, f: ReturnType<HouseRenderer["roofFrame"]>, p: Vec2): { z: number; slope: number; far: boolean } | null {
+    const a = p[0] * f.d[0] + p[1] * f.d[1];
+    const c = p[0] * f.n[0] + p[1] * f.n[1];
+    if (a < f.r0 - part.overhang || a > f.r1 + part.overhang || c < f.u0 - part.overhang || c > f.u1 + part.overhang) return null;
+    if (part.shape === "flat") return { z: f.base + 0.25, slope: 0, far: true };
+    if (part.shape === "shed") {
+      const highFar = f.facing(part.high) >= 0;
+      const k = highFar ? c - f.u0 : f.u1 - c;
+      return { z: f.base + k * f.t, slope: f.t, far: !highFar };
+    }
+    const mid = (f.u0 + f.u1) / 2;
+    const far = c > mid;
+    const k = far ? f.u1 - c : c - f.u0;
+    let z = f.base + k * f.t;
+    if (part.shape === "hip") {
+      // the end slopes are as steep: the lower of the two
+      const ka = Math.min(a - f.r0, f.r1 - a);
+      z = Math.min(z, f.base + ka * f.t);
+    }
+    return { z, slope: f.t, far };
+  }
+
+  /** A piece on a roof part (solar panels): on the slope, tilted with it; on a flat roof on a frame, tilted to the sun. */
+  private roofPiece(piece: Room["furniture"][number], part: RoofPart, f: ReturnType<HouseRenderer["roofFrame"]>): THREE.Object3D {
+    const obj = this.furniture({ ...piece, mount: "floor", elevation: 0 }, 3);
+    const h = this.roofHeight(part, f, piece.at) ?? { z: f.base, slope: 0, far: true };
+    const holder = new THREE.Group();
+    holder.position.set(piece.at[0], h.z + 0.08, piece.at[1]);
+    // lie in the slope: face down the slope (outwards), tilted by its pitch
+    const out: Vec2 = h.far ? f.n : [-f.n[0], -f.n[1]];
+    holder.rotation.order = "YXZ";
+    holder.rotation.y = Math.atan2(out[0], out[1]);
+    holder.rotation.x = part.shape === "flat" ? (15 * Math.PI) / 180 : Math.atan(h.slope);
+    // the piece keeps its own turn on the roof
+    obj.position.set(0, 0, 0);
+    obj.rotation.set(0, (-piece.rotation * Math.PI) / 180, 0);
+    holder.add(obj);
+    return holder;
+  }
+
+  /** Roof windows by their key (part × 100 + index): the shutter and the sash, for their states. */
   private roofWindows = new Map<number, { shutter: THREE.Object3D; sash: THREE.Object3D }>();
 
   /** A roof window lying in its slope: frame, glass, and an outside shutter rolled up at its top. */
-  private roofWindow(g: THREE.Group, w: RoofShape["windows"][number], index: number, roof: RoofShape, r: { eastWest: boolean; u0: number; u1: number; r0: number; r1: number; base: number; t: number }) {
-    const far = r.eastWest ? w.side === "south" : w.side === "east";
-    const near = r.eastWest ? w.side === "north" : w.side === "west";
-    if (!far && !near) return;
-    // a shed roof has one slope: the low side
-    if (roof.shape === "shed") {
-      const highFar = r.eastWest ? roof.high !== "north" : roof.high !== "west";
-      if (far === highFar) return;
-    }
-    const angle = Math.atan(r.t);
-    const along = Math.max(r.r0 + w.width / 2, Math.min(r.r1 - w.width / 2, r.r0 + w.at));
-    // up the slope from the wall line: across the plan by cos, up by sin
+  private roofWindow(g: THREE.Group, w: RoofPart["windows"][number], key: number, part: RoofPart, f: ReturnType<HouseRenderer["roofFrame"]>) {
+    const facing = f.facing(w.side);
+    if (Math.abs(facing) < 0.5) return;
+    const far = facing > 0;
+    if (part.shape === "shed" && far === f.facing(part.high) >= 0) return;
+    const angle = Math.atan(f.t);
+    const along = Math.max(f.r0 + w.width / 2, Math.min(f.r1 - w.width / 2, f.r0 + w.at));
     const run = w.up * Math.cos(angle);
-    const c = far ? r.u1 - run : r.u0 + run;
-    const z = r.base + w.up * Math.sin(angle) + 0.04;
+    const c = far ? f.u1 - run : f.u0 + run;
+    const z = f.base + w.up * Math.sin(angle) + 0.04;
     const holder = new THREE.Group();
-    holder.position.copy(r.eastWest ? new THREE.Vector3(along, z, c) : new THREE.Vector3(c, z, along));
-    // face the slope: tilt back towards the ridge
+    holder.position.copy(f.P(along, c, z));
+    const out: Vec2 = far ? f.n : [-f.n[0], -f.n[1]];
     holder.rotation.order = "YXZ";
-    holder.rotation.y = r.eastWest ? (far ? 0 : Math.PI) : far ? Math.PI / 2 : -Math.PI / 2;
+    holder.rotation.y = Math.atan2(out[0], out[1]);
     holder.rotation.x = -(Math.PI / 2 - angle);
     const frame = this.lambert("#3a3d41");
     const glass = this.lambert(COLORS.glass, { transparent: true, opacity: 0.8 });
     holder.add(this.mesh(new THREE.BoxGeometry(w.width, w.height, 0.05), frame).translateZ(0.01));
-    // the sash: hinged in the middle, it tilts open with its contact
     const sash = new THREE.Group();
     sash.add(this.mesh(new THREE.BoxGeometry(w.width - 0.1, w.height - 0.1, 0.03), glass, false));
     sash.position.z = 0.03;
     holder.add(sash);
-    // the shutter: a box at the top, its curtain runs down over the glass
     const box = this.lambert("#4a4d52");
     holder.add(this.mesh(new THREE.BoxGeometry(w.width + 0.04, 0.12, 0.09), box).translateY(w.height / 2 + 0.04).translateZ(0.04));
     const shutter = new THREE.Group();
@@ -1913,14 +1988,13 @@ export class HouseRenderer {
     shutter.scale.y = 0.001;
     shutter.visible = !!w.cover;
     holder.add(shutter);
-    holder.userData.roofWindow = index;
-    this.roofWindows.set(index, { shutter, sash });
+    this.roofWindows.set(key, { shutter, sash });
     g.add(holder);
   }
 
-  /** A roof window's state: how far its shutter is closed (0…1) and whether it is open. */
-  setRoofWindow(index: number, closed: number, open: boolean) {
-    const w = this.roofWindows.get(index);
+  /** A roof window's state (key: part × 100 + index): how far its shutter is closed (0…1), open or not. */
+  setRoofWindow(key: number, closed: number, open: boolean) {
+    const w = this.roofWindows.get(key);
     if (!w) return;
     w.shutter.scale.y = Math.max(0.001, Math.min(1, closed));
     w.sash.rotation.x = open ? -0.25 : 0;
@@ -1928,9 +2002,87 @@ export class HouseRenderer {
   }
 
   /** For tests: a roof window as drawn. */
-  roofWindowState(index: number) {
-    const w = this.roofWindows.get(index);
+  roofWindowState(key: number) {
+    const w = this.roofWindows.get(key);
     return w ? { closed: w.shutter.scale.y, open: w.sash.rotation.x !== 0 } : null;
+  }
+
+  private roofLevel: Level | null = null;
+  /** Clipping planes kept in the levels' coordinates, put in world coordinates before each frame. */
+  private clipSets: { group: THREE.Object3D; local: THREE.Plane[]; world: THREE.Plane[] }[] = [];
+
+  /**
+   * Walls of a floor reaching into a roof that starts lower (a negative offset, or a roof
+   * starting on the floor below): cut off along the roof's slopes, where that roof is.
+   */
+  private trimUnderRoof(g: THREE.Group, level: Level) {
+    const roofLevel = this.roofLevel;
+    if (!roofLevel || level.kind === "roof" || !this.view.roof) return;
+    const parts = roofLevel.roofs
+      .map((part) => ({ part, base: roofLevel.elevation - level.elevation + part.offset }))
+      .filter(({ base }) => base < level.height - 0.01);
+    if (!parts.length) return;
+    const clones = new Map<string, THREE.Material>();
+    g.traverse((o) => {
+      if (!(o instanceof THREE.Mesh) || !o.userData.wallAt) return;
+      const at = o.userData.wallAt as Vec2;
+      const hit = parts.find(({ part }) => {
+        const f = this.roofFrame(part, 0);
+        const a = at[0] * f.d[0] + at[1] * f.d[1];
+        const c = at[0] * f.n[0] + at[1] * f.n[1];
+        return a > f.r0 - 0.05 && a < f.r1 + 0.05 && c > f.u0 - 0.05 && c < f.u1 + 0.05;
+      });
+      if (!hit) return;
+      const index = parts.indexOf(hit);
+      const set = (this.clipSets.find((x) => x.group === g && (x as { key?: number }).key === index) as (typeof this.clipSets)[number] | undefined) ?? this.makeClipSet(g, hit.part, hit.base, index);
+      const swap = (m: THREE.Material) => {
+        const key = `${m.uuid}/${index}`;
+        let c = clones.get(key);
+        if (!c) {
+          c = m.clone();
+          c.clippingPlanes = set.world;
+          c.clipShadows = true;
+          clones.set(key, c);
+          this.building?.add(c);
+        }
+        return c;
+      };
+      o.material = Array.isArray(o.material) ? o.material.map(swap) : swap(o.material);
+    });
+  }
+
+  /** The planes under a roof part, in its floor's coordinates (keep what is below all of them). */
+  private makeClipSet(g: THREE.Object3D, part: RoofPart, base: number, key: number) {
+    const f = this.roofFrame(part, base);
+    const t = f.t;
+    const plane = (nx: number, ny: number, nz: number, c: number) => {
+      const len = Math.hypot(nx, ny, nz) || 1;
+      return new THREE.Plane(new THREE.Vector3(nx / len, ny / len, nz / len), c / len);
+    };
+    const [n0, n1] = f.n;
+    const [d0, d1] = f.d;
+    const local: THREE.Plane[] = [];
+    if (part.shape === "flat") local.push(plane(0, -1, 0, base + 0.25));
+    else if (part.shape === "shed") {
+      const highFar = f.facing(part.high) >= 0;
+      // z ≤ base + (c − u0)·t, or from the other side
+      local.push(highFar ? plane(t * n0, -1, t * n1, base - f.u0 * t) : plane(-t * n0, -1, -t * n1, base + f.u1 * t));
+    } else {
+      local.push(plane(t * n0, -1, t * n1, base - f.u0 * t), plane(-t * n0, -1, -t * n1, base + f.u1 * t));
+      if (part.shape === "hip") local.push(plane(t * d0, -1, t * d1, base - f.r0 * t), plane(-t * d0, -1, -t * d1, base + f.r1 * t));
+    }
+    const set = { group: g, local, world: local.map((p) => p.clone()), key };
+    this.clipSets.push(set);
+    this.renderer.localClippingEnabled = true;
+    return set;
+  }
+
+  /** The trimming planes follow their floors as they lift and fade. */
+  private placeClipping() {
+    for (const set of this.clipSets) {
+      set.group.updateMatrixWorld();
+      set.local.forEach((p, i) => set.world[i].copy(p).applyMatrix4(set.group.matrixWorld));
+    }
   }
 
   /** A balcony's railing along the edges that are not against the house, a metre high. */
@@ -1978,55 +2130,43 @@ export class HouseRenderer {
    * A dormer: a little house sticking out of a slope, its front wall upright above the
    * eave with a window, its own roof (gable or shed) running back into the main roof.
    */
-  private dormer(
-    g: THREE.Group,
-    d: NonNullable<RoofShape["dormers"]>[number],
-    r: { eastWest: boolean; u0: number; u1: number; r0: number; r1: number; base: number; t: number; mat: THREE.Material },
-  ) {
-    // which slope: across the ridge, the low side (u0) or the high side (u1)
-    const low = r.eastWest ? d.side === "north" : d.side === "west";
-    const high = r.eastWest ? d.side === "south" : d.side === "east";
-    if (!low && !high) return;
+  private dormer(g: THREE.Group, d: RoofPart["dormers"][number], f: ReturnType<HouseRenderer["roofFrame"]>, mat: THREE.Material) {
+    const facing = f.facing(d.side);
+    if (Math.abs(facing) < 0.5) return;
+    const low = facing < 0;
     const height = 1.25;
     const inset = 0.45;
-    // from the front wall back to where its top meets the roof
-    const depth = height / r.t - inset;
+    const depth = height / f.t - inset;
     if (depth < 0.25) return;
-    const along = Math.max(r.r0 + d.width / 2, Math.min(r.r1 - d.width / 2, r.r0 + d.at));
-    const front = low ? r.u0 + inset : r.u1 - inset;
+    const along = Math.max(f.r0 + d.width / 2, Math.min(f.r1 - d.width / 2, f.r0 + d.at));
+    const front = low ? f.u0 + inset : f.u1 - inset;
     const mid = front + (low ? depth / 2 : -depth / 2);
     const wall = this.lambert(COLORS.wall);
     const parts = new THREE.Group();
-    // its body (the part inside the main roof is hidden by it)
     const body = new THREE.Mesh(new THREE.BoxGeometry(d.width, height, depth), wall);
     body.position.set(0, height / 2, 0);
     parts.add(body);
-    // a window in the front, dark glass in a white frame
     const glass = this.lambert(COLORS.glass, { transparent: true, opacity: 0.75 });
     const pane = new THREE.Mesh(new THREE.PlaneGeometry(d.width * 0.62, height * 0.6), glass);
     pane.position.set(0, height * 0.5, (low ? -1 : 1) * (depth / 2 + 0.006));
     if (low) pane.rotation.y = Math.PI;
     parts.add(pane);
-    // its roof
     if (d.shape === "shed") {
-      const lid = new THREE.Mesh(new THREE.BoxGeometry(d.width + 0.2, 0.08, depth + 0.25), r.mat);
+      const lid = new THREE.Mesh(new THREE.BoxGeometry(d.width + 0.2, 0.08, depth + 0.25), mat);
       lid.position.set(0, height + 0.04, (low ? -1 : 1) * 0.12);
       lid.rotation.x = (low ? 1 : -1) * 0.08;
       parts.add(lid);
     } else {
       const rise = (d.width / 2) * 0.7;
       const shape = new THREE.Shape([new THREE.Vector2(-d.width / 2 - 0.1, 0), new THREE.Vector2(d.width / 2 + 0.1, 0), new THREE.Vector2(0, rise)]);
-      const lid = new THREE.Mesh(new THREE.ExtrudeGeometry(shape, { depth: depth + 0.2, bevelEnabled: false }), r.mat);
+      const lid = new THREE.Mesh(new THREE.ExtrudeGeometry(shape, { depth: depth + 0.2, bevelEnabled: false }), mat);
       lid.position.set(0, height, -(depth + 0.2) / 2 + (low ? -0.1 : 0.1));
       parts.add(lid);
     }
     for (const p of parts.children) (p as THREE.Mesh).castShadow = (p as THREE.Mesh).receiveShadow = true;
-    // into the plan: x along the ridge for east–west, across for north–south
-    if (r.eastWest) parts.position.set(along, r.base, mid);
-    else {
-      parts.rotation.y = Math.PI / 2;
-      parts.position.set(mid, r.base, along);
-    }
+    // local x along the ridge, local z across it (c growing)
+    parts.rotation.y = Math.atan2(f.n[0], f.n[1]);
+    parts.position.copy(f.P(along, mid, f.base));
     g.add(parts);
   }
 
@@ -3223,6 +3363,7 @@ export class HouseRenderer {
   /** Draws a frame at the current size and camera. */
   draw(now = performance.now()) {
     this.fitCamera();
+    if (this.clipSets.length) this.placeClipping();
     this.placeLights();
     if (this.flows.length) this.updateFlows(now);
     if (this.devices.size || this.leaves.size) this.spin(now);

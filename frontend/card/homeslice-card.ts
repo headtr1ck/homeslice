@@ -1340,7 +1340,10 @@ export class HomesliceCard extends LitElement {
     const awnings = this.rooms.map((r) => (r.room.awning ? coverOpen(hass, r.room.awning, inverted.has(r.room.awning)) : null));
     const devices = this.devices.map((entity) => deviceLook(hass, entity, inverted.has(entity)));
     // roof windows: how far their shutters are down, whether they are open
-    const roofWindows = this.house.roof.windows.map((w) => [w.cover ? 1 - (coverOpen(hass, w.cover, inverted.has(w.cover)) ?? 1) : 0, w.contact ? contactOpen(hass, w.contact) : false] as const);
+    // (keys: the house's roof 0…, a roof level's part n: n × 100 + index)
+    const roofLevel = this.house.levels.find((l) => l.kind === "roof");
+    const roofWindowList = roofLevel ? roofLevel.roofs.flatMap((p, n) => p.windows.map((w, i) => [(n + 1) * 100 + i, w] as const)) : this.house.roof.windows.map((w, i) => [i, w] as const);
+    const roofWindows = roofWindowList.map(([key, w]) => [key, w.cover ? 1 - (coverOpen(hass, w.cover, inverted.has(w.cover)) ?? 1) : 0, w.contact ? contactOpen(hass, w.contact) : false] as const);
     const energyDetails = this.config.energy ? this.house.energy.flatMap((e) => e.details.map((d) => hass.states[d.entity]?.state)) : [];
     // rain, snow or fog around the house, from the card's weather entity
     const weather = this.config.weather && this.config.weather_effects !== false ? weatherEffect(hass.states[this.config.weather]?.state) : null;
@@ -1376,7 +1379,7 @@ export class HomesliceCard extends LitElement {
     this.lamps.forEach((l, i) => this.renderer!.setLamp(l.entity, lamps[i]));
     this.devices.forEach((entity, i) => this.renderer!.setDevice(entity, devices[i]));
     for (const [entity, heating] of underfloor) this.renderer.setUnderfloor(entity, heating);
-    roofWindows.forEach(([closed, open], i) => this.renderer!.setRoofWindow(i, closed, open));
+    for (const [key, closed, open] of roofWindows) this.renderer.setRoofWindow(key, closed, open);
     for (const [entity, moving] of cameras) this.renderer.setCameraMotion(entity, moving);
     this.renderer.setLook(look, this.config.accent || undefined);
     this.renderer.setWeather(weather);
@@ -2072,7 +2075,8 @@ export class HomesliceCard extends LitElement {
   }
 
   protected override render() {
-    const levels = [...(this.house?.levels ?? [])].reverse();
+    // a roof level is a floor button only while the card shows the roof
+    const levels = [...(this.house?.levels ?? [])].reverse().filter((l) => l.kind !== "roof" || this.view.roof);
     return html`
       <ha-card class="${this.config.lamp_style === "circle" ? "" : "bare-lamps"} ${this._night ? "night-dim" : ""}" style=${this._night ? `--night-brightness:${Math.min(1, Math.max(0.1, this.config.night_brightness ?? 0.4))}` : ""}>
         ${this.config.clock && this._clock ? html`<div class="clock" role="timer">${this._clock}</div>` : nothing}

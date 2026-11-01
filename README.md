@@ -246,6 +246,14 @@ id: home
 name: Home
 outline: { rect: [0, 0, 10, 8] }       # outer face of the exterior walls, shared by all levels
 party_walls: [west]                     # walls shared with a neighbour
+# the roof as a level of its own (instead of roof:): parts at any angle, a roof starting lower,
+# pieces on it such as solar panels; in the editor: house settings → Use a roof level, then presets
+#  - id: roof
+#    kind: roof
+#    roofs:
+#      - { id: main, rect: [0, 0, 10, 8], shape: gable, ridge: left_right, pitch: 40, offset: -1.2,
+#          finish: roof_slate, furniture: [{ type: item, model: modern:solar_panel, at: [3, 6] }] }
+#      - { id: wing, rect: [10, 0, 3, 4], shape: shed, ridge: 30, pitch: 12 }   # ridge: up_down or degrees
 roof:                                   # optional; drawn by cards with view.roof
   ridge: east_west
   pitch: 35

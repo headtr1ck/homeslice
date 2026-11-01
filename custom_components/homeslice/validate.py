@@ -240,6 +240,86 @@ def validate(house: Any) -> list[dict[str, str]]:
     if facade is not MISSING and not finish_ok(facade, wall_finishes):
         err("facade", f"facade must be {WALL_HINT}, got {stringify(facade)}.")
 
+    def check_furniture(list_in: Any, rp: str) -> None:
+        for j, fi in enumerate(items(list_in)):
+            fp = f"{rp}.furniture.{j}"
+            ftype = get(fi, "type")
+            definition = furniture_types.get(ftype) if isinstance(ftype, str) else None
+            if not definition:
+                err(fp, f"type must be one of {', '.join(furniture_types)}, got {stringify(ftype)}.")
+                continue
+            at = get(fi, "at")
+            if not isinstance(at, list) or len(at) != 2:
+                err(fp, "at must be [metres east, metres south] of the room's north-west corner (the piece's centre).")
+                continue
+            size = nullish(get(fi, "size"), definition["size"])
+            if not (num(get(size, 0)) > 0 and num(get(size, 1)) > 0):
+                err(fp, "size must be [width, depth] in metres.")
+                continue
+            mount = nullish(get(fi, "mount"), definition.get("mount", "floor"))
+            if mount not in ("floor", "wall", "ceiling"):
+                err(fp, f"mount must be floor, wall or ceiling, got {stringify(get(fi, 'mount'))}.")
+                continue
+            height = get(fi, "height")
+            if height is not MISSING and not (is_num(height) and height > 0):
+                err(fp, "height must be in metres.")
+                continue
+            model = get(fi, "model")
+            if model is not MISSING and not (isinstance(model, str) and MODEL_REF.match(model)):
+                err(fp, f"model must be modern:<kind>, polyhaven:<id>, custom:<id> or builtin, got {stringify(model)}.")
+                continue
+            finish = get(fi, "finish")
+            if finish is not MISSING and not isinstance(finish, str):
+                err(fp, "finish must be a name like oak, white or grey.")
+                continue
+            accent = get(fi, "accent")
+            if accent is not MISSING and not isinstance(accent, str):
+                err(fp, "accent must be a name like black, brass or oak.")
+                continue
+            readings = get(fi, "readings")
+            if readings is not MISSING and not (isinstance(readings, list) and all(isinstance(r, str) and "." in r for r in readings)):
+                err(fp, "readings must be a list of entity ids, e.g. [sensor.car_battery].")
+                continue
+
+    def check_dormers(list_in: Any, path: str) -> None:
+        for i, d in enumerate(items(list_in)):
+            dp = f"{path}.{i}"
+            if get(d, "side") not in SIDES or not is_num(get(d, "at")):
+                err(dp, "A dormer needs side (north, south, east or west) and at (metres along the ridge).")
+                continue
+            width = get(d, "width")
+            if width is not MISSING and not (is_num(width) and 0.5 <= width <= 6):
+                err(f"{dp}.width", "width must be in metres (0.5–6).")
+                continue
+            dshape = get(d, "shape")
+            if dshape is not MISSING and dshape not in ("gable", "shed"):
+                err(f"{dp}.shape", "shape must be gable or shed.")
+
+    def check_windows(list_in: Any, path: str) -> None:
+        for i, w in enumerate(items(list_in)):
+            wp = f"{path}.{i}"
+            if get(w, "side") not in SIDES or not is_num(get(w, "at")):
+                err(wp, "A roof window needs side (north, south, east or west) and at (metres along the ridge).")
+                continue
+            bad = False
+            for k, lo, hi in (("up", 0, 20), ("width", 0.3, 3), ("height", 0.3, 3)):
+                v = get(w, k)
+                if v is not MISSING and not (is_num(v) and lo <= v <= hi):
+                    err(f"{wp}.{k}", f"{k} must be in metres ({text(lo)}–{text(hi)}).")
+                    bad = True
+                    break
+            if bad:
+                continue
+            cover = get(w, "cover")
+            if cover is not MISSING and not (isinstance(cover, str) and cover.startswith("cover.")):
+                err(f"{wp}.cover", "cover must be a cover entity, e.g. cover.….")
+                continue
+            contact = get(w, "contact")
+            if contact is not MISSING and not (isinstance(contact, str) and "." in contact):
+                err(f"{wp}.contact", "contact must be an entity id, e.g. binary_sensor.….")
+
+    roof_shapes = ("gable", "hip", "shed", "flat")
+
     level_ids: set[Any] = set()
     levels: list[dict[str, Any]] = []
     for index, li in enumerate(levels_in):
@@ -339,45 +419,7 @@ def validate(house: Any) -> list[dict[str, str]]:
                     err(f"{cp}.height", "height must be metres above the floor (0–6).")
                 elif motion is not MISSING and not (isinstance(motion, str) and "." in motion):
                     err(f"{cp}.motion", "motion must be an entity id, e.g. binary_sensor.….")
-            for j, fi in enumerate(items(get(ri, "furniture"))):
-                fp = f"{rp}.furniture.{j}"
-                ftype = get(fi, "type")
-                definition = furniture_types.get(ftype) if isinstance(ftype, str) else None
-                if not definition:
-                    err(fp, f"type must be one of {', '.join(furniture_types)}, got {stringify(ftype)}.")
-                    continue
-                at = get(fi, "at")
-                if not isinstance(at, list) or len(at) != 2:
-                    err(fp, "at must be [metres east, metres south] of the room's north-west corner (the piece's centre).")
-                    continue
-                size = nullish(get(fi, "size"), definition["size"])
-                if not (num(get(size, 0)) > 0 and num(get(size, 1)) > 0):
-                    err(fp, "size must be [width, depth] in metres.")
-                    continue
-                mount = nullish(get(fi, "mount"), definition.get("mount", "floor"))
-                if mount not in ("floor", "wall", "ceiling"):
-                    err(fp, f"mount must be floor, wall or ceiling, got {stringify(get(fi, 'mount'))}.")
-                    continue
-                height = get(fi, "height")
-                if height is not MISSING and not (is_num(height) and height > 0):
-                    err(fp, "height must be in metres.")
-                    continue
-                model = get(fi, "model")
-                if model is not MISSING and not (isinstance(model, str) and MODEL_REF.match(model)):
-                    err(fp, f"model must be modern:<kind>, polyhaven:<id>, custom:<id> or builtin, got {stringify(model)}.")
-                    continue
-                finish = get(fi, "finish")
-                if finish is not MISSING and not isinstance(finish, str):
-                    err(fp, "finish must be a name like oak, white or grey.")
-                    continue
-                accent = get(fi, "accent")
-                if accent is not MISSING and not isinstance(accent, str):
-                    err(fp, "accent must be a name like black, brass or oak.")
-                    continue
-                readings = get(fi, "readings")
-                if readings is not MISSING and not (isinstance(readings, list) and all(isinstance(r, str) and "." in r for r in readings)):
-                    err(fp, "readings must be a list of entity ids, e.g. [sensor.car_battery].")
-                    continue
+            check_furniture(get(ri, "furniture"), rp)
 
         for i, oi in enumerate(items(get(li, "openings"))):
             op = f"{lp}.openings[{i}]"
@@ -430,6 +472,51 @@ def validate(house: Any) -> list[dict[str, str]]:
         include = get(li, "include_floors")
         if include is not MISSING and not (isinstance(include, list) and all(isinstance(f, str) for f in include)):
             err(f"{lp}.include_floors", "include_floors must be a list of Home Assistant floor ids.")
+        lkind = nullish(get(li, "kind"), "floor")
+        if lkind not in ("floor", "roof"):
+            err(f"{lp}.kind", f"kind must be floor or roof, got {stringify(get(li, 'kind'))}.")
+        if lkind == "roof" and index != len(levels_in) - 1:
+            err(f"{lp}.kind", "A roof level must be the top level.")
+        if lkind != "roof" and items(get(li, "roofs")):
+            err(f"{lp}.roofs", "roofs belong on a roof level (kind: roof).")
+        if lkind == "roof":
+            for i, ri in enumerate(items(get(li, "roofs"))):
+                rp = f"{lp}.roofs.{text(nullish(get(ri, 'id'), i))}"
+                polygon = shape(ri, rp) if truthy(ri) and (truthy(get(ri, "rect")) or truthy(get(ri, "polygon"))) else None
+                if not polygon:
+                    err(rp, "A roof part needs rect: [x, y, width, depth] or polygon.")
+                    continue
+                rshape = get(ri, "shape")
+                if rshape is not MISSING and rshape not in roof_shapes:
+                    err(f"{rp}.shape", f"shape must be gable, hip, shed or flat, got {stringify(rshape)}.")
+                    continue
+                ridge_in = get(ri, "ridge")
+                if ridge_in is not MISSING and ridge_in not in ("left_right", "up_down") and not is_num(ridge_in):
+                    err(f"{rp}.ridge", f"ridge must be left_right, up_down or degrees, got {stringify(ridge_in)}.")
+                    continue
+                rpitch = get(ri, "pitch")
+                if rpitch is not MISSING and not (is_num(rpitch) and 0 < rpitch < 75):
+                    err(f"{rp}.pitch", f"pitch must be between 0 and 75 degrees, got {stringify(rpitch)}.")
+                    continue
+                roverhang = get(ri, "overhang")
+                if roverhang is not MISSING and not (is_num(roverhang) and 0 <= roverhang <= 2):
+                    err(f"{rp}.overhang", "overhang must be in metres (0–2).")
+                    continue
+                roffset = get(ri, "offset")
+                if roffset is not MISSING and not (is_num(roffset) and -10 <= roffset <= 10):
+                    err(f"{rp}.offset", "offset must be in metres (-10–10).")
+                    continue
+                rhigh = get(ri, "high")
+                if rhigh is not MISSING and rhigh not in SIDES:
+                    err(f"{rp}.high", f"high must be one of {', '.join(SIDES)}.")
+                    continue
+                rfinish = get(ri, "finish")
+                if rfinish is not MISSING and not finish_ok(rfinish, catalog()["roof_finishes"]):
+                    err(f"{rp}.finish", f"finish must be {ROOF_HINT}, got {stringify(rfinish)}.")
+                    continue
+                check_dormers(get(ri, "dormers"), f"{rp}.dormers")
+                check_windows(get(ri, "windows"), f"{rp}.windows")
+                check_furniture(get(ri, "furniture"), rp)
         levels.append({"id": lid, "index": index})
 
     level_index = {lvl["id"]: lvl["index"] for lvl in levels if not isinstance(lvl["id"], (dict, list))}
@@ -495,18 +582,7 @@ def validate(house: Any) -> list[dict[str, str]]:
     pitch = nullish(get(roof, "pitch"), 35)
     if not (num(pitch) > 0 and num(pitch) < 75):
         err("roof", f"pitch must be between 0 and 75 degrees, got {text(pitch)}.")
-    for i, d in enumerate(items(get(roof, "dormers"))):
-        dp = f"roof.dormers.{i}"
-        if get(d, "side") not in SIDES or not is_num(get(d, "at")):
-            err(dp, "A dormer needs side (north, south, east or west) and at (metres along the ridge).")
-            continue
-        width = get(d, "width")
-        if width is not MISSING and not (is_num(width) and 0.5 <= width <= 6):
-            err(f"{dp}.width", "width must be in metres (0.5–6).")
-            continue
-        shape = get(d, "shape")
-        if shape is not MISSING and shape not in ("gable", "shed"):
-            err(f"{dp}.shape", "shape must be gable or shed.")
+    check_dormers(get(roof, "dormers"), "roof.dormers")
     roof_shape = get(roof, "shape")
     if roof_shape is not MISSING and roof_shape not in ("gable", "hip", "shed", "flat"):
         err("roof.shape", f"shape must be gable, hip, shed or flat, got {stringify(roof_shape)}.")
@@ -516,27 +592,7 @@ def validate(house: Any) -> list[dict[str, str]]:
     roof_finish = get(roof, "finish")
     if roof_finish is not MISSING and not finish_ok(roof_finish, catalog()["roof_finishes"]):
         err("roof.finish", f"finish must be {ROOF_HINT}, got {stringify(roof_finish)}.")
-    for i, w in enumerate(items(get(roof, "windows"))):
-        wp = f"roof.windows.{i}"
-        if get(w, "side") not in SIDES or not is_num(get(w, "at")):
-            err(wp, "A roof window needs side (north, south, east or west) and at (metres along the ridge).")
-            continue
-        bad = False
-        for k, lo, hi in (("up", 0, 20), ("width", 0.3, 3), ("height", 0.3, 3)):
-            v = get(w, k)
-            if v is not MISSING and not (is_num(v) and lo <= v <= hi):
-                err(f"{wp}.{k}", f"{k} must be in metres ({text(lo)}–{text(hi)}).")
-                bad = True
-                break
-        if bad:
-            continue
-        cover = get(w, "cover")
-        if cover is not MISSING and not (isinstance(cover, str) and cover.startswith("cover.")):
-            err(f"{wp}.cover", "cover must be a cover entity, e.g. cover.….")
-            continue
-        contact = get(w, "contact")
-        if contact is not MISSING and not (isinstance(contact, str) and "." in contact):
-            err(f"{wp}.contact", "contact must be an entity id, e.g. binary_sensor.….")
+    check_windows(get(roof, "windows"), "roof.windows")
 
     energy: list[dict[str, Any]] = []
     energy_in = items(get(h, "energy"))

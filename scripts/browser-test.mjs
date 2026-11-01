@@ -1099,6 +1099,49 @@ console.log("demo house, roof");
     );
   });
 
+  await test("a roof level: parts at any angle, one starting lower trims the walls below, solar panels on a slope", async () => {
+    await act(page, async () => {
+      await page.evaluate(() => {
+        const m = structuredClone(window.__demoModel);
+        const top = m.levels.at(-1);
+        m.levels.push({
+          id: "roof",
+          kind: "roof",
+          name: "Roof",
+          rooms: [],
+          roofs: [
+            { id: "main", rect: [0, 0, 10, 8], ridge: "left_right", shape: "gable", pitch: 40, offset: -1.2, finish: "roof_slate",
+              furniture: [{ type: "item", model: "modern:solar_panel", at: [3, 6] }, { type: "item", model: "modern:solar_panel", at: [4.2, 6] }] },
+            { id: "wing", rect: [10, 0, 3, 4], ridge: 30, shape: "shed", pitch: 12 },
+          ],
+        });
+        window.viewBefore ??= window.card.config.view;
+        window.card.setConfig({ ...window.card.config, view: { ...window.card.config.view, roof: true } });
+        window.card.hass.pushModel(m);
+      });
+    });
+    const state = await page.evaluate(() => {
+      const r = window.card.renderer;
+      const roofGroup = r.levels[r.levelIds.indexOf("roof")]?.group;
+      let clipped = 0;
+      r.levels[r.levelIds.length - 2].group.traverse((o) => {
+        if (o.isMesh && o.userData.wallAt && [].concat(o.material).some((m) => m.clippingPlanes?.length)) clipped++;
+      });
+      // the main part: its roof, its gable ends and two panels
+      const panels = (roofGroup?.children[0]?.children.length ?? 0) - 2;
+      return { parts: roofGroup?.children.length ?? 0, clipped, panels, clipping: r.renderer.localClippingEnabled };
+    });
+    assert(state.parts === 2 && state.panels === 2, `roof parts drawn: ${JSON.stringify(state)}`);
+    assert(state.clipped > 0 && state.clipping, `walls under the lowered roof not trimmed: ${JSON.stringify(state)}`);
+    await shot(page, "demo-roof-level");
+    await act(page, () =>
+      page.evaluate(() => {
+        window.card.setConfig({ ...window.card.config, view: window.viewBefore });
+        window.card.hass.pushModel(window.__demoModel);
+      }),
+    );
+  });
+
   await test("dormers on the roof, a railing round a balcony", async () => {
     await act(page, async () => {
       await page.evaluate(() => {
@@ -3072,12 +3115,44 @@ console.log("editor, starting from scratch");
     await page.keyboard.press("Escape");
   });
 
+  await test("roof level: add it, pick a preset, a second part at an angle, solar panels", async () => {
+    await page.keyboard.press("Escape");
+    const click = (sel) => page.locator(sel).first().click({ timeout: 5000 }).catch((e) => assert(false, `${sel}: ${e.message.split("\n")[0]}`));
+    // the roof is set up with the house's outline
+    await page.evaluate(() => {
+      window.panel._settings = null;
+      window.panel._tool = "select";
+      window.panel._room = "__outline__";
+    });
+    await click("homeslice-panel button[data-add-roof-level]");
+    const model = () => page.evaluate(() => window.panel._model);
+    let m = await model();
+    const roof = m.levels.at(-1);
+    assert(roof.kind === "roof" && roof.roofs.length === 1 && !m.roof, `roof level: ${JSON.stringify(roof)}`);
+    await click('homeslice-panel button[data-roof-preset="tuscan"]');
+    m = await model();
+    assert(m.levels.at(-1).roofs[0].shape === "hip" && m.levels.at(-1).roofs[0].pitch === 22, `tuscan: ${JSON.stringify(m.levels.at(-1).roofs[0])}`);
+    await click("homeslice-panel button[data-add-roof-part]");
+    m = await model();
+    assert(m.levels.at(-1).roofs.length === 2, "no second part");
+    await click("homeslice-panel button[data-add-solar=far]");
+    m = await model();
+    assert(m.levels.at(-1).roofs[1].furniture?.length === 8, `panels: ${JSON.stringify(m.levels.at(-1).roofs[1].furniture)}`);
+    assert(await page.locator("homeslice-panel svg.plan polygon.roof-part").count() === 2, "roof parts not on the plan");
+    await shot(page, "editor-roof-level");
+    await page.evaluate(() => {
+      for (let i = 0; i < 4; i++) window.panel.undo();
+      // back on a floor that still exists, nothing picked
+      window.panel._level = window.panel._model.levels[0].id;
+      window.panel._room = null;
+    });
+  });
+
   await test("backup: download one file, restore it", async () => {
     await page.keyboard.press("Escape");
-    await page.locator("homeslice-panel header button[aria-label='House settings']").click();
-    const download = page.waitForEvent("download");
-    await page.locator("homeslice-panel button[data-backup]").click();
-    assert((await download).suggestedFilename().endsWith("homeslice-backup.zip"), "no backup file");
+    if (!(await page.evaluate(() => !!window.panel._settings))) await page.locator("homeslice-panel header button[aria-label='House settings']").click();
+    const [download] = await Promise.all([page.waitForEvent("download", { timeout: 10000 }), page.locator("homeslice-panel button[data-backup]").click({ timeout: 10000 })]);
+    assert(download.suggestedFilename().endsWith("homeslice-backup.zip"), "no backup file");
     const zip = Buffer.from(zipSync({ "manifest.json": strToU8('{"format":"homeslice-backup","version":1}') }));
     await page.locator("homeslice-panel input[type=file][accept='.zip']").setInputFiles({ name: "backup.zip", mimeType: "application/zip", buffer: zip });
     await page.waitForSelector("homeslice-panel p.notice", { timeout: 5000 });

@@ -45,6 +45,10 @@ roof: { ridge: east_west, pitch: 35 }      # optional; ridge east_west or north_
 # dormers: [{side: south, at: 4, width: 1.6, shape: gable}]  (side: a slope's side; at: metres along the ridge; shape gable or shed)
 # shape: gable | hip | shed (high: <side>) | flat; finish: roof_clay | roof_concrete | roof_slate | roof_shingles | roof_metal | roof_green
 # windows: [{side: south, at: 2, up: 1.5, width: 0.78, height: 1.18, cover: cover.…, contact: binary_sensor.…}]  (up: metres up the slope)
+# Or the roof as the top level (`kind: roof`, no floor_id, no rooms) with `roofs:` parts, each
+# {id, rect or polygon, shape, ridge: left_right | up_down | degrees, pitch, overhang, offset (metres;
+# negative: the roof starts lower and the walls below are cut along it), high, finish, dormers,
+# windows, furniture (pieces on the slope: modern:solar_panel, modern:satellite_dish)}.
 north: 0                      # optional: degrees the plan's north is turned east of true north
 levels:                       # bottom to top
   - id: ground

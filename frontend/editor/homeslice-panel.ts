@@ -14,7 +14,7 @@ import en from "../i18n/en.json";
 import de from "../i18n/de.json";
 import { DEFAULTS, LIGHT_TYPES, expandHouse } from "../model/expand";
 import { bbox, labelPoint, pointInPolygon } from "../model/geometry";
-import type { DormerInput, EnergyInput, RoofInput, RoofWindowInput, FurnitureInput, FurnitureMount, FurnitureType, HouseInput, Issue, LightType, OpeningInput, OpeningSource, OpeningType, RoomInput, Side, Vec2, Vertical } from "../model/types";
+import type { DormerInput, EnergyInput, LevelInput, RoofInput, RoofPartInput, RoofWindowInput, FurnitureInput, FurnitureMount, FurnitureType, HouseInput, Issue, LightType, OpeningInput, OpeningSource, OpeningType, RoomInput, Side, Vec2, Vertical } from "../model/types";
 import { deriveWalls, innerPolygon, sideOfRoom, type Wall, type WallOpening } from "../model/walls";
 import { HouseRenderer } from "../render/scene";
 import { stairFrame, stairHole } from "../model/stairs";
@@ -123,6 +123,12 @@ import {
   updateRoom,
   type SnapContext,
   type Snapped,
+  addRoofLevel,
+  addRoofPart,
+  addSolarPanels,
+  removeRoofPart,
+  ROOF_PRESETS,
+  updateRoofPart,
 } from "./ops";
 
 /** What a click on the plan does: select and drag, or add something. */
@@ -2105,6 +2111,7 @@ export class HomeslicePanel extends LitElement {
       <rect width="100%" height="100%" fill="url(#grid)"></rect>
       ${this.renderUnderlay()}
       ${below && this._show.below ? below.rooms.map((r) => svg`<polygon class="ghost" points=${pts(roomPolygon(m, r))}></polygon>`) : nothing}
+      ${l?.kind === "roof" ? this.renderRoofParts(l, pts) : nothing}
       ${l?.rooms.map((r) => {
         const poly = this.inner(r, walls);
         return svg`<g data-room=${r.id}>
@@ -3713,9 +3720,141 @@ export class HomeslicePanel extends LitElement {
     this._wall = null;
   }
 
+  // ----- roof levels -----
+
+  /** The roof part being edited on a roof level. */
+  private _roofPart = 0;
+
+  /** A roof level's parts on the plan: their outline, the ridge, their name; a tap picks one. */
+  private renderRoofParts(l: LevelInput, pts: (poly: Vec2[]) => string) {
+    const { house } = expandHouse(this._model!);
+    const parts = house?.levels.find((x) => x.id === l.id)?.roofs ?? [];
+    return parts.map((part, i) => {
+      const th = (part.angle * Math.PI) / 180;
+      const d: Vec2 = [Math.cos(th), Math.sin(th)];
+      const n: Vec2 = [-Math.sin(th), Math.cos(th)];
+      const as = part.polygon.map((p) => p[0] * d[0] + p[1] * d[1]);
+      const cs = part.polygon.map((p) => p[0] * n[0] + p[1] * n[1]);
+      const [a0, a1, c0, c1] = [Math.min(...as), Math.max(...as), Math.min(...cs), Math.max(...cs)];
+      const P = (a: number, c: number): Vec2 => [a * d[0] + c * n[0], a * d[1] + c * n[1]];
+      const mid = (c0 + c1) / 2;
+      // the ridge: across a gable or hip roof's middle (a hip's shorter); a shed's high edge
+      const inset = part.shape === "hip" ? Math.min((c1 - c0) / 2, (a1 - a0) / 2) : 0;
+      const ridge = part.shape === "flat" ? null : part.shape === "shed" ? [P(a0, mid), P(a1, mid)] : [P(a0 + inset, mid), P(a1 - inset, mid)];
+      return svg`<g data-roof-part=${i} @pointerdown=${(e: PointerEvent) => {
+        e.stopPropagation();
+        this._roofPart = i;
+        this._room = null;
+      }}>
+        <polygon class="roof-part ${i === this._roofPart ? "selected" : ""}" points=${pts(part.polygon)}></polygon>
+        ${ridge ? svg`<polyline class="roof-ridge" points=${pts(ridge)}></polyline>` : nothing}
+      </g>`;
+    });
+  }
+
+  private renderRoofLevelInspector(l: LevelInput) {
+    const m = this._model!;
+    const parts = l.roofs ?? [];
+    const i = Math.min(this._roofPart, parts.length - 1);
+    const part = parts[i];
+    const set = (patch: Partial<RoofPartInput>, preset?: string) => this.commit(updateRoofPart(m, l.id, i, patch, preset));
+    const below = m.levels[m.levels.length - 2];
+    const cover = (): [number, number, number, number] => {
+      const { house } = expandHouse(m);
+      const top = house?.levels.find((x) => x.id === below?.id);
+      const b = top?.outline.length ? bbox(top.outline) : { min: [0, 0], max: [8, 8] };
+      return [b.min[0], b.min[1], b.max[0] - b.min[0], b.max[1] - b.min[1]];
+    };
+    const num = (label: string, value: number | undefined, fallback: number, step: number, apply: (v: number) => void, min?: number, max?: number) =>
+      html`<label>${label}
+        <input type="number" step=${step} min=${min ?? ""} max=${max ?? ""} .value=${String(value ?? fallback)} @change=${(e: Event) => {
+          const v = Number((e.target as HTMLInputElement).value);
+          if (Number.isFinite(v)) apply(v);
+        }} />
+      </label>`;
+    const ridge = part?.ridge ?? "left_right";
+    return html`<h2>${this.levelName(l)}</h2>
+      <p class="muted">${this.t("editor.roof_level_hint")}</p>
+      <div class="row">
+        ${parts.map((p, j) => html`<button class=${j === i ? "primary" : ""} @click=${() => (this._roofPart = j)}>${p.id ?? j + 1}</button>`)}
+        <button data-add-roof-part @click=${() => {
+          const { model, index } = addRoofPart(m, l.id, cover());
+          this.commit(model);
+          this._roofPart = index;
+        }}>${this.t("editor.roof_part_add")}</button>
+      </div>
+      ${part
+        ? html`<h3>${this.t("editor.roof_presets")}</h3>
+            <div class="row presets">
+              ${Object.keys(ROOF_PRESETS).map((k) => html`<button data-roof-preset=${k} @click=${() => set({}, k)}>${this.t(`editor.roof_preset_${k}` as StringKey)}</button>`)}
+            </div>
+            <h3>${this.t("editor.roof_part")}</h3>
+            <div class="row">
+              ${(["x", "y", "w", "d"] as const).map((k, idx) =>
+                num(this.t(`editor.roof_rect_${k}`), part.rect?.[idx] as number | undefined, 0, 0.1, (v) => {
+                  const rect = [...(part.rect ?? cover())] as [number, number, number, number];
+                  rect[idx] = v;
+                  set({ rect });
+                }),
+              )}
+            </div>
+            <div class="row">
+              <label>${this.t("editor.roof_shape")}
+                <select @change=${(e: Event) => set({ shape: (e.target as HTMLSelectElement).value as RoofPartInput["shape"] })}>
+                  ${(["gable", "hip", "shed", "flat"] as const).map((sh) => html`<option value=${sh} ?selected=${(part.shape ?? "gable") === sh}>${this.t(`editor.roof_shape_${sh}`)}</option>`)}
+                </select>
+              </label>
+              <label>${this.t("editor.roof_ridge")}
+                <select @change=${(e: Event) => {
+                  const v = (e.target as HTMLSelectElement).value;
+                  set({ ridge: v === "angle" ? 30 : (v as "left_right" | "up_down") });
+                }}>
+                  <option value="left_right" ?selected=${ridge === "left_right"}>${this.t("editor.roof_east_west")}</option>
+                  <option value="up_down" ?selected=${ridge === "up_down"}>${this.t("editor.roof_north_south")}</option>
+                  <option value="angle" ?selected=${typeof ridge === "number"}>${this.t("editor.roof_ridge_angle")}</option>
+                </select>
+              </label>
+              ${typeof ridge === "number" ? num(this.t("editor.roof_ridge_degrees"), ridge, 30, 1, (v) => set({ ridge: v }), -180, 180) : nothing}
+            </div>
+            <div class="row">
+              ${num(this.t("editor.roof_pitch"), part.pitch, 35, 1, (v) => v > 0 && v < 75 && set({ pitch: v }), 1, 74)}
+              ${num(this.t("editor.roof_overhang"), part.overhang, 0.3, 0.05, (v) => v >= 0 && v <= 2 && set({ overhang: v }), 0, 2)}
+              ${num(this.t("editor.roof_offset"), part.offset, 0, 0.1, (v) => v >= -10 && v <= 10 && set({ offset: v || undefined }), -10, 10)}
+            </div>
+            <p class="muted">${this.t("editor.roof_offset_hint")}</p>
+            ${part.shape === "shed"
+              ? html`<label>${this.t("editor.roof_high")}
+                  <select @change=${(e: Event) => set({ high: (e.target as HTMLSelectElement).value as Side })}>
+                    ${(["north", "south", "east", "west"] as Side[]).map((sd) => html`<option value=${sd} ?selected=${part.high === sd}>${this.t(`editor.side_${sd}` as StringKey)}</option>`)}
+                  </select>
+                </label>`
+              : nothing}
+            <h4>${this.t("editor.roof_covering")}</h4>
+            ${this.renderFinishPicker("roof", part.finish, (finish) => set({ finish }), this.t("surface.roof_clay"))}
+            <h4>${this.t("editor.solar_panels")}</h4>
+            <div class="row">
+              ${num(this.t("editor.solar_rows"), this._solar.rows, 2, 1, (v) => (this._solar = { ...this._solar, rows: Math.max(1, Math.round(v)) }), 1, 20)}
+              ${num(this.t("editor.solar_columns"), this._solar.columns, 4, 1, (v) => (this._solar = { ...this._solar, columns: Math.max(1, Math.round(v)) }), 1, 20)}
+              <button data-add-solar=far @click=${() => this.commit(addSolarPanels(m, l.id, i, this._solar.rows, this._solar.columns, "far"))}>${this.t("editor.solar_add_far")}</button>
+              <button data-add-solar=near @click=${() => this.commit(addSolarPanels(m, l.id, i, this._solar.rows, this._solar.columns, "near"))}>${this.t("editor.solar_add_near")}</button>
+            </div>
+            ${part.furniture?.length
+              ? html`<p class="muted">${this.t("editor.roof_pieces", { count: part.furniture.length })}
+                  <button @click=${() => set({ furniture: undefined })}>${this.t("editor.roof_pieces_clear")}</button></p>`
+              : nothing}
+            <button class="danger" @click=${() => {
+              this.commit(removeRoofPart(m, l.id, i));
+              this._roofPart = 0;
+            }}>${this.t("editor.roof_part_remove")}</button>`
+        : nothing}`;
+  }
+
+  private _solar = { rows: 2, columns: 4 };
+
   private renderLevelInspector() {
     const m = this._model!;
     const l = this.levelInput!;
+    if (l.kind === "roof") return this.renderRoofLevelInspector(l);
     const index = m.levels.findIndex((x) => x.id === l.id);
     const used = this.usedFloors(l.id);
     const set = (patch: Parameters<typeof updateLevel>[2]) => this.commit(updateLevel(m, l.id, patch));
@@ -4651,6 +4790,21 @@ export class HomeslicePanel extends LitElement {
       }, this.t("editor.surface_plain"))}
       <h3>${this.t("editor.roof")}</h3>
       <p class="muted">${this.t("editor.roof_hint")}</p>
+      ${m.levels.some((x) => x.kind === "roof")
+        ? html`<p class="muted">${this.t("editor.roof_on_level")}</p>`
+        : html`<button data-add-roof-level @click=${() => {
+            const { house } = expandHouse(m);
+            const top = house?.levels.at(-1);
+            const b = top?.outline.length ? bbox(top.outline) : { min: [0, 0], max: [8, 8] };
+            const { model, id } = addRoofLevel(m, [b.min[0], b.min[1], b.max[0] - b.min[0], b.max[1] - b.min[1]]);
+            this.commit(model);
+            this._settings = null;
+            this.clearSelection();
+            this._tool = "select";
+            this._level = id;
+            this._roofPart = 0;
+          }}>${this.t("editor.roof_level_add")}</button>
+          <p class="muted">${this.t("editor.roof_level_add_hint")}</p>`}
       <div class="row">
         <label>${this.t("editor.roof_shape")}
           <select @change=${(e: Event) => this.commit(setRoof(m, { shape: ((e.target as HTMLSelectElement).value || undefined) as RoofInput["shape"] }))}>
