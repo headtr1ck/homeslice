@@ -157,7 +157,7 @@ export function daylight(lux: number): number {
 }
 
 export interface PopupSection {
-  title: "lights" | "covers" | "climate" | "media" | "devices" | "sensors";
+  title: "lights" | "covers" | "climate" | "media" | "cameras" | "scenes" | "devices" | "sensors";
   cards: Record<string, unknown>[];
 }
 
@@ -166,6 +166,10 @@ export interface PopupSection {
  * `extra` adds entities placed in the room that may not belong to its area, such as the
  * blinds and contacts of its windows or an awning.
  */
+/** Sensors worth a tile in a room's popup. */
+const SENSOR_CLASSES = ["temperature", "humidity", "carbon_dioxide", "pm25", "volatile_organic_compounds", "illuminance", "power"];
+const BINARY_CLASSES = ["door", "window", "garage_door", "opening", "motion", "occupancy", "presence", "moisture", "smoke", "gas", "carbon_monoxide"];
+
 export function areaPopup(hass: Hass, areaId: string | undefined, extra: string[] = []): PopupSection[] {
   const ids = (domain: string) => {
     const own = areaId ? areaEntities(hass, areaId, domain) : [];
@@ -179,12 +183,14 @@ export function areaPopup(hass: Hass, areaId: string | undefined, extra: string[
     { title: "covers", cards: ids("cover").map((e) => tile(e, [{ type: "cover-open-close" }])) },
     { title: "climate", cards: ids("climate").map((entity) => ({ type: "thermostat", entity })) },
     { title: "media", cards: ids("media_player").map((entity) => ({ type: "media-control", entity })) },
-    { title: "devices", cards: ["switch", "fan", "vacuum", "lawn_mower", "lock"].flatMap(ids).map((e) => tile(e)) },
+    { title: "cameras", cards: ids("camera").map((entity) => ({ type: "picture-entity", entity, camera_view: "auto", show_name: false, show_state: false })) },
+    { title: "scenes", cards: ["scene", "script"].flatMap(ids).map((e) => tile(e)) },
+    { title: "devices", cards: ["switch", "fan", "humidifier", "water_heater", "valve", "vacuum", "lawn_mower", "lock"].flatMap(ids).map((e) => tile(e)) },
     {
       title: "sensors",
       cards: [
-        ...ids("sensor").filter((e) => ["temperature", "humidity", "carbon_dioxide", "power"].includes(deviceClass(e) ?? "")),
-        ...ids("binary_sensor").filter((e) => ["door", "window", "motion", "occupancy", "moisture"].includes(deviceClass(e) ?? "")),
+        ...ids("sensor").filter((e) => SENSOR_CLASSES.includes(deviceClass(e) ?? "")),
+        ...ids("binary_sensor").filter((e) => BINARY_CLASSES.includes(deviceClass(e) ?? "")),
       ].map((e) => tile(e)),
     },
   ];

@@ -292,6 +292,15 @@ console.log("demo house");
     await page.keyboard.press("Escape");
   });
 
+  await test("room_panel: false keeps rooms from opening their panel", async () => {
+    await page.evaluate(() => (window.card.config.room_panel = false));
+    await page.locator("homeslice-card .label button.name", { hasText: "Garden" }).click();
+    await page.waitForTimeout(300);
+    const open = await page.locator("homeslice-card .popup").count();
+    await page.evaluate(() => delete window.card.config.room_panel);
+    assert(open === 0, "a room opened its panel");
+  });
+
   await test("a room without devices shows a hint", async () => {
     await act(page, () => page.locator("homeslice-card nav.levels button", { hasText: "First Floor" }).click());
     // one floor on its own: the ground floor has sunk away and is not drawn at all

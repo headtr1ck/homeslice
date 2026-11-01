@@ -27,6 +27,8 @@ export interface HomesliceCardConfig {
   height?: number;
   /** Popup overrides keyed by room id or area id. */
   popups?: Record<string, PopupOverride>;
+  /** A tap on a room opens its panel with everything in its area (default true; false: rooms do nothing). */
+  room_panel?: boolean;
   /** Drag to turn, scroll/pinch to zoom, double-click to reset (default false: the view is locked). */
   interactive?: boolean;
   /** Show the energy overlay: solar on the roof, battery, grid and devices with their power flows. */
@@ -956,12 +958,14 @@ export class HomesliceCard extends LitElement {
   }
 
   private openPopup(key: string) {
+    if (this.config.room_panel === false) return;
     const r = this.rooms.find((x) => x.key === key);
     if (!r || !this.hass) return;
     const areaId = r.room.areaId;
     const override = this.config.popups?.[r.room.id] ?? (areaId ? this.config.popups?.[areaId] : undefined);
     // the room's own blinds, contacts and awning, even when HA has them in no area
     const placed = [
+      ...r.room.cameras.map((c) => c.entity),
       ...this.openings.filter((o) => o.levelId === r.levelId && o.room === r.room.id).flatMap((o) => [o.cover, o.contact]),
       ...this.roomLights(key),
       r.room.awning,

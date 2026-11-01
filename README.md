@@ -174,6 +174,7 @@ view:                          # all optional
     projection: perspective
   levels:                      # per-floor cameras, by level id
     ground: { elevation: 90, projection: isometric }
+room_panel: true               # a tap on a room opens its panel (false: rooms do nothing)
 popups:                        # optional, by room id or area id
   living_room:
     mode: extend               # or replace

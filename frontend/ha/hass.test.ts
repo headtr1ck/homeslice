@@ -51,6 +51,23 @@ describe("HA helpers", () => {
   });
 });
 
+describe("room popup", () => {
+  it("adds cameras, scenes and air quality, also for entities placed in the room but in no area", () => {
+    const h = hass();
+    h.states = {
+      ...h.states,
+      "camera.terrace": { entity_id: "camera.terrace", state: "idle", attributes: {} },
+      "scene.movie": { entity_id: "scene.movie", state: "unknown", attributes: {} },
+      "sensor.pm": { entity_id: "sensor.pm", state: "8", attributes: { device_class: "pm25" } },
+      "sensor.energy": { entity_id: "sensor.energy", state: "8", attributes: { device_class: "energy" } },
+    } as Hass["states"];
+    const sections = areaPopup(h, undefined, ["camera.terrace", "scene.movie", "sensor.pm", "sensor.energy"]);
+    expect(sections.map((s) => s.title)).toEqual(["cameras", "scenes", "sensors"]);
+    expect(sections[0].cards[0]).toMatchObject({ type: "picture-entity", entity: "camera.terrace" });
+    expect(sections[2].cards).toEqual([{ type: "tile", entity: "sensor.pm" }]);
+  });
+});
+
 describe("inverted covers", () => {
   const hass = { states: { "cover.a": { entity_id: "cover.a", state: "open", attributes: { current_position: 70 } } } } as unknown as Hass;
   it("reads the position the other way round", () => {
