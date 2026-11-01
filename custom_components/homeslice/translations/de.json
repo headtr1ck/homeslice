@@ -60,6 +60,40 @@
           "description": "Wie lange (Standard: die Folgezeit der Karte)."
         }
       }
+    },
+    "announce": {
+      "name": "Durchsage",
+      "description": "Zeigt eine Nachricht auf jeder offenen Homeslice-Karte (beim Bereich, falls angegeben) und spricht sie über die Lautsprecher des Bereichs.",
+      "fields": {
+        "message": {
+          "name": "Nachricht",
+          "description": "Was gezeigt und gesagt wird."
+        },
+        "area": {
+          "name": "Bereich",
+          "description": "ID oder Name des Bereichs: wo sie erscheint und welche Lautsprecher sie sagen."
+        },
+        "floor": {
+          "name": "Stockwerk",
+          "description": "ID oder Name des Stockwerks, das gezeigt wird."
+        },
+        "entity_id": {
+          "name": "Entität",
+          "description": "Dort zeigen, wo diese Entität ist."
+        },
+        "media_player": {
+          "name": "Lautsprecher",
+          "description": "Über diese statt der des Bereichs sprechen."
+        },
+        "tts": {
+          "name": "Sprachausgabe",
+          "description": "Womit gesprochen wird (Standard: die erste)."
+        },
+        "seconds": {
+          "name": "Sekunden",
+          "description": "Wie lange die Karten sie zeigen (Standard: die Folgezeit der Karte)."
+        }
+      }
     }
   },
   "exceptions": {

@@ -60,6 +60,40 @@
           "description": "Jak długo (domyślnie: czas śledzenia karty)."
         }
       }
+    },
+    "announce": {
+      "name": "Komunikat",
+      "description": "Pokazuje wiadomość na każdej otwartej karcie Homeslice (w jej obszarze, jeśli podano) i wypowiada ją przez głośniki tego obszaru.",
+      "fields": {
+        "message": {
+          "name": "Wiadomość",
+          "description": "Co pokazać i powiedzieć."
+        },
+        "area": {
+          "name": "Obszar",
+          "description": "ID lub nazwa obszaru: gdzie ją pokazać i które głośniki ją mówią."
+        },
+        "floor": {
+          "name": "Piętro",
+          "description": "ID lub nazwa piętra do pokazania."
+        },
+        "entity_id": {
+          "name": "Encja",
+          "description": "Pokaż ją tam, gdzie jest ta encja."
+        },
+        "media_player": {
+          "name": "Głośniki",
+          "description": "Mów przez te zamiast głośników obszaru."
+        },
+        "tts": {
+          "name": "Zamiana tekstu na mowę",
+          "description": "Silnik do mówienia (domyślnie: pierwszy)."
+        },
+        "seconds": {
+          "name": "Sekundy",
+          "description": "Jak długo karty ją pokazują (domyślnie: czas śledzenia karty)."
+        }
+      }
     }
   },
   "exceptions": {

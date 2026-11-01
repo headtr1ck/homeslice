@@ -60,6 +60,40 @@
           "description": "Per quanto tempo (predefinito: il tempo di inseguimento della scheda)."
         }
       }
+    },
+    "announce": {
+      "name": "Annuncio",
+      "description": "Mostra un messaggio su ogni scheda Homeslice aperta (nella sua area, se indicata) e lo pronuncia sugli altoparlanti di quell'area.",
+      "fields": {
+        "message": {
+          "name": "Messaggio",
+          "description": "Cosa mostrare e dire."
+        },
+        "area": {
+          "name": "Area",
+          "description": "ID o nome dell'area: dove mostrarlo e quali altoparlanti lo dicono."
+        },
+        "floor": {
+          "name": "Piano",
+          "description": "ID o nome del piano da mostrare."
+        },
+        "entity_id": {
+          "name": "Entità",
+          "description": "Mostrarlo dove si trova questa entità."
+        },
+        "media_player": {
+          "name": "Altoparlanti",
+          "description": "Parlare su questi invece che su quelli dell'area."
+        },
+        "tts": {
+          "name": "Sintesi vocale",
+          "description": "Il motore con cui parlare (predefinito: il primo)."
+        },
+        "seconds": {
+          "name": "Secondi",
+          "description": "Per quanto tempo le schede lo mostrano (predefinito: il tempo di inseguimento della scheda)."
+        }
+      }
     }
   },
   "exceptions": {

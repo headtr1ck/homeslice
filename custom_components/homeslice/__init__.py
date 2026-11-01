@@ -20,7 +20,7 @@ from .rest_api import async_register_views
 from .llm import async_register_llm_api
 from .const import DOMAIN, FRONTEND_FILE, FRONTEND_URL, PANEL_FILE, SHOW_EVENT
 from .repairs import async_check_house
-from .show import resolve_show
+from .show import announce, resolve_show
 from .store import HomesliceStore
 from .underlay import Underlays
 from .websocket import async_register_websocket
@@ -91,6 +91,26 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                     vol.Optional("area"): str,
                     vol.Optional("floor"): str,
                     vol.Optional("entity_id"): str,
+                    vol.Optional("seconds"): vol.All(vol.Coerce(int), vol.Range(min=5, max=3600)),
+                }
+            ),
+        )
+
+        async def announce_action(call: ServiceCall) -> None:
+            await announce(hass, dict(call.data), SHOW_EVENT)
+
+        hass.services.async_register(
+            DOMAIN,
+            "announce",
+            announce_action,
+            schema=vol.Schema(
+                {
+                    vol.Required("message"): vol.All(str, vol.Length(min=1, max=500)),
+                    vol.Optional("area"): str,
+                    vol.Optional("floor"): str,
+                    vol.Optional("entity_id"): str,
+                    vol.Optional("media_player"): vol.All(vol.Coerce(list), [str]),
+                    vol.Optional("tts"): str,
                     vol.Optional("seconds"): vol.All(vol.Coerce(int), vol.Range(min=5, max=3600)),
                 }
             ),

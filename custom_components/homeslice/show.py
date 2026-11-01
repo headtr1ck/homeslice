@@ -10,7 +10,7 @@ from typing import Any
 
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ServiceValidationError
-from homeassistant.helpers import area_registry as ar, floor_registry as fr
+from homeassistant.helpers import area_registry as ar, device_registry as dr, entity_registry as er, floor_registry as fr
 
 from .const import DOMAIN
 
@@ -49,3 +49,32 @@ def resolve_show(hass: HomeAssistant, data: dict[str, Any]) -> dict[str, Any]:
     if "seconds" in data:
         out["seconds"] = data["seconds"]
     return out
+
+
+def area_speakers(hass: HomeAssistant, area_id: str) -> list[str]:
+    """The area's media players: in the area themselves or on a device that is."""
+    entities = er.async_get(hass)
+    devices = dr.async_get(hass)
+    out = []
+    for entry in entities.entities.values():
+        if entry.domain != "media_player" or entry.disabled_by or entry.hidden_by:
+            continue
+        device = devices.async_get(entry.device_id) if entry.device_id else None
+        if (entry.area_id or (device.area_id if device else None)) == area_id:
+            out.append(entry.entity_id)
+    return sorted(out)
+
+
+async def announce(hass: HomeAssistant, data: dict[str, Any], show_event: str) -> None:
+    """Show a message on every open card (at its area, if one is named) and speak it there."""
+    message = data["message"]
+    place = {k: data[k] for k in ("area", "floor", "entity_id") if data.get(k)}
+    event: dict[str, Any] = resolve_show(hass, {**place, **({"seconds": data["seconds"]} if "seconds" in data else {})}) if place else {}
+    if "seconds" in data:
+        event["seconds"] = data["seconds"]
+    event["message"] = message
+    hass.bus.async_fire(show_event, event)
+    players = data.get("media_player") or (area_speakers(hass, event["area_id"]) if "area_id" in event else [])
+    engine = data.get("tts") or next(iter(sorted(hass.states.async_entity_ids("tts"))), None)
+    if players and engine:
+        await hass.services.async_call("tts", "speak", {"media_player_entity_id": players, "message": message}, target={"entity_id": engine}, blocking=False)

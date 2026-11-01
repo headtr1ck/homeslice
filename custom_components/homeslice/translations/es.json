@@ -60,6 +60,40 @@
           "description": "Cuánto tiempo (por defecto: el tiempo de seguimiento de la tarjeta)."
         }
       }
+    },
+    "announce": {
+      "name": "Anuncio",
+      "description": "Muestra un mensaje en cada tarjeta Homeslice abierta (en su área, si se indica) y lo dice por los altavoces de esa área.",
+      "fields": {
+        "message": {
+          "name": "Mensaje",
+          "description": "Qué mostrar y decir."
+        },
+        "area": {
+          "name": "Área",
+          "description": "ID o nombre del área: dónde mostrarlo y qué altavoces lo dicen."
+        },
+        "floor": {
+          "name": "Planta",
+          "description": "ID o nombre de la planta a mostrar."
+        },
+        "entity_id": {
+          "name": "Entidad",
+          "description": "Mostrarlo donde está esta entidad."
+        },
+        "media_player": {
+          "name": "Altavoces",
+          "description": "Hablar por estos en lugar de los del área."
+        },
+        "tts": {
+          "name": "Texto a voz",
+          "description": "El motor con el que hablar (por defecto: el primero)."
+        },
+        "seconds": {
+          "name": "Segundos",
+          "description": "Cuánto tiempo lo muestran las tarjetas (por defecto: el tiempo de seguimiento de la tarjeta)."
+        }
+      }
     }
   },
   "exceptions": {

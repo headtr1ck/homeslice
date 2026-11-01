@@ -271,6 +271,17 @@ kitchen", "Zeig die Küche"):
 
 [![Import the blueprint](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2Fheadtr1ck%2Fhomeslice%2Fblob%2Fmain%2Fblueprints%2Fautomation%2Fhomeslice%2Fshow_by_voice.yaml)
 
+**Announce something.** `homeslice.announce` shows a message on every open card, at a room
+if you name one, and speaks it on that room's speakers (text-to-speech; or the
+`media_player`s you list):
+
+```yaml
+action: homeslice.announce
+data:
+  message: Dinner is ready
+  area: kitchen        # optional: without it every card shows it where it is, nobody speaks
+```
+
 Tap a room's lamp to switch its lights (on a picked floor, rooms with several lamps get
 one toggle per lamp), tap a room for a popup with its devices (including the blinds and
 contacts of its windows), pick a floor to lift the floors above away. Hovering a floor

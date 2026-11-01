@@ -60,6 +60,40 @@
           "description": "Hoe lang (standaard: de volgtijd van de kaart)."
         }
       }
+    },
+    "announce": {
+      "name": "Omroep",
+      "description": "Toont een bericht op elke open Homeslice-kaart (bij de ruimte, indien opgegeven) en spreekt het uit via de speakers van die ruimte.",
+      "fields": {
+        "message": {
+          "name": "Bericht",
+          "description": "Wat getoond en gezegd wordt."
+        },
+        "area": {
+          "name": "Ruimte",
+          "description": "ID of naam van de ruimte: waar het verschijnt en welke speakers het zeggen."
+        },
+        "floor": {
+          "name": "Verdieping",
+          "description": "ID of naam van de verdieping om te tonen."
+        },
+        "entity_id": {
+          "name": "Entiteit",
+          "description": "Toon het waar deze entiteit is."
+        },
+        "media_player": {
+          "name": "Speakers",
+          "description": "Spreek via deze in plaats van die van de ruimte."
+        },
+        "tts": {
+          "name": "Tekst-naar-spraak",
+          "description": "De engine om mee te spreken (standaard: de eerste)."
+        },
+        "seconds": {
+          "name": "Seconden",
+          "description": "Hoe lang kaarten het tonen (standaard: de volgtijd van de kaart)."
+        }
+      }
     }
   },
   "exceptions": {

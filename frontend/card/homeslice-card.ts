@@ -207,6 +207,8 @@ interface ShowMessage {
   floor_id?: string;
   entity_id?: string;
   seconds?: number;
+  /** homeslice.announce: what to show instead of the place's name. */
+  message?: string;
 }
 
 export interface ShortcutButton {
@@ -1724,7 +1726,15 @@ export class HomesliceCard extends LitElement {
       where = whereIs(this.house, this.hass, m.entity_id, this.openings);
       text = (this.hass.states[m.entity_id]?.attributes.friendly_name as string | undefined) ?? m.entity_id;
     }
-    if (!where) return;
+    if (m.message) text = m.message;
+    if (!where) {
+      // a message for the whole house: shown where the card is
+      if (!m.message) return;
+      this._event = m.message;
+      clearTimeout(this.eventTimer);
+      this.eventTimer = window.setTimeout(() => void this.endEvent(), (m.seconds ?? this.config.follow_seconds ?? 30) * 1000);
+      return;
+    }
     this.closePopup();
     await this.showEvent(where, text, m.seconds);
   }

@@ -21,3 +21,35 @@ show:
           min: 5
           max: 3600
           unit_of_measurement: s
+announce:
+  fields:
+    message:
+      required: true
+      example: Dinner is ready
+      selector:
+        text:
+    area:
+      example: kitchen
+      selector:
+        area:
+    floor:
+      selector:
+        floor:
+    entity_id:
+      selector:
+        entity:
+    media_player:
+      selector:
+        entity:
+          domain: media_player
+          multiple: true
+    tts:
+      selector:
+        entity:
+          domain: tts
+    seconds:
+      selector:
+        number:
+          min: 5
+          max: 3600
+          unit_of_measurement: s

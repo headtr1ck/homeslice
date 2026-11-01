@@ -1114,6 +1114,19 @@ if (selected()) {
     await page.waitForFunction(() => window.card._level === null, null, { timeout: 5000 });
   });
 
+  await test("homeslice.announce: the message on the card, at its room or where the card is", async () => {
+    await act(page, () => page.evaluate(() => window.card.hass.show({ area_id: "kitchen", message: "Dinner is ready", seconds: 5 })));
+    await page.waitForFunction(() => window.card._level === "ground", null, { timeout: 5000 });
+    const banner = await page.locator("homeslice-card .event").textContent();
+    assert(banner.includes("Dinner is ready") && banner.includes("Kitchen"), `banner: ${banner}`);
+    await page.evaluate(() => window.card.endEvent());
+    await page.waitForFunction(() => window.card._level === null, null, { timeout: 5000 });
+    await page.evaluate(() => window.card.hass.show({ message: "Storm coming", seconds: 5 }));
+    await page.locator("homeslice-card .event", { hasText: "Storm coming" }).waitFor();
+    assert((await page.evaluate(() => window.card._level)) === null, "a house-wide message moved the card");
+    await page.evaluate(() => window.card.endEvent());
+  });
+
   await test("walking: eye level in a room, walls stop you, then back to the house", async () => {
     await page.evaluate(() => {
       window.card.setConfig({ ...window.card.config, walk: true });

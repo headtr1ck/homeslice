@@ -60,6 +60,40 @@
           "description": "How long to stay there (default: the card's follow time)."
         }
       }
+    },
+    "announce": {
+      "name": "Announce",
+      "description": "Shows a message on every open Homeslice card (at its area, if given) and speaks it on that area's speakers.",
+      "fields": {
+        "message": {
+          "name": "Message",
+          "description": "What to show and say."
+        },
+        "area": {
+          "name": "Area",
+          "description": "Area id or name: where to show it and whose speakers say it."
+        },
+        "floor": {
+          "name": "Floor",
+          "description": "Floor id or name to show."
+        },
+        "entity_id": {
+          "name": "Entity",
+          "description": "Show it where this entity is."
+        },
+        "media_player": {
+          "name": "Speakers",
+          "description": "Speak on these instead of the area's own."
+        },
+        "tts": {
+          "name": "Text-to-speech",
+          "description": "The engine to speak with (default: the first one)."
+        },
+        "seconds": {
+          "name": "Seconds",
+          "description": "How long cards show it (default: the card's follow time)."
+        }
+      }
     }
   },
   "exceptions": {

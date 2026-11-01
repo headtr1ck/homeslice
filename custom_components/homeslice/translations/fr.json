@@ -60,6 +60,40 @@
           "description": "Combien de temps (par défaut : la durée de suivi de la carte)."
         }
       }
+    },
+    "announce": {
+      "name": "Annonce",
+      "description": "Affiche un message sur chaque carte Homeslice ouverte (dans sa zone, si indiquée) et le prononce sur les haut-parleurs de cette zone.",
+      "fields": {
+        "message": {
+          "name": "Message",
+          "description": "Ce qu'il faut afficher et dire."
+        },
+        "area": {
+          "name": "Zone",
+          "description": "ID ou nom de la zone : où l'afficher et quels haut-parleurs le disent."
+        },
+        "floor": {
+          "name": "Étage",
+          "description": "ID ou nom de l'étage à montrer."
+        },
+        "entity_id": {
+          "name": "Entité",
+          "description": "L'afficher là où se trouve cette entité."
+        },
+        "media_player": {
+          "name": "Haut-parleurs",
+          "description": "Parler sur ceux-ci plutôt que ceux de la zone."
+        },
+        "tts": {
+          "name": "Synthèse vocale",
+          "description": "Le moteur à utiliser (par défaut : le premier)."
+        },
+        "seconds": {
+          "name": "Secondes",
+          "description": "Durée d'affichage (par défaut : le temps de suivi de la carte)."
+        }
+      }
     }
   },
   "exceptions": {

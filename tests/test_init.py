@@ -452,6 +452,40 @@ async def test_show_action_reaches_cards_by_name_or_id(hass: HomeAssistant, setu
         await hass.services.async_call(DOMAIN, "show", {}, blocking=True)
 
 
+async def test_announce_shows_on_cards_and_speaks_in_the_area(hass: HomeAssistant, setup, hass_ws_client) -> None:
+    from homeassistant.core import ServiceCall
+    from homeassistant.helpers import entity_registry as er
+
+    kitchen = ar.async_get(hass).async_create("Kitchen")
+    entities = er.async_get(hass)
+    speaker = entities.async_get_or_create("media_player", "test", "kitchen_speaker")
+    entities.async_update_entity(speaker.entity_id, area_id=kitchen.id)
+    entities.async_get_or_create("media_player", "test", "living_tv")
+    hass.states.async_set("tts.engine", "unknown")
+    spoken: list[ServiceCall] = []
+
+    async def speak(call: ServiceCall) -> None:
+        spoken.append(call)
+
+    hass.services.async_register("tts", "speak", speak)
+    client = await hass_ws_client(hass)
+    await client.send_json_auto_id({"type": "homeslice/show/subscribe"})
+    assert (await client.receive_json())["success"]
+
+    await hass.services.async_call(DOMAIN, "announce", {"message": "Dinner is ready", "area": "kitchen"}, blocking=True)
+    assert (await client.receive_json())["event"] == {"area_id": kitchen.id, "message": "Dinner is ready"}
+    await hass.async_block_till_done()
+    assert len(spoken) == 1
+    assert spoken[0].data["media_player_entity_id"] == [speaker.entity_id]
+    assert spoken[0].data["message"] == "Dinner is ready"
+
+    # the whole house: only shown, nobody named to speak
+    await hass.services.async_call(DOMAIN, "announce", {"message": "Storm coming", "seconds": 60}, blocking=True)
+    assert (await client.receive_json())["event"] == {"message": "Storm coming", "seconds": 60}
+    await hass.async_block_till_done()
+    assert len(spoken) == 1
+
+
 async def test_backup_round_trip_keeps_ids(hass: HomeAssistant, setup, hass_ws_client, tmp_path: Path) -> None:
     import io
     import zipfile
