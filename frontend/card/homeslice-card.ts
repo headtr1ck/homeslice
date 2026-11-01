@@ -1,5 +1,5 @@
 import { LitElement, css, html, nothing, svg, type PropertyValues } from "lit";
-import { areaEntities, areaIlluminance, areaPopup, areaTemperature, daylight, contactOpen, coverOpen, lightsLook, type Hass, type PopupSection, alertIcon, areaSensors, type AreaSensors } from "../ha/hass";
+import { HEATMAP_STEPS, areaEntities, areaIlluminance, areaPopup, areaReading, areaTemperature, daylight, stepColor, contactOpen, coverOpen, lightsLook, type Hass, type PopupSection, alertIcon, areaSensors, type AreaSensors } from "../ha/hass";
 import { formatNumber, localize, type StringKey } from "../i18n/localize";
 import { expandHouse } from "../model/expand";
 import { labelPoint } from "../model/geometry";
@@ -57,6 +57,12 @@ export interface HomesliceCardConfig {
    * the page loads.
    */
   quality?: "auto" | "high" | "low";
+  /**
+   * Tint room floors by a reading: `temperature` (blue cold … red hot), `humidity` (dry
+   * yellow … damp blue) or `carbon_dioxide` (orange, red when stale). Comfortable rooms
+   * keep their look.
+   */
+  heatmap?: "temperature" | "humidity" | "carbon_dioxide";
   /** Rooms with a lux sensor look as bright as it reads, and show it on their label (default false). */
   lux?: boolean;
   /** Mark rooms with someone in them (motion, occupancy, presence sensors; default true). Leak, smoke and gas alarms always show. */
@@ -660,7 +666,12 @@ export class HomesliceCard extends LitElement {
         : this.config.look === "auto" && hass.states["sun.sun"]?.state === "below_horizon"
           ? "night"
           : "day";
-    const signature = JSON.stringify([look, this.config.accent, lux, lights, lamps, covers, contacts, temperatures, sensors, awnings, devices, cameras, this.energyReadings, this.robotReadings, sunAt]);
+    const heat = this.rooms.map((r) => {
+      const kind = this.config.heatmap;
+      const v = kind && r.room.areaId && r.room.kind === "room" ? areaReading(hass, r.room.areaId, kind) : null;
+      return v === null || !kind ? null : stepColor(v, HEATMAP_STEPS[kind] ?? []);
+    });
+    const signature = JSON.stringify([look, this.config.accent, lux, heat, lights, lamps, covers, contacts, temperatures, sensors, awnings, devices, cameras, this.energyReadings, this.robotReadings, sunAt]);
     if (signature === this.stateSignature) return;
     this.stateSignature = signature;
     this.lamps.forEach((l, i) => this.renderer!.setLamp(l.entity, lamps[i]));
@@ -673,6 +684,7 @@ export class HomesliceCard extends LitElement {
     this.rooms.forEach((r, i) => {
       this.renderer!.setRoomLight(r.levelId, r.room.id, lights[i]);
       this.renderer!.setRoomDaylight(r.levelId, r.room.id, lux[i]);
+      this.renderer!.setRoomTint(r.levelId, r.room.id, heat[i]);
       if (r.room.awning) this.renderer!.setAwning(r.levelId, r.room.id, awnings[i]);
     });
     this.openings.forEach((o, i) => {

@@ -853,6 +853,8 @@ export class HouseRenderer {
       m.map = map;
       m.needsUpdate = true;
     }
+    const tint = m.userData.tint as string | undefined;
+    if (tint) m.color.lerp(new THREE.Color(tint), 0.55);
     const daylight = m.userData.daylight as number | undefined;
     if (daylight !== undefined) m.color.multiplyScalar(0.3 + 0.7 * daylight);
   }
@@ -1212,6 +1214,15 @@ export class HouseRenderer {
   // ----- live state -----
 
   /** Lights a room's floor in the light's colour; `null` switches it off. */
+  /** A room's floor tinted by a reading (heatmap), or null for its own colour. */
+  setRoomTint(levelId: string, roomId: string, color: string | null) {
+    const m = this.floors.get(`${levelId}/${roomId}`)?.material;
+    if (!m) return;
+    if (color) m.userData.tint = color;
+    else delete m.userData.tint;
+    this.themeMaterial(m);
+  }
+
   /**
    * How much daylight a room gets (0 dark … 1 bright, from its lux sensor), or null to
    * follow the sun alone: its floor dims, its lights still glow.

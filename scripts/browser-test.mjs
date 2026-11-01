@@ -1008,6 +1008,19 @@ console.log("demo house, low quality");
   await page.close();
 }
 
+console.log("demo house, heatmap");
+{
+  const { page, errors } = await open("dev/fixtures/demo-hass.json", { heatmap: "temperature" });
+  await test("heatmap: cool rooms blue, comfortable rooms as they are", async () => {
+    const tint = (k) => page.evaluate((k) => window.card.renderer.floors.get(k)?.material.userData.tint ?? null, k);
+    assert((await tint("first/bedroom")) === "#6fb7e8", `bedroom (19.2 °C): ${await tint("first/bedroom")}`);
+    assert((await tint("ground/living")) === null, `living room (21.4 °C): ${await tint("ground/living")}`);
+    await shot(page, "demo-heatmap");
+    assert(errors.length === 0, errors.join(" | "));
+  });
+  await page.close();
+}
+
 console.log("demo house, lux");
 {
   const withLux = (f) => ({

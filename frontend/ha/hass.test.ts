@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { areaEntities, areaLight, areaPopup, areaSensors, areaTemperature, coverOpen, daylight, type Hass } from "./hass";
+import { areaEntities, areaLight, areaPopup, areaSensors, areaTemperature, coverOpen, daylight, HEATMAP_STEPS, stepColor, type Hass } from "./hass";
 
 const fixture = JSON.parse(readFileSync("dev/fixtures/demo-hass.json", "utf8"));
 const hass = (): Hass => ({ ...fixture, callWS: async () => null, callService: async () => null });
@@ -65,5 +65,14 @@ describe("daylight from lux", () => {
     expect(daylight(300)).toBeCloseTo(1);
     expect(daylight(5000)).toBe(1);
     expect(daylight(17)).toBeCloseTo(0.5, 1);
+  });
+});
+
+describe("heatmap steps", () => {
+  it("colours cold, comfortable and hot rooms", () => {
+    expect(stepColor(15, HEATMAP_STEPS.temperature)).toBe("#3d7be0");
+    expect(stepColor(21, HEATMAP_STEPS.temperature)).toBeNull();
+    expect(stepColor(25, HEATMAP_STEPS.temperature)).toBe("#f0a33c");
+    expect(stepColor(1600, HEATMAP_STEPS.carbon_dioxide)).toBe("#e8483c");
   });
 });

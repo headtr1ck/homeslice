@@ -101,6 +101,43 @@ export function areaTemperature(hass: Hass, areaId: string): string | null {
   return `${formatNumber(hass.locale, Number(s.state), 1)} ${unit}`.trim();
 }
 
+/** The area's first reading of a sensor kind (temperature, humidity, carbon_dioxide…), or null. */
+export function areaReading(hass: Hass, areaId: string, deviceClass: string): number | null {
+  const chosen = deviceClass === "temperature" ? hass.areas?.[areaId]?.temperature_entity_id : undefined;
+  const id = chosen ?? areaEntities(hass, areaId, "sensor").find((e) => hass.states[e]?.attributes.device_class === deviceClass);
+  const v = id ? Number(hass.states[id]?.state) : NaN;
+  return Number.isFinite(v) ? v : null;
+}
+
+/** Colour steps per reading: below the first value its colour, from each value on the next. */
+export const HEATMAP_STEPS: Record<string, { value: number; color: string | null }[]> = {
+  temperature: [
+    { value: -Infinity, color: "#3d7be0" },
+    { value: 18, color: "#6fb7e8" },
+    { value: 20, color: null },
+    { value: 24, color: "#f0a33c" },
+    { value: 27, color: "#e8483c" },
+  ],
+  humidity: [
+    { value: -Infinity, color: "#e0b13d" },
+    { value: 35, color: null },
+    { value: 60, color: "#3d9be0" },
+    { value: 70, color: "#3d5be0" },
+  ],
+  carbon_dioxide: [
+    { value: -Infinity, color: null },
+    { value: 1000, color: "#f0a33c" },
+    { value: 1500, color: "#e8483c" },
+  ],
+};
+
+/** The colour of a reading in steps (null: comfortable, no tint). */
+export function stepColor(value: number, steps: { value: number; color: string | null }[]): string | null {
+  let color: string | null = null;
+  for (const s of steps) if (value >= s.value) color = s.color;
+  return color;
+}
+
 /** The area's light level in lux: its first illuminance sensor, or null. */
 export function areaIlluminance(hass: Hass, areaId: string): number | null {
   const id = areaEntities(hass, areaId, "sensor").find((e) => hass.states[e]?.attributes.device_class === "illuminance");
