@@ -126,7 +126,80 @@ function tiles(c: Ctx, px: (m: number) => number, base: THREE.Color, rnd: () => 
     }
 }
 
+/**
+ * Roof coverings, drawn with rows along the eave (x) and the slope going up (y up the
+ * canvas = up the roof): each row's lower edge casts a little shadow on the row below.
+ */
+function roofRows(c: Ctx, px: (m: number) => number, b: THREE.Color, rnd: () => number, w: number, h: number, kind: "pantile" | "flat" | "slate" | "shingle") {
+  const cols = Math.max(1, Math.round(SIZE / px(w)));
+  const rows = Math.max(1, Math.round(SIZE / px(h)));
+  const tw = SIZE / cols;
+  const th = SIZE / rows;
+  c.fillStyle = tone(b, -0.45);
+  c.fillRect(0, 0, SIZE, SIZE);
+  for (let r = 0; r < rows; r++) {
+    const shift = kind === "pantile" ? 0 : (r % 2) * tw * 0.5;
+    for (let i = -1; i < cols + 1; i++) {
+      const x = i * tw + shift;
+      const y = r * th;
+      const v = (rnd() - 0.5) * (kind === "slate" ? 0.14 : 0.1);
+      const g = c.createLinearGradient(0, y, 0, y + th);
+      // lit at the top, darker at the overlapping lower edge
+      g.addColorStop(0, tone(b, 0.12 + v));
+      g.addColorStop(0.75, tone(b, v));
+      g.addColorStop(1, tone(b, -0.3 + v));
+      c.fillStyle = g;
+      if (kind === "pantile") {
+        // a wave across each tile
+        c.beginPath();
+        c.moveTo(x, y + th);
+        c.lineTo(x, y + th * 0.1);
+        c.quadraticCurveTo(x + tw * 0.5, y - th * 0.05, x + tw, y + th * 0.1);
+        c.lineTo(x + tw, y + th);
+        c.fill();
+        c.fillStyle = tone(b, -0.18 + v);
+        c.fillRect(x + tw * 0.62, y + th * 0.12, tw * 0.3, th * 0.88);
+      } else {
+        const gap = kind === "flat" ? 1 : 1.5;
+        c.fillRect(x + gap / 2, y, tw - gap, th - (kind === "shingle" ? 0 : 1));
+        if (kind === "slate") speckle2(c, b, rnd, x, y, tw, th);
+      }
+    }
+  }
+}
+
 const PAINTERS: Record<string, Painter> = {
+  roof_clay: (c, px, b, rnd) => roofRows(c, px, b, rnd, 0.22, 0.32, "pantile"),
+  roof_clay_dark: (c, px, b, rnd) => roofRows(c, px, b, rnd, 0.22, 0.32, "pantile"),
+  roof_concrete: (c, px, b, rnd) => roofRows(c, px, b, rnd, 0.3, 0.33, "flat"),
+  roof_slate: (c, px, b, rnd) => roofRows(c, px, b, rnd, 0.3, 0.2, "slate"),
+  roof_shingles: (c, px, b, rnd) => roofRows(c, px, b, rnd, 0.33, 0.14, "shingle"),
+  roof_metal: (c, px, b) => {
+    // standing seams up the slope every half metre
+    c.fillStyle = tone(b, 0.05);
+    c.fillRect(0, 0, SIZE, SIZE);
+    const step = px(0.5);
+    for (let x = 0; x < SIZE; x += step) {
+      c.fillStyle = tone(b, 0.35);
+      c.fillRect(x, 0, 2, SIZE);
+      c.fillStyle = tone(b, -0.3);
+      c.fillRect(x + 2, 0, 2, SIZE);
+    }
+  },
+  roof_green: (c, px, b, rnd) => {
+    // sedum: small clumps in greens, reds and yellows
+    c.fillStyle = tone(b, -0.15);
+    c.fillRect(0, 0, SIZE, SIZE);
+    const hues = ["#6a8a4c", "#86a35a", "#5a7a3e", "#a4704e", "#b9a64c"];
+    for (let i = 0; i < 2600; i++) {
+      c.fillStyle = hues[Math.floor(rnd() * hues.length)];
+      c.globalAlpha = 0.5 + rnd() * 0.5;
+      c.beginPath();
+      c.arc(rnd() * SIZE, rnd() * SIZE, 1 + rnd() * px(0.02), 0, Math.PI * 2);
+      c.fill();
+    }
+    c.globalAlpha = 1;
+  },
   wood: (c, px, b, rnd) => planks(c, px, b, rnd),
   oak_light: (c, px, b, rnd) => planks(c, px, b, rnd, 0.2),
   walnut: (c, px, b, rnd) => planks(c, px, b, rnd, 0.16),

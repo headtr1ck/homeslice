@@ -14,7 +14,7 @@ import en from "../i18n/en.json";
 import de from "../i18n/de.json";
 import { DEFAULTS, LIGHT_TYPES, expandHouse } from "../model/expand";
 import { bbox, labelPoint, pointInPolygon } from "../model/geometry";
-import type { DormerInput, EnergyInput, FurnitureInput, FurnitureMount, FurnitureType, HouseInput, Issue, LightType, OpeningInput, OpeningSource, OpeningType, RoomInput, Side, Vec2, Vertical } from "../model/types";
+import type { DormerInput, EnergyInput, RoofInput, RoofWindowInput, FurnitureInput, FurnitureMount, FurnitureType, HouseInput, Issue, LightType, OpeningInput, OpeningSource, OpeningType, RoomInput, Side, Vec2, Vertical } from "../model/types";
 import { deriveWalls, innerPolygon, sideOfRoom, type Wall, type WallOpening } from "../model/walls";
 import { HouseRenderer } from "../render/scene";
 import { stairFrame, stairHole } from "../model/stairs";
@@ -3254,7 +3254,9 @@ export class HomeslicePanel extends LitElement {
     }
     if ("error" in c) return html`<p class="muted">${this.t("editor.library_polyhaven_error", { error: c.error })}</p>`;
     const words = this._textureFilter.trim().toLowerCase().split(/\s+/).filter(Boolean);
-    const list = c.filter((t) => t.on.includes(surface) && words.every((w) => `${t.name} ${t.tags.join(" ")} ${t.categories.join(" ")}`.toLowerCase().includes(w)));
+    // roofs: Poly Haven's roofing textures
+    const fits = (t: (typeof c)[number]) => (surface === "roof" ? [...t.categories, ...t.tags].some((x) => /roof/i.test(x)) : t.on.includes(surface));
+    const list = c.filter((t) => fits(t) && words.every((w) => `${t.name} ${t.tags.join(" ")} ${t.categories.join(" ")}`.toLowerCase().includes(w)));
     return html`<p class="muted credit">${this.t("editor.texture_polyhaven_credit")} <a href="https://polyhaven.com/textures" target="_blank" rel="noopener">polyhaven.com</a></p>
       <input class="texture-search" type="search" placeholder=${this.t("editor.library_search")} aria-label=${this.t("editor.library_search")} .value=${this._textureFilter}
         @input=${(e: Event) => (this._textureFilter = (e.target as HTMLInputElement).value)} />
@@ -4650,6 +4652,22 @@ export class HomeslicePanel extends LitElement {
       <h3>${this.t("editor.roof")}</h3>
       <p class="muted">${this.t("editor.roof_hint")}</p>
       <div class="row">
+        <label>${this.t("editor.roof_shape")}
+          <select @change=${(e: Event) => this.commit(setRoof(m, { shape: ((e.target as HTMLSelectElement).value || undefined) as RoofInput["shape"] }))}>
+            ${(["gable", "hip", "shed", "flat"] as const).map((sh) => html`<option value=${sh === "gable" ? "" : sh} ?selected=${(m.roof?.shape ?? "gable") === sh}>${this.t(`editor.roof_shape_${sh}`)}</option>`)}
+          </select>
+        </label>
+        ${m.roof?.shape === "shed"
+          ? html`<label>${this.t("editor.roof_high")}
+              <select @change=${(e: Event) => this.commit(setRoof(m, { high: (e.target as HTMLSelectElement).value as Side }))}>
+                ${(["north", "south", "east", "west"] as Side[]).map((sd) => html`<option value=${sd} ?selected=${m.roof?.high === sd}>${this.t(`editor.side_${sd}` as StringKey)}</option>`)}
+              </select>
+            </label>`
+          : nothing}
+      </div>
+      <h4>${this.t("editor.roof_covering")}</h4>
+      ${this.renderFinishPicker("roof", m.roof?.finish, (finish) => this.commit(setRoof(m, { finish })), this.t("surface.roof_clay"))}
+      <div class="row">
         <label>${this.t("editor.roof_ridge")}
           <select @change=${(e: Event) => this.commit(setRoof(m, { ridge: ((e.target as HTMLSelectElement).value || undefined) as "east_west" | "north_south" | undefined }))}>
             <option value="" ?selected=${!m.roof?.ridge}>${this.t("editor.roof_ridge_auto")}</option>
@@ -4693,6 +4711,37 @@ export class HomeslicePanel extends LitElement {
           <button class="icon" title=${this.t("editor.light_remove")} @click=${() => this.commit(setRoof(m, { dormers: dormers.filter((_, j) => j !== i).length ? dormers.filter((_, j) => j !== i) : undefined }))}><ha-icon icon="mdi:close"></ha-icon></button>
         </div>`;
       })}
+      ${(m.roof?.windows ?? []).map((w, i) => {
+        const list = m.roof?.windows ?? [];
+        const setW = (patch: Partial<RoofWindowInput>) => this.commit(setRoof(m, { windows: list.map((x, j) => (j === i ? { ...x, ...patch } : x)) }));
+        return html`<div class="row dormer">
+          <label>${this.t("editor.roof_window")} ${i + 1}
+            <select @change=${(e: Event) => setW({ side: (e.target as HTMLSelectElement).value as Side })}>
+              ${(["north", "south", "east", "west"] as Side[]).map((sd) => html`<option value=${sd} ?selected=${w.side === sd}>${this.t(`editor.side_${sd}` as StringKey)}</option>`)}
+            </select>
+          </label>
+          <label>${this.t("editor.dormer_at")}
+            <input type="number" step="0.1" .value=${String(w.at)} @change=${(e: Event) => setW({ at: Number((e.target as HTMLInputElement).value) })} />
+          </label>
+          <label>${this.t("editor.roof_window_up")}
+            <input type="number" min="0" max="20" step="0.1" .value=${String(w.up ?? 1.2)} @change=${(e: Event) => setW({ up: Number((e.target as HTMLInputElement).value) })} />
+          </label>
+          <button class="icon" title=${this.t("editor.light_remove")} @click=${() => {
+            const rest = list.filter((_, j) => j !== i);
+            this.commit(setRoof(m, { windows: rest.length ? rest : undefined }));
+          }}><ha-icon icon="mdi:close"></ha-icon></button>
+        </div>
+        ${this.entitySelect(this.t("editor.roof_window_shutter"), "cover", undefined, w.cover, (cover) => setW({ cover }))}
+        ${this.entitySelect(this.t("editor.opening_contact"), "binary_sensor", undefined, w.contact, (contact) => setW({ contact }))}`;
+      })}
+      <button data-add-roof-window @click=${() => {
+        const { house } = expandHouse(m);
+        const top = house?.levels.at(-1);
+        const b = top?.outline.length ? bbox(top.outline) : { min: [0, 0], max: [8, 8] };
+        const eastWest = (house?.roof.ridge ?? "east_west") === "east_west";
+        const length = eastWest ? b.max[0] - b.min[0] : b.max[1] - b.min[1];
+        this.commit(setRoof(m, { windows: [...(m.roof?.windows ?? []), { side: eastWest ? "south" : "east", at: Math.round(length * 3) / 10 }] }));
+      }}>${this.t("editor.roof_window_add")}</button>
       <button data-add-dormer @click=${() => {
         const { house } = expandHouse(m);
         const top = house?.levels.at(-1);

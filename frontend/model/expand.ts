@@ -4,7 +4,7 @@
 
 import { bbox, edges, normalizeOrientation, outwardNormal, rectPolygon, sideOf, signedArea } from "./geometry";
 import { FURNITURE } from "./furniture";
-import { FLOOR_FINISHES, WALL_FINISHES } from "./finishes";
+import { FLOOR_FINISHES, ROOF_FINISHES, WALL_FINISHES } from "./finishes";
 
 /** A furniture model reference (see FurnitureInput.model). */
 // kenney:<name> was a bundled model; such pieces now show their type's built-in piece
@@ -50,6 +50,7 @@ const TEXTURE_REF = /^polyhaven:[A-Za-z0-9_-]+$/;
 /** A built-in finish of the list, or a Poly Haven texture. */
 const finishOk = (v: unknown, list: string[]) => typeof v === "string" && (list.includes(v) || TEXTURE_REF.test(v));
 const FLOOR_HINT = "a floor finish like wood, oak_herringbone or tile_white (see the catalogue) or polyhaven:<texture>";
+const ROOF_HINT = "a roof covering like roof_clay, roof_slate or roof_metal (see the catalogue) or polyhaven:<texture>";
 const WALL_HINT = "a wall finish like paint_white, acoustic_oak or brick_red (see the catalogue) or polyhaven:<texture>";
 const OPENING_TYPES = Object.keys(DEFAULTS.opening);
 
@@ -423,12 +424,30 @@ export function expandHouse(input: unknown): ExpandResult {
     if (d.shape !== undefined && d.shape !== "gable" && d.shape !== "shed") return err(`${dp}.shape`, "shape must be gable or shed.");
     dormers.push({ side: d.side, at: d.at, width: d.width ?? 1.6, shape: d.shape ?? "gable" });
   });
+  const ROOF_SHAPES = ["gable", "hip", "shed", "flat"];
+  if (r.shape !== undefined && !ROOF_SHAPES.includes(r.shape)) err("roof.shape", `shape must be gable, hip, shed or flat, got ${JSON.stringify(r.shape)}.`);
+  if (r.high !== undefined && !SIDES.includes(r.high)) err("roof.high", `high must be one of ${SIDES.join(", ")}.`);
+  if (r.finish !== undefined && !finishOk(r.finish, ROOF_FINISHES)) err("roof.finish", `finish must be ${ROOF_HINT}, got ${JSON.stringify(r.finish)}.`);
+  const windows: House["roof"]["windows"] = [];
+  (r.windows ?? []).forEach((w, i) => {
+    const wp = `roof.windows.${i}`;
+    if (!w || !SIDES.includes(w.side) || typeof w.at !== "number") return err(wp, "A roof window needs side (north, south, east or west) and at (metres along the ridge).");
+    for (const [k, lo, hi] of [["up", 0, 20], ["width", 0.3, 3], ["height", 0.3, 3]] as const)
+      if (w[k] !== undefined && !(typeof w[k] === "number" && w[k]! >= lo && w[k]! <= hi)) return err(`${wp}.${k}`, `${k} must be in metres (${lo}–${hi}).`);
+    if (w.cover !== undefined && !(typeof w.cover === "string" && w.cover.startsWith("cover."))) return err(`${wp}.cover`, "cover must be a cover entity, e.g. cover.….");
+    if (w.contact !== undefined && !(typeof w.contact === "string" && w.contact.includes("."))) return err(`${wp}.contact`, "contact must be an entity id, e.g. binary_sensor.….");
+    windows.push({ side: w.side, at: w.at, up: w.up ?? 1.2, width: w.width ?? 0.78, height: w.height ?? 1.18, ...(w.cover ? { cover: w.cover } : {}), ...(w.contact ? { contact: w.contact } : {}) });
+  });
+  const ridge = r.ridge ?? (tb.max[0] - tb.min[0] >= tb.max[1] - tb.min[1] ? "east_west" : "north_south");
   const roof: House["roof"] = {
-    shape: "gable",
-    ridge: r.ridge ?? (tb.max[0] - tb.min[0] >= tb.max[1] - tb.min[1] ? "east_west" : "north_south"),
+    shape: r.shape && ROOF_SHAPES.includes(r.shape) ? r.shape : "gable",
+    ridge,
     pitch,
     overhang: r.overhang ?? 0.3,
+    finish: r.finish ?? "roof_clay",
+    high: r.high ?? (ridge === "east_west" ? "south" : "east"),
     dormers,
+    windows,
   };
 
   const energy: Energy[] = [];

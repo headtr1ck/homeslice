@@ -1339,6 +1339,8 @@ export class HomesliceCard extends LitElement {
     });
     const awnings = this.rooms.map((r) => (r.room.awning ? coverOpen(hass, r.room.awning, inverted.has(r.room.awning)) : null));
     const devices = this.devices.map((entity) => deviceLook(hass, entity, inverted.has(entity)));
+    // roof windows: how far their shutters are down, whether they are open
+    const roofWindows = this.house.roof.windows.map((w) => [w.cover ? 1 - (coverOpen(hass, w.cover, inverted.has(w.cover)) ?? 1) : 0, w.contact ? contactOpen(hass, w.contact) : false] as const);
     const energyDetails = this.config.energy ? this.house.energy.flatMap((e) => e.details.map((d) => hass.states[d.entity]?.state)) : [];
     // rain, snow or fog around the house, from the card's weather entity
     const weather = this.config.weather && this.config.weather_effects !== false ? weatherEffect(hass.states[this.config.weather]?.state) : null;
@@ -1368,12 +1370,13 @@ export class HomesliceCard extends LitElement {
       const v = kind && r.room.areaId && r.room.kind === "room" ? areaReading(hass, r.room.areaId, kind) : null;
       return v === null || !kind ? null : stepColor(v, this.steps[kind] ?? []);
     });
-    const signature = JSON.stringify([look, this.config.accent, lux, heat, lights, lamps, covers, contacts, values, sensors, awnings, devices, underfloor, badges, energyDetails, weather, this.placedPeople(hass).map((p) => [p.key, p.levelId, p.at]), this.config.weather ? hass.states[this.config.weather]?.attributes.temperature : null, cameras, this.energyReadings, this.robotReadings, this.robotNeeds, sunAt]);
+    const signature = JSON.stringify([look, this.config.accent, lux, heat, lights, lamps, covers, contacts, values, sensors, awnings, devices, roofWindows, underfloor, badges, energyDetails, weather, this.placedPeople(hass).map((p) => [p.key, p.levelId, p.at]), this.config.weather ? hass.states[this.config.weather]?.attributes.temperature : null, cameras, this.energyReadings, this.robotReadings, this.robotNeeds, sunAt]);
     if (signature === this.stateSignature) return;
     this.stateSignature = signature;
     this.lamps.forEach((l, i) => this.renderer!.setLamp(l.entity, lamps[i]));
     this.devices.forEach((entity, i) => this.renderer!.setDevice(entity, devices[i]));
     for (const [entity, heating] of underfloor) this.renderer.setUnderfloor(entity, heating);
+    roofWindows.forEach(([closed, open], i) => this.renderer!.setRoofWindow(i, closed, open));
     for (const [entity, moving] of cameras) this.renderer.setCameraMotion(entity, moving);
     this.renderer.setLook(look, this.config.accent || undefined);
     this.renderer.setWeather(weather);

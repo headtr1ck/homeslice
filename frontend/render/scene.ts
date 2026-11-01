@@ -301,6 +301,34 @@ export function serpentine(poly: Vec2[], spacing: number, inset: number): [Vec2,
   return out;
 }
 
+/**
+ * Flat faces (convex, in order) as one geometry, textured in metres: u along `along`
+ * (the eave), v up the face.
+ */
+export function roofGeometry(faces: { pts: THREE.Vector3[]; along: THREE.Vector3 }[]): THREE.BufferGeometry {
+  const pos: number[] = [];
+  const uv: number[] = [];
+  for (const { pts, along } of faces) {
+    const a = along.clone().normalize();
+    const normal = new THREE.Vector3().subVectors(pts[1], pts[0]).cross(new THREE.Vector3().subVectors(pts[2], pts[0])).normalize();
+    const up = new THREE.Vector3().crossVectors(normal, a).normalize();
+    // v grows up the slope
+    if (up.y < 0) up.negate();
+    const origin = pts[0];
+    const map = (p: THREE.Vector3) => [p.clone().sub(origin).dot(a), p.clone().sub(origin).dot(up)];
+    for (let i = 1; i + 1 < pts.length; i++)
+      for (const p of [pts[0], pts[i], pts[i + 1]]) {
+        pos.push(p.x, p.y, p.z);
+        uv.push(...map(p));
+      }
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+  geo.setAttribute("uv", new THREE.Float32BufferAttribute(uv, 2));
+  geo.computeVertexNormals();
+  return geo;
+}
+
 function holesFor(level: Level, vertical: Vertical[]): Vec2[][] {
   // a stairwell cuts the floors it leads up to, not the one it starts on
   return vertical.filter((v) => level.index > v.from && level.index <= v.to).map(stairHole);
@@ -612,6 +640,7 @@ export class HouseRenderer {
     this.underfloors.clear();
     this.spills.clear();
     this.people.clear();
+    this.roofWindows.clear();
     this.roomLightLooks.clear();
     this.leaves.clear();
     this.outlines = [];
@@ -1771,26 +1800,137 @@ export class HouseRenderer {
     const o = roof.overhang;
     const t = Math.tan((roof.pitch * Math.PI) / 180);
     const eastWest = roof.ridge === "east_west";
-    // profile across the ridge (u) and up (v); extruded along the ridge
+    // a: along the ridge, c: across it, z: up
     const [u0, u1] = eastWest ? [min[1], max[1]] : [min[0], max[0]];
     const [r0, r1] = eastWest ? [min[0], max[0]] : [min[1], max[1]];
-    const half = (u1 - u0) / 2;
-    const shape = new THREE.Shape([new THREE.Vector2(-o, -o * t), new THREE.Vector2(2 * half + o, -o * t), new THREE.Vector2(half, half * t)]);
-    const geo = new THREE.ExtrudeGeometry(shape, { depth: r1 - r0 + 2 * o, bevelEnabled: false });
     const base = level.height;
-    const m = new THREE.Matrix4();
-    // shape x → across, shape y → up, extrusion z → along the ridge
-    if (eastWest) m.set(0, 0, 1, r0 - o, 0, 1, 0, base, 1, 0, 0, u0, 0, 0, 0, 1);
-    else m.set(1, 0, 0, u0, 0, 1, 0, base, 0, 0, 1, r0 - o, 0, 0, 0, 1);
-    geo.applyMatrix4(m);
-    geo.computeVertexNormals();
-    const mat = new THREE.MeshLambertMaterial({ color: COLORS.roof, side: THREE.DoubleSide });
-    this.levels[this.levels.length - 1]?.materials.add(mat);
-    g.add(this.mesh(geo, mat));
-    for (const d of roof.dormers ?? []) this.dormer(g, d, { eastWest, u0, u1, r0, r1, base, t, mat });
+    const P = (a: number, c: number, z: number) => (eastWest ? new THREE.Vector3(a, z, c) : new THREE.Vector3(c, z, a));
+    const covering = this.finish(roof.finish);
+    const mat = new THREE.MeshLambertMaterial({ color: covering.color, map: covering.map, side: THREE.DoubleSide });
+    const ends = new THREE.MeshLambertMaterial({ color: COLORS.wall, side: THREE.DoubleSide });
+    for (const m of [mat, ends]) this.levels[this.levels.length - 1]?.materials.add(m);
+    const faces: { pts: THREE.Vector3[]; along: THREE.Vector3 }[] = [];
+    const walls: THREE.Vector3[][] = [];
+    const A0 = r0 - o;
+    const A1 = r1 + o;
+    const C0 = u0 - o;
+    const C1 = u1 + o;
+    const zE = base - o * t;
+    const alongA = P(1, 0, 0).sub(P(0, 0, 0));
+    const alongC = P(0, 1, 0).sub(P(0, 0, 0));
+    if (roof.shape === "flat") {
+      // a slab with a low parapet; the covering on top
+      const top = base + 0.25;
+      faces.push({ pts: [P(r0, u0, top), P(r1, u0, top), P(r1, u1, top), P(r0, u1, top)], along: alongA });
+      const p = 0.45;
+      for (const [a, b] of [
+        [P(r0, u0, base), P(r1, u0, base)],
+        [P(r1, u0, base), P(r1, u1, base)],
+        [P(r1, u1, base), P(r0, u1, base)],
+        [P(r0, u1, base), P(r0, u0, base)],
+      ])
+        walls.push([a, b, b.clone().setY(base + p), a.clone().setY(base + p)]);
+    } else if (roof.shape === "shed") {
+      // one slope; the high side is a wall up to the roof
+      const highFar = eastWest ? roof.high !== "north" : roof.high !== "west";
+      const lowC = highFar ? C0 : C1;
+      const highC = highFar ? C1 : C0;
+      const wallHigh = highFar ? u1 : u0;
+      const zTop = base + (u1 - u0) * t;
+      faces.push({ pts: [P(A0, lowC, zE), P(A1, lowC, zE), P(A1, highC, zTop + o * t), P(A0, highC, zTop + o * t)], along: alongA });
+      for (const a of [r0, r1]) walls.push([P(a, u0, base), P(a, u1, base), P(a, wallHigh, zTop)]);
+      walls.push([P(r0, wallHigh, base), P(r1, wallHigh, base), P(r1, wallHigh, zTop), P(r0, wallHigh, zTop)]);
+    } else {
+      const half = (C1 - C0) / 2;
+      const Cm = C0 + half;
+      const zR = zE + half * t;
+      if (roof.shape === "hip") {
+        // the ridge stops half a width from each end: slopes on all four sides
+        const inset = Math.min(half, (A1 - A0) / 2);
+        const Ra0 = A0 + inset;
+        const Ra1 = A1 - inset;
+        faces.push({ pts: [P(A0, C0, zE), P(A1, C0, zE), P(Ra1, Cm, zR), P(Ra0, Cm, zR)], along: alongA });
+        faces.push({ pts: [P(A1, C1, zE), P(A0, C1, zE), P(Ra0, Cm, zR), P(Ra1, Cm, zR)], along: alongA.clone().negate() });
+        faces.push({ pts: [P(A0, C1, zE), P(A0, C0, zE), P(Ra0, Cm, zR)], along: alongC.clone().negate() });
+        faces.push({ pts: [P(A1, C0, zE), P(A1, C1, zE), P(Ra1, Cm, zR)], along: alongC });
+      } else {
+        faces.push({ pts: [P(A0, C0, zE), P(A1, C0, zE), P(A1, Cm, zR), P(A0, Cm, zR)], along: alongA });
+        faces.push({ pts: [P(A1, C1, zE), P(A0, C1, zE), P(A0, Cm, zR), P(A1, Cm, zR)], along: alongA.clone().negate() });
+        // the gable ends: wall up to the roof
+        for (const a of [r0, r1]) walls.push([P(a, u0, base), P(a, u1, base), P(a, Cm, base + (Cm - u0) * t)]);
+      }
+    }
+    g.add(this.mesh(roofGeometry(faces), mat));
+    if (walls.length) g.add(this.mesh(roofGeometry(walls.map((pts) => ({ pts, along: pts[1].clone().sub(pts[0]).normalize() }))), ends));
+    if (roof.shape === "gable" || roof.shape === "hip") for (const d of roof.dormers ?? []) this.dormer(g, d, { eastWest, u0, u1, r0, r1, base, t, mat });
+    if (roof.shape !== "flat") roof.windows.forEach((w, i) => this.roofWindow(g, w, i, roof, { eastWest, u0, u1, r0, r1, base, t }));
     g.userData.outdoor = true;
     g.traverse((x) => (x.userData.outdoor = true));
     return g;
+  }
+
+  /** Roof windows by their place in `roof.windows`: the shutter and the sash, for their states. */
+  private roofWindows = new Map<number, { shutter: THREE.Object3D; sash: THREE.Object3D }>();
+
+  /** A roof window lying in its slope: frame, glass, and an outside shutter rolled up at its top. */
+  private roofWindow(g: THREE.Group, w: RoofShape["windows"][number], index: number, roof: RoofShape, r: { eastWest: boolean; u0: number; u1: number; r0: number; r1: number; base: number; t: number }) {
+    const far = r.eastWest ? w.side === "south" : w.side === "east";
+    const near = r.eastWest ? w.side === "north" : w.side === "west";
+    if (!far && !near) return;
+    // a shed roof has one slope: the low side
+    if (roof.shape === "shed") {
+      const highFar = r.eastWest ? roof.high !== "north" : roof.high !== "west";
+      if (far === highFar) return;
+    }
+    const angle = Math.atan(r.t);
+    const along = Math.max(r.r0 + w.width / 2, Math.min(r.r1 - w.width / 2, r.r0 + w.at));
+    // up the slope from the wall line: across the plan by cos, up by sin
+    const run = w.up * Math.cos(angle);
+    const c = far ? r.u1 - run : r.u0 + run;
+    const z = r.base + w.up * Math.sin(angle) + 0.04;
+    const holder = new THREE.Group();
+    holder.position.copy(r.eastWest ? new THREE.Vector3(along, z, c) : new THREE.Vector3(c, z, along));
+    // face the slope: tilt back towards the ridge
+    holder.rotation.order = "YXZ";
+    holder.rotation.y = r.eastWest ? (far ? 0 : Math.PI) : far ? Math.PI / 2 : -Math.PI / 2;
+    holder.rotation.x = -(Math.PI / 2 - angle);
+    const frame = this.lambert("#3a3d41");
+    const glass = this.lambert(COLORS.glass, { transparent: true, opacity: 0.8 });
+    holder.add(this.mesh(new THREE.BoxGeometry(w.width, w.height, 0.05), frame).translateZ(0.01));
+    // the sash: hinged in the middle, it tilts open with its contact
+    const sash = new THREE.Group();
+    sash.add(this.mesh(new THREE.BoxGeometry(w.width - 0.1, w.height - 0.1, 0.03), glass, false));
+    sash.position.z = 0.03;
+    holder.add(sash);
+    // the shutter: a box at the top, its curtain runs down over the glass
+    const box = this.lambert("#4a4d52");
+    holder.add(this.mesh(new THREE.BoxGeometry(w.width + 0.04, 0.12, 0.09), box).translateY(w.height / 2 + 0.04).translateZ(0.04));
+    const shutter = new THREE.Group();
+    shutter.position.set(0, w.height / 2 - 0.02, 0.06);
+    const curtain = this.mesh(new THREE.BoxGeometry(w.width - 0.04, w.height - 0.04, 0.012), box);
+    curtain.position.y = -(w.height - 0.04) / 2;
+    shutter.add(curtain);
+    shutter.scale.y = 0.001;
+    shutter.visible = !!w.cover;
+    holder.add(shutter);
+    holder.userData.roofWindow = index;
+    this.roofWindows.set(index, { shutter, sash });
+    g.add(holder);
+  }
+
+  /** A roof window's state: how far its shutter is closed (0…1) and whether it is open. */
+  setRoofWindow(index: number, closed: number, open: boolean) {
+    const w = this.roofWindows.get(index);
+    if (!w) return;
+    w.shutter.scale.y = Math.max(0.001, Math.min(1, closed));
+    w.sash.rotation.x = open ? -0.25 : 0;
+    this.draw();
+  }
+
+  /** For tests: a roof window as drawn. */
+  roofWindowState(index: number) {
+    const w = this.roofWindows.get(index);
+    return w ? { closed: w.shutter.scale.y, open: w.sash.rotation.x !== 0 } : null;
   }
 
   /** A balcony's railing along the edges that are not against the house, a metre high. */

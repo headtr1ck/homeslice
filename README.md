@@ -249,7 +249,11 @@ party_walls: [west]                     # walls shared with a neighbour
 roof:                                   # optional; drawn by cards with view.roof
   ridge: east_west
   pitch: 35
+  shape: gable                  # or hip, shed (one slope, high: north) or flat
+  finish: roof_clay             # roof_concrete, roof_slate, roof_shingles, roof_metal, roof_green…
   dormers: [{ side: south, at: 4, width: 1.6, shape: gable }]   # or shape: shed
+  windows:                      # roof windows, with an outside shutter and a contact
+    - { side: south, at: 2, up: 1.5, cover: cover.roof_window, contact: binary_sensor.roof_window }
 north: 0                                # optional: degrees the plan's north side is turned east of true north
 inverted_covers: [cover.awning]         # optional: covers that report open/closed the other way round
 robots:                                 # optional: robot vacuums and lawn mowers

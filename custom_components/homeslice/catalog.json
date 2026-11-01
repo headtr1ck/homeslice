@@ -81,6 +81,15 @@
   "render_white",
   "render_grey"
  ],
+ "roof_finishes": [
+  "roof_clay",
+  "roof_clay_dark",
+  "roof_concrete",
+  "roof_slate",
+  "roof_shingles",
+  "roof_metal",
+  "roof_green"
+ ],
  "opening_types": [
   "window",
   "door",

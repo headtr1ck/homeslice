@@ -1065,6 +1065,40 @@ console.log("demo house, roof");
     });
   });
 
+  await test("roofs: hip, shed and flat shapes, a covering, a roof window with its shutter", async () => {
+    const build = (roof) =>
+      act(page, async () => {
+        await page.evaluate((roof) => {
+          const m = structuredClone(window.__demoModel);
+          m.roof = roof;
+          window.viewBefore ??= window.card.config.view;
+          window.card.setConfig({ ...window.card.config, view: { ...window.card.config.view, roof: true } });
+          window.card.hass.pushModel(m);
+        }, roof);
+      });
+    const triangles = () => page.evaluate(() => window.card.renderer.roof.children[0].geometry.attributes.position.count / 3);
+    await build({ shape: "hip" });
+    assert((await triangles()) === 6, `hip roof triangles: ${await triangles()}`);
+    await build({ shape: "shed", high: "east", finish: "roof_metal" });
+    assert((await triangles()) === 2, `shed roof triangles: ${await triangles()}`);
+    await build({ shape: "flat", finish: "roof_green" });
+    assert((await triangles()) === 2, `flat roof triangles: ${await triangles()}`);
+    await build({ finish: "roof_slate", windows: [{ side: "east", at: 2, cover: "cover.living_room", contact: "binary_sensor.kids_room_leak" }, { side: "west", at: 3 }] });
+    const win = () => page.evaluate(() => window.card.renderer.roofWindowState(0));
+    await page.evaluate(() => window.card.hass.callService("cover", "close_cover", {}, { entity_id: "cover.living_room" }));
+    await page.waitForFunction(() => window.card.renderer.roofWindowState(0)?.closed > 0.9, null, { timeout: 5000 });
+    await page.evaluate(() => window.card.hass.callService("cover", "open_cover", {}, { entity_id: "cover.living_room" }));
+    await page.waitForFunction(() => window.card.renderer.roofWindowState(0)?.closed < 0.1, null, { timeout: 5000 });
+    assert(!(await win()).open, "roof window open with its contact closed");
+    await shot(page, "demo-roof-window");
+    await act(page, () =>
+      page.evaluate(() => {
+        window.card.setConfig({ ...window.card.config, view: window.viewBefore });
+        window.card.hass.pushModel(window.__demoModel);
+      }),
+    );
+  });
+
   await test("dormers on the roof, a railing round a balcony", async () => {
     await act(page, async () => {
       await page.evaluate(() => {
@@ -1072,7 +1106,7 @@ console.log("demo house, roof");
         m.roof = { ...(m.roof ?? {}), dormers: [{ side: "south", at: 3 }, { side: "north", at: 5, shape: "shed" }, { side: "east", at: 3 }, { side: "west", at: 4, shape: "shed" }] };
         const garden = m.levels[0].rooms.find((r) => r.id === "garden");
         if (garden) garden.railing = "glass";
-        window.viewBefore = window.card.config.view;
+        window.viewBefore ??= window.card.config.view;
         window.card.setConfig({ ...window.card.config, view: { ...window.card.config.view, roof: true } });
         window.card.hass.pushModel(m);
       });

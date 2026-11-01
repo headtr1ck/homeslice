@@ -340,8 +340,10 @@ export interface EnergyInput {
 export type EnergyKind = "solar" | "battery" | "grid" | "inverter" | "device";
 
 export interface RoofInput {
-  /** Only gable roofs for now. */
-  shape?: "gable";
+  /** `gable` (default), `hip` (sloping on all four sides), `shed` (one slope, high side at `high`) or `flat`. */
+  shape?: "gable" | "hip" | "shed" | "flat";
+  /** A shed roof: the side that is high (default the south or east side of the ridge's direction). */
+  high?: Side;
   /** Direction of the ridge (default along the longer side). */
   ridge?: "east_west" | "north_south";
   /** Degrees (default 35). */
@@ -350,6 +352,26 @@ export interface RoofInput {
   overhang?: number;
   /** Dormers on the slopes: `side` (the slope's side), `at` (metres along the ridge from its west or north end, the dormer's middle), `width`, `shape`. */
   dormers?: DormerInput[];
+  /** The covering: roof_clay (default), roof_concrete, roof_slate, roof_shingles, roof_metal, roof_green… or polyhaven:<texture>. */
+  finish?: string;
+  /** Windows in the slopes, optionally with an outside roller shutter (`cover`) and a contact. */
+  windows?: RoofWindowInput[];
+}
+
+export interface RoofWindowInput {
+  /** The slope's side. */
+  side: Side;
+  /** Metres along the ridge from its west or north end (the window's middle). */
+  at: number;
+  /** Metres up the slope from the eave (default 1.2). */
+  up?: number;
+  /** Metres (default 0.78 × 1.18). */
+  width?: number;
+  height?: number;
+  /** An outside roller shutter. */
+  cover?: string;
+  /** Open (tilted) while on. */
+  contact?: string;
 }
 
 export interface DormerInput {
@@ -518,7 +540,7 @@ export interface House {
   walls: WallThickness;
   levels: Level[];
   vertical: Vertical[];
-  roof: Required<Omit<RoofInput, "dormers">> & { dormers: Required<DormerInput>[] };
+  roof: Required<Omit<RoofInput, "dormers" | "windows" | "high">> & { high: Side; dormers: Required<DormerInput>[]; windows: (Required<Omit<RoofWindowInput, "cover" | "contact">> & { cover?: string; contact?: string })[] };
   energy: Energy[];
   invertedCovers: string[];
   facade?: string;

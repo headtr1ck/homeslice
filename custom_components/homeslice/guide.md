@@ -43,6 +43,8 @@ outline: { rect: [0, 0, 10, 8] }
 party_walls: [east]           # outside walls shared with a neighbour (terraced houses)
 roof: { ridge: east_west, pitch: 35 }      # optional; ridge east_west or north_south
 # dormers: [{side: south, at: 4, width: 1.6, shape: gable}]  (side: a slope's side; at: metres along the ridge; shape gable or shed)
+# shape: gable | hip | shed (high: <side>) | flat; finish: roof_clay | roof_concrete | roof_slate | roof_shingles | roof_metal | roof_green
+# windows: [{side: south, at: 2, up: 1.5, width: 0.78, height: 1.18, cover: cover.…, contact: binary_sensor.…}]  (up: metres up the slope)
 north: 0                      # optional: degrees the plan's north is turned east of true north
 levels:                       # bottom to top
   - id: ground

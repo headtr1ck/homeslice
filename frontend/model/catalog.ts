@@ -3,7 +3,7 @@
 // (written by scripts/catalog.mjs; a test checks it is up to date), so its validator
 // and the AI guide never drift from the editor.
 
-import { FLOOR_FINISHES, WALL_FINISHES } from "./finishes";
+import { FLOOR_FINISHES, ROOF_FINISHES, WALL_FINISHES } from "./finishes";
 import { FURNITURE } from "./furniture";
 import { FINISHES, MODERN_GROUPS, kindTags } from "./modern";
 import en from "../i18n/en.json";
@@ -22,6 +22,7 @@ export function catalog() {
     room_kinds: ["room", "outdoor", "void"],
     floor_finishes: FLOOR_FINISHES,
     wall_finishes: WALL_FINISHES,
+    roof_finishes: ROOF_FINISHES,
     opening_types: Object.keys(OPENING_STYLES),
     opening_styles: OPENING_STYLES,
     furniture_types: Object.fromEntries(

@@ -21,6 +21,7 @@ MISSING: Any = object()
 
 TEXTURE_REF = re.compile(r"^polyhaven:[A-Za-z0-9_-]+$")
 FLOOR_HINT = "a floor finish like wood, oak_herringbone or tile_white (see the catalogue) or polyhaven:<texture>"
+ROOF_HINT = "a roof covering like roof_clay, roof_slate or roof_metal (see the catalogue) or polyhaven:<texture>"
 WALL_HINT = "a wall finish like paint_white, acoustic_oak or brick_red (see the catalogue) or polyhaven:<texture>"
 MODEL_REF = re.compile(r"^(builtin|(kenney|polyhaven|custom|modern):[A-Za-z0-9_-]+)$")
 LIGHT_TYPES = ["lamp", "spot", "strip", "indirect"]
@@ -506,6 +507,36 @@ def validate(house: Any) -> list[dict[str, str]]:
         shape = get(d, "shape")
         if shape is not MISSING and shape not in ("gable", "shed"):
             err(f"{dp}.shape", "shape must be gable or shed.")
+    roof_shape = get(roof, "shape")
+    if roof_shape is not MISSING and roof_shape not in ("gable", "hip", "shed", "flat"):
+        err("roof.shape", f"shape must be gable, hip, shed or flat, got {stringify(roof_shape)}.")
+    high = get(roof, "high")
+    if high is not MISSING and high not in SIDES:
+        err("roof.high", f"high must be one of {', '.join(SIDES)}.")
+    roof_finish = get(roof, "finish")
+    if roof_finish is not MISSING and not finish_ok(roof_finish, catalog()["roof_finishes"]):
+        err("roof.finish", f"finish must be {ROOF_HINT}, got {stringify(roof_finish)}.")
+    for i, w in enumerate(items(get(roof, "windows"))):
+        wp = f"roof.windows.{i}"
+        if get(w, "side") not in SIDES or not is_num(get(w, "at")):
+            err(wp, "A roof window needs side (north, south, east or west) and at (metres along the ridge).")
+            continue
+        bad = False
+        for k, lo, hi in (("up", 0, 20), ("width", 0.3, 3), ("height", 0.3, 3)):
+            v = get(w, k)
+            if v is not MISSING and not (is_num(v) and lo <= v <= hi):
+                err(f"{wp}.{k}", f"{k} must be in metres ({text(lo)}–{text(hi)}).")
+                bad = True
+                break
+        if bad:
+            continue
+        cover = get(w, "cover")
+        if cover is not MISSING and not (isinstance(cover, str) and cover.startswith("cover.")):
+            err(f"{wp}.cover", "cover must be a cover entity, e.g. cover.….")
+            continue
+        contact = get(w, "contact")
+        if contact is not MISSING and not (isinstance(contact, str) and "." in contact):
+            err(f"{wp}.contact", "contact must be an entity id, e.g. binary_sensor.….")
 
     energy: list[dict[str, Any]] = []
     energy_in = items(get(h, "energy"))

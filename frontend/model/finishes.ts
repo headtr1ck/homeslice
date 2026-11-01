@@ -2,7 +2,7 @@
 // paint, panels, brick… A room has a floor finish and a wall finish (with an optional one
 // per side, an accent wall); the house has a facade finish. render/finishes.ts draws them.
 
-export type Surface = "floor" | "wall";
+export type Surface = "floor" | "wall" | "roof";
 
 export interface Finish {
   id: string;
@@ -17,6 +17,7 @@ const f = (id: string, group: string, on: Surface[], color: string): Finish => (
 const FLOOR: Surface[] = ["floor"];
 const WALL: Surface[] = ["wall"];
 const BOTH: Surface[] = ["floor", "wall"];
+const ROOF: Surface[] = ["roof"];
 
 export const FINISH_LIST: Finish[] = [
   // wood
@@ -85,14 +86,24 @@ export const FINISH_LIST: Finish[] = [
   f("bark", "outside", [], "#6a4e39"),
   f("bark_birch", "outside", [], "#e6e2da"),
   f("render_grey", "outside", WALL, "#a9aaa8"),
+  // roof coverings
+  f("roof_clay", "roof", ROOF, "#a4553c"),
+  f("roof_clay_dark", "roof", ROOF, "#6e3b2c"),
+  f("roof_concrete", "roof", ROOF, "#55585d"),
+  f("roof_slate", "roof", ROOF, "#3f444b"),
+  f("roof_shingles", "roof", ROOF, "#4d4540"),
+  f("roof_metal", "roof", ROOF, "#5d6268"),
+  f("roof_green", "roof", ROOF, "#6a8a4c"),
 ];
 
 export const FINISHES_BY_ID: Record<string, Finish> = Object.fromEntries(FINISH_LIST.map((x) => [x.id, x]));
 
 /** The groups in the order the editor shows them. */
-export const FINISH_GROUPS = ["wood", "tiles", "stone", "soft", "paint", "panels", "brick", "outside"];
+export const FINISH_GROUPS = ["wood", "tiles", "stone", "soft", "paint", "panels", "brick", "outside", "roof"];
 
 /** Finishes a floor can have (`none`: no floor, e.g. a void). */
 export const FLOOR_FINISHES = ["none", ...FINISH_LIST.filter((x) => x.on.includes("floor")).map((x) => x.id)];
 /** Finishes a wall or the facade can have. */
 export const WALL_FINISHES = FINISH_LIST.filter((x) => x.on.includes("wall")).map((x) => x.id);
+/** Roof coverings. */
+export const ROOF_FINISHES = FINISH_LIST.filter((x) => x.on.includes("roof")).map((x) => x.id);
