@@ -1,4 +1,4 @@
-# Homeslice
+# Homeslice — 3D floor plan for Home Assistant
 
 [![HACS Custom](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://hacs.xyz/docs/faq/custom_repositories)
 [![GitHub release](https://img.shields.io/github/v/release/headtr1ck/homeslice)](https://github.com/headtr1ck/homeslice/releases)
@@ -11,9 +11,12 @@
 > bugs. Keep a copy of your house (editor → ⚙ → *Download* YAML) and expect to adjust it
 > after updates. Feedback and issues are very welcome.
 
-Model your house once — floors, rooms, walls, windows, devices — linked to Home Assistant's
-own floors, areas and entities, and show it as an interactive, exploded isometric 3D view
-on your dashboards.
+**A 3D floor plan for Home Assistant.** Draw your home in the built-in floor plan editor —
+floors, rooms, walls, doors, windows, furniture, garden — linked to Home Assistant's own
+floors, areas and entities, and see it live on your dashboards as an interactive,
+exploded isometric 3D house or a 2D floor plan: a Lovelace card that turns your home into a
+digital twin, with lights, blinds, shutters, garage doors, climate, media players and
+energy flows. Free and open source (MIT), installed with HACS, made for wall tablets.
 
 | The card: your house in 3D | At night, with its lights on |
 |---|---|
