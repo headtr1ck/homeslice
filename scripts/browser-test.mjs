@@ -814,6 +814,38 @@ console.log("demo house, roof");
     await act(page, () => page.evaluate(() => window.card.hass.pushModel(structuredClone(window.__demoModel))));
   });
 
+  await test("robots: a warning at the dock when it needs something (water, bag, maintenance)", async () => {
+    const needs = (on) =>
+      act(page, () =>
+        page.evaluate((on) => {
+          const h = window.card.hass;
+          window.card.hass = {
+            ...h,
+            devices: { ...h.devices, robo_dev: { id: "robo_dev", name: "Robo" }, robo_dock: { id: "robo_dock", name: "Robo Dock" } },
+            entities: {
+              ...h.entities,
+              "vacuum.robo": { ...(h.entities["vacuum.robo"] ?? { entity_id: "vacuum.robo" }), device_id: "robo_dev" },
+              "binary_sensor.robo_water_shortage": { entity_id: "binary_sensor.robo_water_shortage", device_id: "robo_dev" },
+              "sensor.robo_dock_brush_time_left": { entity_id: "sensor.robo_dock_brush_time_left", device_id: "robo_dock" },
+            },
+            states: {
+              ...h.states,
+              "binary_sensor.robo_water_shortage": { entity_id: "binary_sensor.robo_water_shortage", state: on ? "on" : "off", attributes: { device_class: "problem", friendly_name: "Robo Water shortage" } },
+              "sensor.robo_dock_brush_time_left": { entity_id: "sensor.robo_dock_brush_time_left", state: on ? "-5" : "40", attributes: { device_class: "duration", friendly_name: "Robo Dock Brush time left" } },
+            },
+          };
+        }, on),
+      );
+    await needs(true);
+    const alert = page.locator("homeslice-card .dock-alert");
+    assert((await alert.count()) === 1, "no warning at the dock");
+    const label = await alert.getAttribute("aria-label");
+    assert(label.includes("Water shortage") && label.includes("Brush time left"), `warning: ${label}`);
+    await shot(page, "demo-dock-alert");
+    await needs(false);
+    assert((await alert.count()) === 0, "warning stays when all is well");
+  });
+
   await test("the real sun lights the house; at night it is dark", async () => {
     const setSun = (azimuth, elevation) =>
       act(page, () =>

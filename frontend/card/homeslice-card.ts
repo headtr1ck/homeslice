@@ -7,7 +7,7 @@ import type { House, Issue, Room, Vec2 } from "../model/types";
 import { listedLights, placeLights, type PlacedLight } from "../model/lights";
 import { deriveWalls, innerPolygon, type Wall } from "../model/walls";
 import { formatPower, readEnergy, type EnergyPrefs, type EnergyReading } from "../ha/energy";
-import { pollPosition, polledPositions, readRobot, robotStatus, type RobotReading, type RobotStatus } from "../ha/robots";
+import { pollPosition, polledPositions, readRobot, robotAlerts, robotStatus, type RobotReading, type RobotStatus } from "../ha/robots";
 import { deviceLook } from "../ha/devices";
 import { activation, whereIs } from "../ha/follow";
 import { ENERGY_COLORS, HouseRenderer, viewOptions, type Look, type ViewOptions } from "../render/scene";
@@ -220,6 +220,7 @@ export class HomesliceCard extends LitElement {
     _event: { state: true },
     _energyLabels: { state: true },
     _robotLabels: { state: true },
+    _dockAlerts: { state: true },
     _level: { state: true },
     _popup: { state: true },
     _hover: { state: true },
@@ -251,6 +252,9 @@ export class HomesliceCard extends LitElement {
   private swipeFrom: { x: number; y: number; at: number } | null = null;
   private _energyLabels: EnergyLabel[] = [];
   private _robotLabels: { key: string; entity: string; x: number; y: number; name: string; text: string; battery: number | null; color: string; icon: string }[] = [];
+  /** Warnings at robots' docks: what each needs (water, bag, maintenance, errors). */
+  private _dockAlerts: { key: string; entity: string; x: number; y: number; items: string[] }[] = [];
+  private robotNeeds: string[][] = [];
   private robotReadings: RobotReading[] = [];
   /** HA's energy settings (for the overlay's default sensors), once loaded. */
   private energyPrefs: EnergyPrefs | null = null;
@@ -595,6 +599,18 @@ export class HomesliceCard extends LitElement {
     this.dispatchEvent(new CustomEvent("hass-more-info", { detail: { entityId }, bubbles: true, composed: true }));
   }
 
+  /** A warning sign at each robot's dock that needs something, listing what. */
+  private dockAlerts() {
+    if (!this.house || !this.renderer) return [];
+    return this.house.robots.flatMap((r, i) => {
+      const items = this.robotNeeds[i] ?? [];
+      const level = this.house!.levels[r.levelIndex];
+      if (!items.length || !level || (this._level && level.id !== this._level) || !this.renderer!.isLevelVisible(level.id)) return [];
+      const p = this.renderer!.project(level.id, r.dock, 0.25);
+      return p ? [{ key: `dock-${r.index}`, entity: r.entity, x: p.x + 16, y: p.y - 16, items }] : [];
+    });
+  }
+
   /** Robots: name, what they do and their battery, above them. */
   private robotLabels() {
     if (!this.house || !this.renderer || !this.hass) return [];
@@ -668,6 +684,7 @@ export class HomesliceCard extends LitElement {
     this.energyReadings = this.config.energy ? this.house.energy.map((e) => readEnergy(hass, e, this.energyPrefs)) : [];
     this.pollRobots(hass);
     this.robotReadings = this.house.robots.map((r) => readRobot(hass, r));
+    this.robotNeeds = this.house.robots.map((r) => robotAlerts(hass, r.entity));
     // the real sun, turned into the plan's directions; rounded so it redraws now and then, not always
     const sun = this.config.sun !== false ? hass.states["sun.sun"]?.attributes : undefined;
     const sunAt = typeof sun?.azimuth === "number" && typeof sun?.elevation === "number" ? [Math.round(sun.azimuth - this.house.north), Math.round(sun.elevation)] : null;
@@ -683,7 +700,7 @@ export class HomesliceCard extends LitElement {
       const v = kind && r.room.areaId && r.room.kind === "room" ? areaReading(hass, r.room.areaId, kind) : null;
       return v === null || !kind ? null : stepColor(v, HEATMAP_STEPS[kind] ?? []);
     });
-    const signature = JSON.stringify([look, this.config.accent, lux, heat, lights, lamps, covers, contacts, temperatures, sensors, awnings, devices, cameras, this.energyReadings, this.robotReadings, sunAt]);
+    const signature = JSON.stringify([look, this.config.accent, lux, heat, lights, lamps, covers, contacts, temperatures, sensors, awnings, devices, cameras, this.energyReadings, this.robotReadings, this.robotNeeds, sunAt]);
     if (signature === this.stateSignature) return;
     this.stateSignature = signature;
     this.lamps.forEach((l, i) => this.renderer!.setLamp(l.entity, lamps[i]));
@@ -1221,6 +1238,7 @@ export class HomesliceCard extends LitElement {
     this._lampButtons = buttons;
     this._energyLabels = this.energyLabels();
     this._robotLabels = this.robotLabels();
+    this._dockAlerts = this.dockAlerts();
   }
 
   protected override render() {
@@ -1301,6 +1319,11 @@ export class HomesliceCard extends LitElement {
             (r) => html`<button class="robot-label" style="left:${r.x}px;top:${r.y}px;--robot:${r.color}" title=${`${r.name}: ${r.text}`} aria-label=${`${r.name}: ${r.text}`}
               @click=${() => this.moreInfo(r.entity)}>
               <ha-icon icon=${r.icon}></ha-icon>${r.battery !== null ? html`<span class="value">${Math.round(r.battery)} %</span>` : nothing}
+            </button>`,
+          )}
+          ${this._dockAlerts.map(
+            (a) => html`<button class="dock-alert" style="left:${a.x}px;top:${a.y}px" title=${a.items.join("\n")} aria-label=${this.t("card.robot_needs", { items: a.items.join(", ") })} @click=${() => this.moreInfo(a.entity)}>
+              <ha-icon icon="mdi:alert"></ha-icon>
             </button>`,
           )}
           ${this._energyLabels.some((e) => e.place !== "above")
@@ -1629,6 +1652,23 @@ export class HomesliceCard extends LitElement {
       --mdc-icon-size: 18px;
     }
     /* compact (icon and battery) so it doesn't cover room names; the rest is in its title */
+    .dock-alert {
+      position: absolute;
+      transform: translate(-50%, -50%);
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      border: 2px solid #fff;
+      background: #f0a020;
+      color: #fff;
+      display: grid;
+      place-items: center;
+      padding: 0;
+      cursor: pointer;
+      pointer-events: auto;
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+      --mdc-icon-size: 18px;
+    }
     .robot-label {
       position: absolute;
       /* under the room names, which stay tappable */

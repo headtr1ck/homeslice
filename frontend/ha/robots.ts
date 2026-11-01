@@ -144,3 +144,32 @@ export function readRobot(hass: Hass, robot: Robot): RobotReading {
   // out without a position: where it was last seen (or its dock), marked as unsure
   return { status, state: s?.state ?? "unknown", battery, at: robot.position ? (known ?? robot.dock) : null, live: false, unsure: !!robot.position };
 }
+
+/**
+ * What a robot (or its dock) needs: problem sensors that are on (water tank empty, dirty
+ * water full, bag full, cleaning fluid low…), maintenance countdowns that have run out
+ * (brushes, filters), error states, the robot's own error. Read from the entities of its
+ * device and its dock's (a device named like it). Their names, for a warning at the dock.
+ */
+export function robotAlerts(hass: Hass, entity: string): string[] {
+  const reg = hass.entities;
+  if (!reg) return [];
+  const own = reg[entity]?.device_id;
+  if (!own) return hass.states[entity]?.state === "error" ? [String(hass.states[entity]?.attributes.friendly_name ?? entity)] : [];
+  const base = hass.devices?.[own]?.name_by_user ?? hass.devices?.[own]?.name ?? "";
+  // the robot's device, and its dock (Roborock lists it as "<robot> Dock")
+  const devices = new Set(Object.values(hass.devices ?? {}).filter((d) => d.id === own || (base && (d.name_by_user ?? d.name ?? "").startsWith(`${base} `))).map((d) => d.id));
+  const out: string[] = [];
+  if (hass.states[entity]?.state === "error") out.push(String(hass.states[entity]?.attributes.error ?? hass.states[entity]?.attributes.friendly_name ?? entity));
+  for (const e of Object.values(reg)) {
+    if (!e.device_id || !devices.has(e.device_id) || e.hidden) continue;
+    const s = hass.states[e.entity_id];
+    if (!s || s.state === "unavailable" || s.state === "unknown") continue;
+    const name = String(s.attributes.friendly_name ?? e.entity_id);
+    const cls = s.attributes.device_class;
+    if (e.entity_id.startsWith("binary_sensor.") && cls === "problem" && s.state === "on") out.push(name);
+    else if (e.entity_id.startsWith("sensor.") && /_time_left$/.test(e.entity_id) && Number(s.state) <= 0) out.push(name);
+    else if (e.entity_id.startsWith("sensor.") && /_error$/.test(e.entity_id) && !["none", "ok", "no_error", "0"].includes(s.state.toLowerCase())) out.push(`${name}: ${s.state}`);
+  }
+  return out;
+}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { gpsToMetres, pollPosition, polledPositions, rawPosition, readRobot, readingToPlan, robotStatus } from "./robots";
+import { gpsToMetres, pollPosition, polledPositions, rawPosition, readRobot, readingToPlan, robotAlerts, robotStatus } from "./robots";
 import type { Hass } from "./hass";
 import type { Robot } from "../model/types";
 
@@ -75,5 +75,37 @@ describe("robots out without a position", () => {
     polledPositions.delete("vacuum.q10");
     expect(readRobot(hass("cleaning"), robot)).toMatchObject({ at: [1, 1], unsure: true });
     expect(readRobot(hass("docked"), robot)).toMatchObject({ at: [1, 1], unsure: false });
+  });
+});
+
+describe("what a robot needs", () => {
+  const st = (id: string, state: string, attributes: Record<string, unknown> = {}) => ({ entity_id: id, state, attributes: { friendly_name: id.split(".")[1].replace(/_/g, " "), ...attributes } });
+  const hass = {
+    devices: { r: { id: "r", name: "Saros 10" }, d: { id: "d", name: "Saros 10 Dock" }, x: { id: "x", name: "Fridge" } },
+    entities: Object.fromEntries(
+      [
+        ["vacuum.saros", "r"],
+        ["binary_sensor.saros_water_shortage", "r"],
+        ["binary_sensor.saros_dock_cleaning_fluid", "d"],
+        ["sensor.saros_dock_maintenance_brush_time_left", "d"],
+        ["sensor.saros_filter_time_left", "r"],
+        ["sensor.saros_vacuum_error", "r"],
+        ["binary_sensor.fridge_door", "x"],
+      ].map(([id, device]) => [id, { entity_id: id, device_id: device }]),
+    ),
+    states: Object.fromEntries(
+      [
+        st("vacuum.saros", "docked"),
+        st("binary_sensor.saros_water_shortage", "off", { device_class: "problem" }),
+        st("binary_sensor.saros_dock_cleaning_fluid", "on", { device_class: "problem" }),
+        st("sensor.saros_dock_maintenance_brush_time_left", "-32"),
+        st("sensor.saros_filter_time_left", "482278"),
+        st("sensor.saros_vacuum_error", "none"),
+        st("binary_sensor.fridge_door", "on", { device_class: "problem" }),
+      ].map((s) => [s.entity_id, s]),
+    ),
+  } as unknown as Hass;
+  it("collects the dock's and the robot's problems, nothing from other devices", () => {
+    expect(robotAlerts(hass, "vacuum.saros")).toEqual(["saros dock cleaning fluid", "saros dock maintenance brush time left"]);
   });
 });

@@ -1492,5 +1492,6 @@
   "editor.underlay_robot_map": "Use the map: {map}",
   "editor.underlay_robot_hint": "A robot vacuum's map is true to scale: drag it into place over the house, then trace the rooms on it.",
   "card.robot_unsure": "position not reported",
-  "editor.robot_app_hint": "Roborock: some models (e.g. Q10) send their map and position only after the Roborock app was opened or while cleaning. Open the app once if nothing shows."
+  "editor.robot_app_hint": "Roborock: some models (e.g. Q10) send their map and position only after the Roborock app was opened or while cleaning. Open the app once if nothing shows.",
+  "card.robot_needs": "Needs attention: {items}"
 }
