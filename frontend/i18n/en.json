@@ -1412,5 +1412,8 @@
   "alias.swing_bench": "porch swing, swing seat, glider",
   "alias.outdoor_rug": "outdoor rug, patio rug",
   "alias.planter_tall": "planter, tall pot, grasses",
-  "alias.sun_sail": "shade sail, sun sail, awning"
+  "alias.sun_sail": "shade sail, sun sail, awning",
+  "editor.wall_view": "Wall view",
+  "editor.wall_view_hint": "Seen from inside the room. Drag doors, windows and pieces along the wall; windows and wall pieces also up and down.",
+  "editor.close": "Close"
 }

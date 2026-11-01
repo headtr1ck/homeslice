@@ -1997,6 +1997,33 @@ console.log("editor");
     await page.keyboard.press("Escape");
   });
 
+  await test("wall view: a room's side from inside, drag a window along and up", async () => {
+    await page.keyboard.press("Escape");
+    await page.keyboard.press("Escape");
+    const lb = await page.locator('homeslice-panel svg.plan g[data-room="living"] polygon').boundingBox();
+    await page.mouse.click(lb.x + lb.width * 0.85, lb.y + lb.height * 0.9);
+    await page.locator('homeslice-panel .inspector button[data-wall-view="south"]').click();
+    const items = page.locator("homeslice-panel .wall-view [data-wv]");
+    assert((await items.count()) === 2, `items on the bottom wall: ${await items.count()}`);
+    const win = page.locator("homeslice-panel .wall-view .wv-item.wv-window");
+    const before = (await model()).levels[0].openings[2];
+    const b = await win.boundingBox();
+    await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(b.x + b.width / 2 + 40, b.y + b.height / 2 - 30, { steps: 6 });
+    await page.mouse.up();
+    const after = (await model()).levels[0].openings[2];
+    // seen from inside, the bottom wall runs right to left: dragging right moves it towards the start
+    // (a full-height window: its sill starts on the floor)
+    assert(after.at < before.at && after.sill >= 0.2, `window ${JSON.stringify(before)} → ${JSON.stringify(after)}`);
+    assert((await page.locator("homeslice-panel .wall-view .wv-dims text").count()) >= 2, "no measurements for the selected window");
+    await shot(page, "editor-wall-view");
+    await page.keyboard.press("Control+z");
+    await page.locator("homeslice-panel .wall-view .close").click();
+    assert((await page.locator("homeslice-panel .wall-view").count()) === 0, "wall view still open");
+    await page.keyboard.press("Escape");
+  });
+
   await test("cameras: shown with what they see on the plan, dragged to their wall", async () => {
     await page.keyboard.press("Escape");
     await page.evaluate(() => {

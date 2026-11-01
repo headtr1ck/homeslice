@@ -317,6 +317,8 @@ function planColor(floor: string): string {
 /** Selection id for the level's outline (its outside walls). */
 const OUTLINE = "__outline__";
 
+const OPPOSITE: Record<Side, Side> = { north: "south", south: "north", east: "west", west: "east" };
+
 export class HomeslicePanel extends LitElement {
   static override properties = {
     narrow: { type: Boolean },
@@ -344,6 +346,7 @@ export class HomeslicePanel extends LitElement {
     _shortcuts: { state: true },
     _draft: { state: true },
     _settings: { state: true },
+    _wallView: { state: true },
     _energyPlace: { state: true },
     _energySel: { state: true },
     _energyPrefs: { state: true },
@@ -398,6 +401,9 @@ export class HomeslicePanel extends LitElement {
   private _levelDrag: { id: string; from: number; over: number; startY: number; dy: number; step: number; moved: boolean } | null = null;
   /** Selected wall between two rooms: the rooms and its side as seen from `a`. */
   private _wall: { a: string; b: string; side: Side } | null = null;
+  /** The wall view: one side of a room seen from inside it, and what is being dragged there. */
+  private _wallView: { room: string; side: Side; sel?: string } | null = null;
+  private wallDrag: { key: string; origin: HouseInput; start: Vec2; u: number; z: number; moved: boolean } | null = null;
   /** Selected opening (doors & windows mode) and the room it belongs to on this level. */
   private _opening: { src: OpeningSource; room: string } | null = null;
   /** Snap feedback drawn on the plan: guide lines and the corner snapped to. */
@@ -799,6 +805,7 @@ export class HomeslicePanel extends LitElement {
 
   /** Nothing selected. */
   private clearSelection() {
+    this._wallView = null;
     this._room = null;
     this._wall = null;
     this._opening = null;
@@ -1997,6 +2004,7 @@ export class HomeslicePanel extends LitElement {
         <section class="plan-wrap">
           ${this.renderPlan()}
           ${this.renderCompass()}
+          ${this.renderWallView()}
           ${this.renderLoupe()}
           ${this._hint
             ? html`<div class="hint" style="left:${this._hint.x + 16}px;top:${this._hint.y + 16}px">${this._hint.lines.map((l) => html`<div>${l}</div>`)}</div>`
@@ -3125,6 +3133,10 @@ export class HomeslicePanel extends LitElement {
             ${r.awning ? this.invertedToggle(r.awning, "editor.awning_inverted") : nothing}
             <p class="muted">${this.t("editor.awning_hint")}</p>`
         : nothing}
+      <div class="row wall-views">
+        <span class="muted">${this.t("editor.wall_view")}</span>
+        ${(["north", "east", "south", "west"] as Side[]).map((sd) => html`<button data-wall-view=${sd} @click=${() => (this._wallView = { room: r.id, side: sd })}>${this.t(`editor.side_${sd}` as StringKey)}</button>`)}
+      </div>
       ${this.renderRoomObjects(r)}
       <button class="danger" @click=${() => {
         this.commit(deleteRoom(m, this._level, r.id));
@@ -3525,6 +3537,11 @@ export class HomeslicePanel extends LitElement {
         <button role="radio" aria-checked=${open} class=${open ? "active" : ""} @click=${() => set(true)}>${this.t("editor.wall_open")}</button>
       </div>
       <p class="muted">${this.t("editor.wall_hint")}</p>
+      <div class="row wall-views">
+        <span class="muted">${this.t("editor.wall_view")}</span>
+        <button @click=${() => (this._wallView = { room: sel.a, side: sel.side })}>${name(sel.a)}</button>
+        <button @click=${() => (this._wallView = { room: sel.b, side: OPPOSITE[sel.side] })}>${name(sel.b)}</button>
+      </div>
       ${open
         ? nothing
         : (() => {
@@ -3799,6 +3816,139 @@ export class HomeslicePanel extends LitElement {
         : nothing}
     </span>`;
   }
+
+  // ----- wall view -----
+
+
+  /**
+   * What stands on one side of a room, seen from inside it: the wall, its doors and
+   * windows, and the pieces against it (hanging or standing), with their heights and
+   * gaps. Drag them along the wall, and wall pieces and windows up and down.
+   */
+  private wallViewItems() {
+    const wv = this._wallView;
+    const m = this._model;
+    if (!wv || !m) return null;
+    const { house } = expandHouse(m);
+    const level = house?.levels.find((l) => l.id === this._level);
+    const room = level?.rooms.find((r) => r.id === wv.room);
+    if (!level || !room) return null;
+    const { min, max } = bbox(room.polygon);
+    const ns = wv.side === "north" || wv.side === "south";
+    const span = ns ? max[0] - min[0] : max[1] - min[1];
+    const wallAt = { north: min[1], south: max[1], west: min[0], east: max[0] }[wv.side];
+    type Item = { key: string; kind: "opening" | "piece"; label: string; u: number; w: number; z: number; h: number; style: string; vertical: boolean };
+    const items: Item[] = [];
+    level.openings.forEach((o) => {
+      if (o.room !== wv.room || o.side !== wv.side) return;
+      items.push({ key: `o:${JSON.stringify(o.source)}`, kind: "opening", label: this.t(`editor.type_${o.type}` as StringKey), u: o.at + o.width / 2, w: o.width, z: o.sill, h: o.height, style: o.type, vertical: o.type === "window" });
+    });
+    room.furniture.forEach((f, i) => {
+      const along = (f.rotation % 180 === 0) === ns ? f.size[0] : f.size[1];
+      const across = (f.rotation % 180 === 0) === ns ? f.size[1] : f.size[0];
+      const off = Math.abs((ns ? f.at[1] : f.at[0]) - wallAt);
+      // standing or hanging against this wall
+      if (off > across / 2 + 0.25) return;
+      const z = f.elevation ?? level.height - f.height;
+      items.push({ key: `f:${i}`, kind: "piece", label: this.t(`furniture.${f.type}` as StringKey), u: (ns ? f.at[0] - min[0] : f.at[1] - min[1]), w: along, z, h: f.height, style: f.mount, vertical: f.mount === "wall" });
+    });
+    return { span, height: level.height, items, flip: wv.side === "south" || wv.side === "west", room: room.id };
+  }
+
+  private renderWallView() {
+    const v = this.wallViewItems();
+    if (!v || !this._wallView) return nothing;
+    const { span, height, items, flip } = v;
+    // drawn in centimetres (browsers keep text from getting tiny in metres)
+    const X = (u: number) => (flip ? span - u : u) * 100;
+    const Y = (z: number) => (height - z) * 100;
+    const sel = items.find((i) => i.key === this._wallView!.sel);
+    const n = (x: number) => this.n(Math.round(x * 100) / 100);
+    // gaps of the selected item to the wall's ends and its height off the floor
+    const dims = sel
+      ? svg`<g class="wv-dims">
+          <line x1=${X(0)} y1=${Y(sel.z + sel.h / 2)} x2=${X(sel.u - sel.w / 2)} y2=${Y(sel.z + sel.h / 2)}></line>
+          <text x=${(X(0) + X(sel.u - sel.w / 2)) / 2} y=${Y(sel.z + sel.h / 2) - 6}>${n(sel.u - sel.w / 2)}</text>
+          <line x1=${X(sel.u + sel.w / 2)} y1=${Y(sel.z + sel.h / 2)} x2=${X(span)} y2=${Y(sel.z + sel.h / 2)}></line>
+          <text x=${(X(sel.u + sel.w / 2) + X(span)) / 2} y=${Y(sel.z + sel.h / 2) - 6}>${n(span - sel.u - sel.w / 2)}</text>
+          ${sel.z > 0.01 ? svg`<line x1=${X(sel.u)} y1=${Y(0)} x2=${X(sel.u)} y2=${Y(sel.z)}></line><text x=${X(sel.u) + 5} y=${Y(sel.z / 2)} text-anchor="start">${n(sel.z)}</text>` : nothing}
+        </g>`
+      : nothing;
+    const room = this.levelInput?.rooms.find((r) => r.id === v.room);
+    return html`<div class="wall-view" @pointermove=${this.onWallViewMove} @pointerup=${this.onWallViewUp} @pointercancel=${this.onWallViewUp}>
+      <header>
+        <strong>${room ? this.roomName(room) : v.room} · ${this.t(`editor.side_${this._wallView.side}` as StringKey)}</strong>
+        <span class="muted">${this.t("editor.wall_view_hint")}</span>
+        <button class="close" aria-label=${this.t("editor.close")} @click=${() => (this._wallView = null)}>×</button>
+      </header>
+      <svg viewBox="-25 -30 ${span * 100 + 50} ${height * 100 + 60}" preserveAspectRatio="xMidYMid meet">
+        <rect class="wv-bg" x="0" y="0" width=${span * 100} height=${height * 100}></rect>
+        <line class="wv-floor" x1="-25" y1=${height * 100} x2=${span * 100 + 25} y2=${height * 100}></line>
+        ${items.map((i) => {
+          const x = Math.min(X(i.u - i.w / 2), X(i.u + i.w / 2));
+          return svg`<g class="wv-item wv-${i.kind} wv-${i.style} ${i.key === this._wallView!.sel ? "selected" : ""}" data-wv=${i.key} @pointerdown=${(e: PointerEvent) => this.onWallViewDown(e, i.key, i.u, i.z)}>
+            <rect x=${x} y=${Y(i.z + i.h)} width=${i.w * 100} height=${i.h * 100}></rect>
+            <text x=${x + (i.w * 100) / 2} y=${Y(i.z + i.h / 2)}>${i.label}</text>
+            <text class="size" x=${x + (i.w * 100) / 2} y=${Y(i.z + i.h / 2) + 14}>${n(i.w)} × ${n(i.h)}</text>
+          </g>`;
+        })}
+        ${dims}
+        <text class="wv-span" x=${span * 50} y=${height * 100 + 22}>${n(span)} m</text>
+      </svg>
+    </div>`;
+  }
+
+  private onWallViewDown(e: PointerEvent, key: string, u: number, z: number) {
+    e.stopPropagation();
+    (e.currentTarget as Element).setPointerCapture?.(e.pointerId);
+    this._wallView = { ...this._wallView!, sel: key };
+    this.wallDrag = { key, origin: clone(this._model!), start: this.wallViewPoint(e), u, z, moved: false };
+  }
+
+  /** A pointer position in metres along the wall (from its left end as seen) and up. */
+  private wallViewPoint(e: PointerEvent): Vec2 {
+    const svgEl = this.renderRoot.querySelector<SVGSVGElement>(".wall-view svg");
+    const ctm = svgEl?.getScreenCTM();
+    if (!svgEl || !ctm) return [0, 0];
+    const p = new DOMPoint(e.clientX, e.clientY).matrixTransform(ctm.inverse());
+    return [p.x / 100, p.y / 100];
+  }
+
+  private onWallViewMove = (e: PointerEvent) => {
+    const d = this.wallDrag;
+    const v = this.wallViewItems();
+    if (!d || !v) return;
+    const p = this.wallViewPoint(e);
+    const dx = (p[0] - d.start[0]) * (v.flip ? -1 : 1);
+    const dz = -(p[1] - d.start[1]);
+    if (!d.moved && Math.hypot(dx, dz) < 0.02) return;
+    d.moved = true;
+    const item = v.items.find((i) => i.key === d.key);
+    if (!item) return;
+    // 5 cm steps, kept on the wall
+    const snap = (x: number) => Math.round(x * 20) / 20;
+    const u = Math.max(item.w / 2, Math.min(v.span - item.w / 2, snap(d.u + dx)));
+    const z = Math.max(0, Math.min(v.height - item.h, snap(d.z + dz)));
+    if (d.key.startsWith("o:")) {
+      const src = JSON.parse(d.key.slice(2)) as OpeningSource;
+      this._model = updateOpening(d.origin, this._level, src, { at: Math.round((u - item.w / 2) * 100) / 100, ...(item.vertical ? { sill: z } : {}) });
+    } else {
+      const index = Number(d.key.slice(2));
+      const r = this.levelInput?.rooms.find((x) => x.id === v.room);
+      const f = r?.furniture?.[index];
+      if (!r || !f) return;
+      const ns = this._wallView!.side === "north" || this._wallView!.side === "south";
+      // furniture stands room-relative, as the wall view measures
+      const at: [number, number] = ns ? [Math.round(u * 100) / 100, f.at[1]] : [f.at[0], Math.round(u * 100) / 100];
+      this._model = updateFurniture(d.origin, this._level, r.id, index, { at, ...(item.vertical ? { elevation: z } : {}) });
+    }
+  };
+
+  private onWallViewUp = () => {
+    const d = this.wallDrag;
+    this.wallDrag = null;
+    if (d?.moved && JSON.stringify(d.origin) !== JSON.stringify(this._model)) this.commit(this._model!, d.origin);
+  };
 
   /** A room's lights and furniture (part of the room inspector). */
   private renderRoomObjects(r: RoomInput) {
@@ -4699,6 +4849,86 @@ export class HomeslicePanel extends LitElement {
       position: relative;
       flex: 1;
       min-width: 0;
+    }
+    .wall-view {
+      position: absolute;
+      left: 12px;
+      right: 12px;
+      bottom: 12px;
+      height: 55%;
+      display: flex;
+      flex-direction: column;
+      background: var(--card-background-color, #1c1f24);
+      border: 1px solid var(--divider-color, #444);
+      border-radius: 12px;
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
+      z-index: 3;
+    }
+    .wall-view header {
+      display: flex;
+      gap: 12px;
+      align-items: baseline;
+      padding: 8px 12px;
+    }
+    .wall-view header .close {
+      margin-left: auto;
+    }
+    .wall-view svg {
+      flex: 1;
+      min-height: 0;
+      width: 100%;
+    }
+    .wv-bg {
+      fill: #e9e5de;
+    }
+    .wv-floor {
+      stroke: #888;
+      stroke-width: 2;
+    }
+    .wv-item rect {
+      stroke: #555;
+      stroke-width: 1;
+      fill: #b9bcc0;
+      cursor: grab;
+    }
+    .wv-item.wv-window rect {
+      fill: #9cc8ee;
+    }
+    .wv-item.wv-door rect,
+    .wv-item.wv-garage_door rect {
+      fill: #a77b55;
+    }
+    .wv-item.wv-wall rect {
+      fill: #8d97a3;
+    }
+    .wv-item.selected rect {
+      stroke: var(--primary-color, #03a9f4);
+      stroke-width: 3;
+    }
+    .wv-item text,
+    .wv-span,
+    .wv-dims text {
+      font-size: 11px;
+      text-anchor: middle;
+      dominant-baseline: middle;
+      fill: #222;
+      pointer-events: none;
+    }
+    .wv-item text.size {
+      font-size: 8px;
+      fill: #333;
+    }
+    .wv-span {
+      fill: var(--secondary-text-color, #aaa);
+    }
+    .wv-dims line {
+      stroke: var(--primary-color, #03a9f4);
+      stroke-width: 1.2;
+      stroke-dasharray: 4 3;
+    }
+    .wv-dims text {
+      fill: var(--primary-color, #03a9f4);
+      font-weight: 700;
     }
     .compass {
       position: absolute;

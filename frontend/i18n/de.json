@@ -1412,5 +1412,8 @@
   "alias.swing_bench": "Hollywoodschaukel, Schaukelbank",
   "alias.outdoor_rug": "Outdoor-Teppich, Terrassenteppich",
   "alias.planter_tall": "Pflanzkübel, Gräser",
-  "alias.sun_sail": "Sonnensegel, Schattensegel"
+  "alias.sun_sail": "Sonnensegel, Schattensegel",
+  "editor.wall_view": "Wandansicht",
+  "editor.wall_view_hint": "Von innen gesehen. Türen, Fenster und Möbel entlang der Wand ziehen; Fenster und Wandmöbel auch nach oben und unten.",
+  "editor.close": "Schließen"
 }
