@@ -9,6 +9,7 @@ import { fileURLToPath } from "node:url";
 
 const here = dirname(fileURLToPath(import.meta.url));
 // the two big pages on their own, the rest in groups of about the same length
+// (the CI job names in .github/workflows/ci.yml describe these groups: keep them in step)
 const SHARDS = [
   ["demo house, roof"],
   ["editor"],

@@ -42,9 +42,11 @@ export interface HomesliceCardConfig {
   actions?: Record<string, { tap_action?: Record<string, unknown>; hold_action?: Record<string, unknown> }>;
   /** Lamp buttons: a bare bulb with a soft shadow that glows when on (`icon`, default) or a bulb in a dark disc (`circle`). */
   lamp_style?: "icon" | "circle";
+  /** A short note of what a tap or a drag just did ("Kitchen lights off"); false hides it (default true). */
+  feedback?: boolean;
   /** A tap on a room opens its panel with everything in its area (default true; false: rooms do nothing). */
   room_panel?: boolean;
-  /** Drag to turn, scroll/pinch to zoom, double-click to reset (default false: the view is locked). */
+  /** Drag to turn, scroll/pinch to zoom, two fingers (or a trackpad scroll) to move, double-click to reset (default false: the view is locked). */
   interactive?: boolean;
   /** Show the energy overlay: solar on the roof, battery, grid and devices with their power flows. */
   energy?: boolean;
@@ -347,6 +349,7 @@ export class HomesliceCard extends LitElement {
     _labels: { state: true },
     _lampButtons: { state: true },
     _dim: { state: true },
+    _note: { state: true },
     _event: { state: true },
     _energyLabels: { state: true },
     _robotLabels: { state: true },
@@ -383,6 +386,8 @@ export class HomesliceCard extends LitElement {
   private eventReturn: string | null | undefined = undefined;
   /** The brightness shown while dimming a lamp by dragging. */
   private _dim: { x: number; y: number; pct: number } | null = null;
+  private _note: string | null = null;
+  private noteTimer = 0;
   private gesture: { id: number; y: number; start: number; pct: number; entities: string[]; dimming: boolean; done: boolean; at: { x: number; y: number } } | null = null;
   private holdTimer = 0;
   private swallowClick = false;
@@ -841,8 +846,35 @@ export class HomesliceCard extends LitElement {
     if (this.ownAction(entity, "tap")) return;
     const domain = entity.split(".")[0];
     // (a blind or an awning opens or closes)
-    if (["light", "switch", "fan", "input_boolean", "cover"].includes(domain)) void this.hass?.callService("homeassistant", "toggle", {}, { entity_id: entity });
-    else this.moreInfo(entity);
+    if (["light", "switch", "fan", "input_boolean", "cover"].includes(domain)) {
+      this.noteToggle(entity);
+      void this.hass?.callService("homeassistant", "toggle", {}, { entity_id: entity });
+    } else this.moreInfo(entity);
+  }
+
+  // ----- feedback: a short note of what a tap or a drag did -----
+
+  /** Shows a note for two seconds, unless the card opts out with `feedback: false`. */
+  private note(text: string) {
+    if (this.config.feedback === false) return;
+    this._note = text;
+    clearTimeout(this.noteTimer);
+    this.noteTimer = window.setTimeout(() => (this._note = null), 2200);
+  }
+
+  private entityName(entity: string) {
+    return (this.hass?.states[entity]?.attributes.friendly_name as string | undefined) ?? entity;
+  }
+
+  /** The note for toggling an entity, from the state it is in now. */
+  private noteToggle(entity: string) {
+    const state = this.hass?.states[entity]?.state;
+    if (!state) return;
+    const name = this.entityName(entity);
+    if (entity.startsWith("cover.")) this.note(this.t(state === "closed" || state === "closing" ? "card.note_opening" : "card.note_closing", { name }));
+    else if (entity.startsWith("lock.")) this.note(this.t(state === "locked" ? "card.note_unlocked" : "card.note_locked", { name }));
+    else if (entity.startsWith("media_player.")) this.note(this.t(state === "off" ? "card.note_on" : "card.note_off", { name }));
+    else this.note(this.t(state === "on" ? "card.note_off" : "card.note_on", { name }));
   }
 
   /** Runs the card's own action for an entity through HA's action handler; false if it has none. */
@@ -1206,10 +1238,17 @@ export class HomesliceCard extends LitElement {
       return;
     }
     const domain = b.entity.split(".")[0];
-    if (domain === "scene" || domain === "script") void this.hass?.callService(domain, "turn_on", {}, { entity_id: b.entity });
-    else if (["light", "switch", "fan", "input_boolean", "cover", "lock", "media_player"].includes(domain)) void this.hass?.callService("homeassistant", "toggle", {}, { entity_id: b.entity });
-    else if (domain === "button" || domain === "input_button") void this.hass?.callService(domain, "press", {}, { entity_id: b.entity });
-    else this.moreInfo(b.entity);
+    const name = b.name ?? this.entityName(b.entity);
+    if (domain === "scene" || domain === "script") {
+      this.note(this.t("card.note_ran", { name }));
+      void this.hass?.callService(domain, "turn_on", {}, { entity_id: b.entity });
+    } else if (["light", "switch", "fan", "input_boolean", "cover", "lock", "media_player"].includes(domain)) {
+      this.noteToggle(b.entity);
+      void this.hass?.callService("homeassistant", "toggle", {}, { entity_id: b.entity });
+    } else if (domain === "button" || domain === "input_button") {
+      this.note(this.t("card.note_pressed", { name }));
+      void this.hass?.callService(domain, "press", {}, { entity_id: b.entity });
+    } else this.moreInfo(b.entity);
   }
 
   /** HA's own details dialog for an entity. */
@@ -1673,6 +1712,7 @@ export class HomesliceCard extends LitElement {
   private toggleLights(label: Label) {
     const entity_id = this.roomLights(label.key);
     if (!entity_id.length || !this.hass) return;
+    this.note(this.t(label.on ? "card.note_lights_off" : "card.note_lights_on", { name: label.name }));
     void this.hass.callService("light", label.on ? "turn_off" : "turn_on", {}, { entity_id });
   }
 
@@ -1715,6 +1755,8 @@ export class HomesliceCard extends LitElement {
     if (g.dimming) {
       g.done = true;
       this._dim = null;
+      const name = g.entities.length === 1 ? this.entityName(g.entities[0]) : (this._labels.find((l) => this.roomLights(l.key).join() === g.entities.join())?.name ?? this.t("card.note_lights"));
+      this.note(g.pct > 0 ? this.t("card.note_dimmed", { name, pct: g.pct }) : this.t("card.note_off", { name }));
       void this.hass?.callService("light", g.pct > 0 ? "turn_on" : "turn_off", g.pct > 0 ? { brightness_pct: g.pct } : {}, { entity_id: g.entities });
     }
     // the click that follows belongs to the gesture when it dimmed or held
@@ -1731,6 +1773,7 @@ export class HomesliceCard extends LitElement {
   }
 
   private toggleLamp(lamp: LampButton) {
+    this.note(this.t(lamp.on ? "card.note_off" : "card.note_on", { name: lamp.name }));
     void this.hass?.callService("light", lamp.on ? "turn_off" : "turn_on", {}, { entity_id: lamp.entity });
   }
 
@@ -1883,7 +1926,7 @@ export class HomesliceCard extends LitElement {
     if (!this.renderer || this.transitioning) return;
     const last = this.pointers.get(e.pointerId);
     if (last) {
-      // dragging: one pointer turns, two pointers zoom
+      // dragging: one pointer turns, two pointers zoom and move
       const dx = e.clientX - last.x;
       const dy = e.clientY - last.y;
       this.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
@@ -1891,6 +1934,8 @@ export class HomesliceCard extends LitElement {
         const d = this.pinchDistance();
         if (this.pinch > 0) this.renderer.zoomBy(d / this.pinch);
         this.pinch = d;
+        // both fingers moving together move the view: each finger's move counts half
+        this.renderer.panBy(dx / this.pointers.size, dy / this.pointers.size);
         this.dragged = true;
       } else {
         this.dragDistance += Math.abs(dx) + Math.abs(dy);
@@ -1941,7 +1986,11 @@ export class HomesliceCard extends LitElement {
   private onWheel(e: WheelEvent) {
     if (!this.interactive || !this.renderer || this.transitioning) return;
     e.preventDefault();
-    this.renderer.zoomBy(Math.exp(-e.deltaY * 0.0015));
+    // a trackpad: pinching sends ctrl + wheel (zoom), two fingers scroll in small or sideways steps (move);
+    // a mouse wheel clicks in big whole steps (zoom)
+    const wheel = e.deltaMode !== 0 || (e.deltaX === 0 && Number.isInteger(e.deltaY) && Math.abs(e.deltaY) >= 50);
+    if (e.ctrlKey || wheel) this.renderer.zoomBy(Math.exp(-e.deltaY * (e.ctrlKey ? 0.01 : 0.0015)));
+    else this.renderer.panBy(-e.deltaX, -e.deltaY);
     this.afterCameraMove();
   }
 
@@ -2243,6 +2292,7 @@ export class HomesliceCard extends LitElement {
             </button>`,
           )}
           ${this._dim ? html`<div class="dim" style="left:${this._dim.x}px;top:${this._dim.y}px"><div class="bar" style="height:${this._dim.pct}%"></div><span>${this._dim.pct} %</span></div>` : nothing}
+          ${this._note ? html`<div class="note" role="status">${this._note}</div>` : nothing}
           ${this._loading ? html`<div class="overlay">${this.t("card.loading")}</div>` : nothing}
           ${this._error ? html`<div class="overlay error">${this._error}</div>` : nothing}
         </div>
@@ -2719,6 +2769,29 @@ export class HomesliceCard extends LitElement {
     @media (prefers-reduced-motion: reduce) {
       .label.alert button.name {
         animation: none;
+      }
+    }
+    .note {
+      position: absolute;
+      left: 50%;
+      bottom: 64px;
+      transform: translateX(-50%);
+      max-width: calc(100% - 32px);
+      padding: 6px 14px;
+      border-radius: 16px;
+      background: rgba(20, 24, 28, 0.85);
+      color: #fff;
+      font-size: 13px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      pointer-events: none;
+      animation: note-in 0.18s ease-out;
+    }
+    @keyframes note-in {
+      from {
+        opacity: 0;
+        transform: translate(-50%, 6px);
       }
     }
     .dim {

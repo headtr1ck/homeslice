@@ -243,6 +243,10 @@ export class HomesliceCardEditor extends LitElement {
           ${(["icon", "circle"] as const).map((v) => html`<option value=${v} ?selected=${(this._config.lamp_style ?? "icon") === v}>${this.t(`cardeditor.lamp_style_${v}`)}</option>`)}
         </select>
       </label>
+      <label class="check"
+        ><input type="checkbox" .checked=${this._config.feedback !== false} @change=${(e: Event) => this.change({ feedback: (e.target as HTMLInputElement).checked ? undefined : false })} />
+        ${this.t("cardeditor.feedback")}</label
+      >
       <fieldset class="values">
         <legend>${this.t("cardeditor.values")}</legend>
         ${(["temperature", "humidity", "carbon_dioxide", "pm25", "volatile_organic_compounds"] as const).map((kind) => {

@@ -7,6 +7,7 @@ on:
 
 jobs:
   frontend:
+    name: Frontend – types, unit tests, library
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -37,11 +38,17 @@ jobs:
 
   # the browser tests in five groups, each its own job side by side (scripts/browser-tests.mjs)
   browser:
+    name: Browser – ${{ matrix.name }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        shard: [0, 1, 2, 3, 4]
+        include:
+          - { shard: 0, name: roofs }
+          - { shard: 1, name: editor }
+          - { shard: 2, name: "card: camera, energy, looks" }
+          - { shard: 3, name: "card: views and modes" }
+          - { shard: 4, name: "editor: phone, drafts, new house" }
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -59,6 +66,7 @@ jobs:
           path: test-results/
 
   integration:
+    name: Integration – Python tests
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -70,12 +78,14 @@ jobs:
           .venv/bin/python -m pytest
 
   hassfest:
+    name: Hassfest
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: home-assistant/actions/hassfest@master
 
   hacs:
+    name: HACS validation
     # HACS can only validate public repositories
     if: ${{ !github.event.repository.private }}
     runs-on: ubuntu-latest

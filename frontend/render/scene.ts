@@ -523,6 +523,9 @@ export class HouseRenderer {
   private box = new THREE.Box3();
   /** Interactive zoom on top of the framing (1 = fit). */
   zoom = 1;
+  /** A two-finger move: metres along the screen's right and up, kept while turning (0 after a focus change). */
+  pan = { x: 0, y: 0 };
+  private viewDistance = 0;
   /** Width / height of the whole house as seen by the overview camera. */
   aspect = 1.6;
 
@@ -2794,6 +2797,7 @@ export class HouseRenderer {
     const from = {
       camera: { ...this.orientation },
       zoom: this.zoom,
+      pan: { ...this.pan },
       box: this.box.clone(),
       levels: this.levels.map((l) => ({ opacity: l.opacity, lift: l.lift })),
     };
@@ -2821,6 +2825,7 @@ export class HouseRenderer {
         fov: mix(from.camera.fov, to.camera.fov),
       };
       this.zoom = mix(from.zoom, 1);
+      this.pan = { x: mix(from.pan.x, 0), y: mix(from.pan.y, 0) };
       this.box.min.lerpVectors(from.box.min, to.box.min, e);
       this.box.max.lerpVectors(from.box.max, to.box.max, e);
       this.levels.forEach((l, i) => {
@@ -3113,6 +3118,16 @@ export class HouseRenderer {
     this.draw();
   }
 
+  /** Moves the view with the fingers by screen pixels (the house follows them); not further than the house is big. */
+  panBy(dx: number, dy: number) {
+    if (!this.viewDistance || this.walkView) return;
+    const perPixel = (2 * this.viewDistance * Math.tan(THREE.MathUtils.degToRad(this.orientation.fov) / 2)) / this.size.height;
+    const limit = this.box.getSize(new THREE.Vector3()).length() / 2;
+    const clamp = (v: number) => Math.max(-limit, Math.min(limit, v));
+    this.pan = { x: clamp(this.pan.x - dx * perPixel), y: clamp(this.pan.y + dy * perPixel) };
+    this.draw();
+  }
+
   /** Animates back to the configured camera of the current focus. */
   resetView(): Promise<void> {
     return this.setFocus(this.focus);
@@ -3234,7 +3249,7 @@ export class HouseRenderer {
     const ys = pts.map((p) => p.dot(up));
     const cx = (Math.max(...xs) + Math.min(...xs)) / 2;
     const cy = (Math.max(...ys) + Math.min(...ys)) / 2;
-    const target = center.clone().addScaledVector(right, cx).addScaledVector(up, cy);
+    const target = center.clone().addScaledVector(right, cx + this.pan.x).addScaledVector(up, cy + this.pan.y);
     const margin = 1.04;
     const tanV = Math.tan(THREE.MathUtils.degToRad(c.fov) / 2) / margin;
     const tanH = tanV * (this.size.width / this.size.height);
@@ -3244,6 +3259,7 @@ export class HouseRenderer {
       distance = Math.max(distance, depth + Math.abs(xs[i] - cx) / tanH, depth + Math.abs(ys[i] - cy) / tanV);
     });
     distance /= this.zoom;
+    this.viewDistance = distance;
     const radius = this.box.getSize(new THREE.Vector3()).length() / 2;
     this.camera.fov = c.fov;
     this.camera.aspect = this.size.width / this.size.height;

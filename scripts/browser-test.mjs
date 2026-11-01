@@ -132,6 +132,19 @@ if (selected()) {
     await shot(page, "demo-kitchen-on");
   });
 
+  await test("a short note says what a tap did; feedback: false hides it", async () => {
+    const note = () => page.evaluate(() => document.querySelector("homeslice-card").shadowRoot.querySelector(".note")?.textContent ?? null);
+    assert((await note()) === "Kitchen: lights on", `note ${await note()}`);
+    await page.evaluate(() => window.card.setConfig({ ...window.card.config, feedback: false }));
+    await act(page, () => lamp(page, "Kitchen").click());
+    await act(page, () => lamp(page, "Kitchen").click());
+    await page.waitForFunction(() => !document.querySelector("homeslice-card").shadowRoot.querySelector(".note"), null, { timeout: 4000 });
+    await page.evaluate(() => {
+      const { feedback, ...config } = window.card.config;
+      window.card.setConfig(config);
+    });
+  });
+
   await test("hidden entities don't count and aren't switched", async () => {
     await act(page, () => lamp(page, "Living Room").click());
     assert((await calls(page)).at(-1).service === "turn_off", "living room lamp should have turned lights off");
@@ -540,10 +553,27 @@ if (selected()) {
     assert(c.zoom > 1.4 && c.zoom < 1.8, `zoom after wheel ${c.zoom}`);
   });
 
+  await test("a trackpad's two-finger scroll moves the view, a pinch zooms", async () => {
+    const before = await camera();
+    await page.mouse.wheel(30, 12.5);
+    await page.waitForTimeout(100);
+    const pan = await page.evaluate(() => window.card.renderer.pan);
+    assert(pan.x > 0 && pan.y < 0, `pan after a trackpad scroll ${JSON.stringify(pan)}`);
+    assert((await camera()).zoom === before.zoom, "a trackpad scroll zoomed");
+    // a pinch arrives as ctrl + wheel
+    await page.keyboard.down("Control");
+    await page.mouse.wheel(0, -20);
+    await page.keyboard.up("Control");
+    await page.waitForTimeout(100);
+    assert((await camera()).zoom > before.zoom, "a pinch didn't zoom");
+  });
+
   await test("double-click goes back to the configured view", async () => {
     await act(page, () => page.mouse.dblclick(cx, cy));
     const c = await camera();
     assert(c.azimuth === 250 && c.elevation === 38 && c.zoom === 1, `camera after reset ${JSON.stringify(c)}`);
+    const pan = await page.evaluate(() => window.card.renderer.pan);
+    assert(pan.x === 0 && pan.y === 0, `pan after reset ${JSON.stringify(pan)}`);
     await page.waitForTimeout(400);
     assert((await page.locator("homeslice-card .popup").count()) === 0, "the double-click also opened a popup");
   });

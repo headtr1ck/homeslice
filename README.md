@@ -174,7 +174,7 @@ furniture come in as YAML to check before using it.
 ```yaml
 type: custom:homeslice-card
 house: home                    # the house id
-interactive: false             # true: drag to turn, scroll/pinch to zoom, double-click to reset;
+interactive: false             # true: drag to turn, scroll/pinch to zoom, two fingers move, double-click to reset;
                                #   buttons turn, show from above or tilted, and keep a start view on this device
 energy: false                  # true: energy overlay (shows the roof unless view.roof: false)
 mode: 3d                       # or plan: a drawn floor plan from above (dark walls, door swings),
@@ -213,6 +213,7 @@ view:                          # all optional
     ground: { elevation: 90, projection: isometric }
 room_panel: true               # a tap on a room opens its panel (false: rooms do nothing)
 lamp_style: icon               # lamp buttons: a glowing bulb (icon) or a bulb in a dark disc (circle)
+feedback: true                 # a short note of what a tap or a drag did ("Kitchen: lights off"); false hides it
 idle_return: 120               # wall tablets: back to the start view after 2 minutes without a touch
 night: "22:00-06:00"           # dim the card at night (or: sun), night_brightness: 0.4
 idle_orbit: true               # turn the house slowly while nobody uses it
