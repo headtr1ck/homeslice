@@ -4089,14 +4089,34 @@ function car(b: Builder, w: number, d: number, h: number, color: string, style: 
   const prof = CAR_PROFILES[style] ?? CAR_PROFILES.hatchback;
   const paint = mat(FINISHES[color] ?? FINISHES.silver, { roughness: 0.35, metalness: 0.3 });
   const dark = mat("#20262d", { roughness: 0.15, metalness: 0.4 });
-  const side = (pts: [number, number][], width: number, m: THREE.Material, bevel: number) => {
-    const shape = new THREE.Shape(pts.map(([t, y]) => new THREE.Vector2(-d / 2 + bevel + t * (d - 2 * bevel), y * h)));
-    const geo = new THREE.ExtrudeGeometry(shape, { depth: width - 2 * bevel, bevelEnabled: bevel > 0, bevelSize: bevel, bevelThickness: bevel, bevelSegments: 2, curveSegments: 4 });
+  const r = Math.min(0.34, h * 0.22);
+  const wheels = [0.17, 0.8].map((t) => -d / 2 + t * d);
+  const side = (pts: [number, number][], width: number, m: THREE.Material, bevel: number, smooth = false, arches = false) => {
+    const p = pts.map(([t, y]) => new THREE.Vector2(-d / 2 + bevel + t * (d - 2 * bevel), y * h));
+    const shape = new THREE.Shape();
+    shape.moveTo(p[0].x, p[0].y);
+    // a flowing upper line through the profile's points (the cabin keeps its corners)
+    if (smooth) shape.splineThru(p.slice(1, -1));
+    else for (const q of p.slice(1, -1)) shape.lineTo(q.x, q.y);
+    shape.lineTo(p[p.length - 1].x, p[p.length - 1].y);
+    if (arches) {
+      // back along the sill, up and over each wheel
+      const yb = p[0].y;
+      const ra = r * 1.32;
+      const phi = Math.asin(Math.max(-1, Math.min(1, (r - yb) / ra)));
+      const dx = ra * Math.cos(phi);
+      for (const zc of [...wheels].sort((a, b) => b - a)) {
+        shape.lineTo(zc + dx, yb);
+        shape.absarc(zc, r, ra, -phi, Math.PI + phi, false);
+      }
+    }
+    shape.lineTo(p[0].x, p[0].y);
+    const geo = new THREE.ExtrudeGeometry(shape, { depth: width - 2 * bevel, bevelEnabled: bevel > 0, bevelSize: bevel, bevelThickness: bevel, bevelSegments: 3, curveSegments: 6 });
     geo.rotateY(-Math.PI / 2);
     geo.translate(width / 2 - bevel, 0, 0);
     b.add(geo, m);
   };
-  side(prof.body, w * 0.93, paint, 0.04);
+  side(prof.body, w * 0.93, paint, 0.05, style !== "van", true);
   side(prof.cabin, w * (style === "van" ? 0.975 : 0.84), dark, 0.03);
   if (style !== "van") {
     // the roof over the cabin's top edge
@@ -4104,13 +4124,21 @@ function car(b: Builder, w: number, d: number, h: number, color: string, style: 
     const len = (c[0] - a[0]) * d;
     b.box(w * 0.82, 0.04, len, 0, Math.max(a[1], c[1]) * h - 0.005, -d / 2 + ((a[0] + c[0]) / 2) * d, paint, 0.02);
   }
-  const r = Math.min(0.34, h * 0.22);
-  for (const t of [0.17, 0.8])
+  // dark liners in the arches (the body is solid behind them)
+  for (const z of wheels) b.add(new THREE.CylinderGeometry(r * 1.32 - 0.06, r * 1.32 - 0.06, w * 0.9, 24, 1, true).rotateZ(Math.PI / 2), mat("#141518", { roughness: 0.9, side: THREE.DoubleSide }), 0, r, z);
+  for (const z of wheels)
     for (const sx of [-1, 1]) {
-      const x = sx * (w / 2 - 0.1);
-      const z = -d / 2 + t * d;
-      b.add(new THREE.CylinderGeometry(r, r, 0.22, 20), mat(C.black, { roughness: 0.9 }), x, r, z).rotation.z = Math.PI / 2;
-      b.add(new THREE.CylinderGeometry(r * 0.6, r * 0.6, 0.23, 12), mat(C.steel, { metalness: 0.6, roughness: 0.3 }), x, r, z).rotation.z = Math.PI / 2;
+      // the tyre's outside about flush with the body
+      const x = sx * (w * 0.465 - 0.09);
+      // a rounded tyre, a dished rim with five spokes, and the dark arch over it
+      b.add(new THREE.TorusGeometry(r * 0.78, r * 0.24, 10, 28).rotateY(Math.PI / 2), mat(C.black, { roughness: 0.9 }), x, r, z);
+      b.add(new THREE.CylinderGeometry(r * 0.56, r * 0.56, 0.16, 24).rotateZ(Math.PI / 2), mat("#3a3d41", { metalness: 0.5, roughness: 0.4 }), x, r, z);
+      const rim = mat(C.steel, { metalness: 0.7, roughness: 0.25 });
+      for (let k = 0; k < 5; k++) {
+        const a = (k / 5) * Math.PI * 2;
+        b.add(new THREE.BoxGeometry(0.02, r * 0.5, r * 0.12), rim, x + sx * 0.085, r + Math.cos(a) * r * 0.27, z + Math.sin(a) * r * 0.27).rotation.x = -a;
+      }
+      b.add(new THREE.CylinderGeometry(r * 0.14, r * 0.14, 0.02, 12).rotateZ(Math.PI / 2), rim, x + sx * 0.09, r, z);
     }
   const lowFront = prof.body.find(([t]) => t === 1)?.[1] ?? 0.4;
   for (const sx of [-1, 1]) {
