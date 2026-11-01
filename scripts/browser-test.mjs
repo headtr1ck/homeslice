@@ -1025,7 +1025,7 @@ console.log("editor");
 
   await test("a rectangular room's size can be typed; the temperature sensor goes to the HA area", async () => {
     const before = await room("kitchen");
-    const width = page.locator("homeslice-panel .inspector label", { hasText: "Width west–east" }).locator("input");
+    const width = page.locator("homeslice-panel .inspector label", { hasText: "Width left–right" }).locator("input");
     await width.fill(String(before.rect[2] - 0.5));
     await width.dispatchEvent("change");
     assert(JSON.stringify((await room("kitchen")).rect) === JSON.stringify([before.rect[0], before.rect[1], before.rect[2] - 0.5, before.rect[3]]), `kitchen: ${JSON.stringify(await room("kitchen"))}`);
@@ -1051,7 +1051,7 @@ console.log("editor");
     await page.mouse.move(box.x + 5 + scale * 0.5, box.y + 5, { steps: 6 });
     const hint = await page.locator("homeslice-panel .hint").textContent();
     await page.mouse.up();
-    assert(hint.includes("0.50 m east"), `drag readout: ${hint}`);
+    assert(hint.includes("0.50 m right"), `drag readout: ${hint}`);
     assert(JSON.stringify((await room("kitchen")).rect) === "[3.5,0,4.5,4]", `kitchen: ${JSON.stringify(await room("kitchen"))}`);
     assert(JSON.stringify((await room("hall")).rect) === "[0,0,3.5,4]", `hall: ${JSON.stringify(await room("hall"))}`);
     assert(await page.locator("homeslice-panel button.save.dirty").count(), "not marked as unsaved");
@@ -1266,7 +1266,7 @@ console.log("editor");
     await page.waitForTimeout(1200); // the editor follows HA once a second
     await page.locator("homeslice-panel header button.checklist-button").click();
     const item = page.locator("homeslice-panel .inspector ul.checklist li", { hasText: "Living West" });
-    assert((await item.textContent()).includes("west window of Living Room"), `item: ${await item.textContent()}`);
+    assert((await item.textContent()).includes("left window of Living Room"), `item: ${await item.textContent()}`);
     await shot(page, "editor-checklist");
     await item.locator("button", { hasText: "Link" }).click();
     const west = (await model()).levels[0].openings.find((o) => o.room === "living" && o.side === "west");
@@ -1394,6 +1394,22 @@ console.log("editor");
     await page.keyboard.press("Escape");
   });
 
+  await test("the compass points to real north and opens the building settings", async () => {
+    await page.keyboard.press("Escape");
+    await page.keyboard.press("Escape");
+    const needle = () => page.locator("homeslice-panel .compass g").getAttribute("style");
+    assert((await needle()).includes("rotate(0deg)"), `needle: ${await needle()}`);
+    await page.locator("homeslice-panel .compass").click();
+    const north = page.locator("homeslice-panel .inspector label", { hasText: "Real north" }).locator("input");
+    await north.fill("30");
+    await north.dispatchEvent("change");
+    assert((await needle()).includes("rotate(-30deg)"), `turned needle: ${await needle()}`);
+    assert((await page.evaluate(() => window.panel._model.north)) === 30, "north not saved in the house");
+    await page.evaluate(() => window.panel.shadowRoot.activeElement?.blur());
+    await page.keyboard.press("Control+z");
+    await page.keyboard.press("Escape");
+  });
+
   await test("building settings: wall thickness, neighbours, floor slab, one wall's own thickness", async () => {
     await page.keyboard.press("Escape");
     const outer = await freeOutlineSpot(false);
@@ -1401,7 +1417,7 @@ console.log("editor");
     assert((await page.locator("homeslice-panel .inspector h2").textContent()) === "Outside walls", "outline not selected");
     await typeInto("Outside (cm)", 42);
     assert((await model()).walls?.exterior === 0.42, `walls: ${JSON.stringify((await model()).walls)}`);
-    await page.locator("homeslice-panel .inspector label.check", { hasText: "west" }).locator("input").check();
+    await page.locator("homeslice-panel .inspector label.check", { hasText: "left" }).locator("input").check();
     assert(JSON.stringify((await model()).party_walls) === JSON.stringify(["east", "west"]), `party: ${JSON.stringify((await model()).party_walls)}`);
     await page.evaluate(() => window.panel.shadowRoot.activeElement?.blur());
     await page.keyboard.press("Control+z");
@@ -1451,7 +1467,7 @@ console.log("editor");
     await page.mouse.move(hit.x, hit.y + scale * 0.5, { steps: 6 });
     const hint = await page.locator("homeslice-panel .hint").textContent();
     await page.mouse.up();
-    assert(hint.includes("0.50 m south"), `drag readout: ${hint}`);
+    assert(hint.includes("0.50 m down"), `drag readout: ${hint}`);
     const [, , hw] = hallBefore.rect;
     assert(JSON.stringify((await room("hall")).rect) === JSON.stringify([0, 0, hw, 4.5]), `hall: ${JSON.stringify(await room("hall"))}`);
     assert(JSON.stringify(await room("kitchen")) === JSON.stringify(kitchenBefore), `kitchen moved: ${JSON.stringify(await room("kitchen"))}`);

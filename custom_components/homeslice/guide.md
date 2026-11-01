@@ -22,7 +22,8 @@ previous version, so a save can be undone in the editor (⚙ → Restore previou
 ## Coordinates
 
 - Metres. `x` points **east**, `y` points **south** (north is up, as on a printed plan),
-  heights go up. The origin is the outline's north-west corner, usually `[0, 0]`.
+  heights go up. These are the plan's directions: north is the plan's top, east its right,
+  whichever way the house really faces (`north:` gives the real direction, for the sun). The origin is the outline's north-west corner, usually `[0, 0]`.
 - `rect: [x, y, width, depth]` is the north-west corner plus size; `polygon:
   [[x, y], …]` for L-shapes (any order of points, at least 3).
 - Rooms are measured on **wall centre lines**: neighbouring rooms share an edge exactly

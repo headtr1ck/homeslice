@@ -17,6 +17,7 @@ floors, areas and entities, and see it live on your dashboards as an interactive
 exploded isometric 3D house or a 2D floor plan: a Lovelace card that turns your home into a
 digital twin, with lights, blinds, shutters, garage doors, climate, media players and
 energy flows. Free and open source (MIT), installed with HACS, made for wall tablets.
+**No paywall, no premium features: everything is free.**
 
 | The card: your house in 3D | At night, with its lights on |
 |---|---|

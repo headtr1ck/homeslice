@@ -1973,6 +1973,7 @@ export class HomeslicePanel extends LitElement {
         </aside>
         <section class="plan-wrap">
           ${this.renderPlan()}
+          ${this.renderCompass()}
           ${this.renderLoupe()}
           ${this._hint
             ? html`<div class="hint" style="left:${this._hint.x + 16}px;top:${this._hint.y + 16}px">${this._hint.lines.map((l) => html`<div>${l}</div>`)}</div>`
@@ -1997,6 +1998,27 @@ export class HomeslicePanel extends LitElement {
         </section>
       </main>
     `;
+  }
+
+  /**
+   * Where real north is: the plan's top need not face north. The needle turns with the
+   * house's `north`; a click opens the building settings to set it.
+   */
+  private renderCompass() {
+    const north = this._model?.north ?? 0;
+    return html`<button class="compass" title=${this.t("editor.compass", { deg: this.n(north) })} aria-label=${this.t("editor.compass", { deg: this.n(north) })} @click=${() => {
+        this.clearSelection();
+        this._room = OUTLINE;
+      }}>
+      <svg viewBox="-20 -20 40 40" aria-hidden="true">
+        <circle r="18"></circle>
+        <g style="transform: rotate(${-north}deg)">
+          <path class="n" d="M 0 -15 L 5 0 L -5 0 Z"></path>
+          <path class="s" d="M 0 15 L 5 0 L -5 0 Z"></path>
+          <text y="-7.5" dy="-9">N</text>
+        </g>
+      </svg>
+    </button>`;
   }
 
   private renderPlan() {
@@ -4591,6 +4613,39 @@ export class HomeslicePanel extends LitElement {
       position: relative;
       flex: 1;
       min-width: 0;
+    }
+    .compass {
+      position: absolute;
+      right: 10px;
+      top: 10px;
+      width: 40px;
+      height: 40px;
+      padding: 0;
+      border: none;
+      background: none;
+      cursor: pointer;
+    }
+    .compass svg {
+      width: 100%;
+      height: 100%;
+      overflow: visible;
+    }
+    .compass circle {
+      fill: rgba(20, 24, 28, 0.75);
+      stroke: rgba(255, 255, 255, 0.35);
+    }
+    .compass .n {
+      fill: #e5534b;
+    }
+    .compass .s {
+      fill: #c9d1d9;
+    }
+    .compass text {
+      fill: #fff;
+      font-size: 7px;
+      font-weight: 700;
+      text-anchor: middle;
+      dominant-baseline: middle;
     }
     svg.plan {
       width: 100%;
