@@ -468,6 +468,10 @@ export class HouseRenderer {
   private linked: THREE.Object3D[] = [];
   /** Pieces shown only while an entity is on, and what those entities say. */
   private conditional: THREE.Object3D[] = [];
+  /** Tall garden pieces that fade when in the way, and their see-through materials. */
+  private occluders: THREE.Object3D[] = [];
+  private ghosts = new Map<THREE.Material, THREE.Material>();
+  private occluderView = "";
   private shownWhen = new Map<string, boolean>();
   /** The parts of linked pieces their device drives (screens, flames, fans…), by entity. */
   private devices = new Map<string, DeviceParts[]>();
@@ -667,6 +671,10 @@ export class HouseRenderer {
     this.cameraViews.clear();
     this.linked = [];
     this.conditional = [];
+    this.occluders = [];
+    this.occluderView = "";
+    for (const m of this.ghosts.values()) m.dispose();
+    this.ghosts.clear();
     this.covers.clear();
     this.blinds.clear();
     this.glasses.clear();
@@ -747,7 +755,13 @@ export class HouseRenderer {
 
     for (const room of level.rooms) if (room.underfloor && room.kind === "room") g.add(this.underfloorLoops(room.underfloor, innerPolygon(room.polygon, walls)));
 
-    for (const room of level.rooms) for (const f of room.furniture) g.add(this.furniture(f, level.height));
+    for (const room of level.rooms)
+      for (const f of room.furniture) {
+        const piece = this.furniture(f, level.height);
+        g.add(piece);
+        // tall things in the garden (trees, a shed) fade when they stand in front of the house
+        if (room.kind === "outdoor" && f.height >= 1.8) this.occluders.push(piece);
+      }
 
     for (const room of level.rooms) if (room.awning && (room.kind !== "outdoor" || this.view.showOutdoor)) this.awning(g, level, room);
     for (const room of level.rooms) if (room.railing && room.kind === "outdoor" && this.view.showOutdoor) this.railing(g, level, room);
@@ -961,6 +975,8 @@ export class HouseRenderer {
    */
   setLook(look: Look, accent = DEFAULT_ACCENT) {
     if (look === this.look && accent === this.accent) return;
+    // see-through copies are made again in the new look's colours
+    this.refreshOccluders();
     this.look = look;
     this.accent = accent;
     for (const l of this.outlines) {
@@ -2904,6 +2920,8 @@ export class HouseRenderer {
       if (f.entity?.startsWith("light.")) this.linkGlow(f.entity, piece, materials);
       else if (f.entity) this.linkDevice(f.entity, piece, materials);
       g.add(piece);
+      // a faded tree's new model fades too (checked again on the next frame)
+      if (g.userData.faded) this.refreshOccluders();
       const level = this.levels.find((l) => l.materials === materials);
       if (level) this.applyLevel(level);
       this.onChange?.();
@@ -3719,7 +3737,82 @@ export class HouseRenderer {
     if (this.devices.size || this.leaves.size) this.spin(now);
     if (this.weatherFx?.falling) this.weatherFx.step(now);
     this.applyCuts();
+    if (this.occluders.length) this.fadeOccluders();
     this.renderer.render(this.scene, this.camera);
+  }
+
+  /**
+   * Trees and other tall garden pieces between the camera and the house turn see-through
+   * (checked when the camera moves: lines to points across the rooms in view).
+   */
+  private fadeOccluders() {
+    const view = `${this.camera.position.toArray().map((v) => v.toFixed(2))}|${this.box.min.toArray().map((v) => v.toFixed(2))}|${this.box.max.toArray().map((v) => v.toFixed(2))}`;
+    if (view === this.occluderView) return;
+    this.occluderView = view;
+    const eye = this.camera.position;
+    // the rooms in view, a metre above their floors (the middle and towards the corners): what a tree may hide
+    const targets = [...this.floors.values()]
+      .filter((f) => !f.userData.outdoor && f.parent?.visible !== false)
+      .flatMap((f) => {
+        const b = new THREE.Box3().setFromObject(f);
+        const c = b.getCenter(new THREE.Vector3()).add(new THREE.Vector3(0, 1, 0));
+        const s = b.getSize(new THREE.Vector3()).multiplyScalar(0.35);
+        return [c, ...[-1, 1].flatMap((x) => [-1, 1].map((z) => c.clone().add(new THREE.Vector3(x * s.x, 0, z * s.z))))];
+      });
+    const ray = new THREE.Ray();
+    const hit = new THREE.Vector3();
+    const box = new THREE.Box3();
+    for (const piece of this.occluders) {
+      box.setFromObject(piece);
+      const inWay =
+        !this.walkView &&
+        piece.parent?.visible !== false &&
+        targets.some((t) => {
+          ray.set(eye, t.clone().sub(eye).normalize());
+          return !!ray.intersectBox(box, hit) && hit.distanceTo(eye) < t.distanceTo(eye) - 0.5;
+        });
+      if (!!piece.userData.faded === inWay) continue;
+      piece.userData.faded = inWay;
+      piece.traverse((o) => {
+        if (!(o instanceof THREE.Mesh)) return;
+        if (inWay) {
+          o.userData.solid ??= o.material;
+          const swap = (m: THREE.Material) => {
+            let ghost = this.ghosts.get(m);
+            if (!ghost) {
+              ghost = m.clone();
+              ghost.transparent = true;
+              ghost.opacity = 0.22;
+              ghost.depthWrite = false;
+              this.ghosts.set(m, ghost);
+            }
+            return ghost;
+          };
+          o.material = Array.isArray(o.userData.solid) ? (o.userData.solid as THREE.Material[]).map(swap) : swap(o.userData.solid as THREE.Material);
+        } else if (o.userData.solid) o.material = o.userData.solid;
+      });
+    }
+  }
+
+  /** Back to solid; the next frame fades what is in the way again with fresh copies. */
+  private refreshOccluders() {
+    for (const piece of this.occluders) {
+      piece.userData.faded = false;
+      piece.traverse((o) => {
+        if (o instanceof THREE.Mesh && o.userData.solid) {
+          o.material = o.userData.solid;
+          delete o.userData.solid;
+        }
+      });
+    }
+    for (const m of this.ghosts.values()) m.dispose();
+    this.ghosts.clear();
+    this.occluderView = "";
+  }
+
+  /** For tests: the garden pieces that are see-through now. */
+  get fadedOccluders() {
+    return this.occluders.filter((p) => p.userData.faded).length;
   }
 
   dispose() {

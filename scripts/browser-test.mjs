@@ -916,6 +916,37 @@ if (selected()) {
     await act(page, () => page.evaluate(() => window.card.hass.pushModel(window.__demoModel)));
   });
 
+  await test("trees in front of the house turn see-through, the others stay", async () => {
+    const counts = await page.evaluate(() => {
+      const r = window.card.renderer;
+      const start = r.orientation.azimuth;
+      const out = [];
+      for (let a = 0; a < 360; a += 30) {
+        r.orbit(30, 0);
+        r.draw();
+        out.push(r.fadedOccluders);
+      }
+      r.orientation = { ...r.orientation, azimuth: start };
+      r.draw();
+      return out;
+    });
+    assert(counts.some((n) => n > 0) && counts.some((n) => n === 0), `faded per view: ${JSON.stringify(counts)}`);
+    // a picture from a view where it is see-through
+    const turn = (counts.findIndex((n) => n > 0) + 1) * 30;
+    await page.evaluate((turn) => {
+      const r = window.card.renderer;
+      const start = r.orientation.azimuth;
+      r.orbit(turn, 0);
+      r.draw();
+      window.__azimuth = start;
+    }, turn);
+    await shot(page, "demo-tree-faded");
+    await page.evaluate(() => {
+      window.card.renderer.orientation = { ...window.card.renderer.orientation, azimuth: window.__azimuth };
+      window.card.renderer.draw();
+    });
+  });
+
   await test("a piece shown only while its helper is on", async () => {
     await act(page, async () => {
       await page.evaluate(() => {
