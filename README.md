@@ -243,6 +243,17 @@ sun_path: true                 # today's sun path as an arc around the house, su
 time_travel: true              # a button to replay the last day from HA's history (lights, doors, blinds, devices)
 walk: true                     # a button to walk through the house at eye level (keys, touch stick, drag to look)
 layers: [energy, heating, heatmap, values, presence, climate]   # a layers button: viewers switch these (kept per device)
+rules:                         # looks by state, no code: while it matches, a pulsing ring, the piece's colour,
+  - entity: binary_sensor.doorbell   # an icon and a text where the entity is (its piece, door, lamp or room)
+    state: "on"                #   or above: / below: (numbers), attribute: (read that instead)
+    ring: "#ff3b30"
+  - entity: sensor.office_co2
+    above: 1000
+    icon: mdi:molecule-co2
+    text: "{state:0} {unit}"   #   {state}, {state:1} (decimals), {unit}, {name}, {attr:brightness}
+  - entity: climate.bedroom
+    state: heat
+    color: "#ff8a3a"           #   tints its linked piece (an AC, a radiator)
 overlays:                      # other cards on the house card, to use its empty corners
   - card: { type: weather-forecast, entity: weather.home }
     top: 8px

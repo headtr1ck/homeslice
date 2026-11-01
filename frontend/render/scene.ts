@@ -643,6 +643,7 @@ export class HouseRenderer {
     this.floors.clear();
     for (const f of this.heatFields.values()) f.texture.dispose();
     this.heatFields.clear();
+    this.entityTints.clear();
     this.pieceGlows.clear();
     this.devices.clear();
     this.underfloors.clear();
@@ -1373,6 +1374,36 @@ export class HouseRenderer {
     if (color) m.userData.tint = color;
     else delete m.userData.tint;
     this.themeMaterial(m);
+  }
+
+  /** Linked pieces tinted by a card rule, with their materials' own glow to go back to. */
+  private entityTints = new Map<string, string>();
+
+  /** Tints the pieces linked to an entity (a state rule), or back to their own look with null. */
+  setEntityTint(entity: string, color: string | null) {
+    if ((this.entityTints.get(entity) ?? null) === color) return;
+    if (color) this.entityTints.set(entity, color);
+    else this.entityTints.delete(entity);
+    for (const g of this.linked) {
+      if (g.userData.entity !== entity) continue;
+      g.traverse((o) => {
+        if (!(o instanceof THREE.Mesh)) return;
+        for (const m of Array.isArray(o.material) ? o.material : [o.material]) {
+          if (!("emissive" in m)) continue;
+          const mm = m as THREE.MeshLambertMaterial;
+          mm.userData.ownEmissive ??= { color: mm.emissive.getHex(), intensity: mm.emissiveIntensity };
+          const own = mm.userData.ownEmissive as { color: number; intensity: number };
+          if (color) {
+            mm.emissive.set(color);
+            mm.emissiveIntensity = 0.55;
+          } else {
+            mm.emissive.setHex(own.color);
+            mm.emissiveIntensity = own.intensity;
+          }
+        }
+      });
+    }
+    this.draw();
   }
 
   /** Smooth heatmaps per level: one canvas over the level's indoor floors. */

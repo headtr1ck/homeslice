@@ -835,6 +835,51 @@ if (selected()) {
     await page.waitForFunction(() => !document.querySelector("homeslice-card").shadowRoot.querySelector(".tip"));
     await act(page, () => page.evaluate(() => window.card.hass.pushModel(window.__demoModel)));
   });
+  await test("rules: a ring and a label by a reading, a piece tinted by its state", async () => {
+    await act(page, async () => {
+      await page.evaluate(() => {
+        const m = structuredClone(window.__demoModel);
+        m.levels[0].rooms.find((r) => r.id === "living").furniture = [{ type: "item", model: "modern:ac_outdoor", at: [1, 2], entity: "climate.living_room" }];
+        window.card.hass.pushModel(m);
+      });
+      await page.evaluate(() => window.card.renderer.modelsReady());
+    });
+    await act(page, () =>
+      page.evaluate(() =>
+        window.card.setConfig({
+          ...window.card.config,
+          rules: [
+            { entity: "sensor.living_room_co2", above: 1000, ring: "#ff3b30", icon: "mdi:molecule-co2", text: "{state:0} {unit}" },
+            { entity: "climate.living_room", state: "heat", color: "#ff3b30" },
+          ],
+        }),
+      ),
+    );
+    const mark = page.locator("homeslice-card .rule-mark");
+    await mark.waitFor({ timeout: 3000 });
+    assert((await mark.textContent()).trim() === "1240 ppm", `rule text: ${await mark.textContent()}`);
+    assert(await page.locator("homeslice-card .rule-ring").count(), "no ring");
+    const tint = () => page.evaluate(() => window.card.renderer.entityTints.get("climate.living_room") ?? null);
+    assert((await tint()) === "#ff3b30", `tint ${await tint()}`);
+    await shot(page, "demo-rules");
+    await act(page, () =>
+      page.evaluate(() => {
+        window.card.hass.setState("sensor.living_room_co2", "800");
+        window.card.hass.setState("climate.living_room", "off");
+      }),
+    );
+    await page.waitForFunction(() => !document.querySelector("homeslice-card").shadowRoot.querySelector(".rule-mark"));
+    assert((await tint()) === null, "tint stayed");
+    await act(page, () =>
+      page.evaluate(() => {
+        window.card.hass.setState("sensor.living_room_co2", "1240");
+        window.card.hass.setState("climate.living_room", "heat");
+        const { rules, ...config } = window.card.config;
+        window.card.setConfig(config);
+        window.card.hass.pushModel(window.__demoModel);
+      }),
+    );
+  });
   await test("linked devices: a TV's screen, curtains with their cover, an outdoor unit's fan", async () => {
     await act(page, async () => {
       await page.evaluate(() => {

@@ -12,6 +12,7 @@ import { formatPower, readEnergy, type EnergyPrefs, type EnergyReading } from ".
 import { pollPosition, polledPositions, readRobot, robotAlerts, robotStatus, type RobotReading, type RobotStatus } from "../ha/robots";
 import { deviceLook } from "../ha/devices";
 import { activation, whereIs } from "../ha/follow";
+import { ruleMatches, ruleText, type StateRule } from "../ha/rules";
 import { clockText, isNight } from "../ha/kiosk";
 import { sunPath, sunPosition } from "../ha/sunpath";
 import { HISTORY_DOMAINS, loadHistory, statesAt, type History } from "../ha/history";
@@ -42,6 +43,11 @@ export interface HomesliceCardConfig {
   actions?: Record<string, { tap_action?: Record<string, unknown>; hold_action?: Record<string, unknown> }>;
   /** Lamp buttons: a bare bulb with a soft shadow that glows when on (`icon`, default) or a bulb in a dark disc (`circle`). */
   lamp_style?: "icon" | "circle";
+  /**
+   * Looks by state for any entity, without code: a pulsing `ring`, the piece's `color`, an
+   * `icon` and a `text` (`{state:1} {unit}`) where it is, while `state` / `above` / `below` match.
+   */
+  rules?: StateRule[];
   /** Desktop: hovering a linked piece shows its name, state and when that changed (default true). */
   tooltips?: boolean;
   /** A short note of what a tap or a drag just did ("Kitchen lights off"); false hides it (default true). */
@@ -369,6 +375,7 @@ export class HomesliceCard extends LitElement {
     _dim: { state: true },
     _note: { state: true },
     _tip: { state: true },
+    _ruleMarks: { state: true },
     _event: { state: true },
     _energyLabels: { state: true },
     _robotLabels: { state: true },
@@ -408,6 +415,7 @@ export class HomesliceCard extends LitElement {
   private _dim: { x: number; y: number; pct: number } | null = null;
   private _note: string | null = null;
   private _tip: { x: number; y: number; text: string; sub: string } | null = null;
+  private _ruleMarks: { key: string; entity: string; x: number; y: number; ring: string | null; icon?: string; text: string }[] = [];
   private noteTimer = 0;
   private gesture: { id: number; y: number; start: number; pct: number; entities: string[]; dimming: boolean; done: boolean; at: { x: number; y: number } } | null = null;
   private holdTimer = 0;
@@ -499,7 +507,7 @@ export class HomesliceCard extends LitElement {
     } else this.applySavedViews();
     this.loadedFor = undefined;
     // a changed look or what the rooms show applies at once (a new house is drawn by load())
-    const visual = ["look", "accent", "heatmap", "values", "thresholds", "lux", "presence", "heating", "badges", "climate_hints", "heatmap_style"] as const;
+    const visual = ["look", "accent", "heatmap", "values", "thresholds", "lux", "presence", "heating", "badges", "climate_hints", "heatmap_style", "rules"] as const;
     if (this.renderer && this.house && this.hass && visual.some((k) => JSON.stringify(previous?.[k]) !== JSON.stringify(config[k]))) {
       this.stateSignature = "";
       this.syncStates();
@@ -1372,6 +1380,37 @@ export class HomesliceCard extends LitElement {
     return out;
   }
 
+  /** Where an entity is drawn: its piece, its door or window, its lamp, else its room's middle. */
+  private entitySpot(entity: string): { levelId: string; at: Vec2; height: number } | null {
+    if (!this.house || !this.hass) return null;
+    for (const level of this.house.levels)
+      for (const room of level.rooms) {
+        const f = room.furniture.find((x) => x.entity === entity);
+        if (f) return { levelId: level.id, at: f.at, height: (f.elevation ?? 0) + f.height + 0.05 };
+      }
+    const o = this.openings.find((x) => x.cover === entity || x.contact === entity || x.lock === entity);
+    if (o) return { levelId: o.levelId, at: o.at, height: o.top };
+    const lamp = this.lamps.find((l) => l.entity === entity);
+    if (lamp) return { levelId: lamp.levelId, at: lamp.at, height: this.lampHeight(lamp) };
+    const where = whereIs(this.house, this.hass, entity, this.openings);
+    const room = where?.roomId ? this.rooms.find((r) => r.key === `${where.levelId}/${where.roomId}`) : undefined;
+    return room ? { levelId: room.levelId, at: room.point, height: 0.4 } : null;
+  }
+
+  /** The card's rules that match now, placed where their entities are. */
+  private ruleMarks() {
+    if (!this.renderer || !this.hass || !this.config.rules?.length) return [];
+    return this.config.rules.flatMap((r, i) => {
+      if (!(r.ring || r.icon || r.text) || !ruleMatches(this.hass!, r)) return [];
+      const spot = this.entitySpot(r.entity);
+      if (!spot || (this._level && spot.levelId !== this._level) || !this.renderer!.isLevelVisible(spot.levelId)) return [];
+      const p = this.renderer!.project(spot.levelId, spot.at, spot.height);
+      if (!p) return [];
+      const ring = r.ring ? (typeof r.ring === "string" ? r.ring : this.config.accent || "var(--primary-color, #03a9f4)") : null;
+      return [{ key: `rule-${i}`, entity: r.entity, x: p.x, y: p.y, ring, icon: r.icon, text: ruleText(this.hass!, r) }];
+    });
+  }
+
   /** What needs attention now, most urgent first, each with where it is. */
   private warnings() {
     if (!this.house || !this.hass) return [];
@@ -1563,11 +1602,20 @@ export class HomesliceCard extends LitElement {
     });
     // smooth: each level's readings where they are (room middles, placed sensors), spread across its floors
     const fields = smooth && this.config.heatmap ? this.heatSamples(hass, this.config.heatmap, heat as (number | null)[]) : null;
-    const signature = JSON.stringify([look, this.config.accent, lux, heat, fields, lights, lamps, covers, contacts, doorNotes, values, sensors, awnings, devices, roofWindows, underfloor, badges, energyDetails, weather, this.placedPeople(hass).map((p) => [p.key, p.levelId, p.at]), this.config.weather ? hass.states[this.config.weather]?.attributes.temperature : null, cameras, this.energyReadings, this.robotReadings, this.robotNeeds, sunAt]);
+    const ruleHits = (this.config.rules ?? []).map((r) => ruleMatches(hass, r));
+    const ruleTexts = (this.config.rules ?? []).map((r, i) => (ruleHits[i] ? ruleText(hass, r) : ""));
+    const signature = JSON.stringify([look, this.config.accent, lux, heat, fields, ruleHits, ruleTexts, lights, lamps, covers, contacts, doorNotes, values, sensors, awnings, devices, roofWindows, underfloor, badges, energyDetails, weather, this.placedPeople(hass).map((p) => [p.key, p.levelId, p.at]), this.config.weather ? hass.states[this.config.weather]?.attributes.temperature : null, cameras, this.energyReadings, this.robotReadings, this.robotNeeds, sunAt]);
     if (signature === this.stateSignature) return;
     this.stateSignature = signature;
     this.lamps.forEach((l, i) => this.renderer!.setLamp(l.entity, lamps[i]));
     this.devices.forEach((entity, i) => this.renderer!.setDevice(entity, devices[i]));
+    // rules: the last matching one with a colour tints the entity's pieces
+    const tints = new Map<string, string | null>();
+    (this.config.rules ?? []).forEach((r, i) => {
+      if (!tints.has(r.entity)) tints.set(r.entity, null);
+      if (r.color && ruleHits[i]) tints.set(r.entity, r.color);
+    });
+    for (const [entity, color] of tints) this.renderer.setEntityTint(entity, color);
     for (const [entity, heating] of underfloor) this.renderer.setUnderfloor(entity, heating);
     for (const [key, closed, open] of roofWindows) this.renderer.setRoofWindow(key, closed, open);
     for (const [entity, moving] of cameras) this.renderer.setCameraMotion(entity, moving);
@@ -2276,6 +2324,7 @@ export class HomesliceCard extends LitElement {
       this._dockAlerts = [];
       this._badges = [];
       this._openingBadges = [];
+      this._ruleMarks = [];
       this._sunTimes = [];
       return;
     }
@@ -2328,6 +2377,7 @@ export class HomesliceCard extends LitElement {
     this._dockAlerts = this.dockAlerts();
     this._badges = this.pieceBadges();
     this._openingBadges = this.openingBadges();
+    this._ruleMarks = this.ruleMarks();
     this._sunTimes = this.sunTimeLabels();
     this._people = this.personLabels();
   }
@@ -2442,6 +2492,14 @@ export class HomesliceCard extends LitElement {
             (b) => html`<button class="piece-badge ${b.urgent ? "urgent" : ""}" style="left:${b.x}px;top:${b.y}px" title=${b.text} @click=${() => this.moreInfo(b.entity)}>
               <ha-icon icon=${b.icon}></ha-icon><span>${b.text}</span>
             </button>`,
+          )}
+          ${this._ruleMarks.map(
+            (m) => html`${m.ring ? html`<div class="rule-ring" style="left:${m.x}px;top:${m.y}px;--ring:${m.ring}"></div>` : nothing}
+              ${m.icon || m.text
+                ? html`<button class="piece-badge rule-mark" data-rule=${m.key} style="left:${m.x}px;top:${m.y}px" title=${m.text} @click=${() => this.moreInfo(m.entity)}>
+                    ${m.icon ? html`<ha-icon icon=${m.icon}></ha-icon>` : nothing}${m.text ? html`<span>${m.text}</span>` : nothing}
+                  </button>`
+                : nothing}`,
           )}
           ${this._openingBadges.map(
             (b) => html`<button class="piece-badge opening-badge ${b.urgent ? "urgent" : ""} ${b.lock ? "lock" : ""}" data-badge=${b.key} style="left:${b.x}px;top:${b.y}px" title=${b.text} aria-label=${b.text}
@@ -3169,6 +3227,31 @@ export class HomesliceCard extends LitElement {
     }
     .media .details {
       justify-self: start;
+    }
+    .rule-ring {
+      position: absolute;
+      width: 34px;
+      height: 34px;
+      margin: -17px 0 0 -17px;
+      border-radius: 50%;
+      border: 3px solid var(--ring);
+      pointer-events: none;
+      animation: rule-ring 1.4s ease-out infinite;
+    }
+    @keyframes rule-ring {
+      from {
+        transform: scale(0.6);
+        opacity: 1;
+      }
+      to {
+        transform: scale(1.8);
+        opacity: 0;
+      }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .rule-ring {
+        animation: none;
+      }
     }
     .tip {
       position: absolute;
