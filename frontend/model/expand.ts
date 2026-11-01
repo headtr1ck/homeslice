@@ -205,6 +205,8 @@ export function expandHouse(input: unknown): ExpandResult {
           return err(fp, `model must be modern:<kind>, polyhaven:<id>, custom:<id> or builtin, got ${JSON.stringify(fi.model)}.`);
         if (fi.finish !== undefined && typeof fi.finish !== "string") return err(fp, "finish must be a name like oak, white or grey.");
         if (fi.accent !== undefined && typeof fi.accent !== "string") return err(fp, "accent must be a name like black, brass or oak.");
+        if (fi.readings !== undefined && !(Array.isArray(fi.readings) && fi.readings.every((r) => typeof r === "string" && r.includes("."))))
+          return err(fp, "readings must be a list of entity ids, e.g. [sensor.car_battery].");
         furniture.push({
           type: fi.type,
           at: [min[0] + fi.at[0], min[1] + fi.at[1]],
@@ -218,6 +220,7 @@ export function expandHouse(input: unknown): ExpandResult {
           ...(fi.model ? { model: fi.model } : {}),
           ...(fi.finish ? { finish: fi.finish } : {}),
           ...(fi.accent ? { accent: fi.accent } : {}),
+          ...(fi.readings?.length ? { readings: fi.readings } : {}),
         });
       });
       // a piece's light is where the piece stands (it moves with it)
@@ -431,7 +434,10 @@ export function expandHouse(input: unknown): ExpandResult {
     }
     if (e.kind === "device" && !e.power) return err(ep, "A device needs power: <sensor>.");
     if (e.roof && !SIDES.includes(e.roof)) return err(ep, `roof must be one of ${SIDES.join(", ")}.`);
-    energy.push({ kind: e.kind, id: "", to: null, index, levelIndex: onLevel, at: e.at ? [e.at[0], e.at[1]] : null, power: e.power, soc: e.soc, name: e.name, roof: e.roof ?? "south" });
+    const detailOk = (d: unknown) => (typeof d === "string" && d.includes(".")) || (!!d && typeof d === "object" && typeof (d as { entity?: unknown }).entity === "string" && (d as { entity: string }).entity.includes("."));
+    if (e.details !== undefined && !(Array.isArray(e.details) && e.details.every(detailOk))) return err(`${ep}.details`, "details must be a list of entity ids, e.g. [sensor.heat_pump_cop].");
+    const details = (e.details ?? []).map((d) => (typeof d === "string" ? { entity: d } : { entity: d.entity, ...(d.name ? { name: d.name } : {}) }));
+    energy.push({ kind: e.kind, id: "", to: null, index, levelIndex: onLevel, at: e.at ? [e.at[0], e.at[1]] : null, power: e.power, soc: e.soc, name: e.name, roof: e.roof ?? "south", details });
   });
   // ids (given, else from the name or kind) and where each flow line goes
   const taken = new Set<string>();

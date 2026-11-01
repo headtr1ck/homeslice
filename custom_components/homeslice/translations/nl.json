@@ -38,6 +38,39 @@
           "description": "Ook huizen overschrijven die in de editor zijn bewerkt."
         }
       }
+    },
+    "show": {
+      "name": "Tonen in het huis",
+      "description": "Open Homeslice-kaarten gaan even naar een ruimte, verdieping of entiteit (bijv. vanuit Assist: \"Toon de keuken\").",
+      "fields": {
+        "area": {
+          "name": "Ruimte",
+          "description": "ID of naam van de ruimte."
+        },
+        "floor": {
+          "name": "Verdieping",
+          "description": "ID of naam van de verdieping."
+        },
+        "entity_id": {
+          "name": "Entiteit",
+          "description": "Tonen waar deze entiteit is."
+        },
+        "seconds": {
+          "name": "Seconden",
+          "description": "Hoe lang (standaard: de volgtijd van de kaart)."
+        }
+      }
+    }
+  },
+  "exceptions": {
+    "unknown_area": {
+      "message": "Er is geen ruimte met de naam {area}."
+    },
+    "unknown_floor": {
+      "message": "Er is geen verdieping met de naam {floor}."
+    },
+    "show_nothing": {
+      "message": "Noem een ruimte, verdieping of entiteit."
     }
   }
 }

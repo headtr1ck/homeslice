@@ -8,8 +8,8 @@ const hass = (states: Record<string, [string, Record<string, unknown>?]>) =>
 describe("linked devices", () => {
   it("reads TVs, fans and covers", () => {
     const h = hass({ "media_player.tv": ["playing"], "media_player.off": ["standby"], "fan.f": ["on", { percentage: 50 }], "cover.c": ["open", { current_position: 30 }] });
-    expect(deviceLook(h, "media_player.tv")).toEqual({ on: true, active: true });
-    expect(deviceLook(h, "media_player.off")).toEqual({ on: false, active: false });
+    expect(deviceLook(h, "media_player.tv")).toEqual({ on: true, active: true, picture: null });
+    expect(deviceLook(h, "media_player.off")).toEqual({ on: false, active: false, picture: null });
     expect(deviceLook(h, "fan.f")).toEqual({ on: true, active: true, speed: 0.5 });
     expect(deviceLook(h, "cover.c")).toMatchObject({ open: 0.3 });
     expect(deviceLook(h, "cover.c", true)?.open).toBeCloseTo(0.7);
@@ -45,5 +45,10 @@ describe("linked devices", () => {
     expect(linkDomain("washer", "washer")).toBe("sensor");
     expect(linkDomain("ceiling_fan", "ceiling_fan")).toBe("fan");
     expect(linkDomain("item", "vase")).toBeUndefined();
+    // by their tags: a car to its tracker, a bin to its pickup sensor, a plant to its plant
+    expect(linkDomain("car", "car_estate")).toBe("device_tracker");
+    expect(linkDomain("item", "wheelie_bin")).toBe("sensor");
+    expect(linkDomain("item", "monstera")).toBe("plant");
+    expect(linkDomain("item", "mailbox_post")).toBe("binary_sensor");
   });
 });

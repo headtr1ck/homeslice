@@ -38,6 +38,39 @@
           "description": "Écrase aussi les maisons modifiées dans l'éditeur."
         }
       }
+    },
+    "show": {
+      "name": "Montrer dans la maison",
+      "description": "Les cartes Homeslice ouvertes se déplacent un moment vers une zone, un étage ou une entité (p. ex. depuis Assist : « Montre la cuisine »).",
+      "fields": {
+        "area": {
+          "name": "Zone",
+          "description": "ID ou nom de la zone."
+        },
+        "floor": {
+          "name": "Étage",
+          "description": "ID ou nom de l'étage."
+        },
+        "entity_id": {
+          "name": "Entité",
+          "description": "Montrer où se trouve cette entité."
+        },
+        "seconds": {
+          "name": "Secondes",
+          "description": "Combien de temps (par défaut : la durée de suivi de la carte)."
+        }
+      }
+    }
+  },
+  "exceptions": {
+    "unknown_area": {
+      "message": "Il n'y a pas de zone appelée {area}."
+    },
+    "unknown_floor": {
+      "message": "Il n'y a pas d'étage appelé {floor}."
+    },
+    "show_nothing": {
+      "message": "Indiquez une zone, un étage ou une entité."
     }
   }
 }

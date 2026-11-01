@@ -151,6 +151,13 @@ def slug(t: str) -> str:
 # ----- the rules -----
 
 
+
+def _detail_ok(d: Any) -> bool:
+    """An energy item's detail: an entity id, or {entity: <id>, name: …}."""
+    if isinstance(d, str):
+        return "." in d
+    return isinstance(d, dict) and isinstance(d.get("entity"), str) and "." in d["entity"]
+
 def validate(house: Any) -> list[dict[str, str]]:
     """The house file's issues: [{severity: error|warning, path, message}]."""
     issues: list[dict[str, str]] = []
@@ -363,6 +370,10 @@ def validate(house: Any) -> list[dict[str, str]]:
                 if accent is not MISSING and not isinstance(accent, str):
                     err(fp, "accent must be a name like black, brass or oak.")
                     continue
+                readings = get(fi, "readings")
+                if readings is not MISSING and not (isinstance(readings, list) and all(isinstance(r, str) and "." in r for r in readings)):
+                    err(fp, "readings must be a list of entity ids, e.g. [sensor.car_battery].")
+                    continue
 
         for i, oi in enumerate(items(get(li, "openings"))):
             op = f"{lp}.openings[{i}]"
@@ -505,6 +516,10 @@ def validate(house: Any) -> list[dict[str, str]]:
         roof_side = get(e, "roof")
         if truthy(roof_side) and roof_side not in SIDES:
             err(ep, f"roof must be one of {', '.join(SIDES)}.")
+            continue
+        details = get(e, "details")
+        if details is not MISSING and not (isinstance(details, list) and all(_detail_ok(d) for d in details)):
+            err(f"{ep}.details", "details must be a list of entity ids, e.g. [sensor.heat_pump_cop].")
             continue
         energy.append({"index": index, "kind": kind, "name": get(e, "name")})
     taken: set[str] = set()

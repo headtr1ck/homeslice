@@ -194,6 +194,20 @@ rain: binary_sensor.rain       # warn about open windows while it rains (default
 power_outage: binary_sensor.grid_down   # a warning on the card while it is on
 heating: true                  # underfloor heating loops glow while they heat (rooms with underfloor:)
 badges: true                   # notes above linked pieces: bin pickup today/tomorrow, thirsty plants, post, time left
+weather: weather.home          # its condition and temperature in a corner (tap: forecast); rain, snow and fog
+weather_effects: true          #   around the house (false: only the badge)
+sun_path: true                 # today's sun path as an arc around the house, sunrise and sunset times
+time_travel: true              # a button to replay the last day from HA's history (lights, doors, blinds, devices)
+walk: true                     # a button to walk through the house at eye level (keys, touch stick, drag to look)
+overlays:                      # other cards on the house card, to use its empty corners
+  - card: { type: weather-forecast, entity: weather.home }
+    top: 8px
+    right: 8px
+    width: 300px
+    layer: front               # or behind: under the house, just to look at
+    levels: [overview]         # optional: only on these floors (overview: the whole house)
+people:                        # people in the room they are in (Bermuda, ESPresense: a sensor naming the area)
+  - { person: person.alex, room: sensor.alex_phone_area }
 actions:                       # optional: own tap/hold actions for linked pieces and lamps (Lovelace actions)
   light.hall:
     tap_action: { action: more-info }
@@ -205,6 +219,14 @@ popups:                        # optional, by room id or area id
       - type: weather-forecast
         entity: weather.home
 ```
+
+**Show a room on request.** The action `homeslice.show` (area, floor or entity, by id or
+name; optional `seconds`) makes open cards fly there for a while, e.g. from an automation
+(the doorbell rings: show the front door) or by voice. For Assist, import the blueprint
+[`show_by_voice.yaml`](blueprints/automation/homeslice/show_by_voice.yaml) ("Show the
+kitchen", "Zeig die Küche"):
+
+[![Import the blueprint](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2Fheadtr1ck%2Fhomeslice%2Fblob%2Fmain%2Fblueprints%2Fautomation%2Fhomeslice%2Fshow_by_voice.yaml)
 
 Tap a room's lamp to switch its lights (on a picked floor, rooms with several lamps get
 one toggle per lamp), tap a room for a popup with its devices (including the blinds and
@@ -249,7 +271,11 @@ energy:                                 # optional, for the card's energy overla
   - { kind: solar, roof: south }        # sensors default to HA's energy settings
   - { kind: battery, level: ground, at: [8.5, 1] }
   - { kind: grid, level: ground, at: [9, 1] }
-  - { kind: device, power: sensor.heat_pump_power, level: ground, at: [9.5, 7.5] }
+  - kind: device
+    power: sensor.heat_pump_power
+    level: ground
+    at: [9.5, 7.5]
+    details: [sensor.heat_pump_cop, { entity: sensor.hot_water_temperature, name: Hot water }]   # more readings in its callout
 levels:
   - id: ground
     floor_id: ground_floor              # Home Assistant floor
@@ -275,6 +301,7 @@ levels:
           - { type: sofa_corner, at: [2, 3], mirror: true }                    # flipped left to right
           - { type: sofa, at: [3, 4], model: polyhaven:Sofa_01, size: [1.57, 0.66], height: 0.8 }
           - { type: wardrobe, at: [5, 0.4], model: modern:wardrobe_sliding, finish: walnut, accent: black, size: [2, 0.65], height: 2.2 }
+          - { type: car, at: [2, 3], model: modern:car_estate, entity: device_tracker.car, readings: [sensor.car_battery, sensor.car_range] }  # only while home
           # model: modern:<kind> | polyhaven:<id> | custom:<id> | builtin (default: the card's style)
       - { id: kitchen, area_id: kitchen, rect: [6, 0, 4, 8], floor: terrazzo, wall: tile_subway }
       - { id: garden, area_id: garden, kind: outdoor, rect: [0, 8, 10, 6], awning: cover.awning }

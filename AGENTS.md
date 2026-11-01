@@ -67,7 +67,9 @@ npm run showcase         # the README's pictures (docs/images/): after changing 
 **A built-in (Modern) furniture piece.** Add the kind to `MODERN_GROUPS` in
 `frontend/model/modern.ts` (type, default size, finishes, `accents` for a second colour, mount), its builder to
 `BUILDERS` in `frontend/render/modern.ts` (build to the given `w`, `d`, `h` with the finish `f` and accent `a`; centred, back
-at −z, on y = 0), names `modern.<kind>` and search words `alias.<kind>` in both `i18n` files; if it is the
+at −z, on y = 0), names `modern.<kind>` and search words `alias.<kind>` in every `i18n` file, its tags (what it links to
+and does when linked: `screen`, `speaker`, `vehicle`, `bin`, `plant`…) in `TAG_RULES` if a rule doesn't
+match it already, and mark the parts that react (`part(m, "screen")`, `warmMat`, `b.spinner`, `b.pulser`); if it is the
 best piece for its type, it can become the type's default (`DEFAULT_KIND`). Build closed shapes: a
 bowl goes up the outside, over the rim and down the inside (no single walls light shines
 through); thin open things (shades, cloth, glass) get a double-sided material. Then

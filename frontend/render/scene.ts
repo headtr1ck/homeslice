@@ -3,6 +3,7 @@
 // are drawn on request, and during short transitions (focusing a floor) only until the
 // transition ends.
 
+import { Weather, type WeatherKind } from "./weather";
 import * as THREE from "three";
 import { simplePiece } from "./simple";
 import { detailFor, fitModel, loadModel, modelColor } from "./models";
@@ -349,6 +350,10 @@ export interface DeviceLook {
   tone?: "heat" | "cool" | "alarm" | null;
   /** Fans: 0 … 1. */
   speed?: number | null;
+  /** Media: the picture of what plays (cover art), shown on screens. */
+  picture?: string | null;
+  /** Trackers (a car, a bike): false while it is away, and the piece is not drawn. */
+  present?: boolean;
 }
 
 type LeafHow = "swing" | "tilt" | "slide";
@@ -388,6 +393,8 @@ interface DeviceParts {
   materials: THREE.MeshLambertMaterial[];
   spinners: THREE.Object3D[];
   curtains: THREE.Object3D[];
+  pulsers: THREE.Object3D[];
+  piece: THREE.Object3D;
 }
 
 export class HouseRenderer {
@@ -538,6 +545,10 @@ export class HouseRenderer {
   }
 
   setModel(house: House, walls: Map<string, Wall[]>, view: Partial<ViewOptions> = {}) {
+    // a transition under way ends now (whoever waits for it goes on)
+    cancelAnimationFrame(this.animation);
+    this.focusDone?.();
+    this.focusDone = undefined;
     this.view = { ...DEFAULT_VIEW, ...view, focus: { ...DEFAULT_VIEW.focus, ...view.focus }, levels: view.levels ?? {} };
     this.clear();
     this.sideX = 0;
@@ -599,6 +610,9 @@ export class HouseRenderer {
     this.pieceGlows.clear();
     this.devices.clear();
     this.underfloors.clear();
+    this.spills.clear();
+    this.people.clear();
+    this.roomLightLooks.clear();
     this.leaves.clear();
     this.outlines = [];
     this.planLines = [];
@@ -646,6 +660,9 @@ export class HouseRenderer {
 
     // a stairwell looks down into a dark shaft while the floor below is hidden
     for (const hole of holes) g.add(this.well(hole, level.slab));
+
+    // at night a lit room's light falls out of its windows onto the garden or terrace
+    if (this.view.showOutdoor) for (const w of walls) if (w.side) for (const o of w.openings) this.windowSpill(g, level, w, o);
 
     // room floors
     for (const room of level.rooms) {
@@ -1295,6 +1312,11 @@ export class HouseRenderer {
   }
 
   setRoomLight(levelId: string, roomId: string, light: LightLook | null) {
+    const key = `${levelId}/${roomId}`;
+    if (this.spills.has(key) && JSON.stringify(this.roomLightLooks.get(key) ?? null) !== JSON.stringify(light)) {
+      this.roomLightLooks.set(key, light);
+      this.applySpills();
+    }
     const m = this.floors.get(`${levelId}/${roomId}`)?.material;
     if (!m) return;
     if (!light) m.emissive.setRGB(0, 0, 0);
@@ -1488,10 +1510,11 @@ export class HouseRenderer {
    * follow the cover.
    */
   private linkDevice(entity: string, piece: THREE.Object3D, materials: Set<THREE.Material>) {
-    const parts: DeviceParts = { materials: [], spinners: [], curtains: [] };
+    const parts: DeviceParts = { materials: [], spinners: [], curtains: [], pulsers: [], piece };
     const own = new Map<THREE.Material, THREE.MeshLambertMaterial>();
     piece.traverse((o) => {
       if (o.userData.spin) parts.spinners.push(o);
+      if (o.userData.pulse) parts.pulsers.push(o);
       if (o.userData.curtain) parts.curtains.push(o);
       if (!(o instanceof THREE.Mesh)) return;
       const swap = (m: THREE.Material) => {
@@ -1508,7 +1531,7 @@ export class HouseRenderer {
       };
       o.material = Array.isArray(o.material) ? o.material.map(swap) : swap(o.material);
     });
-    if (!parts.materials.length && !parts.spinners.length && !parts.curtains.length) return;
+    // (every linked piece: one with nothing that lights or moves may still come and go)
     const list = this.devices.get(entity) ?? [];
     list.push(parts);
     this.devices.set(entity, list);
@@ -1533,9 +1556,14 @@ export class HouseRenderer {
         } else if (role === "fire") {
           m.visible = look.on;
         } else if (role === "screen") {
-          // a soft picture light; brighter while playing
-          m.emissive.set(look.active ? "#6f8fc4" : "#3c4f6e");
-          m.emissiveIntensity = look.on ? (look.active ? 0.75 : 0.45) : 0;
+          // what plays (its cover art), else a soft picture light; brighter while playing
+          const picture = look.on && look.picture ? this.screenPicture(look.picture) : null;
+          if (m.emissiveMap !== picture) {
+            m.emissiveMap = picture;
+            m.needsUpdate = true;
+          }
+          m.emissive.set(picture ? "#ffffff" : look.active ? "#6f8fc4" : "#3c4f6e");
+          m.emissiveIntensity = look.on ? (picture ? 0.9 : look.active ? 0.75 : 0.45) : 0;
         } else if (role === "warm") {
           // a radiator: a warm glow while it heats
           m.emissive.set("#ff6a2a");
@@ -1548,6 +1576,8 @@ export class HouseRenderer {
           m.emissiveIntensity = look.on ? Math.max(0.5, m.userData.litIntensity as number) : 0;
         }
       }
+      if (!look?.active) for (const o of parts.pulsers) o.scale.setScalar(1);
+      parts.piece.visible = look?.present !== false;
       for (const c of parts.curtains) {
         // open: drawn back to the sides; closed: each panel to the middle
         const open = look?.open ?? 1;
@@ -1556,11 +1586,114 @@ export class HouseRenderer {
     }
   }
 
+  private pictures = new Map<string, THREE.Texture | null>();
+
+  /** A screen's picture (cover art, loaded once; cropped to a 16:9 screen), or null while it loads. */
+  private screenPicture(url: string): THREE.Texture | null {
+    if (this.pictures.has(url)) return this.pictures.get(url)!;
+    this.pictures.set(url, null);
+    new THREE.TextureLoader().load(
+      url,
+      (t) => {
+        t.colorSpace = THREE.SRGBColorSpace;
+        const a = t.image.width / t.image.height;
+        // fill the screen: a square cover loses its top and bottom
+        if (a < 16 / 9) {
+          t.repeat.set(1, a / (16 / 9));
+          t.offset.set(0, (1 - t.repeat.y) / 2);
+        } else {
+          t.repeat.set(16 / 9 / a, 1);
+          t.offset.set((1 - t.repeat.x) / 2, 0);
+        }
+        this.pictures.set(url, t);
+        // the screens showing it
+        for (const [entity, look] of this.deviceLooks) if (look?.picture === url) this.setDevice(entity, look);
+        this.onChange?.();
+      },
+      undefined,
+      () => this.pictures.delete(url),
+    );
+    return null;
+  }
+
+  private weatherFx: Weather | null = null;
+  private get weather() {
+    return (this.weatherFx ??= new Weather(this.quality === "low" ? 500 : 1600));
+  }
+
+  private sunPathGroup: THREE.Group | null = null;
+  private sunPathEnds: THREE.Vector3[] = [];
+
+  /**
+   * Today's sun path as a glowing arc around the house, the sun on it now; points are in
+   * the plan's directions (azimuth already turned by the house's north). null: none.
+   */
+  setSunPath(points: { azimuth: number; elevation: number }[] | null, now: { azimuth: number; elevation: number } | null) {
+    if (this.sunPathGroup) {
+      this.scene.remove(this.sunPathGroup);
+      this.sunPathGroup.traverse((o) => {
+        if (o instanceof THREE.Mesh) {
+          o.geometry.dispose();
+          (o.material as THREE.Material).dispose();
+        }
+      });
+      this.sunPathGroup = null;
+      this.sunPathEnds = [];
+    }
+    if (!points || points.length < 2) return this.draw();
+    const box = this.boxFor(null);
+    const center = box.getCenter(new THREE.Vector3());
+    center.y = box.min.y;
+    // just around the house, so it stays in the picture
+    const r = Math.max(box.getSize(new THREE.Vector3()).x, box.getSize(new THREE.Vector3()).z) * 0.62 + 0.8;
+    const at = (p: { azimuth: number; elevation: number }) => {
+      const a = THREE.MathUtils.degToRad(p.azimuth);
+      const e = THREE.MathUtils.degToRad(Math.max(-1, p.elevation));
+      return center.clone().add(new THREE.Vector3(Math.sin(a) * Math.cos(e), Math.sin(e), -Math.cos(a) * Math.cos(e)).multiplyScalar(r));
+    };
+    const g = new THREE.Group();
+    const curve = new THREE.CatmullRomCurve3(points.map(at));
+    g.add(new THREE.Mesh(new THREE.TubeGeometry(curve, points.length * 3, 0.05, 6), new THREE.MeshBasicMaterial({ color: "#ffb347", transparent: true, opacity: 0.85 })));
+    if (now && now.elevation > -1) {
+      const sun = new THREE.Mesh(new THREE.SphereGeometry(0.35, 20, 12), new THREE.MeshBasicMaterial({ color: "#ffd25a" }));
+      sun.position.copy(at(now));
+      g.add(sun);
+    }
+    this.sunPathEnds = [at(points.find((p) => p.elevation > 0) ?? points[0]), at([...points].reverse().find((p) => p.elevation > 0) ?? points.at(-1)!)];
+    this.sunPathGroup = g;
+    this.scene.add(g);
+    this.draw();
+  }
+
+  get sunPathShown() {
+    return !!this.sunPathGroup;
+  }
+
+  /** Sunrise and sunset on screen (CSS px), for their times. */
+  projectSunPath(): { x: number; y: number }[] {
+    return this.sunPathEnds.map((v) => {
+      const p = v.clone().project(this.camera);
+      return { x: ((p.x + 1) / 2) * this.size.width, y: ((1 - p.y) / 2) * this.size.height };
+    });
+  }
+
+  /** Rain, snow or fog around the house (null: clear). */
+  setWeather(effect: { kind: WeatherKind; amount: number } | null) {
+    if (!this.weather.object.parent) this.scene.add(this.weather.object);
+    this.weather.set(effect, this.boxFor(null), this.scene);
+    this.draw();
+  }
+
+  /** Rain or snow falling (the card animates only then). */
+  get weatherFalling() {
+    return this.weather.falling;
+  }
+
   /** Whether a linked fan, drum or pump is turning (the card animates only then). */
   get spinning() {
     for (const [entity, list] of this.devices) {
       const look = this.deviceLooks.get(entity);
-      if (look?.active && list.some((p) => p.spinners.length)) return true;
+      if (look?.active && list.some((p) => p.spinners.length || p.pulsers.length)) return true;
     }
     return false;
   }
@@ -1575,6 +1708,8 @@ export class HouseRenderer {
       hidden: parts.some((m) => !m.visible),
       turn: list.flatMap((p) => p.spinners).map((o) => o.rotation.y + o.rotation.z),
       curtains: list.flatMap((p) => p.curtains).map((o) => o.scale.x),
+      picture: parts.some((m) => !!m.emissiveMap),
+      pulse: list.flatMap((p) => p.pulsers).map((o) => o.scale.x),
     };
   }
 
@@ -1592,6 +1727,13 @@ export class HouseRenderer {
       // about one turn a second, faster with a fan's speed
       const speed = Math.PI * 2 * (0.5 + (look.speed ?? 0.5));
       for (const p of list) for (const o of p.spinners) o.rotation[o.userData.spin as "y" | "z"] += speed * dt;
+      // speakers: a beat, about two a second
+      for (const p of list)
+        for (const o of p.pulsers) {
+          const phase = ((o.userData.phase as number | undefined) ?? 0) + dt * Math.PI * 4;
+          o.userData.phase = phase;
+          o.scale.set(1 + 0.06 * Math.max(0, Math.sin(phase)), 1 + 0.06 * Math.max(0, Math.sin(phase)), 1);
+        }
     }
   }
 
@@ -1821,6 +1963,48 @@ export class HouseRenderer {
 
   /** Where a robot is (null: unknown, hidden) and its status colour. */
   /** Where a robot is and its status colour; `unsure`: its last known spot, faded. */
+  private people = new Map<string, THREE.Group>();
+
+  /**
+   * People where they are: a simple figure in their colour on a level (null: not shown).
+   * Figures are not part of a level's build, so they follow its lift and fade by hand.
+   */
+  setPeople(list: { key: string; levelId: string; at: Vec2; color: string }[]) {
+    const keep = new Set(list.map((p) => p.key));
+    for (const [key, g] of this.people) {
+      if (keep.has(key)) continue;
+      g.parent?.remove(g);
+      g.traverse((o) => o instanceof THREE.Mesh && (o.geometry.dispose(), (o.material as THREE.Material).dispose()));
+      this.people.delete(key);
+    }
+    for (const p of list) {
+      const level = this.levels[this.levelIds.indexOf(p.levelId)];
+      if (!level) continue;
+      let g = this.people.get(p.key);
+      if (!g) {
+        g = new THREE.Group();
+        const m = new THREE.MeshLambertMaterial({ color: p.color });
+        const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.16, 0.9, 4, 12), m);
+        body.position.y = 0.62;
+        const head = new THREE.Mesh(new THREE.SphereGeometry(0.13, 16, 12), m);
+        head.position.y = 1.4;
+        for (const x of [body, head]) x.castShadow = true;
+        g.add(body, head);
+        g.userData.person = p.key;
+        this.people.set(p.key, g);
+      }
+      (g.children[0] as THREE.Mesh<THREE.BufferGeometry, THREE.MeshLambertMaterial>).material.color.set(p.color);
+      if (g.parent !== level.group) level.group.add(g);
+      g.position.set(p.at[0], 0, p.at[1]);
+    }
+    this.draw();
+  }
+
+  /** For tests and labels: who is drawn where. */
+  peopleState() {
+    return [...this.people].map(([key, g]) => ({ key, level: this.levelIds[this.levels.findIndex((l) => l.group === g.parent)], at: [g.position.x, g.position.z] }));
+  }
+
   setRobotState(key: string, at: Vec2 | null, color: string, unsure = false) {
     const r = this.robots.get(key);
     if (!r) return;
@@ -2128,7 +2312,8 @@ export class HouseRenderer {
   private applyCuts() {
     const az = THREE.MathUtils.degToRad(this.orientation.azimuth);
     const toCamera: Vec2 = [Math.sin(az), -Math.cos(az)];
-    const cutting = this.orientation.elevation < this.view.cutBelow;
+    // (walking: every wall stands)
+    const cutting = !this.walkView && this.orientation.elevation < this.view.cutBelow;
     const facing = (n: Vec2) => cutting && n[0] * toCamera[0] + n[1] * toCamera[1] > 0.2;
     for (const c of this.cuttables) c.mesh.visible = !facing(c.normal);
     for (const c of this.covers.values()) {
@@ -2197,6 +2382,9 @@ export class HouseRenderer {
     if (to.camera.azimuth - from.camera.azimuth > 180) from.camera.azimuth += 360;
     if (from.camera.azimuth - to.camera.azimuth > 180) from.camera.azimuth -= 360;
     cancelAnimationFrame(this.animation);
+    // a transition cut short still ends for whoever waits for it
+    this.focusDone?.();
+    this.focusDone = undefined;
     const apply = (t: number) => {
       const e = t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2;
       const mix = (a: number, b: number) => (t >= 1 ? b : a + (b - a) * e);
@@ -2220,13 +2408,17 @@ export class HouseRenderer {
       return Promise.resolve();
     }
     return new Promise((resolve) => {
+      this.focusDone = resolve;
       const start = performance.now();
       const frame = (now: number) => {
         const t = Math.min(1, (now - start) / FOCUS_MS);
         apply(t);
         this.draw();
         if (t < 1) this.animation = requestAnimationFrame(frame);
-        else resolve();
+        else {
+          this.focusDone = undefined;
+          resolve();
+        }
       };
       this.animation = requestAnimationFrame(frame);
     });
@@ -2324,6 +2516,61 @@ export class HouseRenderer {
   /** Underfloor heatings shown as running (tests). */
   underfloorState(entity: string) {
     return (this.underfloors.get(entity) ?? []).map((m) => m.opacity > 0);
+  }
+
+  /** Light falling out of windows at night, by `level/room`: their materials. */
+  private spills = new Map<string, THREE.MeshBasicMaterial[]>();
+  private roomLightLooks = new Map<string, LightLook | null>();
+
+  /** A patch of light on the outdoor floor in front of a window or glass door. */
+  private windowSpill(g: THREE.Group, level: Level, w: Wall, o: Wall["openings"][number]) {
+    if (o.type === "garage_door" || o.type === "opening") return;
+    const len = Math.hypot(w.line[1][0] - w.line[0][0], w.line[1][1] - w.line[0][1]) || 1;
+    const dir: Vec2 = [(w.line[1][0] - w.line[0][0]) / len, (w.line[1][1] - w.line[0][1]) / len];
+    const mid = (o.start + o.end) / 2;
+    const width = (o.end - o.start) * 1.3;
+    const depth = Math.min(3, 1.2 + (o.height - o.sill) * 0.6);
+    const base: Vec2 = [w.line[0][0] + dir[0] * mid + w.normal[0] * 0.15, w.line[0][1] + dir[1] * mid + w.normal[1] * 0.15];
+    // only onto an outdoor area of this level (a garden, a terrace), not into thin air
+    const probe: Vec2 = [base[0] + w.normal[0] * 0.6, base[1] + w.normal[1] * 0.6];
+    if (!level.rooms.some((r) => r.kind === "outdoor" && pointInPolygon(probe, r.polygon))) return;
+    this.fadeTexture ??= fadeTexture();
+    const m = new THREE.MeshBasicMaterial({ color: "#ffd59a", map: this.fadeTexture, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending });
+    const geo = new THREE.PlaneGeometry(width, depth);
+    // the texture fades from its top: the window side
+    geo.rotateX(-Math.PI / 2);
+    geo.translate(0, 0, depth / 2);
+    const mesh = new THREE.Mesh(geo, m);
+    mesh.position.set(base[0], -level.slab + 0.03, base[1]);
+    mesh.rotation.y = Math.atan2(w.normal[0], w.normal[1]);
+    mesh.renderOrder = 3;
+    mesh.visible = false;
+    g.add(mesh);
+    const key = `${level.id}/${o.room}`;
+    const list = this.spills.get(key) ?? [];
+    list.push(m);
+    this.spills.set(key, list);
+    mesh.userData.spill = key;
+  }
+
+  /** The window light of every room, for the room's light and how dark it is outside. */
+  private applySpills() {
+    for (const [key, list] of this.spills) {
+      const light = this.roomLightLooks.get(key);
+      const k = light ? this.night * (0.35 + 0.65 * light.brightness) : 0;
+      for (const m of list) {
+        if (light) m.color.setRGB(light.rgb[0] / 255, light.rgb[1] / 255, light.rgb[2] / 255, THREE.SRGBColorSpace);
+        m.opacity = 0.75 * k;
+      }
+    }
+    this.root.traverse((o) => {
+      if (o.userData.spill) o.visible = ((o as THREE.Mesh).material as THREE.MeshBasicMaterial).opacity > 0.01;
+    });
+  }
+
+  /** For tests: how bright the window light of a room is. */
+  spillState(levelId: string, roomId: string) {
+    return (this.spills.get(`${levelId}/${roomId}`) ?? []).map((m) => m.opacity);
   }
 
   /** Shafts show under the stairwells of a level whose floor below can't be seen. */
@@ -2513,7 +2760,42 @@ export class HouseRenderer {
   }
 
   /** Places the camera so the framed box fills the canvas. */
+  private focusDone?: () => void;
+  private walkView: { levelId: string; at: Vec2; yaw: number; pitch: number } | null = null;
+
+  /**
+   * Eye level on a floor: standing at `at` (plan metres), looking `yaw` degrees from the
+   * plan's north (clockwise) and `pitch` up. null: back to the house from outside.
+   */
+  setWalk(view: { levelId: string; at: Vec2; yaw: number; pitch: number } | null) {
+    this.walkView = view;
+    this.draw();
+  }
+
+  get walking() {
+    return this.walkView;
+  }
+
+  private walkCamera(v: { levelId: string; at: Vec2; yaw: number; pitch: number }) {
+    const l = this.levels[this.levelIds.indexOf(v.levelId)];
+    const g = l?.group.position ?? new THREE.Vector3();
+    const eye = new THREE.Vector3(v.at[0] + g.x, g.y + 1.6, v.at[1] + g.z);
+    const yaw = THREE.MathUtils.degToRad(v.yaw);
+    const pitch = THREE.MathUtils.degToRad(v.pitch);
+    const dir = new THREE.Vector3(Math.sin(yaw) * Math.cos(pitch), Math.sin(pitch), -Math.cos(yaw) * Math.cos(pitch));
+    this.camera.fov = 70;
+    this.camera.aspect = this.size.width / this.size.height;
+    this.camera.near = 0.05;
+    this.camera.far = 400;
+    this.camera.position.copy(eye);
+    this.camera.up.set(0, 1, 0);
+    this.camera.lookAt(eye.add(dir));
+    this.camera.updateProjectionMatrix();
+    this.camera.updateMatrixWorld();
+  }
+
   private fitCamera() {
+    if (this.walkView) return this.walkCamera(this.walkView);
     const c = this.orientation;
     const { toCamera, right, up } = this.axes(c);
     const center = this.box.getCenter(new THREE.Vector3());
@@ -2567,6 +2849,7 @@ export class HouseRenderer {
       this.ambient.intensity = this.look === "blueprint" ? 0.2 : 0.1;
     }
     this.night = 1 - day;
+    this.applySpills();
     this.placeSun();
   }
 
@@ -2703,11 +2986,13 @@ export class HouseRenderer {
     this.placeLights();
     if (this.flows.length) this.updateFlows(now);
     if (this.devices.size || this.leaves.size) this.spin(now);
+    if (this.weatherFx?.falling) this.weatherFx.step(now);
     this.applyCuts();
     this.renderer.render(this.scene, this.camera);
   }
 
   dispose() {
+    this.weatherFx?.dispose();
     this.stopFinishes();
     this.clear();
     this.renderer.dispose();

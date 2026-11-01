@@ -487,7 +487,7 @@ export class HomeslicePanel extends LitElement {
   private _draft: { model: HouseInput; time: number; stale: boolean } | null = null;
   private draftTimer = 0;
   /** House settings in the inspector: name, YAML in and out, delete. */
-  private _settings: { paste?: string; problems?: string[]; copied?: boolean; prompt?: "copying" | "copied" | string; errorsCopied?: boolean } | null = null;
+  private _settings: { paste?: string; problems?: string[]; copied?: boolean; prompt?: "copying" | "copied" | string; errorsCopied?: boolean; notice?: string } | null = null;
   /** Energy item waiting for a click on the plan to be placed. */
   private _energyPlace: EnergyInput | null = null;
   private _energySel: number | null = null;
@@ -2381,6 +2381,13 @@ export class HomeslicePanel extends LitElement {
       ${this.renderSnapPieces()}
       ${this.linkSelect(r.area_id, f.entity, (entity) => set({ entity }), linkDomain(f.type, f.model?.startsWith("modern:") ? f.model.slice(7) : f.model ? undefined : defaultKind(f.type, mountOf(f))))}
       <p class="muted">${this.t("editor.furniture_entity_hint")}</p>
+      ${(f.readings ?? []).map(
+        (id, i) => html`<div class="row detail">
+          <span>${this.entityName(id)}</span>
+          <button class="icon" title=${this.t("editor.light_remove")} @click=${() => set({ readings: (f.readings ?? []).filter((_, j) => j !== i) })}><ha-icon icon="mdi:close"></ha-icon></button>
+        </div>`,
+      )}
+      ${this.entitySelect(this.t("editor.furniture_reading_add"), "sensor", r.area_id, undefined, (id) => id && set({ readings: [...(f.readings ?? []), id] }))}
       <div class="row">
         <button title=${this.t("editor.turn_left")} @click=${() => this.rotateFurniture(-90)}>⟲ 90°</button>
         <button title=${this.t("editor.turn_right")} @click=${() => this.rotateFurniture(90)}>⟳ 90°</button>
@@ -2598,6 +2605,16 @@ export class HomeslicePanel extends LitElement {
       ${e.kind === "battery"
         ? this.entitySelect(this.t("editor.energy_soc"), "sensor", undefined, e.soc, (id) => set({ soc: id }), (id) => this._hass?.states[id]?.attributes.device_class === "battery")
         : nothing}
+      <h4>${this.t("editor.energy_details")}</h4>
+      ${(e.details ?? []).map((d, i) => {
+        const id = typeof d === "string" ? d : d.entity;
+        return html`<div class="row detail">
+          <span>${this.entityName(id)}</span>
+          <button class="icon" title=${this.t("editor.light_remove")} @click=${() => set({ details: (e.details ?? []).filter((_, j) => j !== i) })}><ha-icon icon="mdi:close"></ha-icon></button>
+        </div>`;
+      })}
+      ${this.entitySelect(this.t("editor.energy_detail_add"), "sensor", undefined, undefined, (id) => id && set({ details: [...(e.details ?? []), id] }))}
+      <p class="muted">${this.t("editor.energy_details_hint")}</p>
       ${e.kind === "solar"
         ? html`<label>${this.t("editor.energy_roof_side")}
             <select @change=${(ev: Event) => set({ roof: (ev.target as HTMLSelectElement).value as Side })}>
@@ -4464,6 +4481,38 @@ export class HomeslicePanel extends LitElement {
         }} />
       </label>
       <p class="muted">${this.t("editor.import_hint")}</p>
+      <h3>${this.t("editor.backup")}</h3>
+      <div class="row">
+        <button data-backup @click=${async () => {
+          const { name, data } = await this._hass!.callWS<{ name: string; data: string }>({ type: "homeslice/backup" });
+          const a = document.createElement("a");
+          a.href = data;
+          a.download = `${new Date().toISOString().slice(0, 10)}-${name}`;
+          a.click();
+        }}>${this.t("editor.backup_download")}</button>
+        <label class="file"
+          >${this.t("editor.backup_restore")}
+          <input type="file" accept=".zip" @change=${async (e: Event) => {
+            const file = (e.target as HTMLInputElement).files?.[0];
+            if (!file || !confirm(this.t("editor.backup_restore_confirm"))) return;
+            const data = await new Promise<string>((resolve) => {
+              const reader = new FileReader();
+              reader.onload = () => resolve(String(reader.result));
+              reader.readAsDataURL(file);
+            });
+            try {
+              const r = await this._hass!.callWS<{ houses: string[]; plans: number; models: number }>({ type: "homeslice/backup/restore", data });
+              this._settings = { ...st, problems: undefined, notice: this.t("editor.backup_restored", { houses: r.houses.length, plans: r.plans, models: r.models }) };
+              this._houses = await this._hass!.callWS<HouseSummary[]>({ type: "homeslice/houses" });
+              await this.openHouse(this._house);
+            } catch (err) {
+              this._settings = { ...st, problems: [String((err as { message?: string }).message ?? err)] };
+            }
+          }} />
+        </label>
+      </div>
+      ${st.notice ? html`<p class="notice">${st.notice}</p>` : nothing}
+      <p class="muted">${this.t("editor.backup_hint")}</p>
       <h3>${this.t("editor.danger")}</h3>
       <button class="danger" @click=${async () => {
         if (!confirm(this.t("editor.delete_house_confirm", { name: m.name ?? this._house }))) return;
@@ -4650,6 +4699,11 @@ export class HomeslicePanel extends LitElement {
   }
 
   static override styles = css`
+    p.notice {
+      padding: 8px 10px;
+      border-radius: 8px;
+      background: color-mix(in srgb, var(--success-color, #43a047) 15%, transparent);
+    }
     :host {
       display: flex;
       flex-direction: column;

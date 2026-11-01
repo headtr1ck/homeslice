@@ -38,6 +38,39 @@
           "description": "Nadpisz także domy edytowane w edytorze."
         }
       }
+    },
+    "show": {
+      "name": "Pokaż w domu",
+      "description": "Otwarte karty Homeslice przechodzą na chwilę do obszaru, piętra lub encji (np. z Assist: „Pokaż kuchnię”).",
+      "fields": {
+        "area": {
+          "name": "Obszar",
+          "description": "ID lub nazwa obszaru."
+        },
+        "floor": {
+          "name": "Piętro",
+          "description": "ID lub nazwa piętra."
+        },
+        "entity_id": {
+          "name": "Encja",
+          "description": "Pokaż, gdzie jest ta encja."
+        },
+        "seconds": {
+          "name": "Sekundy",
+          "description": "Jak długo (domyślnie: czas śledzenia karty)."
+        }
+      }
+    }
+  },
+  "exceptions": {
+    "unknown_area": {
+      "message": "Nie ma obszaru o nazwie {area}."
+    },
+    "unknown_floor": {
+      "message": "Nie ma piętra o nazwie {floor}."
+    },
+    "show_nothing": {
+      "message": "Podaj obszar, piętro lub encję."
     }
   }
 }

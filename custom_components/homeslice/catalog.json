@@ -485,6 +485,10 @@
     "black",
     "white",
     "oak"
+   ],
+   "tags": [
+    "media_player",
+    "speaker"
    ]
   },
   {
@@ -500,6 +504,9 @@
    "finishes": [
     "white",
     "black"
+   ],
+   "tags": [
+    "media_player"
    ]
   },
   {
@@ -949,6 +956,10 @@
     "black",
     "anthracite"
    ],
+   "tags": [
+    "media_player",
+    "screen"
+   ],
    "accents": [
     "black",
     "oak",
@@ -971,6 +982,10 @@
     "walnut",
     "black",
     "anthracite"
+   ],
+   "tags": [
+    "media_player",
+    "screen"
    ],
    "mount": "wall",
    "elevation": 0.35
@@ -1033,6 +1048,10 @@
     "walnut",
     "black",
     "anthracite"
+   ],
+   "tags": [
+    "media_player",
+    "screen"
    ]
   },
   {
@@ -1047,6 +1066,10 @@
    ],
    "finishes": [
     "black"
+   ],
+   "tags": [
+    "media_player",
+    "screen"
    ],
    "mount": "wall",
    "elevation": 1
@@ -1066,6 +1089,10 @@
     "blue",
     "green",
     "sand"
+   ],
+   "tags": [
+    "media_player",
+    "screen"
    ],
    "accents": [
     "oak",
@@ -1090,6 +1117,10 @@
     "black",
     "white"
    ],
+   "tags": [
+    "media_player",
+    "speaker"
+   ],
    "mount": "wall",
    "elevation": 0.85
   },
@@ -1107,6 +1138,10 @@
     "black",
     "walnut",
     "white"
+   ],
+   "tags": [
+    "media_player",
+    "speaker"
    ]
   },
   {
@@ -1123,6 +1158,10 @@
     "black",
     "white",
     "walnut"
+   ],
+   "tags": [
+    "media_player",
+    "speaker"
    ]
   },
   {
@@ -1266,6 +1305,9 @@
     "oak",
     "sand"
    ],
+   "tags": [
+    "light"
+   ],
    "accents": [
     "chrome",
     "black",
@@ -1287,6 +1329,9 @@
     "white",
     "oak",
     "sand"
+   ],
+   "tags": [
+    "light"
    ],
    "accents": [
     "black",
@@ -1310,6 +1355,9 @@
     "oak",
     "sand"
    ],
+   "tags": [
+    "light"
+   ],
    "accents": [
     "black",
     "brass",
@@ -1332,6 +1380,9 @@
     "white",
     "oak",
     "sand"
+   ],
+   "tags": [
+    "light"
    ],
    "accents": [
     "black",
@@ -1517,6 +1568,9 @@
     "black",
     "anthracite",
     "red"
+   ],
+   "tags": [
+    "fire"
    ]
   },
   {
@@ -1533,6 +1587,9 @@
     "white",
     "concrete",
     "anthracite"
+   ],
+   "tags": [
+    "fire"
    ]
   },
   {
@@ -1551,6 +1608,9 @@
     "sand",
     "terracotta",
     "anthracite"
+   ],
+   "tags": [
+    "fire"
    ],
    "accents": [
     "oak",
@@ -1575,6 +1635,9 @@
     "white",
     "concrete",
     "black"
+   ],
+   "tags": [
+    "fire"
    ]
   },
   {
@@ -1625,6 +1688,9 @@
     "walnut",
     "black",
     "anthracite"
+   ],
+   "tags": [
+    "light"
    ]
   },
   {
@@ -1718,6 +1784,9 @@
     "green",
     "blue",
     "terracotta"
+   ],
+   "tags": [
+    "cover"
    ],
    "accents": [
     "black",
@@ -2459,6 +2528,9 @@
     "black",
     "walnut"
    ],
+   "tags": [
+    "appliance"
+   ],
    "accents": [
     "marble",
     "concrete",
@@ -2772,6 +2844,9 @@
     "silver",
     "black",
     "white"
+   ],
+   "tags": [
+    "bin"
    ]
   },
   {
@@ -3593,6 +3668,10 @@
     "black",
     "white",
     "silver"
+   ],
+   "tags": [
+    "media_player",
+    "screen"
    ]
   },
   {
@@ -4697,6 +4776,10 @@
     "black",
     "anthracite"
    ],
+   "tags": [
+    "climate",
+    "heating"
+   ],
    "mount": "wall",
    "elevation": 0.2
   },
@@ -4810,6 +4893,9 @@
     "green",
     "pink",
     "black"
+   ],
+   "tags": [
+    "plant"
    ]
   },
   {
@@ -4831,6 +4917,9 @@
     "green",
     "pink",
     "black"
+   ],
+   "tags": [
+    "plant"
    ]
   },
   {
@@ -4852,6 +4941,9 @@
     "green",
     "pink",
     "black"
+   ],
+   "tags": [
+    "plant"
    ]
   },
   {
@@ -4873,6 +4965,9 @@
     "green",
     "pink",
     "black"
+   ],
+   "tags": [
+    "plant"
    ]
   },
   {
@@ -4894,6 +4989,9 @@
     "green",
     "pink",
     "black"
+   ],
+   "tags": [
+    "plant"
    ]
   },
   {
@@ -4916,6 +5014,9 @@
     "pink",
     "black"
    ],
+   "tags": [
+    "plant"
+   ],
    "mount": "ceiling"
   },
   {
@@ -4937,6 +5038,9 @@
     "green",
     "pink",
     "black"
+   ],
+   "tags": [
+    "plant"
    ]
   },
   {
@@ -4958,6 +5062,9 @@
     "green",
     "pink",
     "black"
+   ],
+   "tags": [
+    "plant"
    ]
   },
   {
@@ -4979,6 +5086,9 @@
     "green",
     "pink",
     "black"
+   ],
+   "tags": [
+    "plant"
    ]
   },
   {
@@ -5000,6 +5110,9 @@
     "green",
     "pink",
     "black"
+   ],
+   "tags": [
+    "plant"
    ]
   },
   {
@@ -5021,6 +5134,9 @@
     "green",
     "pink",
     "black"
+   ],
+   "tags": [
+    "plant"
    ]
   },
   {
@@ -5042,6 +5158,9 @@
     "green",
     "pink",
     "black"
+   ],
+   "tags": [
+    "plant"
    ]
   },
   {
@@ -5063,6 +5182,9 @@
     "green",
     "pink",
     "black"
+   ],
+   "tags": [
+    "plant"
    ]
   },
   {
@@ -5084,6 +5206,9 @@
     "green",
     "pink",
     "black"
+   ],
+   "tags": [
+    "plant"
    ]
   },
   {
@@ -5105,6 +5230,9 @@
     "green",
     "pink",
     "black"
+   ],
+   "tags": [
+    "plant"
    ]
   },
   {
@@ -5126,6 +5254,9 @@
     "green",
     "pink",
     "black"
+   ],
+   "tags": [
+    "plant"
    ]
   },
   {
@@ -5147,6 +5278,9 @@
     "green",
     "pink",
     "black"
+   ],
+   "tags": [
+    "plant"
    ]
   },
   {
@@ -5168,6 +5302,9 @@
     "green",
     "pink",
     "black"
+   ],
+   "tags": [
+    "plant"
    ]
   },
   {
@@ -5189,6 +5326,9 @@
     "green",
     "pink",
     "black"
+   ],
+   "tags": [
+    "plant"
    ]
   },
   {
@@ -5210,6 +5350,9 @@
     "green",
     "pink",
     "black"
+   ],
+   "tags": [
+    "plant"
    ]
   },
   {
@@ -5231,6 +5374,9 @@
     "green",
     "pink",
     "black"
+   ],
+   "tags": [
+    "plant"
    ]
   },
   {
@@ -5824,6 +5970,9 @@
     "oak",
     "anthracite",
     "black"
+   ],
+   "tags": [
+    "light"
    ]
   },
   {
@@ -5841,6 +5990,9 @@
     "white",
     "brass",
     "anthracite"
+   ],
+   "tags": [
+    "light"
    ]
   },
   {
@@ -5880,6 +6032,9 @@
     "anthracite",
     "grey",
     "green"
+   ],
+   "tags": [
+    "bin"
    ]
   },
   {
@@ -6193,6 +6348,9 @@
     "anthracite",
     "black",
     "silver"
+   ],
+   "tags": [
+    "light"
    ]
   },
   {
@@ -6212,6 +6370,9 @@
     "sand",
     "green",
     "terracotta"
+   ],
+   "tags": [
+    "light"
    ],
    "accents": [
     "black",
@@ -6233,6 +6394,9 @@
    ],
    "finishes": [
     "white"
+   ],
+   "tags": [
+    "light"
    ],
    "accents": [
     "black",
@@ -6258,6 +6422,9 @@
     "brass",
     "oak"
    ],
+   "tags": [
+    "light"
+   ],
    "accents": [
     "black",
     "brass",
@@ -6278,6 +6445,9 @@
    ],
    "finishes": [
     "white"
+   ],
+   "tags": [
+    "light"
    ],
    "accents": [
     "black",
@@ -6302,6 +6472,9 @@
     "black",
     "white"
    ],
+   "tags": [
+    "light"
+   ],
    "accents": [
     "black",
     "brass",
@@ -6323,6 +6496,9 @@
    "finishes": [
     "white"
    ],
+   "tags": [
+    "light"
+   ],
    "accents": [
     "brass",
     "black",
@@ -6342,6 +6518,9 @@
    ],
    "finishes": [
     "white"
+   ],
+   "tags": [
+    "light"
    ],
    "accents": [
     "white",
@@ -6365,6 +6544,9 @@
     "white",
     "brass"
    ],
+   "tags": [
+    "light"
+   ],
    "mount": "ceiling"
   },
   {
@@ -6382,6 +6564,9 @@
     "white",
     "brass",
     "anthracite"
+   ],
+   "tags": [
+    "light"
    ],
    "mount": "wall",
    "elevation": 1.75
@@ -6404,6 +6589,9 @@
     "green",
     "terracotta"
    ],
+   "tags": [
+    "light"
+   ],
    "accents": [
     "black",
     "brass",
@@ -6425,6 +6613,9 @@
    ],
    "finishes": [
     "white"
+   ],
+   "tags": [
+    "light"
    ],
    "accents": [
     "black",
@@ -6451,6 +6642,9 @@
     "white",
     "silver"
    ],
+   "tags": [
+    "light"
+   ],
    "mount": "wall",
    "elevation": 2
   },
@@ -6470,6 +6664,9 @@
     "terracotta",
     "black",
     "pink"
+   ],
+   "tags": [
+    "light"
    ]
   },
   {
@@ -6488,6 +6685,9 @@
     "green",
     "blue",
     "sand"
+   ],
+   "tags": [
+    "light"
    ],
    "accents": [
     "brass",
@@ -6509,6 +6709,9 @@
     "white",
     "green",
     "red"
+   ],
+   "tags": [
+    "light"
    ],
    "accents": [
     "black",
@@ -6534,6 +6737,9 @@
     "green",
     "terracotta"
    ],
+   "tags": [
+    "light"
+   ],
    "accents": [
     "black",
     "brass",
@@ -6556,6 +6762,9 @@
     "black",
     "brass"
    ],
+   "tags": [
+    "light"
+   ],
    "accents": [
     "black",
     "brass",
@@ -6574,6 +6783,9 @@
    ],
    "finishes": [
     "white"
+   ],
+   "tags": [
+    "light"
    ],
    "accents": [
     "black",
@@ -6596,6 +6808,9 @@
     "white",
     "green",
     "brass"
+   ],
+   "tags": [
+    "light"
    ],
    "accents": [
     "black",
@@ -6621,6 +6836,9 @@
     "green",
     "terracotta"
    ],
+   "tags": [
+    "light"
+   ],
    "accents": [
     "brass",
     "chrome",
@@ -6644,6 +6862,9 @@
     "anthracite",
     "brass"
    ],
+   "tags": [
+    "light"
+   ],
    "accents": [
     "black",
     "brass",
@@ -6665,6 +6886,9 @@
    "finishes": [
     "white"
    ],
+   "tags": [
+    "detector"
+   ],
    "mount": "ceiling"
   },
   {
@@ -6680,6 +6904,9 @@
    "finishes": [
     "white",
     "black"
+   ],
+   "tags": [
+    "detector"
    ]
   },
   {
@@ -6695,6 +6922,9 @@
    "finishes": [
     "white",
     "black"
+   ],
+   "tags": [
+    "detector"
    ],
    "mount": "wall",
    "elevation": 2.1
@@ -6712,6 +6942,9 @@
    "finishes": [
     "white",
     "black"
+   ],
+   "tags": [
+    "detector"
    ],
    "mount": "wall",
    "elevation": 1.9
@@ -6731,6 +6964,9 @@
     "black",
     "silver"
    ],
+   "tags": [
+    "climate"
+   ],
    "mount": "wall",
    "elevation": 1.45
   },
@@ -6748,6 +6984,9 @@
     "white",
     "black"
    ],
+   "tags": [
+    "sensor"
+   ],
    "mount": "wall",
    "elevation": 1.5
   },
@@ -6764,6 +7003,9 @@
    "finishes": [
     "white",
     "black"
+   ],
+   "tags": [
+    "switch"
    ],
    "mount": "wall",
    "elevation": 0.3
@@ -6783,6 +7025,9 @@
     "silver",
     "white"
    ],
+   "tags": [
+    "camera"
+   ],
    "mount": "wall",
    "elevation": 1.35
   },
@@ -6799,6 +7044,9 @@
    "finishes": [
     "white",
     "black"
+   ],
+   "tags": [
+    "camera"
    ],
    "mount": "wall",
    "elevation": 2.3
@@ -6833,6 +7081,10 @@
     "black",
     "white",
     "sand"
+   ],
+   "tags": [
+    "media_player",
+    "speaker"
    ]
   },
   {
@@ -6848,6 +7100,9 @@
    "finishes": [
     "white",
     "black"
+   ],
+   "tags": [
+    "alarm"
    ],
    "mount": "wall",
    "elevation": 1.4
@@ -6866,6 +7121,9 @@
     "white",
     "silver",
     "black"
+   ],
+   "tags": [
+    "climate"
    ],
    "mount": "wall",
    "elevation": 2
@@ -6886,6 +7144,9 @@
     "black",
     "sand"
    ],
+   "tags": [
+    "climate"
+   ],
    "mount": "wall",
    "elevation": 2
   },
@@ -6903,6 +7164,9 @@
     "white",
     "silver"
    ],
+   "tags": [
+    "climate"
+   ],
    "mount": "ceiling"
   },
   {
@@ -6918,6 +7182,9 @@
    "finishes": [
     "white",
     "silver"
+   ],
+   "tags": [
+    "climate"
    ],
    "mount": "ceiling"
   },
@@ -6935,6 +7202,9 @@
     "white",
     "silver",
     "black"
+   ],
+   "tags": [
+    "climate"
    ]
   },
   {
@@ -6951,6 +7221,9 @@
     "white",
     "anthracite",
     "grey"
+   ],
+   "tags": [
+    "climate"
    ]
   },
   {
@@ -6967,6 +7240,9 @@
     "white",
     "anthracite",
     "grey"
+   ],
+   "tags": [
+    "climate"
    ],
    "mount": "wall",
    "elevation": 1.2
@@ -6985,6 +7261,9 @@
     "white",
     "anthracite",
     "grey"
+   ],
+   "tags": [
+    "climate"
    ]
   },
   {
@@ -7001,6 +7280,9 @@
     "white",
     "anthracite",
     "silver"
+   ],
+   "tags": [
+    "climate"
    ]
   },
   {
@@ -7017,6 +7299,10 @@
     "white",
     "anthracite",
     "black"
+   ],
+   "tags": [
+    "climate",
+    "heating"
    ],
    "mount": "wall",
    "elevation": 0.15
@@ -7037,6 +7323,10 @@
     "black",
     "silver"
    ],
+   "tags": [
+    "climate",
+    "heating"
+   ],
    "mount": "wall",
    "elevation": 0.15
   },
@@ -7055,6 +7345,10 @@
     "white",
     "black",
     "silver"
+   ],
+   "tags": [
+    "climate",
+    "heating"
    ],
    "mount": "wall",
    "elevation": 0.12
@@ -7075,6 +7369,10 @@
     "black",
     "red"
    ],
+   "tags": [
+    "climate",
+    "heating"
+   ],
    "mount": "wall",
    "elevation": 0.12
   },
@@ -7094,6 +7392,10 @@
     "silver",
     "green",
     "beige"
+   ],
+   "tags": [
+    "climate",
+    "heating"
    ]
   },
   {
@@ -7110,6 +7412,10 @@
     "white",
     "beige",
     "grey"
+   ],
+   "tags": [
+    "climate",
+    "heating"
    ],
    "mount": "wall",
    "elevation": 0.1
@@ -7128,6 +7434,9 @@
     "white",
     "black",
     "silver"
+   ],
+   "tags": [
+    "fan"
    ],
    "accents": [
     "white",
@@ -7149,6 +7458,9 @@
     "white",
     "anthracite",
     "sand"
+   ],
+   "tags": [
+    "fan"
    ]
   },
   {
@@ -7165,6 +7477,9 @@
     "white",
     "grey",
     "black"
+   ],
+   "tags": [
+    "humidifier"
    ]
   },
   {
@@ -7241,6 +7556,9 @@
     "anthracite",
     "silver"
    ],
+   "tags": [
+    "appliance"
+   ],
    "accents": [
     "chrome",
     "black",
@@ -7261,6 +7579,9 @@
     "white",
     "anthracite",
     "silver"
+   ],
+   "tags": [
+    "appliance"
    ],
    "accents": [
     "chrome",
@@ -7283,6 +7604,9 @@
     "anthracite",
     "silver"
    ],
+   "tags": [
+    "appliance"
+   ],
    "accents": [
     "chrome",
     "black",
@@ -7304,6 +7628,9 @@
     "white",
     "black",
     "walnut"
+   ],
+   "tags": [
+    "fan"
    ],
    "accents": [
     "white",
@@ -7371,6 +7698,9 @@
     "white",
     "silver",
     "anthracite"
+   ],
+   "tags": [
+    "appliance"
    ]
   },
   {
@@ -7989,6 +8319,10 @@
     "white",
     "black"
    ],
+   "tags": [
+    "media_player",
+    "screen"
+   ],
    "mount": "wall",
    "elevation": 0.8
   },
@@ -8274,6 +8608,9 @@
     "terracotta",
     "black",
     "concrete"
+   ],
+   "tags": [
+    "fire"
    ]
   },
   {
@@ -8439,6 +8776,9 @@
     "oak",
     "green",
     "anthracite"
+   ],
+   "tags": [
+    "bin"
    ]
   },
   {
@@ -8501,6 +8841,9 @@
    ],
    "finishes": [
     "anthracite"
+   ],
+   "tags": [
+    "bin"
    ]
   },
   {
@@ -8518,6 +8861,9 @@
     "green",
     "grey",
     "black"
+   ],
+   "tags": [
+    "bin"
    ],
    "accents": [
     "anthracite",
@@ -8545,6 +8891,9 @@
     "silver",
     "red"
    ],
+   "tags": [
+    "mailbox"
+   ],
    "mount": "wall",
    "elevation": 1.1
   },
@@ -8563,6 +8912,9 @@
     "black",
     "white",
     "silver"
+   ],
+   "tags": [
+    "mailbox"
    ]
   },
   {
@@ -8583,6 +8935,9 @@
     "blue",
     "red",
     "green"
+   ],
+   "tags": [
+    "vehicle"
    ]
   },
   {
@@ -8600,6 +8955,9 @@
     "white",
     "red",
     "anthracite"
+   ],
+   "tags": [
+    "vehicle"
    ]
   },
   {
@@ -8620,6 +8978,9 @@
     "blue",
     "red",
     "green"
+   ],
+   "tags": [
+    "vehicle"
    ]
   },
   {
@@ -8640,6 +9001,9 @@
     "blue",
     "red",
     "green"
+   ],
+   "tags": [
+    "vehicle"
    ]
   },
   {
@@ -8660,6 +9024,9 @@
     "blue",
     "red",
     "green"
+   ],
+   "tags": [
+    "vehicle"
    ]
   },
   {
@@ -8680,6 +9047,9 @@
     "blue",
     "red",
     "green"
+   ],
+   "tags": [
+    "vehicle"
    ]
   },
   {
@@ -8700,6 +9070,9 @@
     "blue",
     "red",
     "green"
+   ],
+   "tags": [
+    "vehicle"
    ]
   },
   {
@@ -8718,6 +9091,9 @@
     "blue",
     "silver",
     "green"
+   ],
+   "tags": [
+    "vehicle"
    ]
   },
   {
@@ -8749,6 +9125,9 @@
     "white",
     "anthracite",
     "black"
+   ],
+   "tags": [
+    "charger"
    ],
    "mount": "wall",
    "elevation": 1

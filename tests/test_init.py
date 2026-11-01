@@ -419,3 +419,74 @@ async def test_http_api(hass: HomeAssistant, setup, hass_client) -> None:
     assert resp.status == 200
     resp = await client.get("/api/homeslice/houses/home")
     assert "area_id: living_room" in await resp.text()
+
+
+async def test_show_action_reaches_cards_by_name_or_id(hass: HomeAssistant, setup, hass_ws_client, hass_read_only_access_token) -> None:
+    from homeassistant.exceptions import ServiceValidationError
+
+    area = ar.async_get(hass).async_create("Snug", aliases={"lounge"})
+    # wall tablets often log in as a plain user
+    client = await hass_ws_client(hass, hass_read_only_access_token)
+    await client.send_json_auto_id({"type": "homeslice/show/subscribe"})
+    assert (await client.receive_json())["success"]
+
+    await hass.services.async_call(DOMAIN, "show", {"area": "the lounge", "seconds": 20}, blocking=True)
+    event = await client.receive_json()
+    assert event["event"] == {"area_id": area.id, "seconds": 20}
+
+    await hass.services.async_call(DOMAIN, "show", {"entity_id": "camera.door"}, blocking=True)
+    assert (await client.receive_json())["event"] == {"entity_id": "camera.door"}
+
+    with pytest.raises(ServiceValidationError):
+        await hass.services.async_call(DOMAIN, "show", {"area": "attic"}, blocking=True)
+    with pytest.raises(ServiceValidationError):
+        await hass.services.async_call(DOMAIN, "show", {}, blocking=True)
+
+
+async def test_backup_round_trip_keeps_ids(hass: HomeAssistant, setup, hass_ws_client, tmp_path: Path) -> None:
+    import io
+    import zipfile
+
+    client = await hass_ws_client(hass)
+    await client.send_json_auto_id({"type": "homeslice/assets/custom/upload", "name": "Chair", "data": GLB})
+    uploaded = (await client.receive_json())["result"]
+    m = model()
+    m["levels"][0]["rooms"][0]["furniture"] = [{"type": "chair", "at": [1, 1], "model": f"custom:{uploaded['id']}"}]
+    await client.send_json_auto_id({"type": "homeslice/model/save", "house": "home", "model": m})
+    assert (await client.receive_json())["success"]
+
+    await client.send_json_auto_id({"type": "homeslice/backup"})
+    backup = (await client.receive_json())["result"]
+    blob = base64.b64decode(backup["data"].split(",", 1)[1])
+    names = zipfile.ZipFile(io.BytesIO(blob)).namelist()
+    assert {"manifest.json", "houses/home.json", "models/index.json", f"models/{uploaded['id']}.glb"} <= set(names)
+
+    # gone, then back with the same ids
+    await client.send_json_auto_id({"type": "homeslice/assets/custom/delete", "asset": uploaded["id"]})
+    await client.receive_json()
+    await client.send_json_auto_id({"type": "homeslice/backup/restore", "data": backup["data"]})
+    result = (await client.receive_json())["result"]
+    assert result == {"houses": ["home"], "plans": 0, "models": 1}
+    await client.send_json_auto_id({"type": "homeslice/assets/custom"})
+    assert [x["id"] for x in (await client.receive_json())["result"]] == [uploaded["id"]]
+
+
+@pytest.mark.parametrize("name", ["../evil.json", "houses/../../x.json", "scripts/run.sh"])
+async def test_backup_with_odd_files_is_refused(hass: HomeAssistant, setup, hass_ws_client, name: str) -> None:
+    import io
+    import zipfile
+
+    out = io.BytesIO()
+    with zipfile.ZipFile(out, "w") as z:
+        z.writestr("manifest.json", '{"format": "homeslice-backup", "version": 1}')
+        z.writestr(name, "x")
+    client = await hass_ws_client(hass)
+    await client.send_json_auto_id({"type": "homeslice/backup/restore", "data": base64.b64encode(out.getvalue()).decode()})
+    reply = await client.receive_json()
+    assert not reply["success"] and reply["error"]["code"] == "invalid_backup"
+
+
+async def test_backup_is_admin_only(hass: HomeAssistant, setup, hass_ws_client, hass_read_only_access_token) -> None:
+    client = await hass_ws_client(hass, hass_read_only_access_token)
+    await client.send_json_auto_id({"type": "homeslice/backup"})
+    assert not (await client.receive_json())["success"]

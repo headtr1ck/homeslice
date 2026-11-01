@@ -18,8 +18,9 @@ from homeassistant.helpers.debounce import Debouncer
 from .assets import ASSETS_URL, Assets
 from .rest_api import async_register_views
 from .llm import async_register_llm_api
-from .const import DOMAIN, FRONTEND_FILE, FRONTEND_URL, PANEL_FILE
+from .const import DOMAIN, FRONTEND_FILE, FRONTEND_URL, PANEL_FILE, SHOW_EVENT
 from .repairs import async_check_house
+from .show import resolve_show
 from .store import HomesliceStore
 from .underlay import Underlays
 from .websocket import async_register_websocket
@@ -76,6 +77,23 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
         hass.services.async_register(
             DOMAIN, "import_files", import_files, schema=vol.Schema({vol.Optional("force", default=False): bool})
+        )
+
+        async def show(call: ServiceCall) -> None:
+            hass.bus.async_fire(SHOW_EVENT, resolve_show(hass, dict(call.data)))
+
+        hass.services.async_register(
+            DOMAIN,
+            "show",
+            show,
+            schema=vol.Schema(
+                {
+                    vol.Optional("area"): str,
+                    vol.Optional("floor"): str,
+                    vol.Optional("entity_id"): str,
+                    vol.Optional("seconds"): vol.All(vol.Coerce(int), vol.Range(min=5, max=3600)),
+                }
+            ),
         )
         data["registered"] = True
 

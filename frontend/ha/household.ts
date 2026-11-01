@@ -1,6 +1,7 @@
 // Little notes above linked pieces: bins on pickup day, thirsty plants, post in the
 // mailbox, an appliance's time left. Nothing shows while nothing needs attention.
 
+import type { Tag } from "../model/modern";
 import type { Hass } from "./hass";
 
 export interface Badge {
@@ -14,8 +15,8 @@ export interface Badge {
 
 const minutes = (value: number, unit: string) => (unit === "h" ? value * 60 : unit === "s" ? value / 60 : unit === "d" ? value * 1440 : value);
 
-/** The note for a piece linked to an entity, or null. `kind` is the piece's model kind. */
-export function pieceBadge(hass: Hass, entity: string, kind = ""): Badge | null {
+/** The note for a piece linked to an entity, or null. `tags`: the piece's (model/modern.ts). */
+export function pieceBadge(hass: Hass, entity: string, tags: Tag[] = []): Badge | null {
   const s = hass.states[entity];
   if (!s || s.state === "unavailable" || s.state === "unknown") return null;
   const domain = entity.split(".")[0];
@@ -29,7 +30,7 @@ export function pieceBadge(hass: Hass, entity: string, kind = ""): Badge | null 
   }
   if (domain === "binary_sensor") {
     // a mailbox: post in it
-    return /mail|letter|post/.test(kind + entity) && s.state === "on" ? { icon: "mdi:email-alert", key: "post", urgent: false } : null;
+    return tags.includes("mailbox") && s.state === "on" ? { icon: "mdi:email-alert", key: "post", urgent: false } : null;
   }
   if (domain === "sensor" || domain === "calendar") {
     const unit = String(a.unit_of_measurement ?? "");

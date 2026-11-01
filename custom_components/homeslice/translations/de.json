@@ -38,6 +38,39 @@
           "description": "Auch Häuser überschreiben, die im Editor bearbeitet wurden."
         }
       }
+    },
+    "show": {
+      "name": "Im Haus zeigen",
+      "description": "Offene Homeslice-Karten fliegen eine Weile zu einem Bereich, Stockwerk oder einer Entität (z. B. aus Assist: „Zeig das Wohnzimmer“).",
+      "fields": {
+        "area": {
+          "name": "Bereich",
+          "description": "ID oder Name des Bereichs."
+        },
+        "floor": {
+          "name": "Stockwerk",
+          "description": "ID oder Name des Stockwerks."
+        },
+        "entity_id": {
+          "name": "Entität",
+          "description": "Zeigen, wo diese Entität ist."
+        },
+        "seconds": {
+          "name": "Sekunden",
+          "description": "Wie lange (Standard: die Folgezeit der Karte)."
+        }
+      }
+    }
+  },
+  "exceptions": {
+    "unknown_area": {
+      "message": "Es gibt keinen Bereich namens {area}."
+    },
+    "unknown_floor": {
+      "message": "Es gibt kein Stockwerk namens {floor}."
+    },
+    "show_nothing": {
+      "message": "Nenne einen Bereich, ein Stockwerk oder eine Entität."
     }
   }
 }

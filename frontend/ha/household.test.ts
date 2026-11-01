@@ -37,7 +37,7 @@ describe("piece notes", () => {
     });
     expect(pieceBadge(h, "sensor.washer_left")).toMatchObject({ key: "time_left", vars: { time: "1 h 15 min" } });
     expect(pieceBadge(h, "sensor.dryer_left")).toBeNull();
-    expect(pieceBadge(h, "binary_sensor.mailbox")).toMatchObject({ key: "post" });
-    expect(pieceBadge(h, "binary_sensor.door", "modern:sofa")).toBeNull();
+    expect(pieceBadge(h, "binary_sensor.mailbox", ["mailbox"])).toMatchObject({ key: "post" });
+    expect(pieceBadge(h, "binary_sensor.door", [])).toBeNull();
   });
 });

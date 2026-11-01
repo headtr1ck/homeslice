@@ -38,6 +38,39 @@
           "description": "Also overwrite houses that were edited in the editor."
         }
       }
+    },
+    "show": {
+      "name": "Show on the house",
+      "description": "Open Homeslice cards fly to an area, a floor or an entity for a while (e.g. from Assist: \"Show the living room\").",
+      "fields": {
+        "area": {
+          "name": "Area",
+          "description": "Area id or name."
+        },
+        "floor": {
+          "name": "Floor",
+          "description": "Floor id or name."
+        },
+        "entity_id": {
+          "name": "Entity",
+          "description": "Show where this entity is."
+        },
+        "seconds": {
+          "name": "Seconds",
+          "description": "How long to stay there (default: the card's follow time)."
+        }
+      }
+    }
+  },
+  "exceptions": {
+    "unknown_area": {
+      "message": "There is no area called {area}."
+    },
+    "unknown_floor": {
+      "message": "There is no floor called {floor}."
+    },
+    "show_nothing": {
+      "message": "Name an area, a floor or an entity to show."
     }
   }
 }

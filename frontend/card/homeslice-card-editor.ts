@@ -304,6 +304,33 @@ export class HomesliceCardEditor extends LitElement {
         ><input type="checkbox" .checked=${this._config.interactive === true} @change=${(e: Event) => this.change({ interactive: (e.target as HTMLInputElement).checked || undefined })} />
         ${this.t("cardeditor.interactive")}</label
       >
+      <label
+        >${this.t("cardeditor.weather")}
+        <select @change=${(e: Event) => this.change({ weather: (e.target as HTMLSelectElement).value || undefined })}>
+          <option value="" ?selected=${!this._config.weather}>${this.t("cardeditor.heatmap_none")}</option>
+          ${Object.keys(this._hass?.states ?? {})
+            .filter((id) => id.startsWith("weather."))
+            .map((id) => html`<option value=${id} ?selected=${this._config.weather === id}>${(this._hass!.states[id].attributes.friendly_name as string | undefined) ?? id}</option>`)}
+        </select>
+      </label>
+      ${this._config.weather
+        ? html`<label class="check"
+            ><input type="checkbox" .checked=${this._config.weather_effects !== false} @change=${(e: Event) => this.change({ weather_effects: (e.target as HTMLInputElement).checked ? undefined : false })} />
+            ${this.t("cardeditor.weather_effects")}</label
+          >`
+        : nothing}
+      <label class="check"
+        ><input type="checkbox" .checked=${this._config.sun_path === true} @change=${(e: Event) => this.change({ sun_path: (e.target as HTMLInputElement).checked || undefined })} />
+        ${this.t("cardeditor.sun_path")}</label
+      >
+      <label class="check"
+        ><input type="checkbox" .checked=${this._config.time_travel === true} @change=${(e: Event) => this.change({ time_travel: (e.target as HTMLInputElement).checked || undefined })} />
+        ${this.t("cardeditor.time_travel")}</label
+      >
+      <label class="check"
+        ><input type="checkbox" .checked=${this._config.walk === true} @change=${(e: Event) => this.change({ walk: (e.target as HTMLInputElement).checked || undefined })} />
+        ${this.t("cardeditor.walk")}</label
+      >
       <h3>${this.t("cardeditor.kiosk")}</h3>
       <label
         >${this.t("cardeditor.idle_return")}

@@ -85,6 +85,13 @@ class Builder {
     for (const child of part.children) child.position.sub(part.position);
     return part;
   }
+  /** Draws a part that pulses (a speaker's cone) around (x, y, z) while its device plays. */
+  pulser(x: number, y: number, z: number, draw: () => void) {
+    const part = this.spinner(x, y, z, "y", draw);
+    delete part.userData.spin;
+    part.userData.pulse = true;
+    return part;
+  }
   /** A box from its bottom centre, optionally with rounded edges. */
   box(w: number, h: number, d: number, x: number, y: number, z: number, m: THREE.Material, r = 0) {
     if (w <= 0 || h <= 0 || d <= 0) return null;
@@ -411,21 +418,27 @@ const BUILDERS: Record<string, Build> = {
   tv_wall: (b, w, _d, h) => tvPanel(b, w, h, 0, 0),
   soundbar: (b, w, d, h, f) => {
     b.box(w, h, d, 0, 0, 0, f, Math.min(h, d) * 0.45);
-    b.box(w - 0.04, h * 0.7, 0.004, 0, h * 0.15, d / 2, mat(C.black, { roughness: 1 }));
+    b.pulser(0, h / 2, d / 2, () => b.box(w - 0.04, h * 0.7, 0.004, 0, h * 0.15, d / 2, mat(C.black, { roughness: 1 })));
   },
   speaker_floor: (b, w, d, h, f) => {
     b.box(w, h - 0.03, d, 0, 0.03, 0, f, 0.012);
     const cone = mat("#2b2d31", { roughness: 0.9 });
     // a tweeter on top, three woofers below
     for (const [y, r] of [[0.9, 0.025], [0.72, 0.065], [0.5, 0.075], [0.28, 0.075]] as const) {
-      b.add(new THREE.CircleGeometry(Math.min(r, w * 0.4), 24), cone, 0, 0.03 + (h - 0.03) * y, d / 2 + 0.002);
-      b.add(new THREE.TorusGeometry(Math.min(r, w * 0.4), 0.004, 4, 24), mat(C.steel, { metalness: 0.6, roughness: 0.3 }), 0, 0.03 + (h - 0.03) * y, d / 2 + 0.003);
+      const cy = 0.03 + (h - 0.03) * y;
+      // the woofers move with the music
+      const draw = () => {
+        b.add(new THREE.CircleGeometry(Math.min(r, w * 0.4), 24), cone, 0, cy, d / 2 + 0.002);
+        b.add(new THREE.TorusGeometry(Math.min(r, w * 0.4), 0.004, 4, 24), mat(C.steel, { metalness: 0.6, roughness: 0.3 }), 0, cy, d / 2 + 0.003);
+      };
+      if (r > 0.05) b.pulser(0, cy, d / 2, draw);
+      else draw();
     }
     legs(b, w, d, 0.03, 0.03, 0.008, mat(C.black));
   },
   speaker_shelf: (b, w, d, h, f) => {
     b.box(w, h, d, 0, 0, 0, f, 0.012);
-    b.add(new THREE.CircleGeometry(w * 0.32, 24), mat("#3a3c40"), 0, h * 0.38, d / 2 + 0.001);
+    b.pulser(0, h * 0.38, d / 2, () => b.add(new THREE.CircleGeometry(w * 0.32, 24), mat("#3a3c40"), 0, h * 0.38, d / 2 + 0.001));
     b.add(new THREE.CircleGeometry(w * 0.12, 16), mat("#3a3c40"), 0, h * 0.78, d / 2 + 0.001);
   },
   cube_shelf: (b, w, d, h, f) => {

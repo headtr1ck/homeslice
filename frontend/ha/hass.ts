@@ -16,6 +16,8 @@ export interface Hass {
   floors?: Record<string, { floor_id: string; name: string; level?: number | null }>;
   devices?: Record<string, { id: string; area_id?: string | null; name?: string | null; name_by_user?: string | null }>;
   entities?: Record<string, { entity_id: string; area_id?: string | null; device_id?: string | null; hidden?: boolean; entity_category?: string | null }>;
+  /** Where the home is (for the sun's path). */
+  config?: { latitude?: number; longitude?: number };
   /** The services Home Assistant offers, by domain. */
   services?: Record<string, Record<string, unknown>>;
   callWS<T>(msg: Record<string, unknown>): Promise<T>;

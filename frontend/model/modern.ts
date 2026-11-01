@@ -570,6 +570,60 @@ export const MODERN_GROUPS: { id: string; kinds: ModernKind[] }[] = [
   },
 ];
 
+/**
+ * What a piece is, for the entity it links to and what it does when linked: a `screen`
+ * shows what plays, a `vehicle` is there only while it is home, a `bin` tells its pickup
+ * day, a `plant` when it is thirsty… The drawing marks the parts that react (render/modern.ts).
+ */
+export type Tag =
+  | "light" | "media_player" | "screen" | "speaker" | "climate" | "heating" | "fan" | "humidifier" | "cover" | "fire"
+  | "detector" | "sensor" | "switch" | "camera" | "alarm" | "appliance" | "charger" | "vehicle" | "bin" | "mailbox" | "plant";
+
+const LAMP_TYPES: FurnitureType[] = ["floor_lamp", "table_lamp", "wall_lamp", "ceiling_lamp"];
+const TAG_RULES: [RegExp, Tag[]][] = [
+  [/^(tv_|monitor|projector)/, ["media_player", "screen"]],
+  [/^(speaker|soundbar|smart_speaker|record_player)/, ["media_player", "speaker"]],
+  [/^game_console/, ["media_player"]],
+  [/^(radiator|towel_radiator)/, ["climate", "heating"]],
+  [/^(ac_|heat_pump|thermostat)/, ["climate"]],
+  [/^(fan_|air_purifier|ceiling_fan)/, ["fan"]],
+  [/^dehumidifier/, ["humidifier"]],
+  [/^(curtains|blind)/, ["cover"]],
+  [/^(fireplace|fire_pit)/, ["fire"]],
+  [/^(garden_light|string_lights|lantern|aquarium)/, ["light"]],
+  [/^(smoke_detector|leak_sensor|motion_sensor|contact_sensor)/, ["detector"]],
+  [/^climate_sensor/, ["sensor"]],
+  [/^smart_plug/, ["switch"]],
+  [/^(doorbell_camera|security_camera)/, ["camera"]],
+  [/^keypad/, ["alarm"]],
+  [/^(washer|dryer|kitchen_dishwasher|water_heater)/, ["appliance"]],
+  [/^wallbox/, ["charger"]],
+  [/^(car_|motorcycle|e_scooter|bicycle)/, ["vehicle"]],
+  [/^(wheelie_bin|bin_store|kitchen_bin|compost_bin)/, ["bin"]],
+  [/^mailbox/, ["mailbox"]],
+];
+
+/** A kind's tags (its group's too: everything in Plants is a plant). */
+export function kindTags(kind: string | undefined, type?: FurnitureType): Tag[] {
+  const tags = new Set<Tag>();
+  if (type && LAMP_TYPES.includes(type)) tags.add("light");
+  if (type === "tv") ["media_player", "screen"].forEach((t) => tags.add(t as Tag));
+  if (type === "ceiling_fan") tags.add("fan");
+  if (type === "washer") tags.add("appliance");
+  if (kind) {
+    for (const [re, t] of TAG_RULES) if (re.test(kind)) t.forEach((x) => tags.add(x));
+    if (MODERN_GROUPS.find((g) => g.id === "plants")?.kinds.some((x) => x.id === kind)) tags.add("plant");
+  }
+  return [...tags];
+}
+
+/** The entity domain each tag links to, in the order they are tried. */
+export const TAG_DOMAINS: Partial<Record<Tag, string>> = {
+  light: "light", media_player: "media_player", climate: "climate", fan: "fan", humidifier: "humidifier", cover: "cover", fire: "switch",
+  detector: "binary_sensor", sensor: "sensor", switch: "switch", camera: "camera", alarm: "alarm_control_panel", appliance: "sensor",
+  charger: "sensor", vehicle: "device_tracker", bin: "sensor", mailbox: "binary_sensor", plant: "plant",
+};
+
 export const MODERN: Record<string, ModernKind> = Object.fromEntries(MODERN_GROUPS.flatMap((g) => g.kinds.map((x) => [x.id, x])));
 
 /**

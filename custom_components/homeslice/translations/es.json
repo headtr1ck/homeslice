@@ -38,6 +38,39 @@
           "description": "Sobrescribe también las casas que se editaron en el editor."
         }
       }
+    },
+    "show": {
+      "name": "Mostrar en la casa",
+      "description": "Las tarjetas Homeslice abiertas van un rato a un área, planta o entidad (p. ej. desde Assist: «Muestra la cocina»).",
+      "fields": {
+        "area": {
+          "name": "Área",
+          "description": "ID o nombre del área."
+        },
+        "floor": {
+          "name": "Planta",
+          "description": "ID o nombre de la planta."
+        },
+        "entity_id": {
+          "name": "Entidad",
+          "description": "Mostrar dónde está esta entidad."
+        },
+        "seconds": {
+          "name": "Segundos",
+          "description": "Cuánto tiempo (por defecto: el tiempo de seguimiento de la tarjeta)."
+        }
+      }
+    }
+  },
+  "exceptions": {
+    "unknown_area": {
+      "message": "No hay ningún área llamada {area}."
+    },
+    "unknown_floor": {
+      "message": "No hay ninguna planta llamada {floor}."
+    },
+    "show_nothing": {
+      "message": "Indica un área, una planta o una entidad."
     }
   }
 }

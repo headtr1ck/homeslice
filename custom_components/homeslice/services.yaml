@@ -3,3 +3,21 @@ import_files:
     force:
       selector:
         boolean:
+show:
+  fields:
+    area:
+      example: living_room
+      selector:
+        area:
+    floor:
+      selector:
+        floor:
+    entity_id:
+      selector:
+        entity:
+    seconds:
+      selector:
+        number:
+          min: 5
+          max: 3600
+          unit_of_measurement: s

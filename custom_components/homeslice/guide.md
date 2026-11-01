@@ -129,7 +129,7 @@ default along the longer side), `start` (u_turn: the side the first flight runs 
 ### Furniture
 
 Optional, per room: `furniture: [{type, at, rotation, size, height, mount, model, finish,
-accent, entity}]`.
+accent, entity, readings}]`.
 
 - `type`: one of the furniture types in the catalogue (decides the plan symbol and
   defaults). `at` is the piece's centre (room coordinates). `rotation` in degrees
@@ -145,12 +145,19 @@ accent, entity}]`.
   `light.…` glows, a TV's `media_player.…` lights its screen, a fireplace's `switch.…`
   burns, a fan's `fan.…` or an air conditioner's `climate.…` turns and shows heating or
   cooling, a washer's power `sensor.…` runs its drum, curtains follow a `cover.…`.
+  What a piece does follows its catalogue `tags` (each kind lists them): `screen` shows
+  the cover art of what plays, `speaker` pulses with the music, `vehicle` is drawn only
+  while its `device_tracker.…`/`person.…` is home, `bin` tells its pickup day (a days
+  sensor), `plant` a `plant.…` problem, `mailbox` post (a binary sensor), `appliance` its
+  time left (a duration sensor).
+- `readings: [sensor.…]`: values in a note above the piece, e.g. a car's charge and range.
 
 ### Energy and robots (optional)
 
 `energy: [{kind: solar, roof: south}, {kind: battery, level: ground, at: [x, y]}, {kind:
 grid, …}, {kind: device, name, power: sensor.…, level, at}]` (plan coordinates; sensors
-default to Home Assistant's energy settings). `robots: [{entity: vacuum.…, level, dock:
+default to Home Assistant's energy settings). Any item can add `details: [sensor.…, {entity:
+sensor.…, name: Hot water}]`: more readings in its callout (a heat pump's COP, hot water…). `robots: [{entity: vacuum.…, level, dock:
 [x, y]}]`. A live position needs `position: {attribute: …}` (map coordinates in an
 attribute), `{service: roborock.get_vacuum_current_position}` (Roborock) or GPS, and two
 calibration `points` set in the editor.

@@ -5,6 +5,7 @@
 export function makeHass(fixture, onChange) {
   const calls = [];
   const subscribers = new Set();
+  const showListeners = new Set();
   let states = structuredClone(fixture.states);
 
   const entityArea = (id) => {
@@ -37,11 +38,19 @@ export function makeHass(fixture, onChange) {
     calls,
     connection: {
       async subscribeMessage(callback, msg) {
+        if (msg.type === "homeslice/show/subscribe") {
+          showListeners.add(callback);
+          return () => showListeners.delete(callback);
+        }
         if (msg.type !== "homeslice/subscribe") throw new Error(`fake hass: unknown subscription ${msg.type}`);
         subscribers.add(callback);
         callback({ model: structuredClone(fixture.model) });
         return () => subscribers.delete(callback);
       },
+    },
+    /** Test helper: what the homeslice.show action does. */
+    show(data) {
+      for (const callback of showListeners) callback(data);
     },
     /** Test helper: what saving a new model in HA does. */
     pushModel(model) {
@@ -55,6 +64,24 @@ export function makeHass(fixture, onChange) {
       // several houses: the fixture's model is the first; `houses` holds the rest
       const houses = (fixture.houses ??= fixture.model ? { [fixture.model.id]: fixture.model } : {});
       const underlays = (fixture.underlays ??= {});
+      if (msg.type === "homeslice/backup") return { name: "homeslice-backup.zip", data: "data:application/zip;base64,UEsFBgAAAAAAAAAAAAAAAAAAAAAAAA==" };
+      if (msg.type === "homeslice/backup/restore") {
+        this.restored = msg.data;
+        return { houses: Object.keys(houses), plans: 0, models: 0 };
+      }
+      // a day of history: the living room light on in the evening, the kitchen blind down at night
+      if (msg.type === "history/history_during_period") {
+        const start = Date.parse(msg.start_time) / 1000;
+        const day = (Date.parse(msg.end_time) - Date.parse(msg.start_time)) / 1000;
+        const out = {};
+        if (msg.entity_ids.includes("light.living_room"))
+          out["light.living_room"] = [
+            { s: "off", a: { friendly_name: "Living Room" }, lu: start },
+            { s: "on", a: { friendly_name: "Living Room", brightness: 255, rgb_color: [255, 180, 110] }, lu: start + day * 0.5 },
+            { s: "off", a: { friendly_name: "Living Room" }, lu: start + day * 0.75 },
+          ];
+        return out;
+      }
       if (msg.type === "homeslice/underlay/get") return msg.level ? structuredClone(underlays[`${msg.house}/${msg.level}`] ?? null) : { levels: [] };
       if (msg.type === "homeslice/underlay/set") {
         const key = `${msg.house}/${msg.level}`;

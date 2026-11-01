@@ -2,15 +2,17 @@
 
 from __future__ import annotations
 
+import base64
 from typing import Any
 
 import voluptuous as vol
 
 from homeassistant.components import websocket_api
-from homeassistant.core import HomeAssistant, callback
+from homeassistant.core import Event, HomeAssistant, callback
 
 from .assets import AssetError, Assets
-from .const import DEFAULT_HOUSE, DOMAIN
+from .backup import BackupError, async_backup, async_restore
+from .const import DEFAULT_HOUSE, DOMAIN, SHOW_EVENT
 from .store import HomesliceStore, ModelError
 from .underlay import UnderlayError, Underlays
 
@@ -30,7 +32,7 @@ def _assets(hass: HomeAssistant) -> Assets:
 @callback
 def async_register_websocket(hass: HomeAssistant) -> None:
     """Register the websocket commands."""
-    for command in (ws_list, ws_get_model, ws_subscribe, ws_save, ws_delete, ws_import_files, ws_underlay_get, ws_underlay_set, ws_underlay_delete, ws_polyhaven_catalog, ws_polyhaven_fetch, ws_texture_catalog, ws_texture_fetch, ws_custom_list, ws_custom_upload, ws_custom_delete, ws_guide, ws_validate, ws_restore):
+    for command in (ws_list, ws_get_model, ws_subscribe, ws_save, ws_delete, ws_import_files, ws_underlay_get, ws_underlay_set, ws_underlay_delete, ws_polyhaven_catalog, ws_polyhaven_fetch, ws_texture_catalog, ws_texture_fetch, ws_custom_list, ws_custom_upload, ws_custom_delete, ws_guide, ws_validate, ws_restore, ws_show_subscribe, ws_backup, ws_backup_restore):
         websocket_api.async_register_command(hass, command)
 
 
@@ -71,6 +73,43 @@ def ws_subscribe(hass: HomeAssistant, connection: websocket_api.ActiveConnection
     connection.subscriptions[msg["id"]] = store.async_listen(changed)
     connection.send_result(msg["id"])
     connection.send_message(websocket_api.event_message(msg["id"], {"model": store.get(house_id)}))
+
+
+@websocket_api.websocket_command({vol.Required("type"): "homeslice/backup"})
+@websocket_api.require_admin
+@websocket_api.async_response
+async def ws_backup(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
+    """Everything in one zip, as a data URL (admins only)."""
+    blob = await async_backup(hass)
+    connection.send_result(msg["id"], {"name": "homeslice-backup.zip", "data": "data:application/zip;base64," + base64.b64encode(blob).decode()})
+
+
+@websocket_api.websocket_command({vol.Required("type"): "homeslice/backup/restore", vol.Required("data"): str})
+@websocket_api.require_admin
+@websocket_api.async_response
+async def ws_backup_restore(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
+    """Restore a backup zip (data URL; admins only)."""
+    data = msg["data"]
+    try:
+        blob = base64.b64decode(data.split(",", 1)[1] if data.startswith("data:") else data, validate=False)
+        result = await async_restore(hass, blob)
+    except (BackupError, ValueError) as err:
+        connection.send_error(msg["id"], "invalid_backup", str(err))
+        return
+    connection.send_result(msg["id"], result)
+
+
+@websocket_api.websocket_command({vol.Required("type"): "homeslice/show/subscribe"})
+@callback
+def ws_show_subscribe(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
+    """Pass on the homeslice.show action (from Assist, automations): cards fly there."""
+
+    @callback
+    def shown(event: Event) -> None:
+        connection.send_message(websocket_api.event_message(msg["id"], dict(event.data)))
+
+    connection.subscriptions[msg["id"]] = hass.bus.async_listen(SHOW_EVENT, shown)
+    connection.send_result(msg["id"])
 
 
 @websocket_api.websocket_command(

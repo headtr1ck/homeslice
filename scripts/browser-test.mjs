@@ -663,6 +663,7 @@ console.log("demo house, roof");
           { type: "item", model: "modern:curtains", at: [3, 0.2], entity: "cover.living_room" },
           { type: "item", model: "modern:ac_outdoor", at: [1, 2], entity: "climate.living_room" },
           { type: "item", model: "modern:radiator_panel", at: [0.6, 0.1], entity: "climate.living_room" },
+          { type: "item", model: "modern:speaker_floor", at: [3.2, 0.3], entity: "media_player.living_room_tv" },
         ];
         window.card.hass.pushModel(m);
       });
@@ -673,6 +674,21 @@ console.log("demo house, roof");
     assert((await state("media_player.living_room_tv"))?.lit === false, `tv off: ${JSON.stringify(await state("media_player.living_room_tv"))}`);
     await act(page, () => page.evaluate(() => window.card.hass.callService("media_player", "turn_on", {}, { entity_id: "media_player.living_room_tv" })));
     assert((await state("media_player.living_room_tv")).lit, "tv on but its screen is dark");
+    // playing: the cover art on the screen, the speaker's woofers move
+    await page.evaluate(() => {
+      const h = window.card.hass;
+      const tv = h.states["media_player.living_room_tv"];
+      const art = document.createElement("canvas");
+      art.width = art.height = 8;
+      const g = art.getContext("2d");
+      g.fillStyle = "#d33";
+      g.fillRect(0, 0, 8, 8);
+      h.states = { ...h.states, "media_player.living_room_tv": { ...tv, state: "playing", attributes: { ...tv.attributes, entity_picture: art.toDataURL() } } };
+      window.card.hass = h;
+    });
+    await page.waitForFunction(() => window.card.renderer.deviceState("media_player.living_room_tv").picture, null, { timeout: 5000 });
+    await page.waitForFunction(() => window.card.renderer.deviceState("media_player.living_room_tv").pulse.some((x) => x > 1.01), null, { timeout: 5000 });
+    await shot(page, "demo-playing");
     // curtains: open as the blind is open, drawn closed when it closes
     assert((await state("cover.living_room")).curtains.every((x) => x === 1), `curtains open: ${(await state("cover.living_room")).curtains}`);
     await act(page, () => page.evaluate(() => window.card.hass.callService("cover", "close_cover", {}, { entity_id: "cover.living_room" })));
@@ -803,6 +819,229 @@ console.log("demo house, roof");
         window.card.hass.pushModel(window.__demoModel);
       }),
     );
+  });
+
+  await test("a car is there only while it is home, with its charge and range above it", async () => {
+    const set = (where) =>
+      page.evaluate((where) => {
+        const h = window.card.hass;
+        const st = (id, state, attributes = {}) => ({ entity_id: id, state, attributes });
+        h.states = { ...h.states, "device_tracker.car": st("device_tracker.car", where), "sensor.car_battery": st("sensor.car_battery", "82", { unit_of_measurement: "%" }), "sensor.car_range": st("sensor.car_range", "340", { unit_of_measurement: "km" }) };
+        window.card.hass = h;
+      }, where);
+    await set("not_home");
+    await act(page, async () => {
+      await page.evaluate(() => {
+        const m = structuredClone(window.__demoModel);
+        m.levels[0].rooms.find((r) => r.id === "living").furniture = [{ type: "car", model: "modern:car_hatchback", at: [3, 3], entity: "device_tracker.car", readings: ["sensor.car_battery", "sensor.car_range"] }];
+        window.card.hass.pushModel(m);
+      });
+      await page.evaluate(() => window.card.renderer.modelsReady());
+    });
+    const shown = () => page.evaluate(() => window.card.renderer.devices.get("device_tracker.car").every((p) => p.piece.visible));
+    assert(!(await shown()), "the car is drawn while away");
+    assert(!(await page.locator("homeslice-card .piece-badge").count()), "a note for a car that is away");
+    await set("home");
+    await page.waitForFunction(() => window.card.renderer.devices.get("device_tracker.car").every((p) => p.piece.visible), null, { timeout: 5000 });
+    await page.waitForSelector("homeslice-card .piece-badge", { timeout: 5000 });
+    const note = await page.locator("homeslice-card .piece-badge").textContent();
+    assert(note.includes("82%") && note.includes("340 km"), `car note: ${note}`);
+    await shot(page, "demo-car");
+    await act(page, () => page.evaluate(() => window.card.hass.pushModel(window.__demoModel)));
+  });
+
+  await test("weather: its badge, rain falling around the house, nothing when it clears", async () => {
+    const set = (condition) =>
+      page.evaluate((condition) => {
+        const h = window.card.hass;
+        h.states = { ...h.states, "weather.home": { entity_id: "weather.home", state: condition, attributes: { temperature: 7.5, temperature_unit: "°C", friendly_name: "Home" } } };
+        window.card.setConfig({ ...window.card.config, weather: "weather.home" });
+        window.card.hass = h;
+      }, condition);
+    await set("pouring");
+    await page.waitForFunction(() => window.card.renderer.weatherFalling, null, { timeout: 5000 });
+    const badge = await page.locator("homeslice-card .weather").textContent();
+    assert(badge.includes("7.5 °C"), `weather badge: ${badge}`);
+    assert(await page.locator('homeslice-card .weather ha-icon[icon="mdi:weather-pouring"]').count(), "no pouring icon");
+    await page.waitForTimeout(300);
+    await shot(page, "demo-rain-weather");
+    await set("sunny");
+    await page.waitForFunction(() => !window.card.renderer.weatherFalling, null, { timeout: 5000 });
+    await page.evaluate(() => {
+      const { weather, ...config } = window.card.config;
+      window.card.setConfig(config);
+      window.card.hass = window.card.hass;
+    });
+  });
+
+  await test("sun path: an arc around the house with sunrise and sunset", async () => {
+    if (await page.evaluate(() => window.card._level !== null)) await act(page, () => page.locator("homeslice-card nav.levels button", { hasText: "All floors" }).click());
+    await page.evaluate(() => {
+      const h = window.card.hass;
+      h.config = { ...(h.config ?? {}), latitude: 48.4, longitude: 10.9 };
+      window.card.setConfig({ ...window.card.config, sun_path: true, look: "night" });
+      window.card.hass = h;
+    });
+    const sunState = () => page.evaluate(() => ({ group: !!window.card.renderer.sunPathGroup, key: window.card.sunPathKey, times: window.card.sunTimes.length, labels: window.card._sunTimes.length, level: window.card._level, conf: window.card.hass.config }));
+    await page.waitForFunction(() => window.card.shadowRoot.querySelectorAll(".sun-time").length === 2, null, { timeout: 5000 }).catch(async () => assert(false, `sun path: ${JSON.stringify(await sunState())}`));
+    const times = await page.locator("homeslice-card .sun-time").allTextContents();
+    assert(times.every((t) => /\d\d:\d\d/.test(t)), `sun times: ${times}`);
+    await shot(page, "demo-sun-path");
+    await page.evaluate(() => {
+      const { sun_path, look, ...config } = window.card.config;
+      window.card.setConfig(config);
+      window.card.hass = window.card.hass;
+    });
+    await page.waitForFunction(() => !window.card.renderer.sunPathGroup, null, { timeout: 5000 });
+  });
+
+  await test("at night a lit room's light falls out of its windows onto the garden", async () => {
+    const keys = await page.evaluate(() => [...window.card.renderer.spills.keys()]);
+    assert(keys.length > 0, "no windows onto an outdoor area in the demo house");
+    const [levelId, roomId] = keys[0].split("/");
+    const spill = () => page.evaluate(([l, r]) => window.card.renderer.spillState(l, r), [levelId, roomId]);
+    await page.evaluate(([l, r]) => {
+      window.card.renderer.setLook("day");
+      window.card.renderer.setSun(180, 40);
+      window.card.renderer.setRoomLight(l, r, { rgb: [255, 200, 140], brightness: 1 });
+    }, [levelId, roomId]);
+    assert((await spill()).every((x) => x < 0.05), `window light by day: ${await spill()}`);
+    await page.evaluate(() => window.card.renderer.setLook("night"));
+    assert((await spill()).every((x) => x > 0.3), `no window light at night: ${await spill()}`);
+    await page.evaluate(() => window.card.renderer.draw());
+    await shot(page, "demo-window-light");
+    // back as the card says
+    await page.evaluate(() => {
+      window.card.setConfig({ ...window.card.config });
+      window.card.hass = window.card.hass;
+    });
+  });
+
+  await test("time travel: replay the day, the house as it was, then back to now", async () => {
+    await page.evaluate(() => {
+      window.card.setConfig({ ...window.card.config, time_travel: true });
+      window.card.requestUpdate();
+    });
+    await page.locator("homeslice-card .time-travel-open").click();
+    await page.waitForSelector("homeslice-card .time-travel input[type=range]", { timeout: 5000 });
+    await page.waitForFunction(() => window.card._replay && !window.card._replay.loading);
+    // the light was on in the second half's first quarter
+    const lit = (fraction) =>
+      page.evaluate((fraction) => {
+        const r = window.card._replay;
+        window.card.seekReplay(r.history.start + (r.history.end - r.history.start) * fraction);
+        return window.card.renderer.roomLightState?.("ground", "living") ?? window.card.renderer.floors.get("ground/living").material.emissive.getHex() !== 0;
+      }, fraction);
+    assert(await lit(0.6), "the living room is not lit at the time its light was on");
+    assert(!(await lit(0.2)), "lit before its light went on");
+    assert((await page.locator("homeslice-card .time-travel .tick").count()) >= 2, "no event marks on the timeline");
+    await shot(page, "demo-time-travel");
+    await page.locator("homeslice-card .time-travel button", { has: page.locator('ha-icon[icon="mdi:close"]') }).click();
+    assert(!(await page.locator("homeslice-card .time-travel").count()), "the timeline stays open");
+    await page.evaluate(() => {
+      const { time_travel, ...config } = window.card.config;
+      window.card.setConfig(config);
+      window.card.requestUpdate();
+    });
+  });
+
+  await test("homeslice.show (Assist: show the kitchen): the card flies there, then back", async () => {
+    if (await page.evaluate(() => window.card._level !== null)) await act(page, () => page.locator("homeslice-card nav.levels button", { hasText: "All floors" }).click());
+    await act(page, () => page.evaluate(() => window.card.hass.show({ area_id: "kids_room", seconds: 5 })));
+    await page.waitForFunction(() => window.card._level === "first", null, { timeout: 5000 });
+    const banner = await page.locator("homeslice-card .event").textContent();
+    assert(banner.includes("Kids Room"), `banner: ${banner}`);
+    await page.evaluate(() => {
+      window.card.lastTouch = 0;
+      return window.card.endEvent();
+    });
+    await page.waitForFunction(() => window.card._level === null, null, { timeout: 5000 });
+  });
+
+  await test("walking: eye level in a room, walls stop you, then back to the house", async () => {
+    await page.evaluate(() => {
+      window.card.setConfig({ ...window.card.config, walk: true });
+      window.card.requestUpdate();
+    });
+    await page.locator("homeslice-card .walk-open").click();
+    await page.waitForFunction(() => !!window.card.renderer.walking, null, { timeout: 5000 });
+    const eye = await page.evaluate(() => window.card.renderer.camera.position.y - window.card.renderer.levels[window.card.renderer.levelIds.indexOf(window.card.renderer.walking.levelId)].group.position.y);
+    assert(Math.abs(eye - 1.6) < 0.01, `eye height ${eye}`);
+    assert(!(await page.locator("homeslice-card .label").count()), "labels at eye level");
+    // walk on until a wall stops it
+    const at = () => page.evaluate(() => window.card.renderer.walking.at);
+    const start = await at();
+    for (let i = 0; i < 60; i++) await page.evaluate(() => window.card.walkStep(0.25, 0));
+    const end = await at();
+    assert(Math.hypot(end[0] - start[0], end[1] - start[1]) > 0.2, `did not move: ${start} → ${end}`);
+    const level = await page.evaluate(() => window.card.renderer.walking.levelId);
+    const inside = await page.evaluate(([l, p]) => window.card.house.levels.find((x) => x.id === l).rooms.some((r) => {
+      let c = false;
+      const poly = r.polygon;
+      for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) if (poly[i][1] > p[1] !== poly[j][1] > p[1] && p[0] < ((poly[j][0] - poly[i][0]) * (p[1] - poly[i][1])) / (poly[j][1] - poly[i][1]) + poly[i][0]) c = !c;
+      return c;
+    }), [level, end]);
+    assert(inside, `walked out of the house: ${end}`);
+    // keys work too
+    await page.keyboard.down("ArrowRight");
+    await page.waitForTimeout(300);
+    await page.keyboard.up("ArrowRight");
+    await shot(page, "demo-walk");
+    await page.locator("homeslice-card .walk-close").click();
+    await page.waitForFunction(() => !window.card.renderer.walking && !window.card.transitioning, null, { timeout: 5000 });
+    await page.evaluate(() => {
+      const { walk, ...config } = window.card.config;
+      window.card.setConfig(config);
+      window.card.requestUpdate();
+    });
+  });
+
+  await test("people stand in the room their sensor names, and leave when they are away", async () => {
+    const set = (where, room) =>
+      page.evaluate(([where, room]) => {
+        const h = window.card.hass;
+        h.states = { ...h.states, "person.alex": { entity_id: "person.alex", state: where, attributes: { friendly_name: "Alex" } }, "sensor.alex_area": { entity_id: "sensor.alex_area", state: room, attributes: {} } };
+        window.card.setConfig({ ...window.card.config, people: [{ person: "person.alex", room: "sensor.alex_area" }] });
+        window.card.hass = h;
+      }, [where, room]);
+    await set("home", "Kitchen");
+    await page.waitForFunction(() => window.card.renderer.peopleState().length === 1, null, { timeout: 5000 });
+    const [p] = await page.evaluate(() => window.card.renderer.peopleState());
+    assert(p.level === "ground", `Alex on ${p.level}`);
+    await set("home", "bedroom");
+    await page.waitForFunction(() => window.card.renderer.peopleState()[0]?.level === "first", null, { timeout: 5000 });
+    await set("not_home", "bedroom");
+    await page.waitForFunction(() => window.card.renderer.peopleState().length === 0, null, { timeout: 5000 });
+    await page.evaluate(() => {
+      const { people, ...config } = window.card.config;
+      window.card.setConfig(config);
+      window.card.hass = window.card.hass;
+    });
+  });
+
+  await test("other cards on the card: in front and behind, only on their floors", async () => {
+    await page.evaluate(() => {
+      window.card.setConfig({
+        ...window.card.config,
+        overlays: [
+          { card: { type: "tile", entity: "light.kitchen" }, top: "10px", right: "10px", width: "200px" },
+          { card: { type: "tile", entity: "light.living_room" }, bottom: "10px", left: "10px", layer: "behind", levels: ["first"] },
+        ],
+      });
+      window.card.requestUpdate();
+    });
+    await page.waitForSelector("homeslice-card .card-overlay.front .fake-card", { timeout: 5000 });
+    const front = await page.locator("homeslice-card .card-overlay.front").boundingBox();
+    const card = await page.locator("homeslice-card .wrap").boundingBox();
+    assert(Math.abs(front.x + front.width - (card.x + card.width - 10)) < 2 && Math.abs(front.y - (card.y + 10)) < 2, `front card at ${JSON.stringify(front)}`);
+    const behindShown = () => page.evaluate(() => !window.card.shadowRoot.querySelector(".card-overlay.behind").classList.contains("hidden"));
+    assert(!(await behindShown()) || (await page.evaluate(() => window.card._level)) === "first", "the behind card shows on another floor");
+    await shot(page, "demo-overlays");
+    await page.evaluate(() => {
+      const { overlays, ...config } = window.card.config;
+      window.card.setConfig(config);
+      window.card.requestUpdate();
+    });
   });
 
   await test("lamp gestures: drag to dim, hold for the room, tap toggles", async () => {
@@ -1099,7 +1338,7 @@ console.log("demo house, energy");
       { kind: "solar" },
       { kind: "battery", level: "ground", at: [1, 1] },
       { kind: "grid", level: "ground", at: [2, 1] },
-      { kind: "device", power: "sensor.heat_pump_power", level: "ground", at: [6, 8] },
+      { kind: "device", power: "sensor.heat_pump_power", level: "ground", at: [6, 8], details: ["sensor.heat_pump_cop", { entity: "sensor.hot_water", name: "Hot water" }] },
     ];
     f.energy_prefs = {
       energy_sources: [
@@ -1115,6 +1354,8 @@ console.log("demo house, energy");
     st("sensor.battery_soc", "64", "%", { device_class: "battery" });
     st("sensor.grid_power", "-300", "W");
     st("sensor.heat_pump_power", "1200", "W", { friendly_name: "Heat pump" });
+    st("sensor.heat_pump_cop", "3.8", "", { friendly_name: "Heat pump COP" });
+    st("sensor.hot_water", "48.5", "°C", { friendly_name: "Domestic hot water temperature" });
     f.entities["sensor.battery_power"] = { entity_id: "sensor.battery_power", device_id: "battery" };
     f.entities["sensor.battery_soc"] = { entity_id: "sensor.battery_soc", device_id: "battery" };
     return f;
@@ -1131,6 +1372,8 @@ console.log("demo house, energy");
     const labels = await page.locator("homeslice-card .energy-label").allTextContents();
     const text = labels.map((l) => l.replace(/\s+/g, " ").trim()).join(" | ");
     assert(text.includes("2.4 kW") && text.includes("64 %") && text.includes("Heat pump") && text.includes("1.2 kW"), `labels: ${text}`);
+    // more readings after the power, the device's name taken off the sensor's
+    assert(text.includes("1.2 kW · COP 3.8 · Hot water 48.5 °C"), `heat pump details: ${text}`);
     // the whole house: callouts beside it with leader lines, not stacked over the floors
     const places = await page.locator("homeslice-card .energy-label").evaluateAll((els) => els.map((e) => e.classList.contains("left") || e.classList.contains("right")));
     assert(places.length && places.every(Boolean), "labels are not callouts in the overview");
@@ -2749,6 +2992,19 @@ console.log("editor, starting from scratch");
     assert(scale === 0.0125, `scale ${scale}`);
     await page.locator("homeslice-panel .inspector button", { hasText: "Remove image" }).click();
     await page.keyboard.press("Escape");
+  });
+
+  await test("backup: download one file, restore it", async () => {
+    await page.keyboard.press("Escape");
+    await page.locator("homeslice-panel header button[aria-label='House settings']").click();
+    const download = page.waitForEvent("download");
+    await page.locator("homeslice-panel button[data-backup]").click();
+    assert((await download).suggestedFilename().endsWith("homeslice-backup.zip"), "no backup file");
+    const zip = Buffer.from(zipSync({ "manifest.json": strToU8('{"format":"homeslice-backup","version":1}') }));
+    await page.locator("homeslice-panel input[type=file][accept='.zip']").setInputFiles({ name: "backup.zip", mimeType: "application/zip", buffer: zip });
+    await page.waitForSelector("homeslice-panel p.notice", { timeout: 5000 });
+    assert((await page.locator("homeslice-panel p.notice").textContent()).includes("Restored"), "no note after restoring");
+    assert(await page.evaluate(() => window.panel._hass.restored?.startsWith("data:")), "the backup was not sent");
   });
 
   await test("import from Sweet Home 3D: rooms on the wall centres, doors, windows, furniture", async () => {

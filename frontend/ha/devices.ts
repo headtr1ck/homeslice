@@ -2,6 +2,8 @@
 // (a TV's screen, a fire, a fan turning, a washer running, curtains with their cover), and
 // which kind of entity a piece is usually linked to.
 import type { DeviceLook } from "../render/scene";
+import { kindTags, TAG_DOMAINS } from "../model/modern";
+import type { FurnitureType } from "../model/types";
 import { coverOpen, type Hass } from "./hass";
 
 const OFF = new Set(["off", "standby", "idle", "unavailable", "unknown", "closed", "docked", "none", "0", "false", "not_charging", "disconnected", "finished", "complete", "ready"]);
@@ -21,8 +23,11 @@ export function deviceLook(hass: Hass, entityId: string, inverted = false): Devi
       const open = coverOpen(hass, entityId, inverted);
       return { on: (open ?? 1) > 0, active: false, open };
     }
-    case "media_player":
-      return { on: !OFF.has(state), active: state === "playing" };
+    case "media_player": {
+      // the cover art of what plays or is paused
+      const picture = ["playing", "paused"].includes(state) ? ((s.attributes.entity_picture as string | undefined) ?? null) : null;
+      return { on: !OFF.has(state), active: state === "playing", picture };
+    }
     case "climate":
     case "water_heater": {
       // what it does right now (hvac_action), else what it is set to
@@ -30,6 +35,12 @@ export function deviceLook(hass: Hass, entityId: string, inverted = false): Devi
       const tone = action.startsWith("heat") || action === "preheating" ? "heat" : action.startsWith("cool") ? "cool" : null;
       const on = state !== "off";
       return { on, active: on && !["idle", "off"].includes(action), tone };
+    }
+    case "device_tracker":
+    case "person": {
+      // a car or bike on its spot while it is home
+      const home = state === "home";
+      return { on: home, active: false, present: home };
     }
     case "fan": {
       const pct = s.attributes.percentage;
@@ -51,27 +62,8 @@ export function deviceLook(hass: Hass, entityId: string, inverted = false): Devi
   }
 }
 
-/** The domain a built-in piece is usually linked to, for the editor's entity picker. */
+/** The domain a built-in piece is usually linked to, for the editor's entity picker: by its tags. */
 export function linkDomain(type: string, kind: string | undefined): string | undefined {
-  if (["floor_lamp", "table_lamp", "wall_lamp", "ceiling_lamp"].includes(type)) return "light";
-  if (type === "tv") return "media_player";
-  if (type === "ceiling_fan") return "fan";
-  if (type === "washer") return "sensor";
-  if (!kind) return undefined;
-  if (/^(ac_|heat_pump|radiator|towel_radiator)/.test(kind)) return "climate";
-  if (/^(fan_|air_purifier)/.test(kind)) return "fan";
-  if (kind === "dehumidifier") return "humidifier";
-  if (/^(curtains|blind)/.test(kind)) return "cover";
-  if (/^(tv_|monitor|projector|speaker)/.test(kind)) return "media_player";
-  if (/^(fireplace|fire_pit)/.test(kind)) return "switch";
-  if (/^(garden_light|string_lights|lantern|aquarium)/.test(kind)) return "light";
-  if (/^(smoke_detector|leak_sensor|motion_sensor|contact_sensor)/.test(kind)) return "binary_sensor";
-  if (kind === "thermostat") return "climate";
-  if (kind === "climate_sensor") return "sensor";
-  if (kind === "smart_plug") return "switch";
-  if (/^(doorbell_camera|security_camera)/.test(kind)) return "camera";
-  if (kind === "smart_speaker") return "media_player";
-  if (kind === "keypad") return "alarm_control_panel";
-  if (/^(washer|dryer|kitchen_dishwasher|wallbox|water_heater)/.test(kind)) return "sensor";
+  for (const tag of kindTags(kind, type as FurnitureType)) if (TAG_DOMAINS[tag]) return TAG_DOMAINS[tag];
   return undefined;
 }

@@ -133,6 +133,8 @@ export interface FurnitureInput {
    * stands) or a TV's media player (shown in the room's popup).
    */
   entity?: string;
+  /** Readings in a note above the piece, e.g. a car's charge and range: entity ids. */
+  readings?: string[];
 }
 
 /**
@@ -326,6 +328,11 @@ export interface EnergyInput {
   name?: string;
   /** Solar: the roof side the panels are on (default south). */
   roof?: Side;
+  /**
+   * More readings in its callout, after the power: a heat pump's COP, hot water and flow
+   * temperature, a battery's temperature… Entity ids, or {entity, name} for a short name.
+   */
+  details?: (string | { entity: string; name?: string })[];
 }
 
 export type EnergyKind = "solar" | "battery" | "grid" | "inverter" | "device";
@@ -434,7 +441,7 @@ export interface Room {
   /** `at` in plan coordinates; defaults filled in. */
   cameras: { entity: string; at: Vec2; direction: number; fov: number; range: number; height: number; motion?: string }[];
   /** `elevation`: bottom above the floor in metres (ceiling pieces: null, they hang from the ceiling). */
-  furniture: { type: FurnitureType; at: Vec2; rotation: number; size: [number, number]; height: number; mount: FurnitureMount; elevation: number | null; mirror: boolean; entity?: string; model?: string; finish?: string; accent?: string }[];
+  furniture: { type: FurnitureType; at: Vec2; rotation: number; size: [number, number]; height: number; mount: FurnitureMount; elevation: number | null; mirror: boolean; entity?: string; model?: string; finish?: string; accent?: string; readings?: string[] }[];
 }
 
 /** Where an opening is defined: a level's own list, or a façade entry shared by levels. */
@@ -529,6 +536,7 @@ export interface Energy {
   soc?: string;
   name?: string;
   roof: Side;
+  details: { entity: string; name?: string }[];
 }
 
 export interface Issue {

@@ -38,6 +38,39 @@
           "description": "Sovrascrive anche le case modificate nell'editor."
         }
       }
+    },
+    "show": {
+      "name": "Mostra nella casa",
+      "description": "Le schede Homeslice aperte si spostano per un po' su un'area, un piano o un'entità (ad es. da Assist: «Mostra la cucina»).",
+      "fields": {
+        "area": {
+          "name": "Area",
+          "description": "ID o nome dell'area."
+        },
+        "floor": {
+          "name": "Piano",
+          "description": "ID o nome del piano."
+        },
+        "entity_id": {
+          "name": "Entità",
+          "description": "Mostra dove si trova questa entità."
+        },
+        "seconds": {
+          "name": "Secondi",
+          "description": "Per quanto tempo (predefinito: il tempo di inseguimento della scheda)."
+        }
+      }
+    }
+  },
+  "exceptions": {
+    "unknown_area": {
+      "message": "Non esiste un'area chiamata {area}."
+    },
+    "unknown_floor": {
+      "message": "Non esiste un piano chiamato {floor}."
+    },
+    "show_nothing": {
+      "message": "Indica un'area, un piano o un'entità."
     }
   }
 }

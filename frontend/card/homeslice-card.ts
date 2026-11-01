@@ -3,7 +3,9 @@ import { HEATMAP_STEPS, areaEntities, areaValues, type AreaValue, areaIlluminanc
 import { formatNumber, loadLanguage, localize, type StringKey } from "../i18n/localize";
 import { expandHouse } from "../model/expand";
 import { labelPoint } from "../model/geometry";
-import type { House, Issue, Room, Vec2 } from "../model/types";
+import { walkStep } from "../model/walk";
+import type { FurnitureMount, FurnitureType, House, Issue, Room, Vec2 } from "../model/types";
+import { defaultKind, kindTags, type Tag } from "../model/modern";
 import { listedLights, placeLights, type PlacedLight } from "../model/lights";
 import { deriveWalls, innerPolygon, type Wall } from "../model/walls";
 import { formatPower, readEnergy, type EnergyPrefs, type EnergyReading } from "../ha/energy";
@@ -11,7 +13,10 @@ import { pollPosition, polledPositions, readRobot, robotAlerts, robotStatus, typ
 import { deviceLook } from "../ha/devices";
 import { activation, whereIs } from "../ha/follow";
 import { clockText, isNight } from "../ha/kiosk";
+import { sunPath, sunPosition } from "../ha/sunpath";
+import { HISTORY_DOMAINS, loadHistory, statesAt, type History } from "../ha/history";
 import { pieceBadge } from "../ha/household";
+import { weatherEffect } from "../render/weather";
 import { ENERGY_COLORS, HouseRenderer, viewOptions, type Look, type ViewOptions } from "../render/scene";
 
 export interface PopupOverride {
@@ -122,9 +127,41 @@ export interface HomesliceCardConfig {
   power_outage?: string;
   /** Notes above linked pieces: bins on pickup day, thirsty plants, post, time left (default true). */
   badges?: boolean;
+  /** A weather entity: its condition and temperature in a corner, tap for the forecast. */
+  weather?: string;
+  /**
+   * People in the room they are in: each `person` with a `room` sensor whose state is an
+   * area's name or id (Bermuda, ESPresense…). Away people are not shown.
+   */
+  people?: { person: string; room: string; color?: string }[];
+  /**
+   * Other cards placed freely over the card's area: a Lovelace card config, where (CSS
+   * lengths or percentages from the edges), how wide, in front of the house or behind it
+   * (behind: decoration, taps go to the house), optionally only on some floors (`levels`,
+   * `overview` for the whole house).
+   */
+  overlays?: CardOverlay[];
+  /** A button to walk through the house at eye level (keys, a touch stick, drag to look). */
+  walk?: boolean;
+  /** A button to replay the last day from Home Assistant's history (time travel). */
+  time_travel?: boolean;
+  /** Today's sun path as an arc around the house, with sunrise and sunset (needs HA's location). */
+  sun_path?: boolean;
+  /** Rain, snow and fog around the house from that weather (default true). */
+  weather_effects?: boolean;
   /** Show underfloor heating loops glowing in the floor while they heat (default false). */
   heating?: boolean;
 }
+
+/** Colours for people, in the order the card lists them. */
+const PERSON_COLORS = ["#4f8cff", "#ff7a59", "#3fbf7f", "#c56cf0", "#f2b134", "#22b5c9"];
+
+/** HA's weather conditions and their icons. */
+const WEATHER_ICONS: Record<string, string> = {
+  "clear-night": "mdi:weather-night", cloudy: "mdi:weather-cloudy", exceptional: "mdi:alert-circle-outline", fog: "mdi:weather-fog", hail: "mdi:weather-hail",
+  lightning: "mdi:weather-lightning", "lightning-rainy": "mdi:weather-lightning-rainy", partlycloudy: "mdi:weather-partly-cloudy", pouring: "mdi:weather-pouring",
+  rainy: "mdi:weather-rainy", snowy: "mdi:weather-snowy", "snowy-rainy": "mdi:weather-snowy-rainy", sunny: "mdi:weather-sunny", windy: "mdi:weather-windy", "windy-variant": "mdi:weather-windy-variant",
+};
 
 /** Weather states that mean rain. */
 const RAINY = ["rainy", "pouring", "lightning-rainy", "snowy-rainy", "hail"];
@@ -132,6 +169,26 @@ const RAINY = ["rainy", "pouring", "lightning-rainy", "snowy-rainy", "hail"];
 /** An icon for a button by the entity's domain. */
 const shortcutIcon = (entity: string) =>
   ({ scene: "mdi:palette", script: "mdi:script-text-play", light: "mdi:lightbulb", switch: "mdi:toggle-switch", cover: "mdi:blinds", lock: "mdi:lock", button: "mdi:gesture-tap-button", media_player: "mdi:play-pause" })[entity.split(".")[0]] ?? "mdi:star";
+
+/** Another card placed on the house card (see `overlays`). */
+export interface CardOverlay {
+  card: Record<string, unknown>;
+  top?: string;
+  left?: string;
+  right?: string;
+  bottom?: string;
+  width?: string;
+  layer?: "front" | "behind";
+  levels?: string[];
+}
+
+/** What the homeslice.show action names (one of them). */
+interface ShowMessage {
+  area_id?: string;
+  floor_id?: string;
+  entity_id?: string;
+  seconds?: number;
+}
 
 export interface ShortcutButton {
   entity: string;
@@ -286,6 +343,10 @@ export class HomesliceCard extends LitElement {
     _robotLabels: { state: true },
     _dockAlerts: { state: true },
     _badges: { state: true },
+    _sunTimes: { state: true },
+    _replay: { state: true },
+    _walking: { state: true },
+    _people: { state: true },
     _level: { state: true },
     _popup: { state: true },
     _hover: { state: true },
@@ -365,6 +426,7 @@ export class HomesliceCard extends LitElement {
   private unsubscribe?: () => Promise<void> | void;
   private onKey = (e: KeyboardEvent) => {
     if (e.key === "Escape" && this._popup) this.closePopup();
+    else if (e.key === "Escape" && this._walking) void this.stopWalk();
   };
 
   setConfig(config: HomesliceCardConfig) {
@@ -492,6 +554,7 @@ export class HomesliceCard extends LitElement {
     });
     if (!hass || !this.config) return;
     for (const c of this.popupCards) c.hass = hass;
+    for (const c of this.overlayCards.values()) c.hass = hass;
     if (this.loadedFor !== this.config.house) {
       this.loadedFor = this.config.house;
       void this.load();
@@ -502,6 +565,7 @@ export class HomesliceCard extends LitElement {
 
   protected override updated(changed: PropertyValues) {
     if (changed.has("_popup")) void this.fillPopup();
+    if (this.config.overlays?.length) void this.fillOverlays();
   }
 
   override connectedCallback() {
@@ -533,6 +597,9 @@ export class HomesliceCard extends LitElement {
     this.removeEventListener("pointerdown", this.onTouch, { capture: true });
     clearInterval(this.kioskTimer);
     this.kioskTimer = 0;
+    clearInterval(this.replayTimer);
+    void this.unsubscribeShow?.();
+    this.unsubscribeShow = undefined;
     clearInterval(this.orbitTimer);
     this.orbitTimer = 0;
     clearTimeout(this.eventTimer);
@@ -566,6 +633,9 @@ export class HomesliceCard extends LitElement {
           (msg) => void this.applyModel(msg.model),
           { type: "homeslice/subscribe", house },
         );
+        // the homeslice.show action (Assist: "show the living room"): fly there
+        void this.unsubscribeShow?.();
+        this.unsubscribeShow = await this.hass!.connection.subscribeMessage<ShowMessage>((m) => void this.showAsked(m), { type: "homeslice/show/subscribe" }).catch(() => undefined);
       } else {
         await this.applyModel(await this.hass!.callWS<unknown>({ type: "homeslice/model", house }));
       }
@@ -614,6 +684,7 @@ export class HomesliceCard extends LitElement {
       ws.flatMap((w) => w.openings.filter((o) => o.cover || o.contact).map((o) => ({ levelId, id: o.id, room: o.room, cover: o.cover, contact: o.contact }))),
     );
     this.renderer.setModel(house, walls, this.view);
+    this.sunPathKey = "";
     if (this.config.energy) {
       this.renderer.setEnergy(house.energy.map((e) => ({ key: `energy-${e.index}`, to: e.to === null ? null : `energy-${e.to}`, kind: e.kind, levelIndex: e.levelIndex, at: e.at, roof: e.roof })));
       if (!this.energyPrefs) void this.loadEnergyPrefs();
@@ -648,7 +719,7 @@ export class HomesliceCard extends LitElement {
 
   /** Whether something moves: energy flowing, a linked fan or drum turning, a door opening. */
   private get moving() {
-    return !!this.renderer && ((!!this.config.energy && this.renderer.flowing) || this.renderer.spinning || this.renderer.leavesMoving);
+    return !!this.renderer && ((!!this.config.energy && this.renderer.flowing) || this.renderer.spinning || this.renderer.leavesMoving || this.renderer.weatherFalling);
   }
 
   /**
@@ -689,6 +760,313 @@ export class HomesliceCard extends LitElement {
   /** A long press: the card's own hold action, else HA's details. */
   private hold(entity: string) {
     if (!this.ownAction(entity, "hold")) this.moreInfo(entity);
+  }
+
+  // ----- other cards on the card -----
+
+  /** Card elements by their place in `overlays` (made once, kept while the config is). */
+  private overlayCards = new Map<string, HTMLElement & { hass?: Hass }>();
+
+  private renderOverlays(layer: "front" | "behind") {
+    const list = (this.config.overlays ?? []).map((o, i) => ({ o, i })).filter(({ o }) => (o.layer ?? "front") === layer && o.card);
+    if (!list.length) return nothing;
+    const shown = (o: CardOverlay) => !o.levels?.length || o.levels.includes(this._level ?? "overview");
+    return list.map(({ o, i }) => {
+      const style = [o.top !== undefined ? `top:${o.top}` : "", o.left !== undefined ? `left:${o.left}` : "", o.right !== undefined ? `right:${o.right}` : "", o.bottom !== undefined ? `bottom:${o.bottom}` : "", `width:${o.width ?? "260px"}`].filter(Boolean).join(";");
+      return html`<div class="card-overlay ${layer} ${shown(o) ? "" : "hidden"}" data-overlay=${i} style=${style}></div>`;
+    });
+  }
+
+  /** Puts HA's cards into their places (after a render; made once per config). */
+  private async fillOverlays() {
+    const overlays = this.config.overlays ?? [];
+    if (!overlays.length || !this.hass) return;
+    const helpers = await window.loadCardHelpers?.();
+    if (!helpers) return;
+    for (const [i, o] of overlays.entries()) {
+      const box = this.renderRoot.querySelector<HTMLElement>(`.card-overlay[data-overlay="${i}"]`);
+      if (!box) continue;
+      const key = `${i}:${JSON.stringify(o.card)}`;
+      let el = this.overlayCards.get(key);
+      if (!el) {
+        await preloadCard(helpers, String(o.card.type));
+        el = helpers.createCardElement(o.card);
+        this.overlayCards.set(key, el);
+      }
+      el.hass = this.hass;
+      if (el.parentElement !== box) box.replaceChildren(el);
+    }
+  }
+
+  // ----- people -----
+
+  /** Where each person is: their room sensor's area, a spot of their own in it. */
+  private placedPeople(hass: Hass) {
+    const out: { key: string; levelId: string; at: Vec2; color: string; name: string; picture?: string }[] = [];
+    const perRoom = new Map<string, number>();
+    (this.config.people ?? []).forEach((p, i) => {
+      const person = hass.states[p.person];
+      if (!person || person.state !== "home") return;
+      const value = hass.states[p.room]?.state ?? "";
+      const areaId = hass.areas?.[value] ? value : Object.values(hass.areas ?? {}).find((a) => a.name.toLowerCase() === value.toLowerCase())?.area_id;
+      const r = areaId ? this.rooms.find((x) => x.room.areaId === areaId) : undefined;
+      if (!r) return;
+      // side by side when several are in one room, a little off its label
+      const n = perRoom.get(r.key) ?? 0;
+      perRoom.set(r.key, n + 1);
+      const at: Vec2 = [r.point[0] + 0.7 + n * 0.5, r.point[1] + 0.4];
+      out.push({ key: p.person, levelId: r.levelId, at, color: p.color ?? PERSON_COLORS[i % PERSON_COLORS.length], name: (person.attributes.friendly_name as string | undefined) ?? p.person, picture: person.attributes.entity_picture as string | undefined });
+    });
+    return out;
+  }
+
+  private personLabels() {
+    if (!this.renderer || !this.hass) return [];
+    return this.placedPeople(this.hass).flatMap((p) => {
+      if ((this._level && p.levelId !== this._level) || !this.renderer!.isLevelVisible(p.levelId)) return [];
+      const xy = this.renderer!.project(p.levelId, p.at, 1.75);
+      return xy ? [{ ...p, ...xy }] : [];
+    });
+  }
+
+  // ----- walking through the house -----
+
+  private _walking = false;
+  private lookFrom: { x: number; y: number } | null = null;
+  private walkKeys = new Set<string>();
+  private walkFrame = 0;
+  /** The touch stick: -1…1 forward and sideways (turning). */
+  private stick: { forward: number; turn: number } | null = null;
+
+  private async startWalk() {
+    if (!this.house || !this.renderer) return;
+    const levelId = this._level ?? this.startLevel(this.house) ?? this.house.levels[0]?.id;
+    const level = this.house.levels.find((l) => l.id === levelId);
+    const room = level?.rooms.find((r) => r.kind === "room") ?? level?.rooms[0];
+    if (!level || !room) return;
+    this.closePopup();
+    this.walkReturn = this._level;
+    if (this._level !== level.id) await this.selectLevel(level.id);
+    this._walking = true;
+    this._labels = [];
+    this._lampButtons = [];
+    this.renderer.setWalk({ levelId: level.id, at: labelPoint(room.polygon), yaw: 180, pitch: -5 });
+    window.addEventListener("keydown", this.walkKeyDown);
+    window.addEventListener("keyup", this.walkKeyUp);
+  }
+
+  private async stopWalk() {
+    this._walking = false;
+    this.walkKeys.clear();
+    this.stick = null;
+    cancelAnimationFrame(this.walkFrame);
+    this.walkFrame = 0;
+    window.removeEventListener("keydown", this.walkKeyDown);
+    window.removeEventListener("keyup", this.walkKeyUp);
+    this.renderer?.setWalk(null);
+    // back to what was shown before
+    const back = this.walkReturn;
+    if (back !== this._level) await this.selectLevel(back ?? this._level);
+    else await this.renderer?.resetView();
+    this.placeLabels();
+  }
+
+  private walkReturn: string | null = null;
+
+  private walkKeyDown = (e: KeyboardEvent) => {
+    if (!["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "w", "a", "s", "d", "W", "A", "S", "D"].includes(e.key)) return;
+    e.preventDefault();
+    this.walkKeys.add(e.key.toLowerCase());
+    this.walkLoop();
+  };
+
+  private walkKeyUp = (e: KeyboardEvent) => {
+    this.walkKeys.delete(e.key.toLowerCase());
+  };
+
+  /** Moves while keys are held or the stick is pushed: about 1.4 m and 90° a second. */
+  private walkLoop() {
+    if (this.walkFrame) return;
+    let last = performance.now();
+    const step = (now: number) => {
+      const dt = Math.min(0.1, (now - last) / 1000);
+      last = now;
+      const k = this.walkKeys;
+      const forward = (k.has("arrowup") || k.has("w") ? 1 : 0) - (k.has("arrowdown") || k.has("s") ? 1 : 0) + (this.stick?.forward ?? 0);
+      const turn = (k.has("arrowright") || k.has("d") ? 1 : 0) - (k.has("arrowleft") || k.has("a") ? 1 : 0) + (this.stick?.turn ?? 0);
+      if (!this._walking || (!forward && !turn) || !this.renderer?.walking || !this.house) {
+        this.walkFrame = 0;
+        return;
+      }
+      this.walkStep(forward * 1.4 * dt, turn * 90 * dt);
+      this.walkFrame = requestAnimationFrame(step);
+    };
+    this.walkFrame = requestAnimationFrame(step);
+  }
+
+  /** One step: turn, then move forward as far as walls allow. */
+  walkStep(metres: number, degrees: number) {
+    const v = this.renderer?.walking;
+    const level = this.house?.levels.find((l) => l.id === v?.levelId);
+    if (!v || !level) return;
+    const yaw = v.yaw + degrees;
+    const a = (yaw * Math.PI) / 180;
+    const to: Vec2 = [v.at[0] + Math.sin(a) * metres, v.at[1] - Math.cos(a) * metres];
+    const at = walkStep(level, this.walls.get(level.id) ?? [], v.at, to);
+    this.renderer!.setWalk({ ...v, yaw, at });
+  }
+
+  private onStick = (e: PointerEvent) => {
+    const el = e.currentTarget as HTMLElement;
+    if (e.type === "pointerdown") el.setPointerCapture(e.pointerId);
+    if (e.type === "pointerup" || e.type === "pointercancel") {
+      this.stick = null;
+      el.style.setProperty("--sx", "0px");
+      el.style.setProperty("--sy", "0px");
+      return;
+    }
+    if (e.type === "pointermove" && !el.hasPointerCapture(e.pointerId)) return;
+    const r = el.getBoundingClientRect();
+    const half = r.width / 2;
+    const dx = Math.max(-1, Math.min(1, (e.clientX - r.left - half) / half));
+    const dy = Math.max(-1, Math.min(1, (e.clientY - r.top - half) / half));
+    el.style.setProperty("--sx", `${dx * half * 0.6}px`);
+    el.style.setProperty("--sy", `${dy * half * 0.6}px`);
+    this.stick = { forward: -dy, turn: dx };
+    this.walkLoop();
+  };
+
+  private renderWalk() {
+    if (!this.config.walk || !this.house) return nothing;
+    if (!this._walking) return html`<button class="walk-open" title=${this.t("card.walk")} @click=${() => this.startWalk()}><ha-icon icon="mdi:walk"></ha-icon></button>`;
+    return html`<div class="stick" @pointerdown=${this.onStick} @pointermove=${this.onStick} @pointerup=${this.onStick} @pointercancel=${this.onStick} aria-hidden="true"><i></i></div>
+      <button class="walk-close" title=${this.t("card.walk_stop")} @click=${() => this.stopWalk()}><ha-icon icon="mdi:close"></ha-icon></button>
+      <div class="walk-hint">${this.t("card.walk_hint")}</div>`;
+  }
+
+  // ----- time travel -----
+
+  private _replay: { history: History; t: number; playing: boolean; loading?: boolean } | null = null;
+  private replayTimer = 0;
+
+  private async openTimeTravel() {
+    if (!this.hass) return;
+    const ids = Object.keys(this.hass.states).filter((id) => HISTORY_DOMAINS.includes(id.split(".")[0]));
+    const now = Date.now();
+    this._replay = { history: { start: now - 864e5, end: now, series: new Map(), events: [] }, t: now - 864e5, playing: false, loading: true };
+    try {
+      const history = await loadHistory(this.hass, ids, 24, now);
+      if (!this._replay) return;
+      this._replay = { history, t: history.start, playing: true };
+      this.playReplay();
+    } catch {
+      this.closeTimeTravel();
+    }
+  }
+
+  private playReplay() {
+    clearInterval(this.replayTimer);
+    if (!this._replay?.playing) return;
+    // a day in about fifty seconds
+    this.replayTimer = window.setInterval(() => {
+      const r = this._replay;
+      if (!r) return clearInterval(this.replayTimer);
+      const t = Math.min(r.history.end, r.t + 3 * 60000);
+      this._replay = { ...r, t, playing: t < r.history.end };
+      this.stateSignature = "";
+      this.syncStates();
+      if (t >= r.history.end) clearInterval(this.replayTimer);
+    }, 100);
+  }
+
+  private seekReplay(t: number) {
+    if (!this._replay) return;
+    this._replay = { ...this._replay, t, playing: false };
+    clearInterval(this.replayTimer);
+    this.stateSignature = "";
+    this.syncStates();
+  }
+
+  private closeTimeTravel() {
+    clearInterval(this.replayTimer);
+    this._replay = null;
+    this.stateSignature = "";
+    this.syncStates();
+  }
+
+  private renderTimeTravel() {
+    if (!this.config.time_travel) return nothing;
+    const r = this._replay;
+    if (!r) return html`<button class="time-travel-open" title=${this.t("card.time_travel")} @click=${() => this.openTimeTravel()}><ha-icon icon="mdi:history"></ha-icon></button>`;
+    const span = r.history.end - r.history.start || 1;
+    const when = new Date(r.t);
+    return html`<div class="time-travel" role="group" aria-label=${this.t("card.time_travel")}>
+      <button title=${r.playing ? this.t("card.pause") : this.t("card.play")} ?disabled=${!!r.loading} @click=${() => {
+        if (!this._replay) return;
+        const restart = this._replay.t >= this._replay.history.end;
+        this._replay = { ...this._replay, playing: !this._replay.playing, t: restart ? this._replay.history.start : this._replay.t };
+        this.playReplay();
+      }}><ha-icon icon=${r.playing ? "mdi:pause" : "mdi:play"}></ha-icon></button>
+      <div class="track">
+        ${r.history.events.map((e) => html`<i class="tick" style="left:${((e.t - r.history.start) / span) * 100}%"></i>`)}
+        <input type="range" min=${r.history.start} max=${r.history.end} step="60000" .value=${String(r.t)} @input=${(e: Event) => this.seekReplay(Number((e.target as HTMLInputElement).value))} />
+      </div>
+      <span class="when">${r.loading ? "…" : `${when.toDateString() === new Date().toDateString() ? "" : `${this.t("card.yesterday")} `}${clockText(this.hass, when)}`}</span>
+      <button title=${this.t("card.back_to_now")} @click=${() => this.closeTimeTravel()}><ha-icon icon="mdi:close"></ha-icon></button>
+    </div>`;
+  }
+
+  // ----- the sun's path -----
+
+  private sunPathKey = "";
+  private _sunTimes: { x: number; y: number; text: string }[] = [];
+  private sunTimes: Date[] = [];
+
+  /** Draws today's sun path (again when the day or the sun's place on it changes). */
+  private updateSunPath(hass: Hass) {
+    const lat = hass.config?.latitude;
+    const lon = hass.config?.longitude;
+    if (!this.config.sun_path || lat === undefined || lon === undefined || !this.house || !this.renderer) {
+      if (this.renderer?.sunPathShown) {
+        this.renderer.setSunPath(null, null);
+        this.sunTimes = [];
+        this.scheduleDraw();
+      }
+      this.sunPathKey = "";
+      return;
+    }
+    const now = new Date();
+    // redraw every ten minutes: the sun moves along
+    const key = `${now.toDateString()}/${Math.floor((now.getHours() * 60 + now.getMinutes()) / 10)}/${this.house.north}`;
+    if (key === this.sunPathKey) return;
+    this.sunPathKey = key;
+    const path = sunPath(now, lat, lon);
+    const turn = (p: { azimuth: number; elevation: number }) => ({ azimuth: p.azimuth - this.house!.north, elevation: p.elevation });
+    const here = sunPosition(now, lat, lon);
+    this.renderer.setSunPath(path.map(turn), turn(here));
+    const up = path.filter((p) => p.elevation > 0);
+    this.sunTimes = up.length ? [up[0].time, up.at(-1)!.time] : [];
+    this.scheduleDraw();
+  }
+
+  private sunTimeLabels() {
+    if (!this.renderer || !this.sunTimes.length || this._level) return [];
+    const fmt = (d: Date) => clockText(this.hass, d);
+    return this.renderer.projectSunPath().map((p, i) => ({ ...p, text: `${i ? "☾ " : "☀ "}${fmt(this.sunTimes[i])}` }));
+  }
+
+  // ----- weather -----
+
+  private renderWeather() {
+    const id = this.config.weather;
+    const st = id ? this.hass?.states[id] : undefined;
+    if (!id || !st) return nothing;
+    const t = Number(st.attributes.temperature);
+    const unit = (st.attributes.temperature_unit as string | undefined) ?? "°";
+    const text = Number.isFinite(t) ? `${formatNumber(this.hass?.locale, t, Math.abs(t) < 10 && !Number.isInteger(t) ? 1 : 0)} ${unit}` : "";
+    return html`<button class="weather ${this.config.clock ? "below-clock" : ""}" title=${st.state} @click=${() => this.moreInfo(id)}>
+      <ha-icon icon=${WEATHER_ICONS[st.state] ?? "mdi:weather-partly-cloudy"}></ha-icon><span>${text}</span>
+    </button>`;
   }
 
   // ----- shortcut buttons -----
@@ -743,7 +1121,14 @@ export class HomesliceCard extends LitElement {
     this.dispatchEvent(new CustomEvent("hass-more-info", { detail: { entityId }, bubbles: true, composed: true }));
   }
 
+  private _people: { key: string; x: number; y: number; color: string; name: string; picture?: string }[] = [];
   private _badges: { entity: string; x: number; y: number; icon: string; text: string; urgent: boolean }[] = [];
+
+  /** A placed piece's tags, from its built-in model (or the type's default piece). */
+  private pieceTags(f: { type: FurnitureType; model?: string; mount: FurnitureMount }): Tag[] {
+    const kind = f.model?.startsWith("modern:") ? f.model.slice(7) : f.model ? undefined : defaultKind(f.type, f.mount);
+    return kindTags(kind, f.type);
+  }
 
   /** Notes above the linked pieces that need attention, on the floors shown. */
   private pieceBadges() {
@@ -752,10 +1137,17 @@ export class HomesliceCard extends LitElement {
       if ((this._level && level.id !== this._level) || !this.renderer!.isLevelVisible(level.id)) return [];
       return level.rooms.flatMap((room) =>
         room.furniture.flatMap((f) => {
-          const badge = f.entity ? pieceBadge(this.hass!, f.entity, f.model ?? f.type) : null;
-          const p = badge ? this.renderer!.project(level.id, f.at, (f.elevation ?? 0) + f.height + 0.1) : null;
-          if (!badge || !p) return [];
-          return [{ entity: f.entity!, ...p, icon: badge.icon, text: badge.key ? this.t(`card.badge_${badge.key}`, badge.vars) : "", urgent: badge.urgent }];
+          const tags = this.pieceTags(f);
+          // a car that is away: no piece, no note
+          if (f.entity && deviceLook(this.hass!, f.entity)?.present === false) return [];
+          const badge = f.entity ? pieceBadge(this.hass!, f.entity, tags) : null;
+          // else its readings (a car's charge and range)
+          const readings = (f.readings ?? []).map((r) => this.detailText({ entity: r, name: "" }, "")).filter(Boolean);
+          if (!badge && !readings.length) return [];
+          const p = this.renderer!.project(level.id, f.at, (f.elevation ?? 0) + f.height + 0.1);
+          if (!p) return [];
+          const text = [badge?.key ? this.t(`card.badge_${badge.key}`, badge.vars) : "", ...readings].filter(Boolean).join(" · ");
+          return [{ entity: f.entity ?? f.readings![0], ...p, icon: badge?.icon ?? (tags.includes("vehicle") ? "mdi:car-info" : "mdi:information-outline"), text, urgent: !!badge?.urgent }];
         }),
       );
     });
@@ -775,7 +1167,7 @@ export class HomesliceCard extends LitElement {
 
   /** Robots: name, what they do and their battery, above them. */
   private robotLabels() {
-    if (!this.house || !this.renderer || !this.hass) return [];
+    if (!this.house || !this.renderer || !this.hass || this._walking) return [];
     return this.house.robots.flatMap((r, i) => {
       if (this._level && this.house!.levels[r.levelIndex]?.id !== this._level) return [];
       const p = this.renderer!.projectRobot(`robot-${r.index}`);
@@ -787,6 +1179,19 @@ export class HomesliceCard extends LitElement {
       const state = s ? (format ? format(s) : s.state) : "";
       return [{ key: `robot-${r.index}`, entity: r.entity, ...p, name, battery: reading.battery, text: `${state}${reading.battery !== null ? ` · ${Math.round(reading.battery)} %` : ""}${reading.unsure ? ` · ${this.t("card.robot_unsure")}` : ""}`, color: ROBOT_COLORS[reading.status], icon: r.kind === "lawn_mower" ? "mdi:robot-mower" : "mdi:robot-vacuum" }];
     });
+  }
+
+  /** One more reading for a callout: a short name and the value with its unit ("COP 3.8"). */
+  private detailText(d: { entity: string; name?: string }, owner: string): string {
+    const st = this.hass?.states[d.entity];
+    if (!st || st.state === "unavailable" || st.state === "unknown") return "";
+    const n = Number(st.state);
+    const unit = (st.attributes.unit_of_measurement as string | undefined) ?? "";
+    const value = Number.isFinite(n) ? formatNumber(this.hass?.locale, n, Number.isInteger(n) ? 0 : 1) : st.state;
+    // the sensor's name without the device's ("Heat pump COP" on the heat pump: "COP")
+    let name = d.name ?? (st.attributes.friendly_name as string | undefined) ?? "";
+    if (!d.name && owner && name.toLowerCase().startsWith(owner.toLowerCase())) name = name.slice(owner.length).trim();
+    return `${name ? `${name} ` : ""}${value}${unit ? (unit === "%" ? unit : ` ${unit}`) : ""}`;
   }
 
   private energyLabels(): EnergyLabel[] {
@@ -804,7 +1209,8 @@ export class HomesliceCard extends LitElement {
       const still = r.power === null || Math.abs(r.power) < 10;
       const state =
         still ? "" : e.kind === "battery" ? this.t(r.power! > 0 ? "card.energy_discharging" : "card.energy_charging") : e.kind === "grid" ? this.t(r.power! > 0 ? "card.energy_import" : "card.energy_export") : "";
-      const text = `${e.kind === "battery" && r.soc !== null ? `${Math.round(r.soc)} % · ` : ""}${formatPower(r.power === null ? null : Math.abs(r.power), this.hass?.locale)}`;
+      const details = e.details.map((d) => this.detailText(d, name)).filter(Boolean);
+      const text = [`${e.kind === "battery" && r.soc !== null ? `${Math.round(r.soc)} % · ` : ""}${formatPower(r.power === null ? null : Math.abs(r.power), this.hass?.locale)}`, ...details].join(" · ");
       out.push({ key, kind: e.kind, ...p, mx: p.x, my: p.y, place: "above", icon: ENERGY_ICONS[e.kind] ?? ENERGY_ICONS.device, name: state ? `${name} · ${state}` : name, text });
     });
     // the whole house: callouts beside it, so labels never cover other floors
@@ -824,8 +1230,11 @@ export class HomesliceCard extends LitElement {
   /** Applies lights, covers and contacts; redraws only when something actually changed. */
   private syncStates() {
     if (!this.hass || !this.renderer || !this.house) return;
-    const hass = this.hass;
-    this.followEvents(hass);
+    // time travel: the house as it was then
+    const hass: Hass = this._replay ? { ...this.hass, states: statesAt(this.hass, this._replay.history, this._replay.t) } : this.hass;
+    if (!this._replay) this.followEvents(hass);
+    // (it keeps its own key: redrawn when the day, the sun's place or the house changes)
+    this.updateSunPath(hass);
     this.syncLamps(hass);
     const lights = this.rooms.map((r) => lightsLook(hass, this.roomLights(r.key)));
     const lamps = this.lamps.map((l) => lightsLook(hass, [l.entity]));
@@ -843,7 +1252,10 @@ export class HomesliceCard extends LitElement {
     });
     const awnings = this.rooms.map((r) => (r.room.awning ? coverOpen(hass, r.room.awning, inverted.has(r.room.awning)) : null));
     const devices = this.devices.map((entity) => deviceLook(hass, entity, inverted.has(entity)));
-    const badges = this.config.badges === false ? [] : this.house.levels.flatMap((l) => l.rooms.flatMap((r) => r.furniture.map((f) => (f.entity ? JSON.stringify(pieceBadge(hass, f.entity, f.model ?? f.type)) : null))));
+    const energyDetails = this.config.energy ? this.house.energy.flatMap((e) => e.details.map((d) => hass.states[d.entity]?.state)) : [];
+    // rain, snow or fog around the house, from the card's weather entity
+    const weather = this.config.weather && this.config.weather_effects !== false ? weatherEffect(hass.states[this.config.weather]?.state) : null;
+    const badges = this.config.badges === false ? [] : this.house.levels.flatMap((l) => l.rooms.flatMap((r) => r.furniture.map((f) => [f.entity ? JSON.stringify(pieceBadge(hass, f.entity, this.pieceTags(f))) : null, ...(f.readings ?? []).map((e) => hass.states[e]?.state)])));
     // underfloor heating: a climate entity heating, or a valve/switch/sensor on
     const underfloor = [...new Set(this.rooms.map((r) => r.room.underfloor).filter((e): e is string => !!e))].map((entity) => {
       const look = deviceLook(hass, entity);
@@ -869,7 +1281,7 @@ export class HomesliceCard extends LitElement {
       const v = kind && r.room.areaId && r.room.kind === "room" ? areaReading(hass, r.room.areaId, kind) : null;
       return v === null || !kind ? null : stepColor(v, this.steps[kind] ?? []);
     });
-    const signature = JSON.stringify([look, this.config.accent, lux, heat, lights, lamps, covers, contacts, values, sensors, awnings, devices, underfloor, badges, cameras, this.energyReadings, this.robotReadings, this.robotNeeds, sunAt]);
+    const signature = JSON.stringify([look, this.config.accent, lux, heat, lights, lamps, covers, contacts, values, sensors, awnings, devices, underfloor, badges, energyDetails, weather, this.placedPeople(hass).map((p) => [p.key, p.levelId, p.at]), this.config.weather ? hass.states[this.config.weather]?.attributes.temperature : null, cameras, this.energyReadings, this.robotReadings, this.robotNeeds, sunAt]);
     if (signature === this.stateSignature) return;
     this.stateSignature = signature;
     this.lamps.forEach((l, i) => this.renderer!.setLamp(l.entity, lamps[i]));
@@ -877,6 +1289,8 @@ export class HomesliceCard extends LitElement {
     for (const [entity, heating] of underfloor) this.renderer.setUnderfloor(entity, heating);
     for (const [entity, moving] of cameras) this.renderer.setCameraMotion(entity, moving);
     this.renderer.setLook(look, this.config.accent || undefined);
+    this.renderer.setWeather(weather);
+    this.renderer.setPeople(this.placedPeople(hass));
     this.renderer.setSun(sunAt?.[0] ?? null, sunAt?.[1] ?? null);
     this.house.robots.forEach((r, i) => this.renderer!.setRobotState(`robot-${r.index}`, this.robotReadings[i].at, ROBOT_COLORS[this.robotReadings[i].status], this.robotReadings[i].unsure));
     if (this.config.energy) this.renderer.setFlows(Object.fromEntries(this.house.energy.map((e, i) => [`energy-${e.index}`, this.energyReadings[i]?.flow ?? null])));
@@ -1012,14 +1426,38 @@ export class HomesliceCard extends LitElement {
     void this.showEvent(where, hit.text);
   }
 
-  private async showEvent(where: { levelId: string; roomId?: string }, text: string) {
+  private unsubscribeShow?: () => Promise<void> | void;
+
+  /** Flies to the area, floor or entity the homeslice.show action names, for a while. */
+  private async showAsked(m: ShowMessage) {
+    if (!this.house || !this.hass) return;
+    let where: { levelId: string; roomId?: string } | null = null;
+    let text = "";
+    if (m.area_id) {
+      const r = this.rooms.find((x) => x.room.areaId === m.area_id);
+      if (r) where = { levelId: r.levelId, roomId: r.room.id };
+      text = this.hass.areas?.[m.area_id]?.name ?? "";
+    } else if (m.floor_id) {
+      const level = this.house.levels.find((l) => l.floorId === m.floor_id);
+      if (level) where = { levelId: level.id };
+      text = this.hass.floors?.[m.floor_id]?.name ?? level?.name ?? "";
+    } else if (m.entity_id) {
+      where = whereIs(this.house, this.hass, m.entity_id, this.openings);
+      text = (this.hass.states[m.entity_id]?.attributes.friendly_name as string | undefined) ?? m.entity_id;
+    }
+    if (!where) return;
+    this.closePopup();
+    await this.showEvent(where, text, m.seconds);
+  }
+
+  private async showEvent(where: { levelId: string; roomId?: string }, text: string, seconds?: number) {
     const room = where.roomId ? this.rooms.find((r) => r.key === `${where.levelId}/${where.roomId}`) : undefined;
     this._event = room ? `${text} · ${this.roomName(room)}` : text;
     // where to go back to (an event already shown keeps the first)
     if (this.eventReturn === undefined) this.eventReturn = this._level;
     if (this._level !== where.levelId) await this.selectLevel(where.levelId);
     clearTimeout(this.eventTimer);
-    this.eventTimer = window.setTimeout(() => void this.endEvent(), (this.config.follow_seconds ?? 30) * 1000);
+    this.eventTimer = window.setTimeout(() => void this.endEvent(), (seconds ?? this.config.follow_seconds ?? 30) * 1000);
   }
 
   private async endEvent() {
@@ -1280,6 +1718,12 @@ export class HomesliceCard extends LitElement {
   }
 
   private onPointerDown(e: PointerEvent) {
+    if (this._walking) {
+      // walking: drag to look around
+      (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+      this.lookFrom = { x: e.clientX, y: e.clientY };
+      return;
+    }
     // a plan: a sideways swipe goes to the next floor (phones have little room for buttons)
     if (this.plan && e.isPrimary) this.swipeFrom = { x: e.clientX, y: e.clientY, at: Date.now() };
     // a long press on a linked piece opens its details (colours for a lamp), turning or not
@@ -1313,6 +1757,13 @@ export class HomesliceCard extends LitElement {
   }
 
   private onPointerMove(e: PointerEvent) {
+    if (this._walking) {
+      if (!this.lookFrom || !this.renderer?.walking) return;
+      const v = this.renderer.walking;
+      this.renderer.setWalk({ ...v, yaw: v.yaw - (e.clientX - this.lookFrom.x) * 0.25, pitch: Math.max(-60, Math.min(60, v.pitch + (e.clientY - this.lookFrom.y) * 0.2)) });
+      this.lookFrom = { x: e.clientX, y: e.clientY };
+      return;
+    }
     if (this.holdFrom && Math.hypot(e.clientX - this.holdFrom.x, e.clientY - this.holdFrom.y) > 8) {
       clearTimeout(this.holdTimer);
       this.holdFrom = null;
@@ -1349,6 +1800,10 @@ export class HomesliceCard extends LitElement {
   }
 
   private onPointerUp(e: PointerEvent) {
+    if (this._walking) {
+      this.lookFrom = null;
+      return;
+    }
     const sw = this.swipeFrom;
     this.swipeFrom = null;
     if (sw && this.plan && this.house && e.type === "pointerup") {
@@ -1465,6 +1920,17 @@ export class HomesliceCard extends LitElement {
 
   private placeLabels() {
     if (!this.renderer || !this.hass) return;
+    if (this._walking) {
+      // at eye level the house speaks for itself
+      this._labels = [];
+      this._lampButtons = [];
+      this._energyLabels = [];
+      this._robotLabels = [];
+      this._dockAlerts = [];
+      this._badges = [];
+      this._sunTimes = [];
+      return;
+    }
     const roofed = this.renderer.roofVisible();
     const labels: Label[] = [];
     for (const r of this.rooms) {
@@ -1511,6 +1977,8 @@ export class HomesliceCard extends LitElement {
     this._robotLabels = this.robotLabels();
     this._dockAlerts = this.dockAlerts();
     this._badges = this.pieceBadges();
+    this._sunTimes = this.sunTimeLabels();
+    this._people = this.personLabels();
   }
 
   protected override render() {
@@ -1518,6 +1986,7 @@ export class HomesliceCard extends LitElement {
     return html`
       <ha-card class="${this.config.lamp_style === "circle" ? "" : "bare-lamps"} ${this._night ? "night-dim" : ""}" style=${this._night ? `--night-brightness:${Math.min(1, Math.max(0.1, this.config.night_brightness ?? 0.4))}` : ""}>
         ${this.config.clock && this._clock ? html`<div class="clock" role="timer">${this._clock}</div>` : nothing}
+        ${this.renderWeather()}
           ${this.house
           ? html`<nav class="levels">
               ${levels.map(
@@ -1538,6 +2007,7 @@ export class HomesliceCard extends LitElement {
             </nav>`
           : nothing}
         <div class="wrap">
+          ${this.renderOverlays("behind")}
           <canvas
             class="${this.interactive ? "interactive" : ""} ${this.plan ? "swipe" : ""}"
             @click=${this.onCanvasClick}
@@ -1553,7 +2023,10 @@ export class HomesliceCard extends LitElement {
           ${this._readout ? html`<div class="readout">${this._readout}</div>` : nothing}
           ${this.powerOut ? html`<div class="outage" role="alert"><ha-icon icon="mdi:power-plug-off"></ha-icon>${this.t("card.power_outage")}</div>` : nothing}
           ${this._event ? html`<div class="event" role="status"><ha-icon icon="mdi:bell-ring-outline"></ha-icon>${this._event}</div>` : nothing}
+          ${this.renderOverlays("front")}
           ${this.renderShortcuts()}
+          ${this.renderTimeTravel()}
+          ${this.renderWalk()}
           ${this.interactive && !this.plan
             ? html`<div class="views">
                 <button title=${this.t("card.view_left")} @click=${() => this.turnView(-90)}><ha-icon icon="mdi:rotate-left"></ha-icon></button>
@@ -1602,6 +2075,12 @@ export class HomesliceCard extends LitElement {
               <ha-icon icon=${r.icon}></ha-icon>${r.battery !== null ? html`<span class="value">${Math.round(r.battery)} %</span>` : nothing}
             </button>`,
           )}
+          ${this._people.map(
+            (p) => html`<button class="person" style="left:${p.x}px;top:${p.y}px;--person:${p.color}" title=${p.name} @click=${() => this.moreInfo(p.key)}>
+              ${p.picture ? html`<img src=${p.picture} alt="" />` : html`<span>${p.name.slice(0, 1)}</span>`}
+            </button>`,
+          )}
+          ${this._sunTimes.map((t) => html`<div class="sun-time" style="left:${t.x}px;top:${t.y}px">${t.text}</div>`)}
           ${this._badges.map(
             (b) => html`<button class="piece-badge ${b.urgent ? "urgent" : ""}" style="left:${b.x}px;top:${b.y}px" title=${b.text} @click=${() => this.moreInfo(b.entity)}>
               <ha-icon icon=${b.icon}></ha-icon><span>${b.text}</span>
@@ -1748,6 +2227,20 @@ export class HomesliceCard extends LitElement {
       position: relative;
       width: 100%;
       min-height: 200px;
+      /* its own stacking context: cards behind the house stay inside the card */
+      isolation: isolate;
+    }
+    .card-overlay {
+      position: absolute;
+      z-index: 2;
+    }
+    .card-overlay.behind {
+      /* under the house: the canvas is see-through where nothing is drawn */
+      z-index: -1;
+      pointer-events: none;
+    }
+    .card-overlay.hidden {
+      display: none;
     }
     canvas {
       display: block;
@@ -1815,6 +2308,137 @@ export class HomesliceCard extends LitElement {
       color: #fff;
       font-weight: 500;
       animation: homeslice-alert 1.2s ease-in-out infinite;
+    }
+    .walk-open {
+      position: absolute;
+      left: 56px;
+      bottom: 56px;
+      z-index: 2;
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      border: 1px solid var(--divider-color, rgba(255, 255, 255, 0.2));
+      background: var(--card-background-color, rgba(20, 24, 28, 0.85));
+      color: var(--primary-text-color, #ddd);
+      display: grid;
+      place-items: center;
+      padding: 0;
+      cursor: pointer;
+      --mdc-icon-size: 20px;
+    }
+    .walk-close {
+      position: absolute;
+      right: 12px;
+      top: 12px;
+      z-index: 4;
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      border: none;
+      background: rgba(20, 24, 28, 0.75);
+      color: #fff;
+      display: grid;
+      place-items: center;
+      cursor: pointer;
+    }
+    .walk-hint {
+      position: absolute;
+      left: 50%;
+      top: 12px;
+      transform: translateX(-50%);
+      padding: 4px 12px;
+      border-radius: 12px;
+      background: rgba(20, 24, 28, 0.6);
+      color: #fff;
+      font-size: 12px;
+      pointer-events: none;
+    }
+    .stick {
+      position: absolute;
+      left: 20px;
+      bottom: 20px;
+      z-index: 4;
+      width: 110px;
+      height: 110px;
+      border-radius: 50%;
+      background: rgba(20, 24, 28, 0.35);
+      border: 2px solid rgba(255, 255, 255, 0.5);
+      touch-action: none;
+    }
+    .stick i {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: 44px;
+      height: 44px;
+      margin: -22px 0 0 -22px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.8);
+      transform: translate(var(--sx, 0px), var(--sy, 0px));
+    }
+    .time-travel-open {
+      position: absolute;
+      left: 12px;
+      bottom: 56px;
+      z-index: 2;
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      border: 1px solid var(--divider-color, rgba(255, 255, 255, 0.2));
+      background: var(--card-background-color, rgba(20, 24, 28, 0.85));
+      color: var(--primary-text-color, #ddd);
+      display: grid;
+      place-items: center;
+      padding: 0;
+      cursor: pointer;
+      --mdc-icon-size: 20px;
+    }
+    .time-travel {
+      position: absolute;
+      left: 12px;
+      right: 12px;
+      bottom: 12px;
+      z-index: 3;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 10px;
+      border-radius: 14px;
+      background: var(--card-background-color, rgba(20, 24, 28, 0.9));
+      color: var(--primary-text-color, #ddd);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    }
+    .time-travel button {
+      border: none;
+      background: none;
+      color: inherit;
+      padding: 4px;
+      cursor: pointer;
+      display: grid;
+      place-items: center;
+    }
+    .time-travel .track {
+      position: relative;
+      flex: 1;
+      display: flex;
+      align-items: center;
+    }
+    .time-travel input {
+      width: 100%;
+    }
+    .time-travel .tick {
+      position: absolute;
+      top: -6px;
+      width: 2px;
+      height: 6px;
+      background: var(--primary-color, #03a9f4);
+      opacity: 0.6;
+      pointer-events: none;
+    }
+    .time-travel .when {
+      font-variant-numeric: tabular-nums;
+      min-width: 4.5em;
+      text-align: right;
     }
     .shortcuts {
       position: absolute;
@@ -2005,6 +2629,36 @@ export class HomesliceCard extends LitElement {
       --mdc-icon-size: 18px;
     }
     /* compact (icon and battery) so it doesn't cover room names; the rest is in its title */
+    .person {
+      position: absolute;
+      transform: translate(-50%, -100%);
+      width: 30px;
+      height: 30px;
+      padding: 0;
+      border-radius: 50%;
+      border: 2px solid var(--person);
+      background: var(--card-background-color, #fff);
+      color: var(--person);
+      font-weight: 600;
+      overflow: hidden;
+      cursor: pointer;
+      pointer-events: auto;
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
+    }
+    .person img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .sun-time {
+      position: absolute;
+      transform: translate(-50%, -130%);
+      font-size: 11px;
+      color: #ffb347;
+      text-shadow: 0 0 3px rgba(0, 0, 0, 0.7);
+      white-space: nowrap;
+      pointer-events: none;
+    }
     .piece-badge {
       position: absolute;
       transform: translate(-50%, -100%);
@@ -2135,6 +2789,27 @@ export class HomesliceCard extends LitElement {
     ha-card.night-dim {
       filter: brightness(var(--night-brightness, 0.4));
       transition: filter 2s;
+    }
+    .weather {
+      position: absolute;
+      right: 12px;
+      top: 8px;
+      z-index: 2;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 16px;
+      border: none;
+      background: color-mix(in srgb, var(--card-background-color, #fff) 70%, transparent);
+      color: var(--primary-text-color);
+      font: inherit;
+      font-size: 16px;
+      cursor: pointer;
+      --mdc-icon-size: 22px;
+    }
+    .weather.below-clock {
+      top: 48px;
     }
     .clock {
       position: absolute;

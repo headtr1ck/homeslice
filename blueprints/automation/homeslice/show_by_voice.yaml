@@ -1,0 +1,39 @@
+blueprint:
+  name: Homeslice – show a room by voice
+  description: >-
+    Say "Show the kitchen" (or "Zeig die Küche") to Assist and open Homeslice cards fly to
+    that room for a while. Floors work too ("Show the first floor").
+  domain: automation
+  source_url: https://github.com/headtr1ck/homeslice/blob/main/blueprints/automation/homeslice/show_by_voice.yaml
+  input:
+    room_sentences:
+      name: Sentences for a room
+      description: "{room} is the area's name or alias."
+      default:
+        - "show [the] {room}"
+        - "zeig[e] [mir] [das|den|die] {room}"
+      selector:
+        text:
+          multiple: true
+    seconds:
+      name: How long
+      default: 60
+      selector:
+        number:
+          min: 5
+          max: 600
+          unit_of_measurement: s
+
+triggers:
+  - trigger: conversation
+    command: !input room_sentences
+
+variables:
+  seconds: !input seconds
+
+actions:
+  - action: homeslice.show
+    data:
+      area: "{{ trigger.slots.room }}"
+      seconds: "{{ seconds }}"
+  - set_conversation_response: "{{ trigger.slots.room }}"
