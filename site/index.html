@@ -55,11 +55,7 @@
     card = el;
   };
   mount();
-  const setState = (id, state, attributes = {}) => {
-    const h = card.hass;
-    h.states = { ...h.states, [id]: { ...h.states[id], state, attributes: { ...h.states[id]?.attributes, ...attributes } } };
-    card.hass = h;
-  };
+  const setState = (id, state, attributes = {}) => card.hass.setState(id, state, attributes);
   const groups = [
     { name: "View", items: [
       ["3D", () => (config = { ...config, mode: undefined, floors: undefined })],

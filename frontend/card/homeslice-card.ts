@@ -440,6 +440,7 @@ export class HomesliceCard extends LitElement {
   };
 
   setConfig(config: HomesliceCardConfig) {
+    const previous = this.config as HomesliceCardConfig | undefined;
     this.baseConfig = config;
     // the viewer's own layer choices (this device) over the card's
     this.config = { house: "home", ...config, ...this.layerChoices(config) };
@@ -471,6 +472,13 @@ export class HomesliceCard extends LitElement {
       this.applySavedViews();
     } else this.applySavedViews();
     this.loadedFor = undefined;
+    // a changed look or what the rooms show applies at once (a new house is drawn by load())
+    const visual = ["look", "accent", "heatmap", "values", "thresholds", "lux", "presence", "heating", "badges"] as const;
+    if (this.renderer && this.house && this.hass && visual.some((k) => JSON.stringify(previous?.[k]) !== JSON.stringify(config[k]))) {
+      this.stateSignature = "";
+      this.syncStates();
+      this.scheduleDraw();
+    }
   }
 
   /** The quality to draw with: the card's, or for `auto` what the device can do. */
@@ -832,7 +840,8 @@ export class HomesliceCard extends LitElement {
   private useEntity(entity: string) {
     if (this.ownAction(entity, "tap")) return;
     const domain = entity.split(".")[0];
-    if (["light", "switch", "fan", "input_boolean"].includes(domain)) void this.hass?.callService("homeassistant", "toggle", {}, { entity_id: entity });
+    // (a blind or an awning opens or closes)
+    if (["light", "switch", "fan", "input_boolean", "cover"].includes(domain)) void this.hass?.callService("homeassistant", "toggle", {}, { entity_id: entity });
     else this.moreInfo(entity);
   }
 
@@ -1575,6 +1584,16 @@ export class HomesliceCard extends LitElement {
     return areaValues(this.hass, r.room.areaId, this.config.values ?? ["temperature"], this.steps);
   }
 
+  /** How high a lamp is above its floor: its piece's top, a strip's height, else near the ceiling. */
+  private lampHeight(l: PlacedLight): number {
+    const level = this.house?.levels.find((x) => x.id === l.levelId);
+    const ceiling = level?.height ?? 2.6;
+    if (l.height !== undefined) return l.height;
+    const piece = level?.rooms.find((r) => r.id === l.roomId)?.furniture.find((f) => f.entity === l.entity);
+    if (piece) return piece.mount === "ceiling" ? Math.max(0.3, ceiling - piece.height) : (piece.elevation ?? 0) + piece.height * 0.9;
+    return ceiling * 0.9;
+  }
+
   /** A room's lux reading for its label, when the card shows them. */
   private luxText(r: PlacedRoom): string | null {
     if (!this.config.lux || !this.hass || !r.room.areaId || r.room.kind !== "room") return null;
@@ -2056,7 +2075,9 @@ export class HomesliceCard extends LitElement {
       for (const l of this.lamps) perRoom.set(`${l.levelId}/${l.roomId}`, (perRoom.get(`${l.levelId}/${l.roomId}`) ?? 0) + 1);
       for (const l of this.lamps) {
         if (l.levelId !== this._level || (perRoom.get(`${l.levelId}/${l.roomId}`) ?? 0) < 2) continue;
-        const p = this.renderer.project(l.levelId, l.at, 0.05);
+        // at the lamp itself (a pendant near the ceiling, a floor lamp's shade), so it sits on
+        // the lamp from any angle, not on the floor below it
+        const p = this.renderer.project(l.levelId, l.at, this.lampHeight(l));
         if (!p) continue;
         // keep clear of the room's label (lamp button over the name, centred on its point)
         const label = labels.find((x) => x.key === `${l.levelId}/${l.roomId}`);

@@ -460,6 +460,8 @@ export function snapFurniture(
   others: Footprint[],
   centres: Vec2[],
   tol: number,
+  /** Whether a point is in the room: a piece only goes against a wall from the room's side. */
+  inRoom?: (p: Vec2) => boolean,
 ): { c: Vec2; guide: { x?: number; y?: number } } {
   // the smallest move per axis wins
   const best: [{ d: number; at?: number }, { d: number; at?: number }] = [{ d: Infinity }, { d: Infinity }];
@@ -476,8 +478,13 @@ export function snapFurniture(
       if (Math.abs(a[axis] - b[axis]) > 1e-6) continue;
       if (!overlaps(piece, Math.min(a[other], b[other]), Math.max(a[other], b[other]), other)) continue;
       const face = a[axis];
-      offer(axis, face - lo(piece, axis), face);
-      offer(axis, face - hi(piece, axis), face);
+      // which side of the face the room is on (a piece never snaps into the wall behind it)
+      const mid: Vec2 = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+      const probe: Vec2 = [...mid] as Vec2;
+      probe[axis] += 0.05;
+      const roomAbove = inRoom ? inRoom(probe) : null;
+      if (roomAbove !== false) offer(axis, face - lo(piece, axis), face);
+      if (roomAbove !== true) offer(axis, face - hi(piece, axis), face);
     }
   }
   for (const o of others) {

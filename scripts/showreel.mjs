@@ -52,12 +52,7 @@ const rebuild = (patch) =>
     window.card.hass = window.card.hass;
   }, patch);
 const call = (domain, service, entity) => page.evaluate(([d, s, e]) => window.card.hass.callService(d, s, {}, { entity_id: e }), [domain, service, entity]);
-const state = (id, s, attributes) =>
-  page.evaluate(([id, s, a]) => {
-    const h = window.card.hass;
-    h.states = { ...h.states, [id]: { ...h.states[id], state: s, attributes: { ...h.states[id]?.attributes, ...a } } };
-    window.card.hass = h;
-  }, [id, s, attributes ?? {}]);
+const state = (id, s, attributes) => page.evaluate(([id, s, a]) => window.card.hass.setState(id, s, a), [id, s, attributes ?? {}]);
 async function shoot(count, each = async () => {}) {
   for (let i = 0; i < count; i++) {
     await each(i);
@@ -77,11 +72,7 @@ await call("cover", "close_cover", "cover.living_room");
 await state("binary_sensor.terrace_door", "on");
 await shoot(16, () => orbit(0.6));
 await caption("Night");
-await page.evaluate(() => {
-  const h = window.card.hass;
-  h.states = { ...h.states, "sun.sun": { entity_id: "sun.sun", state: "below_horizon", attributes: { azimuth: 300, elevation: -15 } } };
-  window.card.hass = h;
-});
+await state("sun.sun", "below_horizon", { azimuth: 300, elevation: -15 });
 await config({ look: "night" });
 await shoot(18, () => orbit(0.8));
 await caption("White model");
@@ -119,4 +110,5 @@ server.close();
 // an animated WebP: small, sharp, loops
 execFileSync("ffmpeg", ["-y", "-loglevel", "error", "-framerate", String(FPS), "-i", join(frames, "f%04d.png"), "-vf", "scale=860:-1:flags=lanczos", "-loop", "0", "-c:v", "libwebp_anim", "-quality", "62", "-compression_level", "6", out]);
 console.log(`${readdirSync(frames).length} frames → ${out}`);
-rmSync(frames, { recursive: true, force: true });
+if (!process.env.KEEP_FRAMES) rmSync(frames, { recursive: true, force: true });
+else console.log(`frames kept in ${frames}`);

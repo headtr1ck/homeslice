@@ -187,12 +187,19 @@ export function makeHass(fixture, onChange) {
         const cur = states[id]?.state;
         if (service === "turn_on") set(id, "on", { brightness: data.brightness ?? 255 });
         else if (service === "turn_off") set(id, "off");
+        else if (service === "toggle" && id.startsWith("cover."))
+          cur === "closed" ? set(id, "open", { current_position: 100 }) : set(id, "closed", { current_position: 0 });
         else if (service === "toggle") set(id, cur === "on" ? "off" : "on");
         else if (service === "open_cover") set(id, "open", { current_position: 100 });
         else if (service === "close_cover") set(id, "closed", { current_position: 0 });
         else if (service === "set_cover_position")
           set(id, data.position > 0 ? "open" : "closed", { current_position: data.position });
       }
+      onChange(snapshot());
+    },
+    /** Demo and test helper: what an entity's state changing in HA does. */
+    setState(id, state, attributes = {}) {
+      states = { ...states, [id]: { entity_id: id, ...states[id], state, attributes: { ...states[id]?.attributes, ...attributes } } };
       onChange(snapshot());
     },
   };

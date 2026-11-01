@@ -4,7 +4,7 @@
 import type { Hass } from "../ha/hass";
 import { areaEntities } from "../ha/hass";
 import { expandHouse } from "../model/expand";
-import { misalignedWalls } from "../model/checks";
+import { misalignedWalls, piecesInWalls, unreachableRooms } from "../model/checks";
 import type { HouseInput, OpeningSource, Side } from "../model/types";
 import { deriveWalls } from "../model/walls";
 import { updateOpening } from "./ops";
@@ -86,6 +86,9 @@ export function checklist(model: HouseInput, hass: Hass, levelAreas: (levelId: s
   // 3. walls that almost line up with the wall below, and the model's own warnings
   const walls = new Map(house.levels.map((l) => [l.id, deriveWalls(l, house.walls, [])]));
   for (const i of misalignedWalls(house, walls)) items.push({ kind: "wall", level: i.path.split(".")[1], message: i.message });
+  const roomName = (l: string, r: string) => house.levels.find((x) => x.id === l)?.rooms.find((x) => x.id === r)?.name ?? r;
+  for (const i of unreachableRooms(house, walls, roomName)) items.push({ kind: "wall", level: i.path.startsWith("levels.") ? i.path.split(".")[1] : undefined, message: i.message });
+  for (const i of piecesInWalls(house, walls, roomName)) items.push({ kind: "wall", level: i.path.split(".")[1], message: i.message });
   for (const i of issues) items.push({ kind: "model", level: i.path.startsWith("levels.") ? i.path.split(".")[1] : undefined, message: i.message });
   return items;
 }

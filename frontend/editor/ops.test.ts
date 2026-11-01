@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { HouseInput } from "../model/types";
+import type { HouseInput, Vec2 } from "../model/types";
 import {
   addRoofLevel,
   addRoofPart,
@@ -544,6 +544,15 @@ describe("snapping furniture", () => {
     [[4, 3], [0, 3]],
     [[0, 3], [0, 0]],
   ];
+  it("snaps a piece against a wall from the room's side only, never into the wall", () => {
+    const inner: Vec2[] = [[0.36, 0.36], [5, 0.36], [5, 4], [0.36, 4]];
+    const faces = inner.map((q, i) => [q, inner[(i + 1) % inner.length]] as [Vec2, Vec2]);
+    const inRoom = (p: Vec2) => p[0] > 0.36 && p[0] < 5 && p[1] > 0.36 && p[1] < 4;
+    // a bed dragged half into the north wall: its back goes to the wall's face, not its front
+    const r = snapFurniture({ c: [2, 0.4], half: [0.5, 0.45] }, faces, [], [], 0.6, inRoom);
+    expect(r.c[1]).toBeCloseTo(0.81);
+  });
+
   it("pushes a piece against a nearby wall", () => {
     const r = snapFurniture({ c: [2, 0.55], half: [1, 0.45] }, walls, [], [], 0.15);
     expect(r.c[1]).toBeCloseTo(0.45);

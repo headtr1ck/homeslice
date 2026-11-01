@@ -769,7 +769,9 @@ export class HouseRenderer {
       // outer walls are split at the cut height; the upper part hides while it faces a low camera
       const cuttable = w.type !== "interior";
       const cutAt = Math.min(this.view.cutHeight, w.height);
-      const H = this.view.lowWalls ? Math.min(w.height, this.view.lowWalls) : w.height;
+      // walls meeting at a corner or a T overlap there: their tops a millimetre apart, so the
+      // graphics card never has to pick between two faces in the same place (they shimmered)
+      const H = (this.view.lowWalls ? Math.min(w.height, this.view.lowWalls) : w.height) + (walls.indexOf(w) % 3) * 0.0012;
       const box = (s: number, e: number, z0: number, z1: number, plain: THREE.Material, thickness = w.thickness) => {
         if (e - s < 1e-3 || z1 - z0 < 1e-3) return;
         // wall pieces carry their faces' finishes (frames and leaves stay as they are)
@@ -783,8 +785,9 @@ export class HouseRenderer {
         this.cuttables.push({ mesh: upper, normal: w.normal });
         g.add(upper);
       };
-      let cursor = -w.extendStart;
-      const length = Math.hypot(w.b[0] - w.a[0], w.b[1] - w.a[1]) + w.extendEnd;
+      // (and their ends stop just inside the other wall, not in its face)
+      let cursor = -w.extendStart + (w.extendStart > 0 ? 0.002 : 0);
+      const length = Math.hypot(w.b[0] - w.a[0], w.b[1] - w.a[1]) + w.extendEnd - (w.extendEnd > 0 ? 0.002 : 0);
       for (const o of w.openings) {
         box(cursor, o.start, 0, H, wallMat);
         box(o.start, o.end, 0, Math.min(o.sill, H), wallMat);
@@ -1411,6 +1414,11 @@ export class HouseRenderer {
     mesh.rotation.y = Math.atan2(n[0], n[1]);
     mesh.rotation.x = Math.atan2(drop, reach);
     mesh.userData.outdoor = true;
+    // a tap on it works it, like on any linked piece
+    if (room.awning) {
+      mesh.userData.entity = room.awning;
+      this.linked.push(mesh);
+    }
     this.awnings.set(`${level.id}/${room.id}`, mesh);
     g.add(mesh);
   }

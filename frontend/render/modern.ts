@@ -595,13 +595,7 @@ const BUILDERS: Record<string, Build> = {
         b.box(uw - 0.1, 0.005, d - 0.12, x, h, 0, mat(C.screen, { roughness: 0.15 }));
         for (const [dx, dz, r] of [[-0.12, -0.08, 0.09], [0.12, -0.08, 0.07], [-0.12, 0.12, 0.07], [0.12, 0.12, 0.09]]) b.add(new THREE.RingGeometry(r - 0.006, r, 24), mat("#555"), x + dx, h + 0.006, dz).rotation.x = -Math.PI / 2;
       } else fronts(b, x - uw / 2, uw, 0.1, h - top - 0.1, fz, 1, f, i % 2 ? 3 : 1);
-      if (i === sink) {
-        b.box(uw - 0.14, 0.004, d - 0.22, x, h, 0.02, mat(C.steel, { metalness: 0.6, roughness: 0.3 }));
-        b.box(uw - 0.18, 0.005, d - 0.26, x, h + 0.001, 0.02, mat("#8e9398", { metalness: 0.5, roughness: 0.4 }));
-        const tap = mat(C.chrome, { metalness: 0.8, roughness: 0.2 });
-        b.cyl(0.015, 0.015, 0.3, x, h, back(d) + 0.06, tap, 12);
-        b.rod(v(x, h + 0.3, back(d) + 0.06), v(x, h + 0.26, back(d) + 0.22), 0.012, tap);
-      }
+      if (i === sink) kitchenSink(b, x, uw, d, h);
     }
   },
   kitchen_island: (b, w, d, h, f, _c, a) => {
@@ -5020,16 +5014,30 @@ function bed(b: Builder, w: number, d: number, h: number, f: THREE.Material, leg
 }
 
 function vanity(b: Builder, w: number, d: number, h: number, f: THREE.Material, basins: number, tap: THREE.Material, square = false) {
-  // a cabinet on the wall and basins in a ceramic top
+  // a cabinet on the wall and basins on a ceramic top: a white rim round a grey bowl
   b.box(w, 0.42, d - 0.02, 0, h - 0.47, back(d) + (d - 0.02) / 2, f, 0.006);
   fronts(b, -w / 2, w, h - 0.47, 0.42, d / 2 - 0.02, basins, f, 2, "bar");
   b.box(w + 0.01, 0.05, d, 0, h - 0.05, 0, mat(C.ceramic), 0.01);
   for (let i = 0; i < basins; i++) {
     const x = -w / 2 + (w / basins) * (i + 0.5);
-    flat(b, Math.min(0.5, w / basins - 0.12), d - 0.18, h + 0.002, 0.03, mat("#dcdcd8", { roughness: 0.3 }), square).position.x = x;
-    b.cyl(0.02, 0.02, 0.003, x, h + 0.003, 0.03, mat(C.steel), 12);
-    tapBasin(b, x, h, back(d) + 0.06, tap);
+    const bw = Math.min(0.5, w / basins - 0.12);
+    flat(b, bw, d - 0.16, h, 0.03, mat(C.ceramic, { roughness: 0.25 }), square, 0.1).position.x = x;
+    flat(b, bw - 0.05, d - 0.21, h + 0.102, 0.03, mat("#b9bdc1", { roughness: 0.35 }), square).position.x = x;
+    b.cyl(0.022, 0.022, 0.004, x, h + 0.104, 0.03, mat(C.steel, { metalness: 0.7, roughness: 0.3 }), 12);
+    tapBasin(b, x, h, back(d) + 0.06, tap, 0.24);
   }
+}
+
+/** A kitchen sink in its worktop: a steel rim, a darker bowl, a drain, a tall tap. */
+function kitchenSink(b: Builder, x: number, uw: number, d: number, h: number) {
+  const steel = mat(C.steel, { metalness: 0.7, roughness: 0.3 });
+  b.box(uw - 0.12, 0.006, d - 0.2, x, h, 0.02, steel, 0.01);
+  b.box(uw - 0.18, 0.004, d - 0.26, x, h + 0.006, 0.02, mat("#5f656b", { metalness: 0.5, roughness: 0.45 }), 0.02);
+  b.cyl(0.025, 0.025, 0.003, x, h + 0.01, 0.02, mat("#2b2d30"), 14);
+  const tap = mat(C.chrome, { metalness: 0.85, roughness: 0.15 });
+  b.cyl(0.018, 0.022, 0.34, x, h, back(d) + 0.07, tap, 14);
+  b.rod(v(x, h + 0.34, back(d) + 0.07), v(x, h + 0.3, back(d) + 0.26), 0.013, tap, 8);
+  b.cyl(0.012, 0.012, 0.06, x + 0.05, h, back(d) + 0.07, tap, 10);
 }
 
 /** Blades of grass on a patch, from height y. */

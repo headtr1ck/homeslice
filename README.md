@@ -24,12 +24,6 @@ Spanish, Italian and Polish (help with more languages is welcome).
 
 ![Homeslice in motion: 3D by day, lights coming on, shutters and a door, night, the white model and the blueprint, one floor, the tilted and the flat plan, all floors, rain and the sun's path](docs/images/showreel.webp)
 
-| The card: your house in 3D | At night, with its lights on |
-|---|---|
-| ![The demo house as the card shows it: two floors, furnished, the garden](docs/images/card-3d.jpg) | ![The same house at night, lamps lighting the rooms](docs/images/card-3d-night.jpg) |
-| **One floor on its own** (the others slide away) | **The 2D plan** (`mode: plan`) |
-| ![The ground floor picked: herringbone floor, acoustic panels, kitchen, dining table](docs/images/card-floor-night.jpg) | ![The ground floor as a flat plan](docs/images/card-plan.jpg) |
-
 ![The editor: the plan of the ground floor, the 3D preview and the living room's finishes](docs/images/editor.jpg)
 
 *The demo house (`npm run dev`); pictures made by `node scripts/showcase.mjs`.*

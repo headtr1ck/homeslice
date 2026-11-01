@@ -1313,7 +1313,7 @@ export class HomeslicePanel extends LitElement {
           // floor pieces snap to walls and to each other; ceiling pieces to each other and the room's middle
           const inner = this.inner(target);
           const walls = mount === "floor" ? inner.map((q, i) => [q, inner[(i + 1) % inner.length]] as [Vec2, Vec2]) : [];
-          const snappedPiece = snapFurniture({ c: p, half }, walls, this.footprints(drag.room, drag.index, mount), mount === "ceiling" ? [labelPoint(inner)] : [], 10 / this._view.scale);
+          const snappedPiece = snapFurniture({ c: p, half }, walls, this.footprints(drag.room, drag.index, mount), mount === "ceiling" ? [labelPoint(inner)] : [], 10 / this._view.scale, (q) => pointInPolygon(q, inner));
           at = snappedPiece.c;
           guides = snappedPiece.guide;
         } else at = snapped(p, { ...this.snapContext(), points: [] }).p;
