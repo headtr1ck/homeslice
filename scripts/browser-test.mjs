@@ -880,6 +880,57 @@ if (selected()) {
       }),
     );
   });
+  await test("a top-hung window and a lift-and-slide door open with their contacts", async () => {
+    await act(page, () =>
+      page.evaluate(() => {
+        const h = window.card.hass;
+        h.setState("binary_sensor.west_window", "off", { device_class: "window" });
+        h.setState("binary_sensor.patio", "off", { device_class: "door" });
+        const m = structuredClone(window.__demoModel);
+        Object.assign(m.levels[0].openings[4], { style: "top_hung", contact: "binary_sensor.west_window" });
+        Object.assign(m.levels[0].openings[3], { style: "lift_slide", contact: "binary_sensor.patio", width: 2.4 });
+        h.pushModel(m);
+      }),
+    );
+    await page.evaluate(() => {
+      window.card.hass.setState("binary_sensor.west_window", "on");
+      window.card.hass.setState("binary_sensor.patio", "on");
+    });
+    const ids = await page.evaluate(() => window.card.openings.filter((o) => o.contact).map((o) => o.id));
+    await page.waitForFunction((ids) => ids.every((id) => window.card.renderer.leafState(id)?.every((l) => l.open === 1)), ids, { timeout: 5000 });
+    const hows = await page.evaluate((ids) => ids.flatMap((id) => window.card.renderer.leafState(id).map((l) => l.how)), ids);
+    assert(hows.includes("top") && hows.includes("lift"), `leaves: ${JSON.stringify(hows)}`);
+    await act(page, () => page.evaluate(() => window.card.hass.pushModel(window.__demoModel)));
+  });
+
+  await test("an inside venetian blind beside the outside shutter: let down, slats turned", async () => {
+    await act(page, () =>
+      page.evaluate(() => {
+        window.card.hass.setState("cover.kitchen_blind", "open", { current_position: 100, current_tilt_position: 100, friendly_name: "Kitchen blind" });
+        const m = structuredClone(window.__demoModel);
+        Object.assign(m.levels[0].openings[1], { blind: "cover.kitchen_blind", blind_style: "venetian" });
+        window.card.hass.pushModel(m);
+      }),
+    );
+    const id = await page.evaluate(() => window.card.openings.find((o) => o.blind)?.id);
+    const blind = () => page.evaluate((id) => window.card.renderer.blindState(id), id);
+    let b = await blind();
+    assert(b.style === "venetian" && b.parts > 10 && b.closed === 0 && b.shown === 0, `up: ${JSON.stringify(b)}`);
+    await act(page, () => page.evaluate(() => window.card.hass.setState("cover.kitchen_blind", "open", { current_position: 40, current_tilt_position: 30 })));
+    b = await blind();
+    assert(Math.abs(b.closed - 0.6) < 1e-6 && Math.abs(b.tilt - 0.3) < 1e-6 && b.shown === Math.round(0.6 * b.parts), `down: ${JSON.stringify(b)}`);
+    // the outside shutter is still its own
+    assert((await page.evaluate((id) => window.card.renderer.coverState(id), id)) !== null, "the shutter is gone");
+    await act(page, () => page.locator("homeslice-card nav.levels button", { hasText: "Ground Floor" }).click());
+    await page.waitForFunction(() => !window.card.transitioning);
+    await page.evaluate(() => window.card.renderer.turnTo(200, 30));
+    await page.waitForTimeout(600);
+    await shot(page, "demo-blind");
+    await act(page, () => page.locator("homeslice-card nav.levels button", { hasText: "All floors" }).click());
+    await page.waitForFunction(() => !window.card.transitioning);
+    await act(page, () => page.evaluate(() => window.card.hass.pushModel(window.__demoModel)));
+  });
+
   await test("linked devices: a TV's screen, curtains with their cover, an outdoor unit's fan", async () => {
     await act(page, async () => {
       await page.evaluate(() => {

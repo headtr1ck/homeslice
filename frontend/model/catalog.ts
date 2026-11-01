@@ -9,8 +9,8 @@ import { FINISHES, MODERN_GROUPS, kindTags } from "./modern";
 import en from "../i18n/en.json";
 
 export const OPENING_STYLES = {
-  window: ["single", "double", "triple", "fixed", "split", "split_single"],
-  door: ["single", "double", "sliding", "sliding_glass", "glass", "glass_double", "entrance_strip", "entrance_panes", "entrance_sidelight"],
+  window: ["single", "double", "triple", "fixed", "split", "split_single", "top_hung"],
+  door: ["single", "double", "sliding", "sliding_glass", "lift_slide", "glass", "glass_double", "entrance_strip", "entrance_panes", "entrance_sidelight"],
   garage_door: ["single"],
   opening: ["square", "arch"],
 };

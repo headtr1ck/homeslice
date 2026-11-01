@@ -2912,7 +2912,7 @@ export class HomeslicePanel extends LitElement {
       const [a, b] = [at(o.start), at(o.end)].map((p) => this.toScreen([p[0] + inward[0] * off, p[1] + inward[1] * off]));
       return svg`<line class="sliding solid" x1=${a[0]} y1=${a[1]} x2=${b[0]} y2=${b[1]}></line>`;
     }
-    if (o.style === "sliding_glass") {
+    if (o.style === "sliding_glass" || o.style === "lift_slide") {
       // two panels, overlapping in the middle
       const off = w.thickness / 5;
       const panel = (t0: number, t1: number, side: number) => {
@@ -3525,7 +3525,7 @@ export class HomeslicePanel extends LitElement {
           </label>`
         : nothing}
       ${(o.type ?? "window") === "door" || (o.type ?? "window") === "window"
-        ? o.style === "fixed" || o.style === "sliding" || o.style === "sliding_glass"
+        ? o.style === "fixed" || o.style === "sliding" || o.style === "sliding_glass" || o.style === "lift_slide"
           ? nothing
           : html`<div class="row">
               <button @click=${() => set({ hinge: o.hinge === "right" ? undefined : "right" })}>⇄ ${this.t(o.hinge === "right" ? "editor.hinge_right" : "editor.hinge_left")}</button>
@@ -3542,6 +3542,14 @@ export class HomeslicePanel extends LitElement {
       </div>
       ${this.entitySelect(this.t("editor.opening_cover"), "cover", areaId, o.cover, (cover) => set({ cover }))}
       ${o.cover ? this.invertedToggle(o.cover, "editor.cover_inverted") : nothing}
+      ${(o.type ?? "window") === "garage_door" ? nothing : this.entitySelect(this.t("editor.opening_blind"), "cover", areaId, o.blind, (blind) => set({ blind }))}
+      ${o.blind
+        ? html`<label>${this.t("editor.blind_style")}
+            <select @change=${(e: Event) => set({ blind_style: (e.target as HTMLSelectElement).value === "venetian" ? "venetian" : undefined })}>
+              ${(["roller", "venetian"] as const).map((v) => html`<option value=${v} ?selected=${(o.blind_style ?? "roller") === v}>${this.t(`editor.blind_style_${v}`)}</option>`)}
+            </select>
+          </label>`
+        : nothing}
       ${this.entitySelect(this.t("editor.opening_contact"), "binary_sensor", areaId, o.contact, (contact) => set({ contact }), (id) =>
         ["door", "window", "opening", "garage_door"].includes(String(states[id]?.attributes.device_class)),
       )}

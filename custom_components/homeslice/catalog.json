@@ -103,13 +103,15 @@
    "triple",
    "fixed",
    "split",
-   "split_single"
+   "split_single",
+   "top_hung"
   ],
   "door": [
    "single",
    "double",
    "sliding",
    "sliding_glass",
+   "lift_slide",
    "glass",
    "glass_double",
    "entrance_strip",

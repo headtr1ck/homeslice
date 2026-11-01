@@ -136,6 +136,8 @@ const COLORS = {
   frosted: "#dde7ee",
   garageDoor: "#7d858d",
   shutter: "#5d666f",
+  blind: "#ece6da",
+  slat: "#d9dcdf",
   shutterBox: "#4a5159",
   stripClosed: "#6b747c",
   stripOpen: "#7fb0ff",
@@ -384,7 +386,8 @@ export interface DeviceLook {
   present?: boolean;
 }
 
-type LeafHow = "swing" | "tilt" | "slide";
+/** swing: around a side hinge; tilt: in at the top; top: out at the bottom (top-hung); slide / lift: along (a lift-and-slide door all the way). */
+type LeafHow = "swing" | "tilt" | "top" | "slide" | "lift";
 
 /** A light as the card places it (see model/lights.ts PlacedLight). */
 export interface LampPlace {
@@ -442,6 +445,8 @@ export class HouseRenderer {
   /** Room floors keyed by `level/room`, each with its own material so it can glow. */
   private floors = new Map<string, THREE.Mesh<THREE.BufferGeometry, THREE.MeshLambertMaterial>>();
   private covers = new Map<string, CoverView>();
+  /** Inside blinds by opening: a fabric roller (one panel) or venetian slats. */
+  private blinds = new Map<string, { style: "roller" | "venetian"; parts: THREE.Mesh[]; top: number; height: number; normal: Vec2; cuttable: boolean; closed: number; tilt: number }>();
   private glasses = new Map<string, THREE.MeshLambertMaterial>();
   /** Lamps by entity: the fitting and its pool of light on the floor. */
   private lamps = new Map<string, THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>[]>();
@@ -657,6 +662,7 @@ export class HouseRenderer {
     this.cameraViews.clear();
     this.linked = [];
     this.covers.clear();
+    this.blinds.clear();
     this.glasses.clear();
     this.awnings.clear();
     this.roof = null;
@@ -815,13 +821,13 @@ export class HouseRenderer {
         const moving = o.contact ? this.opener(g, w, o, rooms, cutAt, cuttable) : null;
         const pane = (s0: number, s1: number, z0: number, z1: number, m: THREE.Material, t: number, how: LeafHow) => (moving ? moving(s0, s1, z0, z1, m, t, how) : box(s0, s1, z0, z1, m, t));
         // windows, and glass doors (sliding and terrace doors)
-        if (o.type === "window" || (o.type === "door" && ["sliding_glass", "glass", "glass_double"].includes(o.style))) {
+        if (o.type === "window" || (o.type === "door" && ["sliding_glass", "lift_slide", "glass", "glass_double"].includes(o.style))) {
           const mat = o.contact ? this.lambert(COLORS.glass, { transparent: true, opacity: 0.45 }) : glass;
           if (o.contact) this.glasses.set(o.id, mat);
           if (!moving) box(o.start, o.end, o.sill, top, mat, 0.03);
-          else if (o.type === "door" && o.style === "sliding_glass") {
-            // two panels: the one on the hinge side slides over the other
-            pane(o.start, mid + 0.03, o.sill, top, mat, 0.03, "slide");
+          else if (o.type === "door" && (o.style === "sliding_glass" || o.style === "lift_slide")) {
+            // two panels: the one on the hinge side slides over the other (lift-and-slide: all the way)
+            pane(o.start, mid + 0.03, o.sill, top, mat, 0.03, o.style === "lift_slide" ? "lift" : "slide");
             box(mid - 0.03, o.end, o.sill, top, mat, 0.03);
           } else if (o.type === "door") {
             if (o.style === "glass_double") {
@@ -829,8 +835,8 @@ export class HouseRenderer {
               pane(mid, o.end, o.sill, top, mat, 0.03, "swing");
             } else pane(o.start, o.end, o.sill, top, mat, 0.03, "swing");
           } else if (o.style === "fixed" || o.style === "split" || o.style === "split_single") box(o.start, o.end, o.sill, top, mat, 0.03);
-          else pane(o.start, o.end, o.sill, top, mat, 0.03, "tilt");
-          if (o.style === "double" || o.style === "sliding_glass" || o.style === "glass_double") bar();
+          else pane(o.start, o.end, o.sill, top, mat, 0.03, o.style === "top_hung" ? "top" : "tilt");
+          if (o.style === "double" || o.style === "sliding_glass" || o.style === "lift_slide" || o.style === "glass_double") bar();
           if (o.style === "triple") {
             const third = (o.end - o.start) / 3;
             for (const b of [o.start + third, o.end - third]) box(b - 0.03, b + 0.03, o.sill, top, wallMat, 0.07);
@@ -881,6 +887,7 @@ export class HouseRenderer {
         if (o.type === "garage_door" && (o.cover || o.contact)) this.addGarageDoor(g, w, o, top, garage);
         else if (o.type === "garage_door") box(o.start, o.end, o.sill, top, garage, 0.06);
         if (o.cover && o.type !== "garage_door" && !this.view.lowWalls) this.addCover(g, w, o, cutAt, cuttable);
+        if (o.blind && o.type !== "garage_door" && !this.view.lowWalls) this.addBlind(g, w, o, cuttable);
         cursor = o.end;
       }
       box(cursor, length, 0, H, wallMat);
@@ -1068,7 +1075,7 @@ export class HouseRenderer {
    * opens to (as the editor draws it); sliding doors have none.
    */
   private doorSwing(g: THREE.Group, w: Wall, o: WallOpening, rooms: Level["rooms"]) {
-    if (["sliding", "sliding_glass"].includes(o.style) || o.style === "entrance_sidelight") return;
+    if (["sliding", "sliding_glass", "lift_slide"].includes(o.style) || o.style === "entrance_sidelight") return;
     const len = Math.hypot(w.b[0] - w.a[0], w.b[1] - w.a[1]) || 1;
     const u: Vec2 = [(w.b[0] - w.a[0]) / len, (w.b[1] - w.a[1]) / len];
     const n: Vec2 = [-u[1], u[0]];
@@ -1134,9 +1141,11 @@ export class HouseRenderer {
       const fromStart = half ? Math.abs(s0 - o.start) < 0.01 : hingeAtStart;
       const hinge = fromStart ? s0 : s1;
       const pivot = new THREE.Group();
-      const face = how === "slide" ? swing * 0.04 : swing * Math.max(0, w.thickness / 2 - thickness / 2);
+      const face = how === "slide" || how === "lift" ? swing * 0.04 : swing * Math.max(0, w.thickness / 2 - thickness / 2);
       const p = at(hinge);
-      pivot.position.set(p[0] + n[0] * face, how === "tilt" ? z0 : 0, p[1] + n[1] * face);
+      // tilting turns about the sill, top-hung about the head
+      const pivotY = how === "tilt" ? z0 : how === "top" ? z1 : 0;
+      pivot.position.set(p[0] + n[0] * face, pivotY, p[1] + n[1] * face);
       g.add(pivot);
       const leaf: LeafView = {
         pivot,
@@ -1151,7 +1160,7 @@ export class HouseRenderer {
         add: (a0, a1, b0, b1, mat, t) => {
           const mesh = this.mesh(new THREE.BoxGeometry(a1 - a0, b1 - b0, t), mat);
           // along the leaf from its hinge, up from the floor (or the sill, tilting)
-          mesh.position.set(((a0 + a1) / 2 - hinge) * leaf.dir, (b0 + b1) / 2 - (how === "tilt" ? z0 : 0), 0);
+          mesh.position.set(((a0 + a1) / 2 - hinge) * leaf.dir, (b0 + b1) / 2 - pivotY, 0);
           pivot.add(mesh);
           if (cuttable && b1 > cutAt + 1e-3) this.cuttables.push({ mesh, normal: w.normal });
           return mesh;
@@ -1179,7 +1188,11 @@ export class HouseRenderer {
       // the top leans to the swing side (local z is the plan's n times dir)
       l.pivot.rotateX(k * THREE.MathUtils.degToRad(12) * l.swing * l.dir);
     }
-    const shift = l.how === "slide" ? k * l.width * 0.6 : 0;
+    // top-hung: turned about the head, so the bottom swings out (away from the swing side)
+    if (l.how === "top") l.pivot.rotateX(k * THREE.MathUtils.degToRad(30) * l.swing * l.dir);
+    const shift = l.how === "slide" ? k * l.width * 0.6 : l.how === "lift" ? k * l.width * 0.92 : 0;
+    // a lift-and-slide door rises a little while it moves
+    l.pivot.position.y = l.how === "lift" ? (k > 0 && k < 1 ? 0.01 : 0) : l.pivot.position.y;
     l.pivot.children.forEach((c) => {
       c.userData.base ??= c.position.x;
       c.position.x = (c.userData.base as number) + shift;
@@ -1245,6 +1258,54 @@ export class HouseRenderer {
       shutter = { mesh, top, height: o.height };
     }
     this.covers.set(o.id, { shutter, strip: { mesh: strip, material: stripMaterial }, normal: w.normal, cuttable, closed: 0 });
+  }
+
+  /** An inside blind on the room side of the window: a fabric panel or slats, rolled down as far as it is closed. */
+  private addBlind(g: THREE.Group, w: Wall, o: WallOpening, cuttable: boolean) {
+    const inside = -(w.thickness / 2 + 0.025);
+    const top = o.sill + o.height;
+    const parts: THREE.Mesh[] = [];
+    if (o.blindStyle === "venetian") {
+      const material = this.lambert(COLORS.slat);
+      const n = Math.max(1, Math.round(o.height / 0.05));
+      for (let i = 0; i < n; i++) {
+        const y = top - 0.03 - i * (o.height / n);
+        const slat = this.wallBox(w, o.start + 0.01, o.end - 0.01, y - 0.022, y + 0.022, 0.003, material, inside);
+        // turned about its own length (after the wall's turn)
+        slat.rotation.order = "YXZ";
+        g.add(slat);
+        parts.push(slat);
+      }
+    } else {
+      const mesh = this.wallBox(w, o.start + 0.01, o.end - 0.01, 0, 1, 0.01, this.lambert(COLORS.blind, { transparent: true, opacity: 0.92 }), inside);
+      g.add(mesh);
+      parts.push(mesh);
+    }
+    // the roll or the head rail at the top
+    g.add(this.wallBox(w, o.start, o.end, top - 0.01, top + 0.05, 0.05, this.lambert(COLORS.blind), inside));
+    this.blinds.set(o.id, { style: o.blindStyle ?? "roller", parts, top, height: o.height, normal: w.normal, cuttable, closed: 0, tilt: 0 });
+    this.setBlind(o.id, null, null);
+  }
+
+  /** An inside blind: `open` 0 (down) … 1 (up), the slats' `tilt` 0 (shut) … 1 (level); null: up and level. */
+  setBlind(openingId: string, open: number | null, tilt: number | null) {
+    const b = this.blinds.get(openingId);
+    if (!b) return;
+    b.closed = open === null ? 0 : Math.min(1, Math.max(0, 1 - open));
+    b.tilt = tilt === null ? 1 : Math.min(1, Math.max(0, tilt));
+    if (b.style === "roller") {
+      const m = b.parts[0];
+      m.scale.y = Math.max(0.001, b.closed * b.height);
+      m.position.y = b.top - (b.closed * b.height) / 2;
+    } else for (const s of b.parts) s.rotation.x = (1 - b.tilt) * THREE.MathUtils.degToRad(75);
+    this.applyCuts();
+  }
+
+  /** For tests: how an inside blind is drawn. */
+  blindState(openingId: string) {
+    const b = this.blinds.get(openingId);
+    if (!b) return null;
+    return { style: b.style, closed: b.closed, tilt: b.tilt, shown: b.parts.filter((p) => p.visible).length, parts: b.parts.length };
   }
 
   /**
@@ -2872,6 +2933,12 @@ export class HouseRenderer {
     const cutting = !this.walkView && this.orientation.elevation < this.view.cutBelow;
     const facing = (n: Vec2) => cutting && n[0] * toCamera[0] + n[1] * toCamera[1] > 0.2;
     for (const c of this.cuttables) c.mesh.visible = !facing(c.normal);
+    for (const b of this.blinds.values()) {
+      const cut = b.cuttable && facing(b.normal);
+      if (b.style === "roller") b.parts[0].visible = !cut && b.closed > 0.01;
+      // slats from the top down, as far as it is let down
+      else b.parts.forEach((s, i) => (s.visible = !cut && i < Math.round(b.closed * b.parts.length)));
+    }
     for (const c of this.covers.values()) {
       const cut = c.cuttable && facing(c.normal);
       c.strip.mesh.visible = cut || !c.shutter;

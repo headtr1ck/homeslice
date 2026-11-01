@@ -10,7 +10,7 @@ export type Coord = number | string;
 export type Side = "north" | "south" | "east" | "west";
 export type RoomKind = "room" | "outdoor" | "void";
 export type OpeningType = "window" | "door" | "garage_door" | "opening";
-export type OpeningStyle = "single" | "double" | "fixed" | "triple" | "split" | "split_single" | "sliding" | "sliding_glass" | "glass" | "glass_double" | "entrance_strip" | "entrance_panes" | "entrance_sidelight" | "square" | "arch";
+export type OpeningStyle = "single" | "double" | "fixed" | "triple" | "split" | "split_single" | "top_hung" | "sliding" | "sliding_glass" | "lift_slide" | "glass" | "glass_double" | "entrance_strip" | "entrance_panes" | "entrance_sidelight" | "square" | "arch";
 /** `open`: a boundary between two rooms that are open to each other (no wall is built). */
 export type WallType = "exterior" | "party" | "interior" | "open";
 
@@ -230,7 +230,13 @@ export interface OpeningInput {
   contact?: string;
   /** A smart lock on the door: shown on it, a tap locks or unlocks. */
   lock?: string;
+  /** An inside blind (a cover entity), besides the outside `cover`. */
+  blind?: string;
+  /** How the inside blind looks: a fabric `roller` (default) or `venetian` slats that turn with the tilt. */
+  blind_style?: BlindStyle;
 }
+
+export type BlindStyle = "roller" | "venetian";
 
 export interface LevelInput {
   id: string;
@@ -296,6 +302,9 @@ export interface FacadeOpeningInput {
   contacts?: Record<string, string>;
   /** Smart lock per level id. */
   locks?: Record<string, string>;
+  /** Inside blind per level id, and how they look. */
+  blinds?: Record<string, string>;
+  blind_style?: BlindStyle;
 }
 
 export type StairShape = "straight" | "u_turn";
@@ -538,6 +547,8 @@ export interface Opening {
   cover?: string;
   contact?: string;
   lock?: string;
+  blind?: string;
+  blindStyle?: BlindStyle;
 }
 
 /** A roof part as drawn: its polygon in plan coordinates and everything filled in. */

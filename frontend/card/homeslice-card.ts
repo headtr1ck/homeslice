@@ -243,6 +243,7 @@ interface PlacedOpening {
   cover?: string;
   contact?: string;
   lock?: string;
+  blind?: string;
   /** Its middle on the plan and its top (for notes on it). */
   at: Vec2;
   top: number;
@@ -816,12 +817,12 @@ export class HomesliceCard extends LitElement {
     this.openings = [...walls.entries()].flatMap(([levelId, ws]) =>
       ws.flatMap((w) =>
         w.openings
-          .filter((o) => o.cover || o.contact || o.lock)
+          .filter((o) => o.cover || o.contact || o.lock || o.blind)
           .map((o) => {
             const len = Math.hypot(w.line[1][0] - w.line[0][0], w.line[1][1] - w.line[0][1]) || 1;
             const t = (o.start + o.end) / 2 / len;
             const at: Vec2 = [w.line[0][0] + (w.line[1][0] - w.line[0][0]) * t, w.line[0][1] + (w.line[1][1] - w.line[0][1]) * t];
-            return { levelId, id: o.id, room: o.room, cover: o.cover, contact: o.contact, lock: o.lock, at, top: o.sill + o.height };
+            return { levelId, id: o.id, room: o.room, cover: o.cover, contact: o.contact, lock: o.lock, blind: o.blind, at, top: o.sill + o.height };
           }),
       ),
     );
@@ -1551,6 +1552,12 @@ export class HomesliceCard extends LitElement {
     const lamps = this.lamps.map((l) => lightsLook(hass, [l.entity]));
     const inverted = new Set(this.house.invertedCovers);
     const covers = this.openings.map((o) => (o.cover ? coverOpen(hass, o.cover, inverted.has(o.cover)) : null));
+    // inside blinds: how far up, and their slats' tilt (HA: 100 level, 0 shut)
+    const blinds = this.openings.map((o) => {
+      if (!o.blind) return null;
+      const tilt = hass.states[o.blind]?.attributes.current_tilt_position;
+      return [coverOpen(hass, o.blind, inverted.has(o.blind)), typeof tilt === "number" ? tilt / 100 : null] as const;
+    });
     const contacts = this.openings.map((o) => (o.contact ? contactOpen(hass, o.contact) : false));
     // the doors' locks, whether their contacts still report, and an alarm going off
     const doorNotes = [alarmTriggered(hass), ...this.openings.map((o) => [o.lock && hass.states[o.lock]?.state, o.contact && hass.states[o.contact]?.state, o.contact && this.config.sensor_timeout ? hass.states[o.contact]?.last_updated : null])];
@@ -1604,7 +1611,7 @@ export class HomesliceCard extends LitElement {
     const fields = smooth && this.config.heatmap ? this.heatSamples(hass, this.config.heatmap, heat as (number | null)[]) : null;
     const ruleHits = (this.config.rules ?? []).map((r) => ruleMatches(hass, r));
     const ruleTexts = (this.config.rules ?? []).map((r, i) => (ruleHits[i] ? ruleText(hass, r) : ""));
-    const signature = JSON.stringify([look, this.config.accent, lux, heat, fields, ruleHits, ruleTexts, lights, lamps, covers, contacts, doorNotes, values, sensors, awnings, devices, roofWindows, underfloor, badges, energyDetails, weather, this.placedPeople(hass).map((p) => [p.key, p.levelId, p.at]), this.config.weather ? hass.states[this.config.weather]?.attributes.temperature : null, cameras, this.energyReadings, this.robotReadings, this.robotNeeds, sunAt]);
+    const signature = JSON.stringify([look, this.config.accent, lux, heat, fields, ruleHits, ruleTexts, lights, lamps, covers, blinds, contacts, doorNotes, values, sensors, awnings, devices, roofWindows, underfloor, badges, energyDetails, weather, this.placedPeople(hass).map((p) => [p.key, p.levelId, p.at]), this.config.weather ? hass.states[this.config.weather]?.attributes.temperature : null, cameras, this.energyReadings, this.robotReadings, this.robotNeeds, sunAt]);
     if (signature === this.stateSignature) return;
     this.stateSignature = signature;
     this.lamps.forEach((l, i) => this.renderer!.setLamp(l.entity, lamps[i]));
@@ -1635,6 +1642,7 @@ export class HomesliceCard extends LitElement {
     for (const l of this.house.levels) this.renderer.setHeatField(l.id, fields?.[l.id] ?? null, (v) => (kind ? stepBlend(v, this.steps[kind] ?? []) : [0, 0, 0, 0]));
     this.openings.forEach((o, i) => {
       this.renderer!.setCover(o.id, covers[i]);
+      if (blinds[i]) this.renderer!.setBlind(o.id, blinds[i]![0], blinds[i]![1]);
       this.renderer!.setContact(o.id, contacts[i]);
     });
     this.animateFlows();

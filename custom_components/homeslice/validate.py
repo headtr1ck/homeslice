@@ -21,6 +21,7 @@ MISSING: Any = object()
 
 TEXTURE_REF = re.compile(r"^polyhaven:[A-Za-z0-9_-]+$")
 FLOOR_HINT = "a floor finish like wood, oak_herringbone or tile_white (see the catalogue) or polyhaven:<texture>"
+BLIND_STYLES = ["roller", "venetian"]
 ROOF_HINT = "a roof covering like roof_clay, roof_slate or roof_metal (see the catalogue) or polyhaven:<texture>"
 WALL_HINT = "a wall finish like paint_white, acoustic_oak or brick_red (see the catalogue) or polyhaven:<texture>"
 MODEL_REF = re.compile(r"^(builtin|(kenney|polyhaven|custom|modern):[A-Za-z0-9_-]+)$")
@@ -441,6 +442,14 @@ def validate(house: Any) -> list[dict[str, str]]:
             lock = get(oi, "lock")
             if lock is not MISSING and not (isinstance(lock, str) and lock.startswith("lock.")):
                 err(f"{op}.lock", "lock must be a lock entity, e.g. lock.….")
+                continue
+            blind = get(oi, "blind")
+            if blind is not MISSING and not (isinstance(blind, str) and blind.startswith("cover.")):
+                err(f"{op}.blind", "blind must be a cover entity, e.g. cover.….")
+                continue
+            blind_style = get(oi, "blind_style")
+            if blind_style is not MISSING and blind_style not in BLIND_STYLES:
+                err(f"{op}.blind_style", f'blind_style must be one of {", ".join(BLIND_STYLES)}, got "{text(blind_style)}".')
                 continue
 
         for i, wi in enumerate(items(get(li, "walls"))):

@@ -567,7 +567,7 @@ export function readOpening(model: HouseInput, levelId: string, src: OpeningSour
   if (src.kind === "level") return level(model, levelId).openings?.[src.index] ?? null;
   const f = model.facade_openings?.[src.index];
   if (!f) return null;
-  return { room: "", side: f.side, at: f.at, width: f.width, type: f.type, sill: f.sill, height: f.height, cover: f.covers?.[levelId], contact: f.contacts?.[levelId], lock: f.locks?.[levelId] };
+  return { room: "", side: f.side, at: f.at, width: f.width, type: f.type, sill: f.sill, height: f.height, cover: f.covers?.[levelId], contact: f.contacts?.[levelId], lock: f.locks?.[levelId], blind: f.blinds?.[levelId], blind_style: f.blind_style };
 }
 
 /**
@@ -586,11 +586,12 @@ export function updateOpening(model: HouseInput, levelId: string, src: OpeningSo
     return m;
   }
   const f = m.facade_openings![src.index];
-  const { cover, contact, lock, room: _room, side: _side, ...geometry } = patch;
+  const { cover, contact, lock, blind, room: _room, side: _side, ...geometry } = patch;
   Object.assign(f, geometry);
   if ("cover" in patch) f.covers = clean({ ...f.covers, [levelId]: cover }) as Record<string, string>;
   if ("contact" in patch) f.contacts = clean({ ...f.contacts, [levelId]: contact }) as Record<string, string>;
   if ("lock" in patch) f.locks = clean({ ...f.locks, [levelId]: lock }) as Record<string, string>;
+  if ("blind" in patch) f.blinds = clean({ ...f.blinds, [levelId]: blind }) as Record<string, string>;
   clean(f);
   return m;
 }

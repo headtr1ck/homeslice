@@ -57,6 +57,7 @@ const FLOOR_HINT = "a floor finish like wood, oak_herringbone or tile_white (see
 const ROOF_HINT = "a roof covering like roof_clay, roof_slate or roof_metal (see the catalogue) or polyhaven:<texture>";
 const WALL_HINT = "a wall finish like paint_white, acoustic_oak or brick_red (see the catalogue) or polyhaven:<texture>";
 const OPENING_TYPES = Object.keys(DEFAULTS.opening);
+const BLIND_STYLES = ["roller", "venetian"];
 
 export interface ExpandResult {
   house: House | null;
@@ -67,7 +68,7 @@ export interface ExpandResult {
 function look(o: { style?: OpeningStyle; hinge?: "left" | "right"; swing?: "in" | "out"; width: number; split?: number }, type: OpeningType, height: number): Pick<Opening, "style" | "hinge" | "swing" | "split"> {
   // wide windows and doors have two leaves unless they say otherwise
   const fallback: OpeningStyle = type === "opening" ? "square" : (type === "window" && o.width > 1.3) || (type === "door" && o.width > 1.4) ? "double" : "single";
-  const styles: OpeningStyle[] = ["single", "double", "triple", "fixed", "split", "split_single", "sliding", "sliding_glass", "glass", "glass_double", "entrance_strip", "entrance_panes", "entrance_sidelight", "square", "arch"];
+  const styles: OpeningStyle[] = ["single", "double", "triple", "fixed", "split", "split_single", "top_hung", "sliding", "sliding_glass", "lift_slide", "glass", "glass_double", "entrance_strip", "entrance_panes", "entrance_sidelight", "square", "arch"];
   const split = typeof o.split === "number" && o.split > 0 && o.split < height ? o.split : height / 2;
   return { style: o.style && styles.includes(o.style) ? o.style : fallback, hinge: o.hinge === "right" ? "right" : "left", swing: o.swing === "out" ? "out" : "in", split };
 }
@@ -300,6 +301,8 @@ export function expandHouse(input: unknown): ExpandResult {
       if (!OPENING_TYPES.includes(type)) return err(op, `type must be one of ${OPENING_TYPES.join(", ")}, got "${type}".`);
       if (!(oi.width > 0)) return err(op, "width must be positive.");
       if (oi.lock !== undefined && !(typeof oi.lock === "string" && oi.lock.startsWith("lock."))) return err(`${op}.lock`, "lock must be a lock entity, e.g. lock.….");
+      if (oi.blind !== undefined && !(typeof oi.blind === "string" && oi.blind.startsWith("cover."))) return err(`${op}.blind`, "blind must be a cover entity, e.g. cover.….");
+      if (oi.blind_style !== undefined && !BLIND_STYLES.includes(oi.blind_style)) return err(`${op}.blind_style`, `blind_style must be one of ${BLIND_STYLES.join(", ")}, got "${oi.blind_style}".`);
       const d = { ...DEFAULTS.opening[type], ...h.opening_defaults?.[type] };
       openings.push({
         id: oi.id ?? `${oi.room}_${oi.side}_${i}`,
@@ -315,6 +318,7 @@ export function expandHouse(input: unknown): ExpandResult {
         cover: oi.cover,
         contact: oi.contact,
         ...(oi.lock ? { lock: oi.lock } : {}),
+        ...(oi.blind ? { blind: oi.blind, blindStyle: oi.blind_style ?? "roller" } : {}),
       });
     });
 
@@ -455,6 +459,7 @@ export function expandHouse(input: unknown): ExpandResult {
         cover: fi.covers?.[levelId],
         contact: fi.contacts?.[levelId],
         ...(fi.locks?.[levelId] ? { lock: fi.locks[levelId] } : {}),
+        ...(fi.blinds?.[levelId] ? { blind: fi.blinds[levelId], blindStyle: fi.blind_style ?? "roller" } : {}),
       });
     }
   });
