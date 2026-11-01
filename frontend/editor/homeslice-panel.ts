@@ -85,6 +85,9 @@ import {
   removeLight,
   setLightHidden,
   setLightShape,
+  addCamera,
+  updateCamera,
+  removeCamera,
   addStairs,
   deleteStairs,
   setStairsRect,
@@ -246,6 +249,7 @@ type Drag =
   | { kind: "stair-resize"; origin: HouseInput; id: string; fixed: Vec2; ctx: SnapContext }
   | { kind: "furniture"; origin: HouseInput; room: string; index: number; startWorld: Vec2; centre: Vec2; moved: boolean }
   | { kind: "energy"; origin: HouseInput; index: number; startWorld: Vec2; at: Vec2; moved: boolean }
+  | { kind: "camera"; origin: HouseInput; room: string; index: number; startWorld: Vec2; moved: boolean }
   | { kind: "light"; origin: HouseInput; entity: string; room: string; startWorld: Vec2; ctx: SnapContext; moved: boolean; part?: number | "to" }
   | { kind: "wall"; origin: HouseInput; a: Vec2; b: Vec2; startWorld: Vec2; normal: Vec2; thickness: number; faces: number[] }
   | { kind: "opening"; origin: HouseInput; src: OpeningSource; axis: 0 | 1; startWorld: Vec2; at: number; snaps: OpeningSnaps }
@@ -1094,6 +1098,14 @@ export class HomeslicePanel extends LitElement {
       this._drag = { kind: "energy", origin: clone(this._model), index, startWorld: world, at: energy.at, moved: false };
       return;
     }
+    const hitCamera = target.closest("[data-camera]") as SVGElement | null;
+    if (hitCamera) {
+      const { room, index } = JSON.parse(hitCamera.dataset.camera!) as { room: string; index: number };
+      this.clearSelection();
+      this._room = room;
+      this._drag = { kind: "camera", origin: clone(this._model), room, index, startWorld: world, moved: false };
+      return;
+    }
     const hitLight = target.closest("[data-light]") as SVGElement | null;
     if (hitLight) {
       const { entity, room, part } = JSON.parse(hitLight.dataset.light!) as { entity: string; room: string; part?: number | "to" };
@@ -1316,6 +1328,17 @@ export class HomeslicePanel extends LitElement {
       this._model = updateEnergy(drag.origin, drag.index, { at: s.p });
       return;
     }
+    if (drag.kind === "camera") {
+      if (!drag.moved && Math.hypot(world[0] - drag.startWorld[0], world[1] - drag.startWorld[1]) * this._view.scale < 4) return;
+      drag.moved = true;
+      const room = this.levelInput?.rooms.find((r) => r.id === drag.room);
+      if (!room) return;
+      const s = snapped(world, { ...this.snapContext(), points: [] });
+      const { min } = bbox(roomPolygon(this._model!, room));
+      this._guides = { x: s.alignX, y: s.alignY, ring: s.target };
+      this._model = updateCamera(drag.origin, this._level, room.id, drag.index, { at: [s.p[0] - min[0], s.p[1] - min[1]] });
+      return;
+    }
     if (drag.kind === "light") {
       if (!drag.moved && Math.hypot(world[0] - drag.startWorld[0], world[1] - drag.startWorld[1]) * this._view.scale < 4) return;
       drag.moved = true;
@@ -1486,7 +1509,7 @@ export class HomeslicePanel extends LitElement {
       }
       return;
     }
-    if (drag.kind === "vertex" || drag.kind === "edge" || drag.kind === "opening" || drag.kind === "wall" || drag.kind === "stair-move" || drag.kind === "stair-resize" || drag.kind === "light" || drag.kind === "energy" || drag.kind === "furniture" || drag.kind === "freewall-end" || drag.kind === "robot") {
+    if (drag.kind === "vertex" || drag.kind === "edge" || drag.kind === "opening" || drag.kind === "wall" || drag.kind === "stair-move" || drag.kind === "stair-resize" || drag.kind === "light" || drag.kind === "energy" || drag.kind === "furniture" || drag.kind === "freewall-end" || drag.kind === "robot" || drag.kind === "camera") {
       if (JSON.stringify(drag.origin) !== JSON.stringify(this._model)) this.commit(this._model, drag.origin);
     } else if (drag.kind === "rect" && this._rectPreview && this._tool === "stairs") {
       const [[x0, y0], , [x1, y1]] = this._rectPreview;
@@ -2091,6 +2114,7 @@ export class HomeslicePanel extends LitElement {
       ${this._stair ? this.renderStairHandles() : nothing}
       ${this._show.furniture ? this.renderFurniture() : nothing}
       ${this._show.lights ? this.renderLamps() : nothing}
+      ${this.renderCameras()}
       ${this._show.devices ? this.renderEnergyLinks() : nothing}
       ${this._show.devices ? this.renderEnergyMarkers() : nothing}
       ${this._show.devices ? this.renderRobotMarkers() : nothing}
@@ -2183,6 +2207,33 @@ export class HomeslicePanel extends LitElement {
         <title>${this.entityName(l.entity)}${l.auto ? ` (${this.t("editor.light_auto")})` : ""}</title>
       </g>`;
     })}`;
+  }
+
+  /** Cameras on the plan: what each sees as a fan, the camera itself to drag. */
+  private renderCameras() {
+    const m = this._model;
+    const level = this.levelInput;
+    if (!m || !level) return nothing;
+    return svg`${level.rooms.flatMap((r) =>
+      (r.cameras ?? []).map((c, index) => {
+        const { min } = bbox(roomPolygon(m, r));
+        const at: Vec2 = [min[0] + c.at[0], min[1] + c.at[1]];
+        const a = ((c.direction ?? 180) * Math.PI) / 180;
+        const fov = (Math.min(c.fov ?? 90, 359) * Math.PI) / 180;
+        const range = c.range ?? 5;
+        const edge = (k: number): Vec2 => [at[0] + Math.sin(a + k) * range, at[1] - Math.cos(a + k) * range];
+        const arc = Array.from({ length: 17 }, (_, i) => this.toScreen(edge(-fov / 2 + (fov * i) / 16)));
+        const [x, y] = this.toScreen(at);
+        return svg`<g class="camera-marker ${this._room === r.id ? "selected" : ""}">
+          <polygon class="camera-view" points=${[[x, y], ...arc].map((p) => p.join(",")).join(" ")}></polygon>
+          <g data-camera=${JSON.stringify({ room: r.id, index })} transform="translate(${x} ${y}) rotate(${(c.direction ?? 180) - 90})">
+            <rect x="-9" y="-6" width="16" height="12" rx="3"></rect>
+            <circle cx="9" cy="0" r="3.5"></circle>
+            <title>${this.entityName(c.entity)}</title>
+          </g>
+        </g>`;
+      }),
+    )}`;
   }
 
   private furnitureCentre(roomId: string, index: number): Vec2 | null {
@@ -3683,6 +3734,40 @@ export class HomeslicePanel extends LitElement {
       ${this.renderRobotSection()}`;
   }
 
+  /** A room's cameras: where each looks and how wide, its motion sensor; add or remove. */
+  private renderRoomCameras(r: RoomInput) {
+    const m = this._model!;
+    const cams = r.cameras ?? [];
+    const num = (index: number, key: "direction" | "fov" | "range", lo: number, hi: number, fallback: number) => html`<label class="inline"
+      >${this.t(`editor.camera_${key}` as StringKey)}
+      <input type="number" min=${lo} max=${hi} step=${key === "range" ? 0.5 : 5} .value=${String(cams[index][key] ?? fallback)} @change=${(e: Event) => {
+        const v = Number((e.target as HTMLInputElement).value);
+        if (v >= lo && v <= hi) this.commit(updateCamera(m, this._level, r.id, index, { [key]: v === fallback ? undefined : v }));
+      }} />
+    </label>`;
+    return html`<h3>${this.t("editor.cameras")}</h3>
+      ${cams.length
+        ? html`<ul class="lights">
+            ${cams.map(
+              (c, i) => html`<li>
+                <span class="name">${this.entityName(c.entity)}</span>
+                <button @click=${() => this.commit(removeCamera(m, this._level, r.id, i))}>${this.t("editor.light_remove")}</button>
+                <span class="light-shape">${num(i, "direction", -360, 360, 180)}${num(i, "fov", 10, 360, 90)}${num(i, "range", 0.5, 50, 5)}</span>
+                <span class="light-shape">${this.entitySelect(this.t("editor.camera_motion"), "binary_sensor", r.area_id, c.motion, (motion) => this.commit(updateCamera(m, this._level, r.id, i, { motion: motion || undefined })))}</span>
+              </li>`,
+            )}
+          </ul>`
+        : nothing}
+      ${this.entitySelect(this.t("editor.camera_add"), "camera", r.area_id, undefined, (entity) => {
+        if (!entity) return;
+        // in the middle of the room; drag it to its wall
+        const poly = roomPolygon(m, r);
+        const { min } = bbox(poly);
+        const c = labelPoint(poly);
+        this.commit(addCamera(m, this._level, r.id, entity, [c[0] - min[0], c[1] - min[1]]));
+      })}`;
+  }
+
   /** How a light looks: lamp, spots (add or remove one), strip (its height), indirect. */
   private renderLightShape(r: RoomInput, l: PlacedLight) {
     const m = this._model!;
@@ -3746,6 +3831,7 @@ export class HomeslicePanel extends LitElement {
         : html`<p class="muted">${this.t("editor.no_lights")}</p>`}
       ${this.entitySelect(this.t("editor.light_add"), "light", r.area_id, undefined, (entity) => entity && this.commit(placeLight(m, this._level, r.id, entity)), (id) => !shown.has(id))}
       <p class="muted">${this.t("editor.lights_hint")}</p>
+      ${this.renderRoomCameras(r)}
       <h3>${this.t("editor.furniture")}</h3>
       ${(r.furniture ?? []).length
         ? html`<ul class="lights">
@@ -5185,6 +5271,25 @@ export class HomeslicePanel extends LitElement {
       font-size: 10px;
       fill: #222;
       pointer-events: none;
+    }
+    .camera-view {
+      fill: rgba(79, 163, 255, 0.16);
+      stroke: rgba(79, 163, 255, 0.6);
+      stroke-width: 1;
+      pointer-events: none;
+    }
+    .camera-marker rect {
+      fill: #e9ebee;
+      stroke: #1d2126;
+      stroke-width: 1.5;
+      cursor: grab;
+    }
+    .camera-marker circle {
+      fill: #1d2126;
+    }
+    .camera-marker.selected rect {
+      stroke: var(--primary-color, #03a9f4);
+      stroke-width: 2.5;
     }
     .lamp-part {
       fill: #2b2f36;

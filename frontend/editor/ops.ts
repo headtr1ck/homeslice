@@ -3,7 +3,7 @@
 
 import { bbox, dist, normalizeOrientation, project, signedArea } from "../model/geometry";
 import { expandHouse } from "../model/expand";
-import type { Coord, EnergyInput, FacadeOpeningInput, FurnitureInput, HouseInput, LevelInput, LightType, OpeningInput, OpeningSource, OpeningType, RoomInput, ShapeInput, RobotInput, RoofInput, Side, Vec2, VerticalInput, WallInput, WallThickness } from "../model/types";
+import type { CameraInput, Coord, EnergyInput, FacadeOpeningInput, FurnitureInput, HouseInput, LevelInput, LightType, OpeningInput, OpeningSource, OpeningType, RoomInput, ShapeInput, RobotInput, RoofInput, Side, Vec2, VerticalInput, WallInput, WallThickness } from "../model/types";
 
 /** Points closer than this count as the same corner (shared by neighbouring rooms). */
 export const SAME_POINT = 0.01;
@@ -1105,6 +1105,36 @@ export function setLightShape(model: HouseInput, levelId: string, roomId: string
   if (shape.height === null) delete entry.height;
   else if (shape.height !== undefined) entry.height = shape.height;
   room.lights = [...(room.lights ?? []).filter((x) => x.entity !== entity), entry];
+  return m;
+}
+
+/** Adds a camera to a room at a room-relative point. */
+export function addCamera(model: HouseInput, levelId: string, roomId: string, entity: string, at: [number, number]): HouseInput {
+  const m = clone(model);
+  const room = level(m, levelId).rooms.find((r) => r.id === roomId);
+  if (!room) return m;
+  room.cameras = [...(room.cameras ?? []), { entity, at: [round(at[0]), round(at[1])] }];
+  return m;
+}
+
+/** Changes a camera (undefined drops a field back to its default). */
+export function updateCamera(model: HouseInput, levelId: string, roomId: string, index: number, patch: Partial<CameraInput>): HouseInput {
+  const m = clone(model);
+  const c = level(m, levelId).rooms.find((r) => r.id === roomId)?.cameras?.[index];
+  if (!c) return m;
+  for (const [k, v] of Object.entries(patch)) {
+    if (v === undefined) delete (c as unknown as Record<string, unknown>)[k];
+    else (c as unknown as Record<string, unknown>)[k] = k === "at" ? [round((v as number[])[0]), round((v as number[])[1])] : v;
+  }
+  return m;
+}
+
+export function removeCamera(model: HouseInput, levelId: string, roomId: string, index: number): HouseInput {
+  const m = clone(model);
+  const room = level(m, levelId).rooms.find((r) => r.id === roomId);
+  if (!room?.cameras) return m;
+  room.cameras = room.cameras.filter((_, i) => i !== index);
+  if (!room.cameras.length) delete room.cameras;
   return m;
 }
 

@@ -236,6 +236,8 @@ levels:
           - { entity: light.reading_lamp, at: [1, 2] }   # metres from the room's north-west corner
           - { entity: light.downlights, type: spot, at: [1, 1], spots: [[2, 1], [3, 1]] }  # a row on one light
           - { entity: light.cove, type: strip, at: [0.2, 0.2], to: [4, 0.2], height: 2.4 }  # also: indirect
+        cameras:                        # optional: what it sees, red while motion is on; a tap shows it
+          - { entity: camera.hall, at: [0.3, 0.3], direction: 135, fov: 90, motion: binary_sensor.hall_motion }
         furniture:                      # optional; the editor's library shows every type
           - { type: sofa, at: [3, 6.5] }
           - { type: table, at: [3, 2], rotation: 90 }

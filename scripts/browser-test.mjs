@@ -688,6 +688,19 @@ console.log("demo house, roof");
       for (const e of window.__wasOff) await window.card.hass.callService("light", "turn_off", {}, { entity_id: e });
     }));
   });
+  await test("cameras: what they see on the floor, red while their motion sensor is on", async () => {
+    await act(page, async () => {
+      await page.evaluate(() => {
+        const m = structuredClone(window.__demoModel);
+        m.levels[0].rooms.find((r) => r.id === "kitchen").cameras = [{ entity: "camera.kitchen", at: [4.5, 0.3], direction: 225, motion: "binary_sensor.kitchen_motion" }];
+        window.card.hass.pushModel(m);
+      });
+    });
+    const st = await page.evaluate(() => window.card.renderer.cameraState("camera.kitchen"));
+    const on = await page.evaluate(() => window.card.hass.states["binary_sensor.kitchen_motion"].state === "on");
+    assert(st?.views === 1 && st.color === (on ? "ff4d4d" : "4fa3ff"), `camera: ${JSON.stringify(st)} (motion ${on})`);
+    await shot(page, "demo-camera");
+  });
   await test("a lamp linked to a light glows with it, and a tap on it toggles the light", async () => {
     await act(page, async () => {
       await page.evaluate(() => {
@@ -1981,6 +1994,31 @@ console.log("editor");
     await page.keyboard.press("Control+z");
     await page.keyboard.press("Control+z");
     await page.keyboard.press("Escape");
+    await page.keyboard.press("Escape");
+  });
+
+  await test("cameras: shown with what they see on the plan, dragged to their wall", async () => {
+    await page.keyboard.press("Escape");
+    await page.evaluate(() => {
+      const p = window.panel;
+      const m = structuredClone(p._model);
+      m.levels[0].rooms.find((r) => r.id === "hall").cameras = [{ entity: "camera.door", at: [1.5, 2], direction: 0, fov: 80 }];
+      p.commit(m);
+    });
+    const cam = page.locator('homeslice-panel svg.plan [data-camera]');
+    assert((await cam.count()) === 1 && (await page.locator("homeslice-panel svg.plan polygon.camera-view").count()) === 1, "no camera on the plan");
+    const b = await cam.boundingBox();
+    await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2 + 60, { steps: 5 });
+    await page.mouse.up();
+    const c = (await room("hall")).cameras[0];
+    assert(c.at[1] > 2.3, `camera not moved: ${JSON.stringify(c)}`);
+    assert((await page.locator("homeslice-panel .inspector h3", { hasText: "Cameras" }).count()) === 1, "no cameras in the room panel");
+    await shot(page, "editor-camera");
+    await page.evaluate(() => window.panel.shadowRoot.activeElement?.blur());
+    await page.keyboard.press("Control+z");
+    await page.keyboard.press("Control+z");
     await page.keyboard.press("Escape");
   });
 

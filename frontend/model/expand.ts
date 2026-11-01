@@ -226,7 +226,20 @@ export function expandHouse(input: unknown): ExpandResult {
         if (listed) Object.assign(listed, { at: f.at, piece: true });
         else lights.push({ entity: f.entity, at: f.at, hidden: false, piece: true, type: "lamp", spots: [] });
       }
-      const room: Room = { id: ri.id, areaId: ri.area_id, name: ri.name, kind, floor: ri.floor ?? DEFAULTS.floor[kind], polygon, lights, furniture };
+      const cameras: Room["cameras"] = [];
+      (ri.cameras ?? []).forEach((ci, j) => {
+        const cp = `${rp}.cameras.${j}`;
+        if (typeof ci?.entity !== "string" || !ci.entity.startsWith("camera.")) return err(cp, `A camera needs entity: camera.…, got ${JSON.stringify(ci?.entity)}.`);
+        if (!(Array.isArray(ci.at) && ci.at.length === 2 && ci.at.every((v) => typeof v === "number"))) return err(`${cp}.at`, "at must be [metres east, metres south] of the room's north-west corner.");
+        const num = (v: unknown, lo: number, hi: number) => v === undefined || (typeof v === "number" && v >= lo && v <= hi);
+        if (!num(ci.direction, -360, 360)) return err(`${cp}.direction`, "direction must be degrees clockwise from the plan's top (-360–360).");
+        if (!num(ci.fov, 10, 360)) return err(`${cp}.fov`, "fov must be degrees (10–360).");
+        if (!num(ci.range, 0.5, 50)) return err(`${cp}.range`, "range must be metres (0.5–50).");
+        if (!num(ci.height, 0, 6)) return err(`${cp}.height`, "height must be metres above the floor (0–6).");
+        if (ci.motion !== undefined && !(typeof ci.motion === "string" && ci.motion.includes("."))) return err(`${cp}.motion`, "motion must be an entity id, e.g. binary_sensor.….");
+        cameras.push({ entity: ci.entity, at: [min[0] + ci.at[0], min[1] + ci.at[1]], direction: ci.direction ?? 180, fov: ci.fov ?? 90, range: ci.range ?? 5, height: ci.height ?? 2.3, ...(ci.motion ? { motion: ci.motion } : {}) });
+      });
+      const room: Room = { id: ri.id, areaId: ri.area_id, name: ri.name, kind, floor: ri.floor ?? DEFAULTS.floor[kind], polygon, lights, furniture, cameras };
       if (ri.awning) room.awning = ri.awning;
       if (ri.wall) room.wall = ri.wall;
       if (Object.keys(wallSides).length) room.wallSides = wallSides;

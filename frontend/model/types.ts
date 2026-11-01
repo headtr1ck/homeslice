@@ -40,6 +40,8 @@ export interface RoomInput extends ShapeInput {
    * evenly; list a light to place it (`at`), hide it, or add one from another area.
    */
   lights?: LightInput[];
+  /** Cameras in this room: where they hang and what they see. */
+  cameras?: CameraInput[];
   furniture?: FurnitureInput[];
 }
 
@@ -134,6 +136,23 @@ export interface FurnitureInput {
  * `indirect` (light washing the room's walls from the ceiling down).
  */
 export type LightType = "lamp" | "spot" | "strip" | "indirect";
+
+/** A camera on a wall or the ceiling, with the part of the room it sees. */
+export interface CameraInput {
+  entity: string;
+  /** Metres east and south of the room's north-west corner, like lights. */
+  at: [number, number];
+  /** Where it looks, in degrees clockwise from the plan's top (0 up, 90 right). Default 180. */
+  direction?: number;
+  /** Field of view in degrees (default 90). */
+  fov?: number;
+  /** How far it sees, in metres (default 5). */
+  range?: number;
+  /** Metres above the floor (default 2.3). */
+  height?: number;
+  /** A motion sensor: the view turns red while it is on (default: the camera's own motion, if any). */
+  motion?: string;
+}
 
 export interface LightInput {
   entity: string;
@@ -401,6 +420,8 @@ export interface Room {
   /** `piece`: the light of a piece of furniture (placed where the piece is). */
   /** `spots` and `to` in plan coordinates too. */
   lights: { entity: string; at?: Vec2; hidden: boolean; piece?: boolean; type: LightType; spots: Vec2[]; to?: Vec2; height?: number }[];
+  /** `at` in plan coordinates; defaults filled in. */
+  cameras: { entity: string; at: Vec2; direction: number; fov: number; range: number; height: number; motion?: string }[];
   /** `elevation`: bottom above the floor in metres (ceiling pieces: null, they hang from the ceiling). */
   furniture: { type: FurnitureType; at: Vec2; rotation: number; size: [number, number]; height: number; mount: FurnitureMount; elevation: number | null; mirror: boolean; entity?: string; model?: string; finish?: string; accent?: string }[];
 }

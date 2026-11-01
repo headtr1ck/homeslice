@@ -302,6 +302,29 @@ def validate(house: Any) -> list[dict[str, str]]:
                     err(f"{rp}.lights.{j}.height", "height must be metres above the floor (0–6).")
                 elif ltype == "strip" and (at is MISSING or to is MISSING):
                     err(f"{rp}.lights.{j}", "A strip needs at and to: its two ends.")
+            for j, ci in enumerate(items(get(ri, "cameras"))):
+                cp = f"{rp}.cameras.{j}"
+                entity = get(ci, "entity")
+
+                def in_range(v: Any, lo: float, hi: float) -> bool:
+                    return v is MISSING or (is_num(v) and lo <= v <= hi)
+
+                cat = get(ci, "at")
+                motion = get(ci, "motion")
+                if not isinstance(entity, str) or not entity.startswith("camera."):
+                    err(cp, f"A camera needs entity: camera.…, got {stringify(entity)}.")
+                elif not (isinstance(cat, list) and len(cat) == 2 and all(is_num(v) for v in cat)):
+                    err(f"{cp}.at", "at must be [metres east, metres south] of the room's north-west corner.")
+                elif not in_range(get(ci, "direction"), -360, 360):
+                    err(f"{cp}.direction", "direction must be degrees clockwise from the plan's top (-360–360).")
+                elif not in_range(get(ci, "fov"), 10, 360):
+                    err(f"{cp}.fov", "fov must be degrees (10–360).")
+                elif not in_range(get(ci, "range"), 0.5, 50):
+                    err(f"{cp}.range", "range must be metres (0.5–50).")
+                elif not in_range(get(ci, "height"), 0, 6):
+                    err(f"{cp}.height", "height must be metres above the floor (0–6).")
+                elif motion is not MISSING and not (isinstance(motion, str) and "." in motion):
+                    err(f"{cp}.motion", "motion must be an entity id, e.g. binary_sensor.….")
             for j, fi in enumerate(items(get(ri, "furniture"))):
                 fp = f"{rp}.furniture.{j}"
                 ftype = get(fi, "type")

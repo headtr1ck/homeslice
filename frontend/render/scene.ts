@@ -118,6 +118,8 @@ export const DEFAULT_ACCENT = "#4fc3f7";
 const COLORS = {
   wall: "#eeeae3",
   planWall: "#3a3f45",
+  cameraView: "#4fa3ff",
+  cameraMotion: "#ff4d4d",
   slab: "#6f7275",
   stairs: "#d8d3ca",
   tread: "#c9965c",
@@ -393,6 +395,8 @@ export class HouseRenderer {
   private ownLooks = new WeakMap<THREE.Material, { color: THREE.Color; map: THREE.Texture | null }>();
   private accent = DEFAULT_ACCENT;
   private outlines: THREE.Group[] = [];
+  /** Cameras' views on the floor, by camera. */
+  private cameraViews = new Map<string, THREE.MeshBasicMaterial[]>();
   /** A drawn plan's door swings (wide lines need the canvas size). */
   private planLines: LineSegments2[] = [];
   /** Door leaves and window panes that open with their contact, by opening. */
@@ -535,6 +539,7 @@ export class HouseRenderer {
     this.leaves.clear();
     this.outlines = [];
     this.planLines = [];
+    this.cameraViews.clear();
     this.linked = [];
     this.covers.clear();
     this.glasses.clear();
@@ -601,6 +606,7 @@ export class HouseRenderer {
     for (const room of level.rooms) for (const f of room.furniture) g.add(this.furniture(f, level.height));
 
     for (const room of level.rooms) if (room.awning && (room.kind !== "outdoor" || this.view.showOutdoor)) this.awning(g, level, room);
+    for (const room of level.rooms) for (const c of room.cameras ?? []) this.camera3d(g, c);
 
     // walls, split around openings; each face in its room's finish (or the facade's)
     // a drawn plan shows walls dark from above
@@ -851,6 +857,55 @@ export class HouseRenderer {
   }
 
   /**
+   * A camera: a small body where it hangs, looking its way, and what it sees as a fan of
+   * light on the floor (blue; red while its motion sensor is on). A tap shows its picture.
+   */
+  private camera3d(g: THREE.Group, c: Level["rooms"][number]["cameras"][number]) {
+    const a = THREE.MathUtils.degToRad(c.direction);
+    const look: Vec2 = [Math.sin(a), -Math.cos(a)];
+    const body = new THREE.Group();
+    body.position.set(c.at[0], c.height, c.at[1]);
+    body.rotation.y = Math.atan2(-look[1], look[0]);
+    body.add(this.mesh(new THREE.BoxGeometry(0.14, 0.08, 0.08), this.lambert("#e9ebee")));
+    const lens = this.mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.02, 16).rotateZ(Math.PI / 2), this.lambert("#1d2126"));
+    lens.position.x = 0.075;
+    body.add(lens);
+    body.userData.entity = c.entity;
+    body.userData.outdoor = true;
+    body.traverse((o) => (o.userData.outdoor = true));
+    this.linked.push(body);
+    g.add(body);
+    // the fan on the floor: the circle's angle 0 is plan +x, counter-clockwise seen from above
+    const fov = THREE.MathUtils.degToRad(Math.min(c.fov, 359));
+    const centre = Math.PI / 2 - a;
+    const material = new THREE.MeshBasicMaterial({ color: COLORS.cameraView, transparent: true, opacity: 0.22, depthWrite: false, side: THREE.DoubleSide });
+    this.building?.add(material);
+    const fan = new THREE.Mesh(new THREE.CircleGeometry(c.range, 32, centre - fov / 2, fov).rotateX(-Math.PI / 2), material);
+    fan.position.set(c.at[0], 0.025, c.at[1]);
+    fan.renderOrder = 2;
+    fan.userData.outdoor = true;
+    g.add(fan);
+    const list = this.cameraViews.get(c.entity) ?? [];
+    list.push(material);
+    this.cameraViews.set(c.entity, list);
+  }
+
+  /** A camera's motion: its view red while something moves. */
+  setCameraMotion(entity: string, moving: boolean) {
+    for (const m of this.cameraViews.get(entity) ?? []) {
+      m.color.set(moving ? COLORS.cameraMotion : COLORS.cameraView);
+      m.opacity = moving ? 0.32 : 0.22;
+      m.userData.baseOpacity = m.opacity;
+    }
+  }
+
+  /** For tests: how a camera's view is drawn. */
+  cameraState(entity: string) {
+    const list = this.cameraViews.get(entity);
+    return list ? { views: list.length, color: list[0].color.getHexString() } : null;
+  }
+
+  /**
    * A drawn plan's door swing: the leaf's quarter circle on the floor, on the side it
    * opens to (as the editor draws it); sliding doors have none.
    */
@@ -972,7 +1027,7 @@ export class HouseRenderer {
 
   /** Whether a door or window is still moving (the card animates only then). */
   get leavesMoving() {
-    for (const list of this.leaves.values()) for (const l of list) if (Math.abs(l.target - l.now) > 1e-3) return true;
+    for (const list of this.leaves.values()) for (const l of list) if (l.now !== l.target) return true;
     return false;
   }
 
@@ -984,10 +1039,10 @@ export class HouseRenderer {
   private moveLeaves(dt: number) {
     for (const list of this.leaves.values())
       for (const l of list) {
-        if (Math.abs(l.target - l.now) <= 1e-3) continue;
-        // about 0.6 s from closed to open
+        if (l.now === l.target) continue;
+        // about 0.6 s from closed to open; the last step lands exactly on it
         const step = dt / 0.6;
-        l.now = l.target > l.now ? Math.min(l.target, l.now + step) : Math.max(l.target, l.now - step);
+        l.now = Math.abs(l.target - l.now) <= step ? l.target : l.now + Math.sign(l.target - l.now) * step;
         this.placeLeaf(l);
       }
   }

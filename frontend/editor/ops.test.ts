@@ -35,6 +35,9 @@ import {
   deleteEnergy,
   setRoof,
   placeLight,
+  addCamera,
+  updateCamera,
+  removeCamera,
   setLightShape,
   setLightHidden,
   removeLight,
@@ -353,6 +356,16 @@ describe("lights", () => {
     expect(rooms(m).right.lights).toEqual([{ entity: "light.a", hidden: true }]);
     m = removeLight(m, "g", "right", "light.a");
     expect(rooms(m).right.lights).toBeUndefined();
+  });
+  it("adds, turns, moves and removes cameras", () => {
+    let m = addCamera(house(), "g", "left", "camera.door", [1, 1]);
+    m = updateCamera(m, "g", "left", 0, { direction: 90, at: [0.5, 0.25] });
+    expect(rooms(m).left.cameras).toEqual([{ entity: "camera.door", at: [0.5, 0.25], direction: 90 }]);
+    m = updateCamera(m, "g", "left", 0, { direction: undefined });
+    expect(rooms(m).left.cameras![0].direction).toBeUndefined();
+    expect(rooms(m).left.cameras).toHaveLength(1);
+    m = removeCamera(m, "g", "left", 0);
+    expect(rooms(m).left.cameras).toBeUndefined();
   });
   it("turns a light into spots or a strip and back", () => {
     // an automatic light gets pinned where it is

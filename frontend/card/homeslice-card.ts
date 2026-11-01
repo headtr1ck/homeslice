@@ -630,6 +630,7 @@ export class HomesliceCard extends LitElement {
     });
     const awnings = this.rooms.map((r) => (r.room.awning ? coverOpen(hass, r.room.awning, inverted.has(r.room.awning)) : null));
     const devices = this.devices.map((entity) => deviceLook(hass, entity, inverted.has(entity)));
+    const cameras = this.house.levels.flatMap((l) => l.rooms.flatMap((r) => r.cameras.map((c) => [c.entity, !!c.motion && hass.states[c.motion]?.state === "on"] as const)));
     this.energyReadings = this.config.energy ? this.house.energy.map((e) => readEnergy(hass, e, this.energyPrefs)) : [];
     this.robotReadings = this.house.robots.map((r) => readRobot(hass, r));
     // the real sun, turned into the plan's directions; rounded so it redraws now and then, not always
@@ -642,11 +643,12 @@ export class HomesliceCard extends LitElement {
         : this.config.look === "auto" && hass.states["sun.sun"]?.state === "below_horizon"
           ? "night"
           : "day";
-    const signature = JSON.stringify([look, this.config.accent, lux, lights, lamps, covers, contacts, temperatures, sensors, awnings, devices, this.energyReadings, this.robotReadings, sunAt]);
+    const signature = JSON.stringify([look, this.config.accent, lux, lights, lamps, covers, contacts, temperatures, sensors, awnings, devices, cameras, this.energyReadings, this.robotReadings, sunAt]);
     if (signature === this.stateSignature) return;
     this.stateSignature = signature;
     this.lamps.forEach((l, i) => this.renderer!.setLamp(l.entity, lamps[i]));
     this.devices.forEach((entity, i) => this.renderer!.setDevice(entity, devices[i]));
+    for (const [entity, moving] of cameras) this.renderer.setCameraMotion(entity, moving);
     this.renderer.setLook(look, this.config.accent || undefined);
     this.renderer.setSun(sunAt?.[0] ?? null, sunAt?.[1] ?? null);
     this.house.robots.forEach((r, i) => this.renderer!.setRobotState(`robot-${r.index}`, this.robotReadings[i].at, ROBOT_COLORS[this.robotReadings[i].status]));
