@@ -35,6 +35,8 @@ export interface RoomInput extends ShapeInput {
   wall_sides?: Partial<Record<Side, string>>;
   /** Cover entity of an awning over this (outdoor) area, mounted on the house wall. */
   awning?: string;
+  /** An outdoor area as a balcony or roof terrace: a solid floor and a railing on its free edges (`glass`, `metal` or `wood`). */
+  railing?: "glass" | "metal" | "wood";
   /**
    * Underfloor heating: the entity that says it heats (a climate entity, a valve, a switch
    * or binary sensor). Its loops glow in the floor while it does.
@@ -346,6 +348,17 @@ export interface RoofInput {
   pitch?: number;
   /** Metres past the walls (default 0.3). */
   overhang?: number;
+  /** Dormers on the slopes: `side` (the slope's side), `at` (metres along the ridge from its west or north end, the dormer's middle), `width`, `shape`. */
+  dormers?: DormerInput[];
+}
+
+export interface DormerInput {
+  side: Side;
+  at: number;
+  /** Metres (default 1.6). */
+  width?: number;
+  /** `gable` (a little pitched roof, default) or `shed` (a flat, slightly sloping one). */
+  shape?: "gable" | "shed";
 }
 
 export interface HouseInput {
@@ -431,6 +444,7 @@ export interface Room {
   /** Positive shoelace area in plan coordinates (see geometry.signedArea). */
   polygon: Vec2[];
   awning?: string;
+  railing?: "glass" | "metal" | "wood";
   underfloor?: string;
   wall?: string;
   wallSides?: Partial<Record<Side, string>>;
@@ -504,7 +518,7 @@ export interface House {
   walls: WallThickness;
   levels: Level[];
   vertical: Vertical[];
-  roof: Required<RoofInput>;
+  roof: Required<Omit<RoofInput, "dormers">> & { dormers: Required<DormerInput>[] };
   energy: Energy[];
   invertedCovers: string[];
   facade?: string;

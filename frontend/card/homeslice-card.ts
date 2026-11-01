@@ -141,6 +141,12 @@ export interface HomesliceCardConfig {
    * `overview` for the whole house).
    */
   overlays?: CardOverlay[];
+  /**
+   * Layers the viewer can switch on the card (a layers button; the choice stays on that
+   * device): `energy`, `heating`, `heatmap`, `values`, `presence`. The card's options are
+   * where they start.
+   */
+  layers?: Layer[];
   /** A button to walk through the house at eye level (keys, a touch stick, drag to look). */
   walk?: boolean;
   /** A button to replay the last day from Home Assistant's history (time travel). */
@@ -169,6 +175,9 @@ const RAINY = ["rainy", "pouring", "lightning-rainy", "snowy-rainy", "hail"];
 /** An icon for a button by the entity's domain. */
 const shortcutIcon = (entity: string) =>
   ({ scene: "mdi:palette", script: "mdi:script-text-play", light: "mdi:lightbulb", switch: "mdi:toggle-switch", cover: "mdi:blinds", lock: "mdi:lock", button: "mdi:gesture-tap-button", media_player: "mdi:play-pause" })[entity.split(".")[0]] ?? "mdi:star";
+
+/** What a viewer can switch on the card (see `layers`). */
+export type Layer = "energy" | "heating" | "heatmap" | "values" | "presence";
 
 /** Another card placed on the house card (see `overlays`). */
 export interface CardOverlay {
@@ -346,6 +355,7 @@ export class HomesliceCard extends LitElement {
     _sunTimes: { state: true },
     _replay: { state: true },
     _walking: { state: true },
+    _layersOpen: { state: true },
     _people: { state: true },
     _level: { state: true },
     _popup: { state: true },
@@ -430,7 +440,9 @@ export class HomesliceCard extends LitElement {
   };
 
   setConfig(config: HomesliceCardConfig) {
-    this.config = { house: "home", ...config };
+    this.baseConfig = config;
+    // the viewer's own layer choices (this device) over the card's
+    this.config = { house: "home", ...config, ...this.layerChoices(config) };
     clearInterval(this.kioskTimer);
     this.kioskTimer = this.isConnected && this.kiosk ? window.setInterval(this.kioskTick, 1000) : 0;
     if (!this.kiosk) this._night = false;
@@ -470,6 +482,81 @@ export class HomesliceCard extends LitElement {
   }
 
   // ----- views: buttons to turn, and a start view saved on this device -----
+
+  // ----- layers the viewer switches -----
+
+  private baseConfig: HomesliceCardConfig = { type: "" };
+  private _layersOpen = false;
+
+  private layersKey(config: HomesliceCardConfig = this.config) {
+    return `homeslice-layers:${config.house ?? "home"}`;
+  }
+
+  /** What this device chose for the layers the card offers (nothing else is overridden). */
+  private layerChoices(config: HomesliceCardConfig): Partial<HomesliceCardConfig> {
+    const offered = config.layers ?? [];
+    if (!offered.length) return {};
+    try {
+      const saved = JSON.parse(localStorage.getItem(this.layersKey(config)) ?? "{}") as Partial<HomesliceCardConfig>;
+      return Object.fromEntries(Object.entries(saved).filter(([k]) => offered.includes(k as Layer))) as Partial<HomesliceCardConfig>;
+    } catch {
+      return {};
+    }
+  }
+
+  private setLayer(patch: Partial<HomesliceCardConfig>) {
+    let saved: Record<string, unknown> = {};
+    try {
+      saved = JSON.parse(localStorage.getItem(this.layersKey()) ?? "{}");
+    } catch {
+      // private mode: the choice lasts until the page reloads
+    }
+    const next = { ...saved, ...patch };
+    try {
+      localStorage.setItem(this.layersKey(), JSON.stringify(next));
+    } catch {
+      // as above
+    }
+    const view = JSON.stringify(this.config.view);
+    this.setConfig(this.baseConfig);
+    // the energy overlay changes what is built: build again; the rest only redraws
+    if ("energy" in patch || JSON.stringify(this.config.view) !== view) {
+      this.loadedFor = undefined;
+      this.hass = this.hass;
+    } else {
+      this.stateSignature = "";
+      this.syncStates();
+      this.placeLabels();
+    }
+    this.requestUpdate();
+  }
+
+  private renderLayers() {
+    const offered = this.config.layers ?? [];
+    if (!offered.length) return nothing;
+    const c = this.config;
+    const check = (layer: Layer, on: boolean, patch: (on: boolean) => Partial<HomesliceCardConfig>) =>
+      offered.includes(layer)
+        ? html`<label><input type="checkbox" .checked=${on} @change=${(e: Event) => this.setLayer(patch((e.target as HTMLInputElement).checked))} />${this.t(`card.layer_${layer}`)}</label>`
+        : nothing;
+    return html`<button class="layers-open" title=${this.t("card.layers")} aria-expanded=${this._layersOpen} @click=${() => (this._layersOpen = !this._layersOpen)}><ha-icon icon="mdi:layers-outline"></ha-icon></button>
+      ${this._layersOpen
+        ? html`<div class="layers" role="group" aria-label=${this.t("card.layers")}>
+            ${check("energy", !!c.energy, (on) => ({ energy: on }))}
+            ${check("heating", !!c.heating, (on) => ({ heating: on }))}
+            ${check("values", (c.values ?? ["temperature"]).length > 1, (on) => ({ values: on ? ["temperature", "humidity", "carbon_dioxide"] : ["temperature"] }))}
+            ${check("presence", c.presence !== false, (on) => ({ presence: on }))}
+            ${offered.includes("heatmap")
+              ? html`<label
+                  >${this.t("card.layer_heatmap")}
+                  <select @change=${(e: Event) => this.setLayer({ heatmap: ((e.target as HTMLSelectElement).value || undefined) as HomesliceCardConfig["heatmap"] })}>
+                    ${(["", "temperature", "humidity", "carbon_dioxide", "pm25"] as const).map((h) => html`<option value=${h} ?selected=${(c.heatmap ?? "") === h}>${this.t(`cardeditor.heatmap_${h || "none"}`)}</option>`)}
+                  </select>
+                </label>`
+              : nothing}
+          </div>`
+        : nothing}`;
+  }
 
   private get viewKey() {
     return `homeslice-view:${this.config.house ?? "home"}`;
@@ -2027,6 +2114,7 @@ export class HomesliceCard extends LitElement {
           ${this.renderShortcuts()}
           ${this.renderTimeTravel()}
           ${this.renderWalk()}
+          ${this.renderLayers()}
           ${this.interactive && !this.plan
             ? html`<div class="views">
                 <button title=${this.t("card.view_left")} @click=${() => this.turnView(-90)}><ha-icon icon="mdi:rotate-left"></ha-icon></button>
@@ -2308,6 +2396,43 @@ export class HomesliceCard extends LitElement {
       color: #fff;
       font-weight: 500;
       animation: homeslice-alert 1.2s ease-in-out infinite;
+    }
+    .layers-open {
+      position: absolute;
+      left: 100px;
+      bottom: 56px;
+      z-index: 2;
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      border: 1px solid var(--divider-color, rgba(255, 255, 255, 0.2));
+      background: var(--card-background-color, rgba(20, 24, 28, 0.85));
+      color: var(--primary-text-color, #ddd);
+      display: grid;
+      place-items: center;
+      padding: 0;
+      cursor: pointer;
+      --mdc-icon-size: 20px;
+    }
+    .layers {
+      position: absolute;
+      left: 100px;
+      bottom: 98px;
+      z-index: 3;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      padding: 10px 12px;
+      border-radius: 12px;
+      background: var(--card-background-color, rgba(20, 24, 28, 0.92));
+      color: var(--primary-text-color, #ddd);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+      font-size: 13px;
+    }
+    .layers label {
+      display: flex;
+      align-items: center;
+      gap: 6px;
     }
     .walk-open {
       position: absolute;

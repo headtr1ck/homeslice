@@ -164,6 +164,7 @@ export function expandHouse(input: unknown): ExpandResult {
             else wallSides[side as Side] = v as string;
           }
       }
+      if (ri.railing !== undefined && !["glass", "metal", "wood"].includes(ri.railing)) err(`${rp}.railing`, `railing must be glass, metal or wood, got ${JSON.stringify(ri.railing)}.`);
       if (ri.underfloor !== undefined && !(typeof ri.underfloor === "string" && ri.underfloor.includes("."))) err(`${rp}.underfloor`, "underfloor must be an entity id, e.g. climate.….");
       const kind = ri.kind ?? "room";
       const { min } = bbox(polygon);
@@ -245,6 +246,7 @@ export function expandHouse(input: unknown): ExpandResult {
       });
       const room: Room = { id: ri.id, areaId: ri.area_id, name: ri.name, kind, floor: ri.floor ?? DEFAULTS.floor[kind], polygon, lights, furniture, cameras };
       if (ri.awning) room.awning = ri.awning;
+      if (ri.railing && ["glass", "metal", "wood"].includes(ri.railing)) room.railing = ri.railing;
       if (typeof ri.underfloor === "string" && ri.underfloor.includes(".")) room.underfloor = ri.underfloor;
       if (ri.wall) room.wall = ri.wall;
       if (Object.keys(wallSides).length) room.wallSides = wallSides;
@@ -413,11 +415,20 @@ export function expandHouse(input: unknown): ExpandResult {
   if (!(pitch > 0 && pitch < 75)) err("roof", `pitch must be between 0 and 75 degrees, got ${pitch}.`);
   const top = levels[levels.length - 1];
   const tb = bbox(top?.outline.length ? top.outline : [[0, 0], [1, 1]]);
+  const dormers: Required<NonNullable<typeof r.dormers>[number]>[] = [];
+  (r.dormers ?? []).forEach((d, i) => {
+    const dp = `roof.dormers.${i}`;
+    if (!d || !SIDES.includes(d.side) || typeof d.at !== "number") return err(dp, "A dormer needs side (north, south, east or west) and at (metres along the ridge).");
+    if (d.width !== undefined && !(typeof d.width === "number" && d.width >= 0.5 && d.width <= 6)) return err(`${dp}.width`, "width must be in metres (0.5–6).");
+    if (d.shape !== undefined && d.shape !== "gable" && d.shape !== "shed") return err(`${dp}.shape`, "shape must be gable or shed.");
+    dormers.push({ side: d.side, at: d.at, width: d.width ?? 1.6, shape: d.shape ?? "gable" });
+  });
   const roof: House["roof"] = {
     shape: "gable",
     ridge: r.ridge ?? (tb.max[0] - tb.min[0] >= tb.max[1] - tb.min[1] ? "east_west" : "north_south"),
     pitch,
     overhang: r.overhang ?? 0.3,
+    dormers,
   };
 
   const energy: Energy[] = [];

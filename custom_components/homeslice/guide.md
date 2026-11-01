@@ -42,6 +42,7 @@ name: Home
 outline: { rect: [0, 0, 10, 8] }
 party_walls: [east]           # outside walls shared with a neighbour (terraced houses)
 roof: { ridge: east_west, pitch: 35 }      # optional; ridge east_west or north_south
+# dormers: [{side: south, at: 4, width: 1.6, shape: gable}]  (side: a slope's side; at: metres along the ridge; shape gable or shed)
 north: 0                      # optional: degrees the plan's north is turned east of true north
 levels:                       # bottom to top
   - id: ground
@@ -78,6 +79,7 @@ vertical:
   adds more downlights on the same light), `strip` (an LED strip from `at` to `to`,
   optional `height` in metres) or `indirect` (light washing the room's walls).
 - `awning: cover.…` on an outdoor room: an awning on the house wall over it.
+- `railing: glass` (or `metal`, `wood`) on an outdoor room: a balcony or roof terrace, a solid floor with a railing on its free edges.
 - `underfloor: climate.…` on a room: underfloor heating, its loops glow in the floor while it heats, on cards with `heating: true` (also a valve, switch or binary sensor).
 - `cameras: [{entity: camera.…, at: [x, y], direction: 180, fov: 90, range: 5, height: 2.3,
   motion: binary_sensor.…}]`: a camera where it hangs and what it sees; `direction` is

@@ -1044,6 +1044,50 @@ console.log("demo house, roof");
     });
   });
 
+  await test("layers: the viewer switches the heatmap on, and this device keeps it", async () => {
+    await page.evaluate(() => {
+      localStorage.removeItem("homeslice-layers:home");
+      window.card.setConfig({ ...window.card.config, layers: ["heatmap", "values"] });
+      window.card.requestUpdate();
+    });
+    await page.locator("homeslice-card .layers-open").click();
+    await page.locator("homeslice-card .layers select").selectOption("temperature");
+    await page.waitForFunction(() => window.card.config.heatmap === "temperature");
+    // the card's own config again (a reload): the device's choice stays
+    await page.evaluate(() => window.card.setConfig({ ...window.card.baseConfig }));
+    assert((await page.evaluate(() => window.card.config.heatmap)) === "temperature", "the choice was not kept");
+    await page.evaluate(() => {
+      localStorage.removeItem("homeslice-layers:home");
+      const { layers, heatmap, ...config } = window.card.baseConfig;
+      window.card.setConfig(config);
+      window.card._layersOpen = false;
+      window.card.hass = window.card.hass;
+    });
+  });
+
+  await test("dormers on the roof, a railing round a balcony", async () => {
+    await act(page, async () => {
+      await page.evaluate(() => {
+        const m = structuredClone(window.__demoModel);
+        m.roof = { ...(m.roof ?? {}), dormers: [{ side: "south", at: 3 }, { side: "north", at: 5, shape: "shed" }, { side: "east", at: 3 }, { side: "west", at: 4, shape: "shed" }] };
+        const garden = m.levels[0].rooms.find((r) => r.id === "garden");
+        if (garden) garden.railing = "glass";
+        window.viewBefore = window.card.config.view;
+        window.card.setConfig({ ...window.card.config, view: { ...window.card.config.view, roof: true } });
+        window.card.hass.pushModel(m);
+      });
+    });
+    const roofParts = await page.evaluate(() => window.card.renderer.roof?.children.length ?? 0);
+    assert(roofParts >= 3, `roof parts: ${roofParts}`);
+    await shot(page, "demo-dormers");
+    await act(page, () =>
+      page.evaluate(() => {
+        window.card.setConfig({ ...window.card.config, view: window.viewBefore });
+        window.card.hass.pushModel(window.__demoModel);
+      }),
+    );
+  });
+
   await test("lamp gestures: drag to dim, hold for the room, tap toggles", async () => {
     const lamp = page.locator("homeslice-card .label", { has: page.locator("button.name", { hasText: "Living Room" }) }).locator("button.lamp");
     const box = await lamp.boundingBox();

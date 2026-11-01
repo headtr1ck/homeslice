@@ -284,6 +284,9 @@ def validate(house: Any) -> list[dict[str, str]]:
                             err(f"{rp}.wall_sides", f'Unknown side "{text(side)}" (north, south, east or west).')
                         elif not finish_ok(v, wall_finishes):
                             err(f"{rp}.wall_sides.{text(side)}", f"A wall side must be {WALL_HINT}, got {stringify(v)}.")
+            railing = get(ri, "railing")
+            if railing is not MISSING and railing not in ("glass", "metal", "wood"):
+                err(f"{rp}.railing", f"railing must be glass, metal or wood, got {stringify(railing)}.")
             underfloor = get(ri, "underfloor")
             if underfloor is not MISSING and not (isinstance(underfloor, str) and "." in underfloor):
                 err(f"{rp}.underfloor", "underfloor must be an entity id, e.g. climate.….")
@@ -491,6 +494,18 @@ def validate(house: Any) -> list[dict[str, str]]:
     pitch = nullish(get(roof, "pitch"), 35)
     if not (num(pitch) > 0 and num(pitch) < 75):
         err("roof", f"pitch must be between 0 and 75 degrees, got {text(pitch)}.")
+    for i, d in enumerate(items(get(roof, "dormers"))):
+        dp = f"roof.dormers.{i}"
+        if get(d, "side") not in SIDES or not is_num(get(d, "at")):
+            err(dp, "A dormer needs side (north, south, east or west) and at (metres along the ridge).")
+            continue
+        width = get(d, "width")
+        if width is not MISSING and not (is_num(width) and 0.5 <= width <= 6):
+            err(f"{dp}.width", "width must be in metres (0.5–6).")
+            continue
+        shape = get(d, "shape")
+        if shape is not MISSING and shape not in ("gable", "shed"):
+            err(f"{dp}.shape", "shape must be gable or shed.")
 
     energy: list[dict[str, Any]] = []
     energy_in = items(get(h, "energy"))

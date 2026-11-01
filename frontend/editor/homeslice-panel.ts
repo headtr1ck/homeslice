@@ -14,7 +14,7 @@ import en from "../i18n/en.json";
 import de from "../i18n/de.json";
 import { DEFAULTS, LIGHT_TYPES, expandHouse } from "../model/expand";
 import { bbox, labelPoint, pointInPolygon } from "../model/geometry";
-import type { EnergyInput, FurnitureInput, FurnitureMount, FurnitureType, HouseInput, Issue, LightType, OpeningInput, OpeningSource, OpeningType, RoomInput, Side, Vec2, Vertical } from "../model/types";
+import type { DormerInput, EnergyInput, FurnitureInput, FurnitureMount, FurnitureType, HouseInput, Issue, LightType, OpeningInput, OpeningSource, OpeningType, RoomInput, Side, Vec2, Vertical } from "../model/types";
 import { deriveWalls, innerPolygon, sideOfRoom, type Wall, type WallOpening } from "../model/walls";
 import { HouseRenderer } from "../render/scene";
 import { stairFrame, stairHole } from "../model/stairs";
@@ -3190,7 +3190,12 @@ export class HomeslicePanel extends LitElement {
       ${(r.kind ?? "room") === "room" ? this.renderWallFinishes(r, set) : nothing}
       ${(r.kind ?? "room") === "room" ? this.entitySelect(this.t("editor.underfloor"), "climate", r.area_id, r.underfloor, (underfloor) => set({ underfloor })) : nothing}
       ${(r.kind ?? "room") === "outdoor"
-        ? html`${this.entitySelect(this.t("editor.awning"), "cover", r.area_id, r.awning, (awning) => set({ awning }))}
+        ? html`<label>${this.t("editor.railing")}
+              <select @change=${(e: Event) => set({ railing: ((e.target as HTMLSelectElement).value || undefined) as RoomInput["railing"] })}>
+                ${(["", "glass", "metal", "wood"] as const).map((v) => html`<option value=${v} ?selected=${(r.railing ?? "") === v}>${this.t(`editor.railing_${v || "none"}`)}</option>`)}
+              </select>
+            </label>
+            ${this.entitySelect(this.t("editor.awning"), "cover", r.area_id, r.awning, (awning) => set({ awning }))}
             ${r.awning ? this.invertedToggle(r.awning, "editor.awning_inverted") : nothing}
             <p class="muted">${this.t("editor.awning_hint")}</p>`
         : nothing}
@@ -4665,6 +4670,37 @@ export class HomeslicePanel extends LitElement {
           }} />
         </label>
       </div>
+      ${(m.roof?.dormers ?? []).map((d, i) => {
+        const dormers = m.roof?.dormers ?? [];
+        const setD = (patch: Partial<DormerInput>) => this.commit(setRoof(m, { dormers: dormers.map((x, j) => (j === i ? { ...x, ...patch } : x)) }));
+        return html`<div class="row dormer">
+          <label>${this.t("editor.dormer")} ${i + 1}
+            <select @change=${(e: Event) => setD({ side: (e.target as HTMLSelectElement).value as Side })}>
+              ${(["north", "south", "east", "west"] as Side[]).map((sd) => html`<option value=${sd} ?selected=${d.side === sd}>${this.t(`editor.side_${sd}` as StringKey)}</option>`)}
+            </select>
+          </label>
+          <label>${this.t("editor.dormer_at")}
+            <input type="number" step="0.1" .value=${String(d.at)} @change=${(e: Event) => setD({ at: Number((e.target as HTMLInputElement).value) })} />
+          </label>
+          <label>${this.t("editor.dormer_width")}
+            <input type="number" min="0.5" max="6" step="0.1" .value=${String(d.width ?? 1.6)} @change=${(e: Event) => setD({ width: Number((e.target as HTMLInputElement).value) })} />
+          </label>
+          <label>${this.t("editor.dormer_shape")}
+            <select @change=${(e: Event) => setD({ shape: (e.target as HTMLSelectElement).value as "gable" | "shed" })}>
+              ${(["gable", "shed"] as const).map((sh) => html`<option value=${sh} ?selected=${(d.shape ?? "gable") === sh}>${this.t(`editor.dormer_${sh}`)}</option>`)}
+            </select>
+          </label>
+          <button class="icon" title=${this.t("editor.light_remove")} @click=${() => this.commit(setRoof(m, { dormers: dormers.filter((_, j) => j !== i).length ? dormers.filter((_, j) => j !== i) : undefined }))}><ha-icon icon="mdi:close"></ha-icon></button>
+        </div>`;
+      })}
+      <button data-add-dormer @click=${() => {
+        const { house } = expandHouse(m);
+        const top = house?.levels.at(-1);
+        const b = top?.outline.length ? bbox(top.outline) : { min: [0, 0], max: [8, 8] };
+        const eastWest = (house?.roof.ridge ?? "east_west") === "east_west";
+        const length = eastWest ? b.max[0] - b.min[0] : b.max[1] - b.min[1];
+        this.commit(setRoof(m, { dormers: [...(m.roof?.dormers ?? []), { side: eastWest ? "south" : "east", at: Math.round(length * 5) / 10 }] }));
+      }}>${this.t("editor.dormer_add")}</button>
       <label>${this.t("editor.north")}
         <input type="number" min="-180" max="180" step="1" .value=${String(m.north ?? 0)} @change=${(e: Event) => {
           const v = Number((e.target as HTMLInputElement).value);

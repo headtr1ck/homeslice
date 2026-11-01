@@ -199,6 +199,7 @@ weather_effects: true          #   around the house (false: only the badge)
 sun_path: true                 # today's sun path as an arc around the house, sunrise and sunset times
 time_travel: true              # a button to replay the last day from HA's history (lights, doors, blinds, devices)
 walk: true                     # a button to walk through the house at eye level (keys, touch stick, drag to look)
+layers: [energy, heating, heatmap, values, presence]   # a layers button: viewers switch these (kept per device)
 overlays:                      # other cards on the house card, to use its empty corners
   - card: { type: weather-forecast, entity: weather.home }
     top: 8px
@@ -245,7 +246,10 @@ id: home
 name: Home
 outline: { rect: [0, 0, 10, 8] }       # outer face of the exterior walls, shared by all levels
 party_walls: [west]                     # walls shared with a neighbour
-roof: { ridge: east_west, pitch: 35 }   # optional; drawn by cards with view.roof
+roof:                                   # optional; drawn by cards with view.roof
+  ridge: east_west
+  pitch: 35
+  dormers: [{ side: south, at: 4, width: 1.6, shape: gable }]   # or shape: shed
 north: 0                                # optional: degrees the plan's north side is turned east of true north
 inverted_covers: [cover.awning]         # optional: covers that report open/closed the other way round
 robots:                                 # optional: robot vacuums and lawn mowers

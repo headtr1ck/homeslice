@@ -678,7 +678,8 @@ export class HouseRenderer {
       const { map, color } = this.finish(room.floor);
       // outdoor areas reach over the floors below in the exploded view: keep them see-through
       // (on the lowest level nothing is below: solid there)
-      const material = room.kind === "outdoor" && level.index > 0 ? this.lambert(color, { map, transparent: true, opacity: 0.55, depthWrite: false }) : this.lambert(color, { map });
+      // (a balcony is a real floor: solid)
+      const material = room.kind === "outdoor" && level.index > 0 && !room.railing ? this.lambert(color, { map, transparent: true, opacity: 0.55, depthWrite: false }) : this.lambert(color, { map });
       const floor = this.mesh(geo, material, false);
       floor.userData.room = `${level.id}/${room.id}`;
       floor.userData.outdoor = room.kind === "outdoor";
@@ -691,6 +692,7 @@ export class HouseRenderer {
     for (const room of level.rooms) for (const f of room.furniture) g.add(this.furniture(f, level.height));
 
     for (const room of level.rooms) if (room.awning && (room.kind !== "outdoor" || this.view.showOutdoor)) this.awning(g, level, room);
+    for (const room of level.rooms) if (room.railing && room.kind === "outdoor" && this.view.showOutdoor) this.railing(g, level, room);
     for (const room of level.rooms) for (const c of room.cameras ?? []) this.camera3d(g, c);
 
     // walls, split around openings; each face in its room's finish (or the facade's)
@@ -1785,9 +1787,107 @@ export class HouseRenderer {
     const mat = new THREE.MeshLambertMaterial({ color: COLORS.roof, side: THREE.DoubleSide });
     this.levels[this.levels.length - 1]?.materials.add(mat);
     g.add(this.mesh(geo, mat));
+    for (const d of roof.dormers ?? []) this.dormer(g, d, { eastWest, u0, u1, r0, r1, base, t, mat });
     g.userData.outdoor = true;
     g.traverse((x) => (x.userData.outdoor = true));
     return g;
+  }
+
+  /** A balcony's railing along the edges that are not against the house, a metre high. */
+  private railing(g: THREE.Group, level: Level, room: Level["rooms"][number]) {
+    const outline = level.outline;
+    const onOutline = (p: Vec2) =>
+      outline.some((a, i) => {
+        const b = outline[(i + 1) % outline.length];
+        const len = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1;
+        const t = ((p[0] - a[0]) * (b[0] - a[0]) + (p[1] - a[1]) * (b[1] - a[1])) / len;
+        const dist = Math.abs((p[0] - a[0]) * (b[1] - a[1]) - (p[1] - a[1]) * (b[0] - a[0])) / len;
+        return dist < 0.05 && t > -0.05 && t < len + 0.05;
+      });
+    const y = room.kind === "outdoor" ? -level.slab : 0;
+    const h = 1.0;
+    const frame = this.lambert(room.railing === "wood" ? "#8b6a4a" : "#3b4046");
+    const glass = this.lambert(COLORS.glass, { transparent: true, opacity: 0.35, depthWrite: false });
+    const poly = room.polygon;
+    poly.forEach((a, i) => {
+      const b = poly[(i + 1) % poly.length];
+      const mid: Vec2 = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+      // the house side has the wall
+      if (onOutline(mid)) return;
+      const len = Math.hypot(b[0] - a[0], b[1] - a[1]);
+      if (len < 0.05) return;
+      const angle = -Math.atan2(b[1] - a[1], b[0] - a[0]);
+      const piece = new THREE.Group();
+      piece.position.set(mid[0], y, mid[1]);
+      piece.rotation.y = angle;
+      // a handrail and posts; between them glass, bars or boards
+      piece.add(this.mesh(new THREE.BoxGeometry(len, 0.05, 0.06), frame).translateY(h));
+      const posts = Math.max(2, Math.round(len / 1.2) + 1);
+      for (let k = 0; k < posts; k++) piece.add(this.mesh(new THREE.BoxGeometry(0.05, h, 0.05), frame).translateX(-len / 2 + (k * len) / (posts - 1)).translateY(h / 2));
+      if (room.railing === "glass") piece.add(this.mesh(new THREE.BoxGeometry(len, h - 0.12, 0.015), glass, false).translateY((h - 0.12) / 2 + 0.04));
+      else {
+        const step = room.railing === "wood" ? 0.14 : 0.11;
+        const n = Math.max(1, Math.floor(len / step));
+        for (let k = 1; k < n; k++) piece.add(this.mesh(new THREE.BoxGeometry(room.railing === "wood" ? 0.08 : 0.018, h - 0.06, 0.018), frame).translateX(-len / 2 + k * (len / n)).translateY((h - 0.06) / 2));
+      }
+      g.add(piece);
+    });
+  }
+
+  /**
+   * A dormer: a little house sticking out of a slope, its front wall upright above the
+   * eave with a window, its own roof (gable or shed) running back into the main roof.
+   */
+  private dormer(
+    g: THREE.Group,
+    d: NonNullable<RoofShape["dormers"]>[number],
+    r: { eastWest: boolean; u0: number; u1: number; r0: number; r1: number; base: number; t: number; mat: THREE.Material },
+  ) {
+    // which slope: across the ridge, the low side (u0) or the high side (u1)
+    const low = r.eastWest ? d.side === "north" : d.side === "west";
+    const high = r.eastWest ? d.side === "south" : d.side === "east";
+    if (!low && !high) return;
+    const height = 1.25;
+    const inset = 0.45;
+    // from the front wall back to where its top meets the roof
+    const depth = height / r.t - inset;
+    if (depth < 0.25) return;
+    const along = Math.max(r.r0 + d.width / 2, Math.min(r.r1 - d.width / 2, r.r0 + d.at));
+    const front = low ? r.u0 + inset : r.u1 - inset;
+    const mid = front + (low ? depth / 2 : -depth / 2);
+    const wall = this.lambert(COLORS.wall);
+    const parts = new THREE.Group();
+    // its body (the part inside the main roof is hidden by it)
+    const body = new THREE.Mesh(new THREE.BoxGeometry(d.width, height, depth), wall);
+    body.position.set(0, height / 2, 0);
+    parts.add(body);
+    // a window in the front, dark glass in a white frame
+    const glass = this.lambert(COLORS.glass, { transparent: true, opacity: 0.75 });
+    const pane = new THREE.Mesh(new THREE.PlaneGeometry(d.width * 0.62, height * 0.6), glass);
+    pane.position.set(0, height * 0.5, (low ? -1 : 1) * (depth / 2 + 0.006));
+    if (low) pane.rotation.y = Math.PI;
+    parts.add(pane);
+    // its roof
+    if (d.shape === "shed") {
+      const lid = new THREE.Mesh(new THREE.BoxGeometry(d.width + 0.2, 0.08, depth + 0.25), r.mat);
+      lid.position.set(0, height + 0.04, (low ? -1 : 1) * 0.12);
+      lid.rotation.x = (low ? 1 : -1) * 0.08;
+      parts.add(lid);
+    } else {
+      const rise = (d.width / 2) * 0.7;
+      const shape = new THREE.Shape([new THREE.Vector2(-d.width / 2 - 0.1, 0), new THREE.Vector2(d.width / 2 + 0.1, 0), new THREE.Vector2(0, rise)]);
+      const lid = new THREE.Mesh(new THREE.ExtrudeGeometry(shape, { depth: depth + 0.2, bevelEnabled: false }), r.mat);
+      lid.position.set(0, height, -(depth + 0.2) / 2 + (low ? -0.1 : 0.1));
+      parts.add(lid);
+    }
+    for (const p of parts.children) (p as THREE.Mesh).castShadow = (p as THREE.Mesh).receiveShadow = true;
+    // into the plan: x along the ridge for east–west, across for north–south
+    if (r.eastWest) parts.position.set(along, r.base, mid);
+    else {
+      parts.rotation.y = Math.PI / 2;
+      parts.position.set(mid, r.base, along);
+    }
+    g.add(parts);
   }
 
   // ----- energy overlay -----

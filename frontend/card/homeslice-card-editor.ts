@@ -331,6 +331,23 @@ export class HomesliceCardEditor extends LitElement {
         ><input type="checkbox" .checked=${this._config.walk === true} @change=${(e: Event) => this.change({ walk: (e.target as HTMLInputElement).checked || undefined })} />
         ${this.t("cardeditor.walk")}</label
       >
+      <fieldset class="values">
+        <legend>${this.t("cardeditor.layers")}</legend>
+        ${(["energy", "heating", "heatmap", "values", "presence"] as const).map((layer) => {
+          const layers = this._config.layers ?? [];
+          return html`<label class="check"
+            ><input
+              type="checkbox"
+              .checked=${layers.includes(layer)}
+              @change=${(e: Event) => {
+                const next = (e.target as HTMLInputElement).checked ? [...layers, layer] : layers.filter((l) => l !== layer);
+                this.change({ layers: next.length ? next : undefined });
+              }}
+            />
+            ${this.t(`card.layer_${layer}`)}</label
+          >`;
+        })}
+      </fieldset>
       <h3>${this.t("cardeditor.kiosk")}</h3>
       <label
         >${this.t("cardeditor.idle_return")}
