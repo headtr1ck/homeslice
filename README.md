@@ -216,6 +216,7 @@ view:                          # all optional
     ground: { elevation: 90, projection: isometric }
 room_panel: true               # a tap on a room opens its panel (false: rooms do nothing)
 lamp_style: icon               # lamp buttons: a glowing bulb (icon) or a bulb in a dark disc (circle)
+tooltips: true                 # desktop: hovering a linked piece shows its name, state and when that changed
 feedback: true                 # a short note of what a tap or a drag did ("Kitchen: lights off"); false hides it
 sensor_timeout: 24             # hours: a door or window contact that sent nothing that long is marked silent
                                #   (default: only when unavailable)

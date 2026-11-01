@@ -42,6 +42,8 @@ export interface HomesliceCardConfig {
   actions?: Record<string, { tap_action?: Record<string, unknown>; hold_action?: Record<string, unknown> }>;
   /** Lamp buttons: a bare bulb with a soft shadow that glows when on (`icon`, default) or a bulb in a dark disc (`circle`). */
   lamp_style?: "icon" | "circle";
+  /** Desktop: hovering a linked piece shows its name, state and when that changed (default true). */
+  tooltips?: boolean;
   /** A short note of what a tap or a drag just did ("Kitchen lights off"); false hides it (default true). */
   feedback?: boolean;
   /** Hours after which a door or window contact that sent nothing counts as silent (default: only when unavailable). */
@@ -366,6 +368,7 @@ export class HomesliceCard extends LitElement {
     _lampButtons: { state: true },
     _dim: { state: true },
     _note: { state: true },
+    _tip: { state: true },
     _event: { state: true },
     _energyLabels: { state: true },
     _robotLabels: { state: true },
@@ -404,6 +407,7 @@ export class HomesliceCard extends LitElement {
   /** The brightness shown while dimming a lamp by dragging. */
   private _dim: { x: number; y: number; pct: number } | null = null;
   private _note: string | null = null;
+  private _tip: { x: number; y: number; text: string; sub: string } | null = null;
   private noteTimer = 0;
   private gesture: { id: number; y: number; start: number; pct: number; entities: string[]; dimming: boolean; done: boolean; at: { x: number; y: number } } | null = null;
   private holdTimer = 0;
@@ -2108,7 +2112,34 @@ export class HomesliceCard extends LitElement {
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
     cancelAnimationFrame(this.hoverFrame);
-    this.hoverFrame = requestAnimationFrame(() => this.hoverLevel(this.renderer?.levelAt(x, y) ?? null));
+    this.hoverFrame = requestAnimationFrame(() => {
+      this.hoverLevel(this.renderer?.levelAt(x, y) ?? null);
+      this.showTip(x, y);
+    });
+  }
+
+  /** The tooltip for the linked piece under the mouse: its name, state and since when. */
+  private showTip(x: number, y: number) {
+    const entity = this.config.tooltips === false || this.transitioning ? null : (this.renderer?.pickEntity(x, y) ?? null);
+    const st = entity ? this.hass?.states[entity] : undefined;
+    if (!entity || !st) {
+      if (this._tip) this._tip = null;
+      return;
+    }
+    const format = (this.hass as unknown as { formatEntityState?: (s: unknown) => string }).formatEntityState;
+    const text = `${this.entityName(entity)} · ${format ? format(st) : this.detailText({ entity, name: "" }, "") || st.state}`;
+    const sub = st.last_changed ? this.since(st.last_changed) : "";
+    this._tip = { x, y, text, sub };
+  }
+
+  /** "5 minutes ago", in the HA language. */
+  private since(iso: string) {
+    const s = (Date.parse(iso) - Date.now()) / 1000;
+    if (!Number.isFinite(s)) return "";
+    const rtf = new Intl.RelativeTimeFormat(this.hass?.locale?.language ?? "en", { numeric: "auto" });
+    const a = Math.abs(s);
+    const [v, unit]: [number, Intl.RelativeTimeFormatUnit] = a < 60 ? [s, "second"] : a < 3600 ? [s / 60, "minute"] : a < 86400 ? [s / 3600, "hour"] : [s / 86400, "day"];
+    return this.t("card.tip_changed", { when: rtf.format(Math.round(v), unit) });
   }
 
   private onPointerUp(e: PointerEvent) {
@@ -2338,7 +2369,10 @@ export class HomesliceCard extends LitElement {
             @pointermove=${this.onPointerMove}
             @pointerup=${this.onPointerUp}
             @pointercancel=${this.onPointerUp}
-            @pointerleave=${() => this.pointers.size === 0 && this.hoverLevel(null)}
+            @pointerleave=${() => {
+              if (this.pointers.size === 0) this.hoverLevel(null);
+              this._tip = null;
+            }}
             @wheel=${this.onWheel}
           ></canvas>
           ${this._readout ? html`<div class="readout">${this._readout}</div>` : nothing}
@@ -2461,6 +2495,7 @@ export class HomesliceCard extends LitElement {
           )}
           ${this._dim ? html`<div class="dim" style="left:${this._dim.x}px;top:${this._dim.y}px"><div class="bar" style="height:${this._dim.pct}%"></div><span>${this._dim.pct} %</span></div>` : nothing}
           ${this._note ? html`<div class="note" role="status">${this._note}</div>` : nothing}
+          ${this._tip ? html`<div class="tip" style="left:${this._tip.x + 14}px;top:${this._tip.y + 18}px">${this._tip.text}${this._tip.sub ? html`<small>${this._tip.sub}</small>` : nothing}</div>` : nothing}
           ${this._loading ? html`<div class="overlay">${this.t("card.loading")}</div>` : nothing}
           ${this._error ? html`<div class="overlay error">${this._error}</div>` : nothing}
         </div>
@@ -3134,6 +3169,23 @@ export class HomesliceCard extends LitElement {
     }
     .media .details {
       justify-self: start;
+    }
+    .tip {
+      position: absolute;
+      display: grid;
+      gap: 2px;
+      max-width: 260px;
+      padding: 6px 10px;
+      border-radius: 8px;
+      background: rgba(20, 24, 28, 0.92);
+      color: #fff;
+      font-size: 12px;
+      pointer-events: none;
+      z-index: 5;
+    }
+    .tip small {
+      color: rgba(255, 255, 255, 0.7);
+      font-size: 11px;
     }
     .note {
       position: absolute;

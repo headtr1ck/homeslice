@@ -810,6 +810,31 @@ if (selected()) {
     assert(looks >= 5, `${looks} finish textures in the scene`);
     await shot(page, "demo-painted");
   });
+  await test("tooltips: hovering a linked piece shows its name, state and since when", async () => {
+    await act(page, async () => {
+      await page.evaluate(() => {
+        const m = structuredClone(window.__demoModel);
+        m.levels[0].rooms.find((r) => r.id === "living").furniture = [{ type: "item", model: "modern:ac_outdoor", at: [1, 2], entity: "climate.living_room" }];
+        window.card.hass.pushModel(m);
+      });
+      await page.evaluate(() => window.card.renderer.modelsReady());
+    });
+    const at = await page.evaluate(() => {
+      const f = window.card.house.levels[0].rooms.find((r) => r.id === "living").furniture[0];
+      const p = window.card.renderer.project("ground", f.at, 0.3);
+      const r = window.card.renderer.renderer.domElement.getBoundingClientRect();
+      return [r.left + p.x, r.top + p.y];
+    });
+    await page.mouse.move(at[0] - 3, at[1] - 3);
+    await page.mouse.move(at[0], at[1], { steps: 2 });
+    const tip = page.locator("homeslice-card .tip");
+    await tip.waitFor({ timeout: 3000 });
+    const text = await tip.textContent();
+    assert(text.includes("Living room thermostat") && text.includes("heat"), `tooltip: ${text}`);
+    await page.mouse.move(5, 5);
+    await page.waitForFunction(() => !document.querySelector("homeslice-card").shadowRoot.querySelector(".tip"));
+    await act(page, () => page.evaluate(() => window.card.hass.pushModel(window.__demoModel)));
+  });
   await test("linked devices: a TV's screen, curtains with their cover, an outdoor unit's fan", async () => {
     await act(page, async () => {
       await page.evaluate(() => {

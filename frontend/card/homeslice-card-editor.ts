@@ -254,6 +254,10 @@ export class HomesliceCardEditor extends LitElement {
         ${this.t("cardeditor.feedback")}</label
       >
       <label class="check"
+        ><input type="checkbox" .checked=${this._config.tooltips !== false} @change=${(e: Event) => this.change({ tooltips: (e.target as HTMLInputElement).checked ? undefined : false })} />
+        ${this.t("cardeditor.tooltips")}</label
+      >
+      <label class="check"
         ><input type="checkbox" .checked=${!!this._config.warnings} @change=${(e: Event) => this.change({ warnings: (e.target as HTMLInputElement).checked || undefined })} />
         ${this.t("cardeditor.warnings")}</label
       >
