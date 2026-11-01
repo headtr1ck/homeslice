@@ -7,7 +7,7 @@ import type { FurnitureType } from "../model/types";
 import { coverOpen, type Hass } from "./hass";
 
 const OFF = new Set(["off", "standby", "idle", "unavailable", "unknown", "closed", "docked", "none", "0", "false", "not_charging", "disconnected", "finished", "complete", "ready"]);
-const RUNNING = new Set(["on", "playing", "running", "heating", "cooling", "drying", "charging", "washing", "rinsing", "spinning", "fan", "heat", "cool", "dry", "heat_cool", "auto", "fan_only", "open", "home"]);
+const RUNNING = new Set(["on", "playing", "running", "heating", "cooling", "drying", "charging", "washing", "rinsing", "spinning", "fan", "heat", "cool", "dry", "heat_cool", "auto", "fan_only", "open", "home", "printing"]);
 
 /**
  * A linked entity's look: on and active (playing, running, heating), a cover's position,
@@ -41,6 +41,10 @@ export function deviceLook(hass: Hass, entityId: string, inverted = false): Devi
       // a car or bike on its spot while it is home
       const home = state === "home";
       return { on: home, active: false, present: home };
+    }
+    case "image": {
+      // a picture frame: the image entity's picture
+      return { on: true, active: false, picture: (s.attributes.entity_picture as string | undefined) ?? null };
     }
     case "fan": {
       const pct = s.attributes.percentage;

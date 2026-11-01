@@ -263,6 +263,7 @@ overlays:                      # other cards on the house card, to use its empty
     levels: [overview]         # optional: only on these floors (overview: the whole house)
 people:                        # people in the room they are in (Bermuda, ESPresense: a sensor naming the area)
   - { person: person.alex, room: sensor.alex_phone_area }
+  - { person: device_tracker.bello_tag, room: sensor.bello_area, pet: true }   # a pet: small, with a paw
 actions:                       # optional: own tap/hold actions for linked pieces and lamps (Lovelace actions)
   light.hall:
     tap_action: { action: more-info }

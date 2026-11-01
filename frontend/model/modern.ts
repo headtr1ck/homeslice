@@ -226,6 +226,7 @@ export const MODERN_GROUPS: { id: string; kinds: ModernKind[] }[] = [
       k("laptop", "item", [0.32, 0.22, 0.2], ["silver", "black", "white"]),
       k("monitor", "tv", [0.62, 0.2, 0.48], ["black", "white", "silver"]),
       k("printer", "item", [0.45, 0.38, 0.25], ["white", "black", "grey"]),
+      k("printer_3d", "item", [0.42, 0.42, 0.48], ["anthracite", "black", "white"]),
       k("books", "item", [0.4, 0.22, 0.25], ["white"]),
     ],
   },
@@ -538,6 +539,7 @@ export const MODERN_GROUPS: { id: string; kinds: ModernKind[] }[] = [
       k("greenhouse", "item", [2.5, 1.9, 2.2], ["silver", "anthracite", "green"]),
       k("garden_shed", "item", [2.4, 2.0, 2.2], ["oak", "anthracite", "green", "grey", "red"]),
       k("pool", "item", [4.0, 2.2, 1.2], ["blue", "grey", "anthracite", "oak"]),
+      k("sprinkler", "item", [0.16, 0.16, 0.22], ["green", "anthracite", "black"]),
       k("trampoline", "item", [3.0, 3.0, 2.6], ["green", "blue", "anthracite"]),
       k("swing", "item", [2.6, 1.6, 2.1], ["oak", "green", "blue"]),
       k("playhouse", "item", [1.5, 1.5, 1.8], ["blue", "red", "green", "white", "oak"]),
@@ -579,7 +581,8 @@ export const MODERN_GROUPS: { id: string; kinds: ModernKind[] }[] = [
  */
 export type Tag =
   | "light" | "media_player" | "screen" | "speaker" | "climate" | "heating" | "fan" | "humidifier" | "cover" | "fire"
-  | "detector" | "sensor" | "switch" | "camera" | "alarm" | "appliance" | "charger" | "vehicle" | "bin" | "mailbox" | "plant" | "solar";
+  | "detector" | "sensor" | "switch" | "camera" | "alarm" | "appliance" | "charger" | "vehicle" | "bin" | "mailbox" | "plant" | "solar"
+  | "water" | "picture";
 
 const LAMP_TYPES: FurnitureType[] = ["floor_lamp", "table_lamp", "wall_lamp", "ceiling_lamp"];
 const TAG_RULES: [RegExp, Tag[]][] = [
@@ -604,6 +607,9 @@ const TAG_RULES: [RegExp, Tag[]][] = [
   [/^(wheelie_bin|bin_store|kitchen_bin|compost_bin)/, ["bin"]],
   [/^mailbox/, ["mailbox"]],
   [/^solar_panel/, ["solar"]],
+  [/^(pool|pond|sprinkler)/, ["water"]],
+  [/^picture_frame/, ["picture"]],
+  [/^printer_3d/, ["appliance"]],
 ];
 
 /** A kind's tags (its group's too: everything in Plants is a plant). */
@@ -625,6 +631,7 @@ export const TAG_DOMAINS: Partial<Record<Tag, string>> = {
   light: "light", media_player: "media_player", climate: "climate", fan: "fan", humidifier: "humidifier", cover: "cover", fire: "switch",
   detector: "binary_sensor", sensor: "sensor", switch: "switch", camera: "camera", alarm: "alarm_control_panel", appliance: "sensor",
   charger: "sensor", vehicle: "device_tracker", bin: "sensor", mailbox: "binary_sensor", plant: "plant", solar: "sensor",
+  water: "switch", picture: "image",
 };
 
 export const MODERN: Record<string, ModernKind> = Object.fromEntries(MODERN_GROUPS.flatMap((g) => g.kinds.map((x) => [x.id, x])));

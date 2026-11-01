@@ -880,6 +880,42 @@ if (selected()) {
       }),
     );
   });
+  await test("pieces that do things: a sprinkler sprays, a pool's water lights up, a frame shows its picture", async () => {
+    await act(page, async () => {
+      await page.evaluate(() => {
+        const h = window.card.hass;
+        h.setState("switch.sprinkler", "off", {});
+        h.setState("light.pool", "off", {});
+        const art = document.createElement("canvas");
+        art.width = art.height = 8;
+        art.getContext("2d").fillRect(0, 0, 8, 8);
+        h.setState("image.photo", "2026-11-02T10:00:00", { entity_picture: art.toDataURL() });
+        const m = structuredClone(window.__demoModel);
+        const garden = m.levels[0].rooms.find((r) => r.kind === "outdoor");
+        garden.furniture = [
+          { type: "item", model: "modern:sprinkler", at: [1, 1], entity: "switch.sprinkler" },
+          { type: "item", model: "modern:pool", at: [3, 2], entity: "light.pool" },
+        ];
+        m.levels[0].rooms.find((r) => r.id === "living").furniture = [{ type: "item", model: "modern:picture_frame", at: [2, 0.1], mount: "wall", entity: "image.photo" }];
+        h.pushModel(m);
+      });
+      await page.evaluate(() => window.card.renderer.modelsReady());
+    });
+    const state = (e) => page.evaluate((e) => window.card.renderer.deviceState(e), e);
+    assert((await state("switch.sprinkler")).spraying === false, "spraying while closed");
+
+    await act(page, () =>
+      page.evaluate(() => {
+        window.card.hass.setState("switch.sprinkler", "on");
+        window.card.hass.setState("light.pool", "on");
+      }),
+    );
+    assert((await state("switch.sprinkler")).spraying, "not spraying while open");
+    assert(await page.evaluate(() => (window.card.renderer.pieceGlows.get("light.pool") ?? []).some((m) => m.emissiveIntensity > 0.2)), "pool water dark while its light is on");
+    await page.waitForFunction(() => window.card.renderer.deviceState("image.photo")?.picture, null, { timeout: 5000 });
+    await act(page, () => page.evaluate(() => window.card.hass.pushModel(window.__demoModel)));
+  });
+
   await test("a top-hung window and a lift-and-slide door open with their contacts", async () => {
     await act(page, () =>
       page.evaluate(() => {
@@ -1307,6 +1343,25 @@ if (selected()) {
       window.card.setConfig(config);
       window.card.hass = window.card.hass;
     });
+  });
+
+  await test("a pet roams the house and garden with its tracker, drawn small with a paw", async () => {
+    await page.evaluate(() => {
+      const h = window.card.hass;
+      h.states = { ...h.states, "binary_sensor.bello": { entity_id: "binary_sensor.bello", state: "on", attributes: { friendly_name: "Bello" } }, "sensor.bello_area": { entity_id: "sensor.bello_area", state: "Garden", attributes: {} } };
+      window.card.setConfig({ ...window.card.config, people: [{ person: "binary_sensor.bello", room: "sensor.bello_area", pet: true }] });
+      window.card.hass = h;
+    });
+    await page.waitForFunction(() => window.card.renderer.peopleState().length === 1, null, { timeout: 5000 });
+    const [p] = await page.evaluate(() => window.card.renderer.peopleState());
+    assert(p.pet && p.level === "ground", JSON.stringify(p));
+    await page.locator("homeslice-card .person ha-icon[icon='mdi:paw']").waitFor({ timeout: 3000 });
+    await page.evaluate(() => {
+      const { people, ...config } = window.card.config;
+      window.card.setConfig(config);
+      window.card.hass = window.card.hass;
+    });
+    await page.waitForFunction(() => window.card.renderer.peopleState().length === 0, null, { timeout: 5000 });
   });
 
   await test("other cards on the card: in front and behind, only on their floors", async () => {

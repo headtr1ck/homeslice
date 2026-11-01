@@ -85,6 +85,13 @@ class Builder {
     for (const child of part.children) child.position.sub(part.position);
     return part;
   }
+  /** Draws a part that shows (and turns) only while its device runs: a sprinkler's spray. */
+  spray(x: number, y: number, z: number, draw: () => void) {
+    const part = this.spinner(x, y, z, "y", draw);
+    part.userData.spray = true;
+    part.visible = false;
+    return part;
+  }
   /** Draws a part that pulses (a speaker's cone) around (x, y, z) while its device plays. */
   pulser(x: number, y: number, z: number, draw: () => void) {
     const part = this.spinner(x, y, z, "y", draw);
@@ -309,7 +316,7 @@ function glowing<M extends THREE.Material>(m: M): M {
  * lights up while it plays, flames that burn while it is on, a status light. Unlinked
  * pieces keep the look they are drawn with.
  */
-function part<M extends THREE.Material>(m: M, role: "screen" | "fire" | "led" | "warm"): M {
+function part<M extends THREE.Material>(m: M, role: "screen" | "fire" | "led" | "warm" | "water" | "photo"): M {
   m.userData.part = role;
   return m;
 }
@@ -1243,7 +1250,8 @@ const BUILDERS: Record<string, Build> = {
     b.box(t, h, d - 2 * t, -w / 2 + t / 2, 0, 0, f, 0.02);
     b.box(t, h, d - 2 * t, w / 2 - t / 2, 0, 0, f, 0.02);
     b.box(w - 2 * t, 0.02, d - 2 * t, 0, 0.02, 0, mat("#9fd3e0"));
-    b.box(w - 2 * t, 0.02, d - 2 * t, 0, h - 0.2, 0, mat("#3fa4c8", { transparent: true, opacity: 0.7, roughness: 0.05 }));
+    // the water lights up with the pool's light (in its colour) or pump linked
+    b.box(w - 2 * t, 0.02, d - 2 * t, 0, h - 0.2, 0, glowing(part(mat("#3fa4c8", { transparent: true, opacity: 0.7, roughness: 0.05 }), "water")));
     for (const sx of [-1, 1]) {
       b.rod(v(w / 2 - 0.4 + sx * 0.2, 0, d / 2 + 0.4), v(w / 2 - 0.4 + sx * 0.2, h + 0.3, d / 2 - 0.02), 0.02, mat(C.chrome), 6);
     }
@@ -1362,6 +1370,35 @@ const BUILDERS: Record<string, Build> = {
     const rd = (d - 0.04) / rows;
     const cell = f;
     for (let i = 0; i < cols; i++) for (let j = 0; j < rows; j++) b.box(cw - 0.006, 0.002, rd - 0.006, -w / 2 + 0.02 + (i + 0.5) * cw, h, -d / 2 + 0.02 + (j + 0.5) * rd, cell);
+  },
+  sprinkler: (b, w, _d, h, f) => {
+    // a pop-up sprinkler head; while its valve is open, four jets turn round it
+    b.cyl(w / 2, w / 2, 0.03, 0, 0, 0, f, 16);
+    b.cyl(w * 0.18, w * 0.22, h - 0.03, 0, 0.03, 0, mat(C.black), 12);
+    const drop = mat("#9fd8ff", { transparent: true, opacity: 0.55 });
+    b.spray(0, h, 0, () => {
+      for (let j = 0; j < 4; j++) {
+        const a = (j / 4) * Math.PI * 2;
+        for (let i = 1; i <= 12; i++) {
+          // a parabola out to about 2.4 m
+          const r = (i / 12) * 2.4;
+          const y = h + r * 0.9 - (r * r) / 3;
+          b.add(new THREE.SphereGeometry(0.025, 6, 4), drop, Math.cos(a) * r, y, Math.sin(a) * r);
+        }
+      }
+    });
+  },
+  printer_3d: (b, w, d, h, f) => {
+    // an enclosed 3D printer: frame, glass front, the bed with a print, the head on its gantry, a status light
+    b.box(w, 0.08, d, 0, 0, 0, f, 0.01);
+    b.box(w, 0.06, d, 0, h - 0.06, 0, f, 0.01);
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) b.box(0.03, h - 0.14, 0.03, sx * (w / 2 - 0.015), 0.08, sz * (d / 2 - 0.015), f);
+    b.box(w - 0.06, h - 0.14, 0.004, 0, 0.08, d / 2 - 0.002, mat("#cfe6ef", { transparent: true, opacity: 0.25 }));
+    b.box(w * 0.75, 0.01, d * 0.75, 0, 0.14, 0, mat(C.black));
+    b.cyl(0.04, 0.05, 0.08, 0.02, 0.15, 0.02, mat("#e8752a"), 10);
+    b.box(w - 0.06, 0.02, 0.02, 0, h * 0.62, 0, mat(C.steel));
+    b.box(0.06, 0.07, 0.06, 0.02, h * 0.62 - 0.07, 0, mat(C.black), 0.01);
+    b.box(0.03, 0.012, 0.004, w / 2 - 0.05, 0.03, d / 2 + 0.001, part(mat("#3fd27a"), "led"));
   },
   satellite_dish: (b, w, d, h, f) => {
     // a dish on an arm from the wall, tilted up, the receiver on its feed arm
@@ -2617,6 +2654,8 @@ const BUILDERS: Record<string, Build> = {
     b.box(w, h, d, 0, 0, 0, a, 0.004);
     b.box(w - 0.04, h - 0.04, 0.004, 0, 0.02, d / 2, mat("#f4f1ea"));
     art(b, w - 0.14, h - 0.14, 0.07, d / 2 + 0.003, c);
+    // linked to an image entity: its picture over the print
+    b.box(w - 0.14, h - 0.14, 0.002, 0, 0.07, d / 2 + 0.006, part(new THREE.MeshStandardMaterial({ color: "#000000", visible: false }), "photo"));
   },
   picture_set: (b, w, d, h, _f, c, a) => {
     // a gallery wall: frames of different sizes on a common centre line
@@ -3104,7 +3143,8 @@ const BUILDERS: Record<string, Build> = {
       if (i === 0) s.moveTo(p.x, p.y);
       else s.lineTo(p.x, p.y);
     }
-    b.add(new THREE.ShapeGeometry(s, 4).rotateX(-Math.PI / 2), mat("#3f7f9a", { roughness: 0.05 }), 0, h * 0.4, 0);
+    // the water lights up with the pond's pump or light linked
+    b.add(new THREE.ShapeGeometry(s, 4).rotateX(-Math.PI / 2), glowing(part(mat("#3f7f9a", { roughness: 0.05 }), "water")), 0, h * 0.4, 0);
     for (let i = 0; i < 24; i++) {
       const ang = (i / 24) * Math.PI * 2;
       b.sphere(0.12 + rand() * 0.08, (Math.cos(ang) * w) / 2, 0.05, (Math.sin(ang) * d) / 2, f, 1.3, 0.6, 1.1, 8);

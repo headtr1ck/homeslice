@@ -143,9 +143,10 @@ export interface HomesliceCardConfig {
   weather?: string;
   /**
    * People in the room they are in: each `person` with a `room` sensor whose state is an
-   * area's name or id (Bermuda, ESPresense…). Away people are not shown.
+   * area's name or id (Bermuda, ESPresense…). Away people are not shown. `pet: true`: a pet
+   * (its `person` may be any tracker; shown while home or on), drawn small, with a paw.
    */
-  people?: { person: string; room: string; color?: string }[];
+  people?: { person: string; room: string; color?: string; pet?: boolean }[];
   /**
    * Other cards placed freely over the card's area: a Lovelace card config, where (CSS
    * lengths or percentages from the edges), how wide, in front of the house or behind it
@@ -974,11 +975,11 @@ export class HomesliceCard extends LitElement {
 
   /** Where each person is: their room sensor's area, a spot of their own in it. */
   private placedPeople(hass: Hass) {
-    const out: { key: string; levelId: string; at: Vec2; color: string; name: string; picture?: string }[] = [];
+    const out: { key: string; levelId: string; at: Vec2; color: string; name: string; picture?: string; pet?: boolean }[] = [];
     const perRoom = new Map<string, number>();
     (this.config.people ?? []).forEach((p, i) => {
       const person = hass.states[p.person];
-      if (!person || person.state !== "home") return;
+      if (!person || !(person.state === "home" || (p.pet && person.state === "on"))) return;
       const value = hass.states[p.room]?.state ?? "";
       const areaId = hass.areas?.[value] ? value : Object.values(hass.areas ?? {}).find((a) => a.name.toLowerCase() === value.toLowerCase())?.area_id;
       const r = areaId ? this.rooms.find((x) => x.room.areaId === areaId) : undefined;
@@ -987,7 +988,7 @@ export class HomesliceCard extends LitElement {
       const n = perRoom.get(r.key) ?? 0;
       perRoom.set(r.key, n + 1);
       const at: Vec2 = [r.point[0] + 0.7 + n * 0.5, r.point[1] + 0.4];
-      out.push({ key: p.person, levelId: r.levelId, at, color: p.color ?? PERSON_COLORS[i % PERSON_COLORS.length], name: (person.attributes.friendly_name as string | undefined) ?? p.person, picture: person.attributes.entity_picture as string | undefined });
+      out.push({ key: p.person, levelId: r.levelId, at, color: p.color ?? PERSON_COLORS[i % PERSON_COLORS.length], name: (person.attributes.friendly_name as string | undefined) ?? p.person, picture: person.attributes.entity_picture as string | undefined, ...(p.pet ? { pet: true } : {}) });
     });
     return out;
   }
@@ -996,7 +997,7 @@ export class HomesliceCard extends LitElement {
     if (!this.renderer || !this.hass) return [];
     return this.placedPeople(this.hass).flatMap((p) => {
       if ((this._level && p.levelId !== this._level) || !this.renderer!.isLevelVisible(p.levelId)) return [];
-      const xy = this.renderer!.project(p.levelId, p.at, 1.75);
+      const xy = this.renderer!.project(p.levelId, p.at, p.pet ? 0.75 : 1.75);
       return xy ? [{ ...p, ...xy }] : [];
     });
   }
@@ -1300,7 +1301,7 @@ export class HomesliceCard extends LitElement {
     this.dispatchEvent(new CustomEvent("hass-more-info", { detail: { entityId }, bubbles: true, composed: true }));
   }
 
-  private _people: { key: string; x: number; y: number; color: string; name: string; picture?: string }[] = [];
+  private _people: { key: string; x: number; y: number; color: string; name: string; picture?: string; pet?: boolean }[] = [];
   private _badges: { entity: string; x: number; y: number; icon: string; text: string; urgent: boolean }[] = [];
   private _openingBadges: { key: string; entity: string; x: number; y: number; icon: string; text: string; urgent: boolean; lock?: boolean }[] = [];
 
@@ -2492,7 +2493,7 @@ export class HomesliceCard extends LitElement {
           )}
           ${this._people.map(
             (p) => html`<button class="person" style="left:${p.x}px;top:${p.y}px;--person:${p.color}" title=${p.name} @click=${() => this.moreInfo(p.key)}>
-              ${p.picture ? html`<img src=${p.picture} alt="" />` : html`<span>${p.name.slice(0, 1)}</span>`}
+              ${p.picture ? html`<img src=${p.picture} alt="" />` : p.pet ? html`<ha-icon icon="mdi:paw"></ha-icon>` : html`<span>${p.name.slice(0, 1)}</span>`}
             </button>`,
           )}
           ${this._sunTimes.map((t) => html`<div class="sun-time" style="left:${t.x}px;top:${t.y}px">${t.text}</div>`)}

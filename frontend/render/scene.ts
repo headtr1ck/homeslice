@@ -425,6 +425,8 @@ interface DeviceParts {
   spinners: THREE.Object3D[];
   curtains: THREE.Object3D[];
   pulsers: THREE.Object3D[];
+  /** Shown (and turning) only while it runs: a sprinkler's spray. */
+  sprays: THREE.Object3D[];
   piece: THREE.Object3D;
 }
 
@@ -1786,11 +1788,12 @@ export class HouseRenderer {
    * follow the cover.
    */
   private linkDevice(entity: string, piece: THREE.Object3D, materials: Set<THREE.Material>) {
-    const parts: DeviceParts = { materials: [], spinners: [], curtains: [], pulsers: [], piece };
+    const parts: DeviceParts = { materials: [], spinners: [], curtains: [], pulsers: [], sprays: [], piece };
     const own = new Map<THREE.Material, THREE.MeshLambertMaterial>();
     piece.traverse((o) => {
       if (o.userData.spin) parts.spinners.push(o);
       if (o.userData.pulse) parts.pulsers.push(o);
+      if (o.userData.spray) parts.sprays.push(o);
       if (o.userData.curtain) parts.curtains.push(o);
       if (!(o instanceof THREE.Mesh)) return;
       const swap = (m: THREE.Material) => {
@@ -1825,7 +1828,8 @@ export class HouseRenderer {
       for (const m of parts.materials) {
         const lit = m.userData.lit as THREE.Color;
         const role = (m.userData.part as string | undefined) ?? "glow";
-        m.visible = true;
+        // (a picture frame's photo only while there is a picture)
+        m.visible = role !== "photo";
         if (!look) {
           m.emissive.copy(lit);
           m.emissiveIntensity = m.userData.litIntensity as number;
@@ -1840,6 +1844,20 @@ export class HouseRenderer {
           }
           m.emissive.set(picture ? "#ffffff" : look.active ? "#6f8fc4" : "#3c4f6e");
           m.emissiveIntensity = look.on ? (picture ? 0.9 : look.active ? 0.75 : 0.45) : 0;
+        } else if (role === "water") {
+          // a pool's or pond's light (or pump): the water glows
+          m.emissive.set("#38c8ff");
+          m.emissiveIntensity = look.on ? 0.6 : 0;
+        } else if (role === "photo") {
+          // a picture frame: the image entity's picture, else the print behind
+          const picture = look.on && look.picture ? this.screenPicture(look.picture) : null;
+          m.visible = !!picture;
+          if (m.emissiveMap !== picture) {
+            m.emissiveMap = picture;
+            m.needsUpdate = true;
+          }
+          m.emissive.set("#ffffff");
+          m.emissiveIntensity = 0.85;
         } else if (role === "warm") {
           // a radiator: a warm glow while it heats
           m.emissive.set("#ff6a2a");
@@ -1853,6 +1871,7 @@ export class HouseRenderer {
         }
       }
       if (!look?.active) for (const o of parts.pulsers) o.scale.setScalar(1);
+      for (const o of parts.sprays) o.visible = !!look?.active;
       parts.piece.visible = look?.present !== false;
       for (const c of parts.curtains) {
         // open: drawn back to the sides; closed: each panel to the middle
@@ -1986,6 +2005,7 @@ export class HouseRenderer {
       curtains: list.flatMap((p) => p.curtains).map((o) => o.scale.x),
       picture: parts.some((m) => !!m.emissiveMap),
       pulse: list.flatMap((p) => p.pulsers).map((o) => o.scale.x),
+      spraying: list.some((p) => p.sprays.some((o) => o.visible)),
     };
   }
 
@@ -2583,7 +2603,7 @@ export class HouseRenderer {
    * People where they are: a simple figure in their colour on a level (null: not shown).
    * Figures are not part of a level's build, so they follow its lift and fade by hand.
    */
-  setPeople(list: { key: string; levelId: string; at: Vec2; color: string }[]) {
+  setPeople(list: { key: string; levelId: string; at: Vec2; color: string; pet?: boolean }[]) {
     const keep = new Set(list.map((p) => p.key));
     for (const [key, g] of this.people) {
       if (keep.has(key)) continue;
@@ -2598,12 +2618,34 @@ export class HouseRenderer {
       if (!g) {
         g = new THREE.Group();
         const m = new THREE.MeshLambertMaterial({ color: p.color });
-        const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.16, 0.9, 4, 12), m);
-        body.position.y = 0.62;
-        const head = new THREE.Mesh(new THREE.SphereGeometry(0.13, 16, 12), m);
-        head.position.y = 1.4;
-        for (const x of [body, head]) x.castShadow = true;
-        g.add(body, head);
+        if (p.pet) {
+          // a pet: a long body on four legs, a head and a tail
+          const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.1, 0.3, 4, 10), m);
+          body.rotation.z = Math.PI / 2;
+          body.position.y = 0.3;
+          const head = new THREE.Mesh(new THREE.SphereGeometry(0.09, 12, 10), m);
+          head.position.set(0.28, 0.42, 0);
+          const parts: THREE.Mesh[] = [body, head];
+          for (const [x, z] of [[0.15, 0.06], [0.15, -0.06], [-0.15, 0.06], [-0.15, -0.06]]) {
+            const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.22, 6), m);
+            leg.position.set(x, 0.11, z);
+            parts.push(leg);
+          }
+          const tail = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.02, 0.18, 6), m);
+          tail.position.set(-0.3, 0.38, 0);
+          tail.rotation.z = -0.8;
+          parts.push(tail);
+          for (const x of parts) x.castShadow = true;
+          g.add(...parts);
+          g.userData.pet = true;
+        } else {
+          const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.16, 0.9, 4, 12), m);
+          body.position.y = 0.62;
+          const head = new THREE.Mesh(new THREE.SphereGeometry(0.13, 16, 12), m);
+          head.position.y = 1.4;
+          for (const x of [body, head]) x.castShadow = true;
+          g.add(body, head);
+        }
         g.userData.person = p.key;
         this.people.set(p.key, g);
       }
@@ -2616,7 +2658,7 @@ export class HouseRenderer {
 
   /** For tests and labels: who is drawn where. */
   peopleState() {
-    return [...this.people].map(([key, g]) => ({ key, level: this.levelIds[this.levels.findIndex((l) => l.group === g.parent)], at: [g.position.x, g.position.z] }));
+    return [...this.people].map(([key, g]) => ({ key, pet: !!g.userData.pet, level: this.levelIds[this.levels.findIndex((l) => l.group === g.parent)], at: [g.position.x, g.position.z] }));
   }
 
   setRobotState(key: string, at: Vec2 | null, color: string, unsure = false) {
@@ -2802,7 +2844,7 @@ export class HouseRenderer {
       let m = converted.get(source);
       if (!m) {
         const s = source as THREE.MeshStandardMaterial;
-        m = new THREE.MeshLambertMaterial({ color: modelColor(source), map: s.map ?? null, transparent: s.transparent, opacity: s.opacity, side: s.side, emissive: s.emissive ?? 0x000000, emissiveIntensity: s.emissiveIntensity ?? 1 });
+        m = new THREE.MeshLambertMaterial({ color: modelColor(source), map: s.map ?? null, transparent: s.transparent, opacity: s.opacity, side: s.side, emissive: s.emissive ?? 0x000000, emissiveIntensity: s.emissiveIntensity ?? 1, visible: s.visible });
         if (source.userData.glow) m.userData.glow = true;
         if (source.userData.part) m.userData.part = source.userData.part;
         // furniture: its own shade in the white and blueprint looks

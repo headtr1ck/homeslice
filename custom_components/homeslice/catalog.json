@@ -1721,6 +1721,9 @@
     "sand",
     "pink"
    ],
+   "tags": [
+    "picture"
+   ],
    "accents": [
     "black",
     "oak",
@@ -3699,6 +3702,25 @@
     "white",
     "black",
     "grey"
+   ]
+  },
+  {
+   "model": "modern:printer_3d",
+   "name": "3D printer",
+   "group": "office",
+   "type": "item",
+   "size": [
+    0.42,
+    0.42,
+    0.48
+   ],
+   "finishes": [
+    "anthracite",
+    "black",
+    "white"
+   ],
+   "tags": [
+    "appliance"
    ]
   },
   {
@@ -5965,6 +5987,9 @@
     "grey",
     "sand",
     "anthracite"
+   ],
+   "tags": [
+    "water"
    ]
   },
   {
@@ -8689,6 +8714,28 @@
     "grey",
     "anthracite",
     "oak"
+   ],
+   "tags": [
+    "water"
+   ]
+  },
+  {
+   "model": "modern:sprinkler",
+   "name": "Sprinkler",
+   "group": "garden",
+   "type": "item",
+   "size": [
+    0.16,
+    0.16,
+    0.22
+   ],
+   "finishes": [
+    "green",
+    "anthracite",
+    "black"
+   ],
+   "tags": [
+    "water"
    ]
   },
   {

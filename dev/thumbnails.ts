@@ -21,7 +21,7 @@ const convert = (src: THREE.Material) => {
   let m = lambert.get(src);
   if (!m) {
     const s = src as THREE.MeshStandardMaterial;
-    m = new THREE.MeshLambertMaterial({ color: modelColor(src), map: s.map ?? null, transparent: s.transparent, opacity: s.opacity, side: s.side, emissive: s.emissive ?? 0x000000, emissiveIntensity: s.emissiveIntensity ?? 1 });
+    m = new THREE.MeshLambertMaterial({ color: modelColor(src), map: s.map ?? null, transparent: s.transparent, opacity: s.opacity, side: s.side, emissive: s.emissive ?? 0x000000, emissiveIntensity: s.emissiveIntensity ?? 1, visible: s.visible });
     lambert.set(src, m);
   }
   return m;
