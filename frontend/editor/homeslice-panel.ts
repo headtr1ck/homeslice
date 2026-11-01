@@ -42,7 +42,7 @@ import {
 import { listedLights, placeLights, type PlacedLight } from "../model/lights";
 import { prefsSensors, type EnergyPrefs } from "../ha/energy";
 import { applyAll, checklist, type CheckItem } from "./checklist";
-import { rawPosition, readRobot } from "../ha/robots";
+import { pollPosition, rawPosition, readRobot } from "../ha/robots";
 import { ENERGY_COLORS } from "../render/scene";
 import {
   History,
@@ -403,6 +403,7 @@ export class HomeslicePanel extends LitElement {
   private _wall: { a: string; b: string; side: Side } | null = null;
   /** The wall view: one side of a room seen from inside it, and what is being dragged there. */
   private _wallView: { room: string; side: Side; sel?: string } | null = null;
+  private robotPolledAt = 0;
   private wallDrag: { key: string; origin: HouseInput; start: Vec2; u: number; z: number; moved: boolean } | null = null;
   /** Selected opening (doors & windows mode) and the room it belongs to on this level. */
   private _opening: { src: OpeningSource; room: string } | null = null;
@@ -2244,6 +2245,15 @@ export class HomeslicePanel extends LitElement {
     )}`;
   }
 
+  /** While a robot with a position service is selected: ask it every 1.5 s, show the answer. */
+  private pollRobotHere(entity: string, service: string) {
+    if (this.robotPolledAt && Date.now() - this.robotPolledAt < 1500) return;
+    this.robotPolledAt = Date.now();
+    void pollPosition(this._hass!, entity, service).then(() => {
+      if (this._robotSel !== null) window.setTimeout(() => this.requestUpdate(), 1500);
+    });
+  }
+
   private furnitureCentre(roomId: string, index: number): Vec2 | null {
     const r = this.levelInput?.rooms.find((x) => x.id === roomId);
     const f = r?.furniture?.[index];
@@ -2486,6 +2496,9 @@ export class HomeslicePanel extends LitElement {
       .filter(([, v]) => (Array.isArray(v) && v.length >= 2 && typeof v[0] === "number") || (v && typeof v === "object" && typeof (v as { x?: unknown }).x === "number"))
       .map(([k]) => k);
     const gps = typeof states[source]?.attributes.latitude === "number";
+    // Roborock answers its position through a service, not an attribute
+    const service = hass?.services?.roborock?.get_vacuum_current_position && r.entity.startsWith("vacuum.") ? "roborock.get_vacuum_current_position" : undefined;
+    if (r.position?.service && hass) this.pollRobotHere(r.position.entity ?? r.entity, r.position.service);
     const raw = r.position && hass && robot?.position ? rawPosition(hass, robot.position) : null;
     const points = r.position?.points?.length ?? 0;
     return html`<h2>${this.robotName(r.entity, r.name)}</h2>
@@ -2496,16 +2509,18 @@ export class HomeslicePanel extends LitElement {
       </label>
       <h3>${this.t("editor.robot_live")}</h3>
       <p class="muted">${this.t("editor.robot_live_hint")}</p>
-      <label class="check"><input type="checkbox" .checked=${!!r.position} @change=${(e: Event) => this.commit(setRobotPosition(m, index, (e.target as HTMLInputElement).checked ? { attribute: attrs[0] } : null))} />
+      <label class="check"><input type="checkbox" .checked=${!!r.position} @change=${(e: Event) => this.commit(setRobotPosition(m, index, (e.target as HTMLInputElement).checked ? (service && !attrs.length ? { service } : { attribute: attrs[0] }) : null))} />
         ${this.t("editor.robot_live_on")}</label>
       ${r.position
         ? html`<label>${this.t("editor.robot_source")}
               <select @change=${(e: Event) => {
                 const entity = (e.target as HTMLSelectElement).value;
+                if (entity === "service") return this.commit(setRobotPosition(m, index, { service }));
                 const first = Object.entries(states[entity]?.attributes ?? {}).find(([, v]) => v && typeof v === "object" && (Array.isArray(v) ? typeof v[0] === "number" : typeof (v as { x?: unknown }).x === "number"))?.[0];
                 this.commit(setRobotPosition(m, index, { entity, attribute: first }));
               }}>
-                ${candidates.map((id) => html`<option value=${id} ?selected=${id === source}>${this.entityName(id)}</option>`)}
+                ${service ? html`<option value="service" ?selected=${!!r.position?.service}>${this.t("editor.robot_roborock")}</option>` : nothing}
+                ${candidates.map((id) => html`<option value=${id} ?selected=${id === source && !r.position?.service}>${this.entityName(id)}</option>`)}
               </select>
             </label>
             <label>${this.t("editor.robot_attribute")}

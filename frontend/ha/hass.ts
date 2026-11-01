@@ -16,11 +16,14 @@ export interface Hass {
   floors?: Record<string, { floor_id: string; name: string; level?: number | null }>;
   devices?: Record<string, { id: string; area_id?: string | null; name?: string | null; name_by_user?: string | null }>;
   entities?: Record<string, { entity_id: string; area_id?: string | null; device_id?: string | null; hidden?: boolean; entity_category?: string | null }>;
+  /** The services Home Assistant offers, by domain. */
+  services?: Record<string, Record<string, unknown>>;
   callWS<T>(msg: Record<string, unknown>): Promise<T>;
   connection?: {
     subscribeMessage<T>(callback: (msg: T) => void, msg: Record<string, unknown>): Promise<() => Promise<void> | void>;
   };
-  callService(domain: string, service: string, data?: Record<string, unknown>, target?: Record<string, unknown>): Promise<unknown>;
+  /** With `returnResponse`, resolves to `{ response }` (services that answer). */
+  callService(domain: string, service: string, data?: Record<string, unknown>, target?: Record<string, unknown>, notifyOnError?: boolean, returnResponse?: boolean): Promise<unknown>;
 }
 
 const cache = new WeakMap<object, Map<string, string[]>>();

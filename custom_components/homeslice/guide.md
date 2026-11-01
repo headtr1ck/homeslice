@@ -150,7 +150,9 @@ accent, entity}]`.
 `energy: [{kind: solar, roof: south}, {kind: battery, level: ground, at: [x, y]}, {kind:
 grid, …}, {kind: device, name, power: sensor.…, level, at}]` (plan coordinates; sensors
 default to Home Assistant's energy settings). `robots: [{entity: vacuum.…, level, dock:
-[x, y]}]`.
+[x, y]}]`. A live position needs `position: {attribute: …}` (map coordinates in an
+attribute), `{service: roborock.get_vacuum_current_position}` (Roborock) or GPS, and two
+calibration `points` set in the editor.
 
 ## Common mistakes
 

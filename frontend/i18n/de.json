@@ -1487,5 +1487,6 @@
   "modern.record_player": "Plattenspieler",
   "alias.record_player": "Plattenspieler, Schallplatte, Vinyl, HiFi",
   "modern.game_console": "Spielkonsole",
-  "alias.game_console": "Spielkonsole, Konsole, Gaming"
+  "alias.game_console": "Spielkonsole, Konsole, Gaming",
+  "editor.robot_roborock": "Roborock (fragt den Roboter nach seiner Position)"
 }

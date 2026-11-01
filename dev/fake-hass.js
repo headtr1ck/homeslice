@@ -145,8 +145,17 @@ export function makeHass(fixture, onChange) {
       }
       throw new Error(`fake hass: unknown websocket command ${msg.type}`);
     },
-    async callService(domain, service, data = {}, target = {}) {
+    // services as Home Assistant lists them (a robot that answers its position)
+    services: { roborock: { get_vacuum_current_position: {} } },
+    /** Test helper: where robots say they are when asked (map units, by entity). */
+    robotPositions: (fixture.robotPositions ??= {}),
+    async callService(domain, service, data = {}, target = {}, _notify = true, returnResponse = false) {
       calls.push({ domain, service, data, target });
+      if (returnResponse && domain === "roborock" && service === "get_vacuum_current_position") {
+        const id = [target?.entity_id ?? data?.entity_id].flat()[0];
+        const at = fixture.robotPositions[id];
+        return { response: at ? { [id]: { x: at[0], y: at[1] } } : {} };
+      }
       for (const id of targets(domain, data, target)) {
         const cur = states[id]?.state;
         if (service === "turn_on") set(id, "on", { brightness: data.brightness ?? 255 });

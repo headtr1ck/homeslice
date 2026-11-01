@@ -391,6 +391,11 @@ export interface RobotPositionInput {
    */
   attribute?: string;
   /**
+   * A service that answers with the position (`{x, y}` per robot), asked every few seconds
+   * while the robot is out, e.g. `roborock.get_vacuum_current_position`.
+   */
+  service?: string;
+  /**
    * Calibration: where the robot was by its own reckoning (map units, or [latitude,
    * longitude]) and where that is on the plan. Two points; a third for mirrored maps.
    */
@@ -502,7 +507,7 @@ export interface Robot {
   name?: string;
   levelIndex: number;
   dock: Vec2;
-  position?: { entity: string; attribute?: string; points: [Vec2, Vec2][] };
+  position?: { entity: string; attribute?: string; service?: string; points: [Vec2, Vec2][] };
 }
 
 export interface Energy {

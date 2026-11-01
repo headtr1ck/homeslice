@@ -28,8 +28,33 @@ export function robotStatus(state: string | undefined): RobotStatus {
   }
 }
 
+/**
+ * Positions answered by a service (`position.service`), by robot entity: the card asks
+ * while robots are out and keeps the last answer here.
+ */
+export const polledPositions = new Map<string, Vec2>();
+
+/** Asks a position service for a robot's position (map units), or null. */
+export async function pollPosition(hass: Hass, entity: string, service: string): Promise<Vec2 | null> {
+  const [domain, name] = service.split(".");
+  try {
+    const res = (await hass.callService(domain, name, {}, { entity_id: entity }, false, true)) as { response?: Record<string, unknown> } | undefined;
+    const v = res?.response?.[entity] as { x?: unknown; y?: unknown } | undefined;
+    if (typeof v?.x !== "number" || typeof v?.y !== "number") return null;
+    const at: Vec2 = [v.x, v.y];
+    polledPositions.set(entity, at);
+    return at;
+  } catch {
+    return null;
+  }
+}
+
 /** The robot's own position reading: map units, or [latitude, longitude]. */
 export function rawPosition(hass: Hass, position: NonNullable<Robot["position"]>): { at: Vec2; gps: boolean } | null {
+  if (position.service) {
+    const at = polledPositions.get(position.entity);
+    return at ? { at, gps: false } : null;
+  }
   const s = hass.states[position.entity];
   if (!s) return null;
   if (position.attribute) {

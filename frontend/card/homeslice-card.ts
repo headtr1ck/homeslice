@@ -7,7 +7,7 @@ import type { House, Issue, Room, Vec2 } from "../model/types";
 import { listedLights, placeLights, type PlacedLight } from "../model/lights";
 import { deriveWalls, innerPolygon, type Wall } from "../model/walls";
 import { formatPower, readEnergy, type EnergyPrefs, type EnergyReading } from "../ha/energy";
-import { readRobot, type RobotReading, type RobotStatus } from "../ha/robots";
+import { pollPosition, polledPositions, readRobot, robotStatus, type RobotReading, type RobotStatus } from "../ha/robots";
 import { deviceLook } from "../ha/devices";
 import { activation, whereIs } from "../ha/follow";
 import { ENERGY_COLORS, HouseRenderer, viewOptions, type Look, type ViewOptions } from "../render/scene";
@@ -236,6 +236,8 @@ export class HomesliceCard extends LitElement {
   /** What just happened, shown while the card turned to it. */
   private _event: string | null = null;
   private followed = new Map<string, string>();
+  private pollTimer = 0;
+  private polledOnce = false;
   private lastTouch = 0;
   private eventTimer = 0;
   /** The floor to go back to after an event (null: all floors). */
@@ -447,6 +449,8 @@ export class HomesliceCard extends LitElement {
     window.removeEventListener("keydown", this.onKey);
     this.removeEventListener("pointerdown", this.onTouch, { capture: true });
     clearTimeout(this.eventTimer);
+    clearInterval(this.pollTimer);
+    this.pollTimer = 0;
     this.resizeObserver?.disconnect();
     this.intersection?.disconnect();
     document.removeEventListener("visibilitychange", this.onVisibility);
@@ -662,6 +666,7 @@ export class HomesliceCard extends LitElement {
     const devices = this.devices.map((entity) => deviceLook(hass, entity, inverted.has(entity)));
     const cameras = this.house.levels.flatMap((l) => l.rooms.flatMap((r) => r.cameras.map((c) => [c.entity, !!c.motion && hass.states[c.motion]?.state === "on"] as const)));
     this.energyReadings = this.config.energy ? this.house.energy.map((e) => readEnergy(hass, e, this.energyPrefs)) : [];
+    this.pollRobots(hass);
     this.robotReadings = this.house.robots.map((r) => readRobot(hass, r));
     // the real sun, turned into the plan's directions; rounded so it redraws now and then, not always
     const sun = this.config.sun !== false ? hass.states["sun.sun"]?.attributes : undefined;
@@ -700,6 +705,38 @@ export class HomesliceCard extends LitElement {
     });
     this.animateFlows();
     this.scheduleDraw();
+  }
+
+  // ----- robots whose position a service answers -----
+
+  /**
+   * Robots with a position service: asked every 2 s while out (cleaning, returning), once
+   * otherwise; each answer redraws.
+   */
+  private pollRobots(hass: Hass) {
+    const robots = (this.house?.robots ?? []).filter((r) => r.position?.service);
+    const out = robots.some((r) => ["active", "returning", "paused"].includes(robotStatus(hass.states[r.entity]?.state)));
+    const ask = () => {
+      if (!this.hass) return;
+      for (const r of robots)
+        void pollPosition(this.hass, r.position!.entity, r.position!.service!).then((at) => {
+          if (at) {
+            this.stateSignature = "";
+            this.syncStates();
+          }
+        });
+    };
+    // the first answer for each robot, even docked
+    if (robots.some((r) => !polledPositions.has(r.position!.entity)) && !this.polledOnce) {
+      this.polledOnce = true;
+      ask();
+    }
+    if (out && !this.pollTimer) this.pollTimer = window.setInterval(ask, 2000);
+    else if (!out && this.pollTimer) {
+      clearInterval(this.pollTimer);
+      this.pollTimer = 0;
+      ask(); // where it ended up
+    }
   }
 
   // ----- following events -----

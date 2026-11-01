@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { gpsToMetres, readRobot, readingToPlan, robotStatus } from "./robots";
+import { gpsToMetres, pollPosition, polledPositions, rawPosition, readRobot, readingToPlan, robotStatus } from "./robots";
 import type { Hass } from "./hass";
 import type { Robot } from "../model/types";
 
@@ -44,5 +44,18 @@ describe("robots", () => {
     expect(readRobot(hass("cleaning"), robot).at).toBeNull();
     const calibrated: Robot = { ...robot, position: { entity: "vacuum.r", attribute: "pos", points: [[[0, 0], [0, 0]], [[1000, 0], [1, 0]]] } };
     expect(readRobot(hass("cleaning", { pos: { x: 500, y: 0 } }), calibrated)).toMatchObject({ at: [0.5, 0], live: true });
+  });
+});
+
+describe("positions a service answers", () => {
+  it("asks the service and keeps the answer for the robot", async () => {
+    const hass = { states: {}, callService: async (_d: string, _s: string, _data: unknown, target: { entity_id: string }) => ({ response: { [target.entity_id]: { x: 25260, y: 25430 } } }) } as unknown as Hass;
+    expect(await pollPosition(hass, "vacuum.saros", "roborock.get_vacuum_current_position")).toEqual([25260, 25430]);
+    expect(polledPositions.get("vacuum.saros")).toEqual([25260, 25430]);
+    expect(rawPosition(hass, { entity: "vacuum.saros", service: "roborock.get_vacuum_current_position", points: [] })).toEqual({ at: [25260, 25430], gps: false });
+  });
+  it("is quiet when the service fails", async () => {
+    const hass = { states: {}, callService: async () => { throw new Error("offline"); } } as unknown as Hass;
+    expect(await pollPosition(hass, "vacuum.x", "roborock.get_vacuum_current_position")).toBeNull();
   });
 });

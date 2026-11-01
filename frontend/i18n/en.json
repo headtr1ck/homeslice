@@ -1487,5 +1487,6 @@
   "modern.record_player": "Record player",
   "alias.record_player": "record player, turntable, vinyl, hifi",
   "modern.game_console": "Games console",
-  "alias.game_console": "game console, playstation, xbox, gaming"
+  "alias.game_console": "game console, playstation, xbox, gaming",
+  "editor.robot_roborock": "Roborock (asks the robot for its position)"
 }

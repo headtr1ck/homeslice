@@ -1205,7 +1205,7 @@ export function deleteRobot(model: HouseInput, index: number): HouseInput {
 }
 
 /** Where the robot's live position comes from; null switches it off. */
-export function setRobotPosition(model: HouseInput, index: number, position: { entity?: string; attribute?: string } | null): HouseInput {
+export function setRobotPosition(model: HouseInput, index: number, position: { entity?: string; attribute?: string; service?: string } | null): HouseInput {
   const m = clone(model);
   const r = m.robots?.[index];
   if (!r) return m;
@@ -1214,8 +1214,12 @@ export function setRobotPosition(model: HouseInput, index: number, position: { e
     return m;
   }
   // a different source makes the old calibration meaningless
-  const same = (r.position?.entity ?? r.entity) === (position.entity ?? r.entity) && r.position?.attribute === position.attribute;
-  r.position = { ...(position.entity && position.entity !== r.entity ? { entity: position.entity } : {}), ...(position.attribute ? { attribute: position.attribute } : {}), ...(same && r.position?.points ? { points: r.position.points } : {}) };
+  const same = (r.position?.entity ?? r.entity) === (position.entity ?? r.entity) && r.position?.attribute === position.attribute && r.position?.service === position.service;
+  r.position = {
+    ...(position.entity && position.entity !== r.entity ? { entity: position.entity } : {}),
+    ...(position.service ? { service: position.service } : position.attribute ? { attribute: position.attribute } : {}),
+    ...(same && r.position?.points ? { points: r.position.points } : {}),
+  };
   return m;
 }
 

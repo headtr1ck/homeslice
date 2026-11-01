@@ -471,7 +471,7 @@ export function expandHouse(input: unknown): ExpandResult {
       name: r.name,
       levelIndex: li,
       dock: [r.dock[0], r.dock[1]],
-      ...(r.position ? { position: { entity: r.position.entity ?? r.entity, attribute: r.position.attribute, points: points.map(([a, b]) => [[a[0], a[1]], [b[0], b[1]]] as [Vec2, Vec2]) } } : {}),
+      ...(r.position ? { position: { entity: r.position.entity ?? r.entity, attribute: r.position.attribute, ...(typeof r.position.service === "string" ? { service: r.position.service } : {}), points: points.map(([a, b]) => [[a[0], a[1]], [b[0], b[1]]] as [Vec2, Vec2]) } } : {}),
     });
   });
   if (h.north !== undefined && typeof h.north !== "number") err("north", `north must be degrees (a number), got ${JSON.stringify(h.north)}.`);

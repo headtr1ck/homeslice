@@ -781,6 +781,27 @@ console.log("demo house, roof");
     assert(docked.color === "#9e9e9e" && Math.abs(docked.at[0] - 0.8) < 1e-6 && Math.abs(docked.at[1] - 3.3) < 1e-6, `docked: ${JSON.stringify(docked)}`);
   });
 
+  await test("robots: a Roborock answers its position when asked (a service, not an attribute)", async () => {
+    await act(page, async () => {
+      await page.evaluate(() => {
+        window.card.hass.robotPositions["vacuum.robo"] = [26500, 25500];
+        const m = structuredClone(window.__demoModel);
+        m.robots[0].position = { service: "roborock.get_vacuum_current_position", points: m.robots[0].position.points };
+        const h = window.card.hass;
+        window.card.hass = { ...h, states: { ...h.states, "vacuum.robo": { ...h.states["vacuum.robo"], state: "cleaning" } } };
+        window.card.hass.pushModel(m);
+      });
+    });
+    await page.waitForFunction(() => window.card.renderer.robotState()[0]?.at[0] === 2.5, null, { timeout: 5000 });
+    const at = await page.evaluate(() => window.card.renderer.robotState()[0].at);
+    // map (26500, 25500) with the demo's calibration: plan (2.5, 1.5)
+    assert(Math.abs(at[0] - 2.5) < 1e-6 && Math.abs(at[1] - 1.5) < 1e-6, `robot at ${at}`);
+    // it moves: the next answer
+    await page.evaluate(() => (window.card.hass.robotPositions["vacuum.robo"] = [25500, 25500]));
+    await page.waitForFunction(() => Math.abs(window.card.renderer.robotState()[0].at[0] - 1.5) < 1e-6, null, { timeout: 6000 });
+    await act(page, () => page.evaluate(() => window.card.hass.pushModel(structuredClone(window.__demoModel))));
+  });
+
   await test("the real sun lights the house; at night it is dark", async () => {
     const setSun = (azimuth, elevation) =>
       act(page, () =>
