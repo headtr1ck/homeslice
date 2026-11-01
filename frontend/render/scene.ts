@@ -246,6 +246,28 @@ interface CoverView {
   cuttable: boolean;
   /** 0 open … 1 closed */
   closed: number;
+  /** A garage door with a contact but no cover: open or closed with the contact. */
+  byContact?: boolean;
+}
+
+/** What a linked device shows (see ha/devices.ts). */
+export interface DeviceLook {
+  /** Switched on (a TV on, a fire burning, a pump powered). */
+  on: boolean;
+  /** Doing its work: playing, running, heating, charging. */
+  active: boolean;
+  /** Covers: 1 open … 0 closed. */
+  open?: number | null;
+  /** Climate: what it is doing, for the status light's colour. */
+  tone?: "heat" | "cool" | null;
+  /** Fans: 0 … 1. */
+  speed?: number | null;
+}
+
+interface DeviceParts {
+  materials: THREE.MeshLambertMaterial[];
+  spinners: THREE.Object3D[];
+  curtains: THREE.Object3D[];
 }
 
 export class HouseRenderer {
@@ -282,6 +304,10 @@ export class HouseRenderer {
   private lampLooks = new Map<string, LightLook | null>();
   /** Pieces linked to an entity, for taps. */
   private linked: THREE.Object3D[] = [];
+  /** The parts of linked pieces their device drives (screens, flames, fans…), by entity. */
+  private devices = new Map<string, DeviceParts[]>();
+  private deviceLooks = new Map<string, DeviceLook | null>();
+  private lastSpin = 0;
   private lampObjects: THREE.Object3D[] = [];
   private glowTexture?: THREE.Texture;
   private roof: THREE.Group | null = null;
@@ -408,6 +434,7 @@ export class HouseRenderer {
     this.levelIds = [];
     this.floors.clear();
     this.pieceGlows.clear();
+    this.devices.clear();
     this.linked = [];
     this.covers.clear();
     this.glasses.clear();
@@ -577,8 +604,9 @@ export class HouseRenderer {
             box(mid + half, o.end, z0, z1, wallMat);
           }
         }
-        if (o.type === "garage_door") box(o.start, o.end, o.sill, top, garage, 0.06);
-        if (o.cover) this.addCover(g, w, o, cutAt, cuttable);
+        if (o.type === "garage_door" && (o.cover || o.contact)) this.addGarageDoor(g, w, o, top, garage);
+        else if (o.type === "garage_door") box(o.start, o.end, o.sill, top, garage, 0.06);
+        if (o.cover && o.type !== "garage_door") this.addCover(g, w, o, cutAt, cuttable);
         cursor = o.end;
       }
       box(cursor, length, 0, H, wallMat);
@@ -587,6 +615,22 @@ export class HouseRenderer {
     // one flight of stairs per storey the stairwell passes through
     for (const v of vertical) if (v.kind === "stairs" && level.index >= v.from && level.index < v.to) g.add(this.stairs(v, level));
     return g;
+  }
+
+  /**
+   * A garage door linked to a cover (or only a contact): it rolls up into the lintel as far
+   * as the cover is open. It is drawn like a shutter, in the opening itself.
+   */
+  private addGarageDoor(g: THREE.Group, w: Wall, o: WallOpening, top: number, material: THREE.Material) {
+    const strip = this.wallBox(w, o.start, o.end, top - 0.02, top, 0.07, this.lambert(COLORS.stripClosed));
+    strip.visible = false;
+    g.add(strip);
+    // unit height, scaled to the closed part
+    const mesh = this.wallBox(w, o.start, o.end, 0, 1, 0.06, material);
+    g.add(mesh);
+    const view: CoverView = { shutter: { mesh, top, height: top - o.sill }, strip: { mesh: strip, material: strip.material as THREE.MeshLambertMaterial }, normal: w.normal, cuttable: false, closed: 1, byContact: !o.cover };
+    this.covers.set(o.id, view);
+    this.setCover(o.id, null);
   }
 
   /** Shutter (with its box) outside the window, plus a status strip for the cut-down wall. */
@@ -846,6 +890,111 @@ export class HouseRenderer {
     list.push(...own.values());
     this.pieceGlows.set(entity, list);
     if (this.lampLooks.has(entity)) this.setLamp(entity, this.lampLooks.get(entity)!);
+  }
+
+  /**
+   * A piece linked to another device: its screens, flames, status lights and glowing parts
+   * get their own materials (in the level's fade), its fans and drums turn, its curtains
+   * follow the cover.
+   */
+  private linkDevice(entity: string, piece: THREE.Object3D, materials: Set<THREE.Material>) {
+    const parts: DeviceParts = { materials: [], spinners: [], curtains: [] };
+    const own = new Map<THREE.Material, THREE.MeshLambertMaterial>();
+    piece.traverse((o) => {
+      if (o.userData.spin) parts.spinners.push(o);
+      if (o.userData.curtain) parts.curtains.push(o);
+      if (!(o instanceof THREE.Mesh)) return;
+      const swap = (m: THREE.Material) => {
+        if (!m.userData.part && !m.userData.glow) return m;
+        let c = own.get(m);
+        if (!c) {
+          own.set(m, (c = (m as THREE.MeshLambertMaterial).clone()));
+          c.userData.lit = c.emissive.clone();
+          c.userData.litIntensity = c.emissiveIntensity;
+          materials.add(c);
+          parts.materials.push(c);
+        }
+        return c;
+      };
+      o.material = Array.isArray(o.material) ? o.material.map(swap) : swap(o.material);
+    });
+    if (!parts.materials.length && !parts.spinners.length && !parts.curtains.length) return;
+    const list = this.devices.get(entity) ?? [];
+    list.push(parts);
+    this.devices.set(entity, list);
+    if (this.deviceLooks.has(entity)) this.setDevice(entity, this.deviceLooks.get(entity)!);
+  }
+
+  /**
+   * A linked device's state: screens light up while it is on, flames burn, status lights
+   * show running (in the heating or cooling colour), fans and drums turn while it runs,
+   * curtains open as far as their cover. null: unknown, drawn as when not linked.
+   */
+  setDevice(entity: string, look: DeviceLook | null) {
+    this.deviceLooks.set(entity, look);
+    for (const parts of this.devices.get(entity) ?? []) {
+      for (const m of parts.materials) {
+        const lit = m.userData.lit as THREE.Color;
+        const role = (m.userData.part as string | undefined) ?? "glow";
+        m.visible = true;
+        if (!look) {
+          m.emissive.copy(lit);
+          m.emissiveIntensity = m.userData.litIntensity as number;
+        } else if (role === "fire") {
+          m.visible = look.on;
+        } else if (role === "screen") {
+          // a soft picture light; brighter while playing
+          m.emissive.set(look.active ? "#6f8fc4" : "#3c4f6e");
+          m.emissiveIntensity = look.on ? (look.active ? 0.75 : 0.45) : 0;
+        } else if (role === "led") {
+          m.emissive.set(look.tone === "heat" ? "#ff8a3a" : look.tone === "cool" ? "#3fa8ff" : look.active ? "#3fd27a" : "#9fd6b0");
+          m.emissiveIntensity = look.on ? (look.active ? 0.9 : 0.3) : 0;
+        } else {
+          m.emissive.copy(lit);
+          m.emissiveIntensity = look.on ? Math.max(0.5, m.userData.litIntensity as number) : 0;
+        }
+      }
+      for (const c of parts.curtains) {
+        // open: drawn back to the sides; closed: each panel to the middle
+        const open = look?.open ?? 1;
+        c.scale.x = 1 + (1 - open) * ((c.userData.curtain as number) - 1);
+      }
+    }
+  }
+
+  /** Whether a linked fan, drum or pump is turning (the card animates only then). */
+  get spinning() {
+    for (const [entity, list] of this.devices) {
+      const look = this.deviceLooks.get(entity);
+      if (look?.active && list.some((p) => p.spinners.length)) return true;
+    }
+    return false;
+  }
+
+  /** For tests: a linked device's parts as drawn. */
+  deviceState(entity: string) {
+    const list = this.devices.get(entity);
+    if (!list) return null;
+    const parts = list.flatMap((p) => p.materials);
+    return {
+      lit: parts.some((m) => m.visible && m.emissiveIntensity > 0.2),
+      hidden: parts.some((m) => !m.visible),
+      turn: list.flatMap((p) => p.spinners).map((o) => o.rotation.y + o.rotation.z),
+      curtains: list.flatMap((p) => p.curtains).map((o) => o.scale.x),
+    };
+  }
+
+  private spin(now: number) {
+    const dt = Math.min(0.2, (now - this.lastSpin) / 1000);
+    this.lastSpin = now;
+    if (!dt) return;
+    for (const [entity, list] of this.devices) {
+      const look = this.deviceLooks.get(entity);
+      if (!look?.active) continue;
+      // about one turn a second, faster with a fan's speed
+      const speed = Math.PI * 2 * (0.5 + (look.speed ?? 0.5));
+      for (const p of list) for (const o of p.spinners) o.rotation[o.userData.spin as "y" | "z"] += speed * dt;
+    }
   }
 
   /** A lamp's light: colour and brightness, or null when off. */
@@ -1245,6 +1394,7 @@ export class HouseRenderer {
         const s = source as THREE.MeshStandardMaterial;
         m = new THREE.MeshLambertMaterial({ color: modelColor(source), map: s.map ?? null, transparent: s.transparent, opacity: s.opacity, side: s.side, emissive: s.emissive ?? 0x000000, emissiveIntensity: s.emissiveIntensity ?? 1 });
         if (source.userData.glow) m.userData.glow = true;
+        if (source.userData.part) m.userData.part = source.userData.part;
         converted.set(source, m);
         materials.add(m);
         // join the level's fading and hover tint as they are now
@@ -1275,6 +1425,7 @@ export class HouseRenderer {
       piece.traverse((o) => (o.userData.outdoor = true));
       piece.userData.detailed = true;
       if (f.entity?.startsWith("light.")) this.linkGlow(f.entity, piece, materials);
+      else if (f.entity) this.linkDevice(f.entity, piece, materials);
       g.add(piece);
       const level = this.levels.find((l) => l.materials === materials);
       if (level) this.applyLevel(level);
@@ -1324,7 +1475,8 @@ export class HouseRenderer {
     const c = this.covers.get(openingId);
     if (!c) return;
     c.strip.material.color.copy(new THREE.Color(COLORS.stripClosed).lerp(new THREE.Color(COLORS.stripOpen), open ?? 0));
-    c.closed = open === null ? 0 : Math.min(1, Math.max(0, 1 - open));
+    // unknown: a shutter is drawn open, a garage door closed
+    c.closed = open === null ? (c.byContact !== undefined ? 1 : 0) : Math.min(1, Math.max(0, 1 - open));
     if (c.shutter) {
       c.shutter.mesh.scale.y = Math.max(0.001, c.closed * c.shutter.height);
       c.shutter.mesh.position.y = c.shutter.top - (c.closed * c.shutter.height) / 2;
@@ -1347,6 +1499,7 @@ export class HouseRenderer {
   /** Window contact: open windows get orange glass. */
   setContact(openingId: string, open: boolean) {
     this.glasses.get(openingId)?.color.set(open ? COLORS.glassOpen : COLORS.glass);
+    if (this.covers.get(openingId)?.byContact) this.setCover(openingId, open ? 1 : 0);
   }
 
   /** Hides the upper parts of outer walls facing a low camera; shows strips instead of shutters there. */
@@ -1781,6 +1934,7 @@ export class HouseRenderer {
     this.fitCamera();
     this.placeLights();
     if (this.flows.length) this.updateFlows(now);
+    if (this.devices.size) this.spin(now);
     this.applyCuts();
     this.renderer.render(this.scene, this.camera);
   }

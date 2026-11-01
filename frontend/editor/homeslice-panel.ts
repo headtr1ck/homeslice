@@ -8,6 +8,7 @@ import { OPENING_GROUPS, OPENING_PRESETS, applyPreset, kindOf, presetOf, type Op
 import { GLTFExporter } from "three/examples/jsm/exporters/GLTFExporter.js";
 import { parse as parseYaml, stringify as toYaml } from "yaml";
 import { areaEntities, type Hass } from "../ha/hass";
+import { linkDomain } from "../ha/devices";
 import { formatNumber, localize, type StringKey } from "../i18n/localize";
 import en from "../i18n/en.json";
 import de from "../i18n/de.json";
@@ -20,7 +21,7 @@ import { stairFrame, stairHole } from "../model/stairs";
 import { misalignedWalls } from "../model/checks";
 import { FURNITURE, FURNITURE_TYPES, mountOf } from "../model/furniture";
 import { loadModel } from "../render/models";
-import { FINISHES, MODERN } from "../model/modern";
+import { FINISHES, MODERN, defaultKind } from "../model/modern";
 import { FINISHES_BY_ID, FINISH_GROUPS, FINISH_LIST, type Surface } from "../model/finishes";
 import { finishPreview } from "../render/finishes";
 import {
@@ -2236,7 +2237,7 @@ export class HomeslicePanel extends LitElement {
       </div>
       <p class="muted">${this.t(`editor.mount_${mountOf(f)}_hint` as StringKey)}</p>
       ${this.renderSnapPieces()}
-      ${this.linkSelect(r.area_id, f.entity, (entity) => set({ entity }), ["floor_lamp", "table_lamp", "wall_lamp", "ceiling_lamp", "ceiling_fan"].includes(f.type) ? "light" : f.type === "tv" ? "media_player" : undefined)}
+      ${this.linkSelect(r.area_id, f.entity, (entity) => set({ entity }), linkDomain(f.type, f.model?.startsWith("modern:") ? f.model.slice(7) : f.model ? undefined : defaultKind(f.type, mountOf(f))))}
       <p class="muted">${this.t("editor.furniture_entity_hint")}</p>
       <div class="row">
         <button title=${this.t("editor.turn_left")} @click=${() => this.rotateFurniture(-90)}>⟲ 90°</button>

@@ -94,7 +94,8 @@ vertical:
   `entrance_panes`, `entrance_sidelight`; openings `square`, `arch`. Default: double when
   wider than 1.3 m (windows) or 1.4 m (doors), else single.
 - `hinge: left|right` (seen from the room), `swing: in|out`.
-- `cover: cover.…` (blind, shutter) and `contact: binary_sensor.…` (window or door sensor).
+- `cover: cover.…` (blind, shutter, garage door: drawn as far open as it reports) and
+  `contact: binary_sensor.…` (window or door sensor; a garage door with only a contact opens with it).
 - Windows stacked on several floors at the same place can be written once as
   `facade_openings` on the house: `{side, at, width, levels: [ground, first], covers:
   {ground: cover.a, first: cover.b}}` with `at` from the outline's west or north end.
@@ -130,7 +131,10 @@ accent, entity}]`.
   `polyhaven:<id>`, `custom:<id>` or `builtin` (simple shapes). Without one, the type's
   default piece. Use `modern:` pieces; kinds, sizes, finishes and accents are in the
   catalogue.
-- `entity`: what the piece is in Home Assistant (a floor lamp's `light.…` glows there).
+- `entity`: what the piece is in Home Assistant, and the card shows its state: a lamp's
+  `light.…` glows, a TV's `media_player.…` lights its screen, a fireplace's `switch.…`
+  burns, a fan's `fan.…` or an air conditioner's `climate.…` turns and shows heating or
+  cooling, a washer's power `sensor.…` runs its drum, curtains follow a `cover.…`.
 
 ### Energy and robots (optional)
 

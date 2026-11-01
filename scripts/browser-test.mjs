@@ -507,6 +507,74 @@ console.log("demo house, roof");
     assert(looks >= 5, `${looks} finish textures in the scene`);
     await shot(page, "demo-painted");
   });
+  await test("linked devices: a TV's screen, curtains with their cover, an outdoor unit's fan", async () => {
+    await act(page, async () => {
+      await page.evaluate(() => {
+        const m = structuredClone(window.__demoModel);
+        m.levels[0].rooms.find((r) => r.id === "living").furniture = [
+          { type: "tv", model: "modern:tv_wall", at: [2, 0.3], entity: "media_player.living_room_tv" },
+          { type: "item", model: "modern:curtains", at: [3, 0.2], entity: "cover.living_room" },
+          { type: "item", model: "modern:ac_outdoor", at: [1, 2], entity: "climate.living_room" },
+        ];
+        window.card.hass.pushModel(m);
+      });
+      await page.evaluate(() => window.card.renderer.modelsReady());
+    });
+    const state = (e) => page.evaluate((e) => window.card.renderer.deviceState(e), e);
+    // the TV is off: a dark screen; on: lit
+    assert((await state("media_player.living_room_tv"))?.lit === false, `tv off: ${JSON.stringify(await state("media_player.living_room_tv"))}`);
+    await act(page, () => page.evaluate(() => window.card.hass.callService("media_player", "turn_on", {}, { entity_id: "media_player.living_room_tv" })));
+    assert((await state("media_player.living_room_tv")).lit, "tv on but its screen is dark");
+    // curtains: open as the blind is open, drawn closed when it closes
+    assert((await state("cover.living_room")).curtains.every((x) => x === 1), `curtains open: ${(await state("cover.living_room")).curtains}`);
+    await act(page, () => page.evaluate(() => window.card.hass.callService("cover", "close_cover", {}, { entity_id: "cover.living_room" })));
+    assert((await state("cover.living_room")).curtains.every((x) => x > 1.5), `curtains closed: ${(await state("cover.living_room")).curtains}`);
+    // the heat pump heats: its fan turns (the card animates), and stops when it is off
+    const unit = await state("climate.living_room");
+    assert(unit.turn.length === 1 && unit.lit, `outdoor unit: ${JSON.stringify(unit)}`);
+    assert(await page.evaluate(() => window.card.renderer.spinning), "not spinning while heating");
+    await page.waitForTimeout(400);
+    assert((await state("climate.living_room")).turn[0] !== unit.turn[0], "the fan did not turn");
+    await shot(page, "demo-devices");
+    await act(page, () => page.evaluate(() => window.card.hass.callService("climate", "turn_off", {}, { entity_id: "climate.living_room" })));
+    assert(!(await page.evaluate(() => window.card.renderer.spinning)), "still spinning when off");
+    assert(!(await state("climate.living_room")).lit, "status light on when off");
+    await act(page, () =>
+      page.evaluate(async () => {
+        await window.card.hass.callService("media_player", "turn_off", {}, { entity_id: "media_player.living_room_tv" });
+        await window.card.hass.callService("cover", "open_cover", {}, { entity_id: "cover.living_room" });
+        await window.card.hass.callService("climate", "turn_on", {}, { entity_id: "climate.living_room" });
+      }),
+    );
+  });
+  await test("a garage door rolls up with its cover, or opens with its contact alone", async () => {
+    const garage = async (edit) => {
+      await act(page, async () => {
+        await page.evaluate((edit) => {
+          const m = structuredClone(window.__demoModel);
+          m.levels[0].openings[1] = { room: "kitchen", side: "north", at: 1.3, width: 2.4, type: "garage_door", ...edit };
+          window.card.hass.pushModel(m);
+        }, edit);
+      });
+      return () => page.evaluate(() => window.card.renderer.coverState("kitchen_north_1"));
+    };
+    const door = await garage({ cover: "cover.kitchen" });
+    const height = (await door()).shutterHeight;
+    // the kitchen cover is half open: half the door rolled up
+    assert((await door()).shutterVisible && height > 0.5 && height < 1.5, `half-open garage door: ${JSON.stringify(await door())}`);
+    await act(page, () => page.evaluate(() => window.card.hass.callService("cover", "close_cover", {}, { entity_id: "cover.kitchen" })));
+    assert(Math.abs((await door()).shutterHeight - 2 * height) < 0.01, `closed garage door: ${JSON.stringify(await door())}`);
+    await act(page, () => page.evaluate(() => window.card.hass.callService("cover", "open_cover", {}, { entity_id: "cover.kitchen" })));
+    assert(!(await door()).shutterVisible, "open garage door still shown");
+    await shot(page, "demo-garage-open");
+    await act(page, () => page.evaluate(() => window.card.hass.callService("cover", "set_cover_position", { position: 50 }, { entity_id: "cover.kitchen" })));
+    // only a contact: closed while it is off
+    const byContact = await garage({ contact: "binary_sensor.kids_room_leak" });
+    assert((await byContact()).shutterVisible, `garage door with a closed contact: ${JSON.stringify(await byContact())}`);
+    await act(page, () => page.evaluate(() => window.card.hass.callService("homeassistant", "toggle", {}, { entity_id: "binary_sensor.kids_room_leak" })));
+    assert(!(await byContact()).shutterVisible, "garage door shown with its contact open");
+    await act(page, () => page.evaluate(() => window.card.hass.callService("homeassistant", "toggle", {}, { entity_id: "binary_sensor.kids_room_leak" })));
+  });
   await test("a lamp linked to a light glows with it, and a tap on it toggles the light", async () => {
     await act(page, async () => {
       await page.evaluate(() => {

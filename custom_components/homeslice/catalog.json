@@ -6539,6 +6539,228 @@
    "mount": "ceiling"
   },
   {
+   "model": "modern:ac_split",
+   "name": "Air conditioner (indoor unit)",
+   "group": "climate",
+   "type": "item",
+   "size": [
+    0.9,
+    0.25,
+    0.3
+   ],
+   "finishes": [
+    "white",
+    "silver",
+    "black"
+   ],
+   "mount": "wall",
+   "elevation": 2
+  },
+  {
+   "model": "modern:ac_wall_design",
+   "name": "Air conditioner (flat wall unit)",
+   "group": "climate",
+   "type": "item",
+   "size": [
+    0.85,
+    0.2,
+    0.3
+   ],
+   "finishes": [
+    "white",
+    "silver",
+    "black",
+    "sand"
+   ],
+   "mount": "wall",
+   "elevation": 2
+  },
+  {
+   "model": "modern:ac_cassette",
+   "name": "Air conditioner (ceiling cassette)",
+   "group": "climate",
+   "type": "item",
+   "size": [
+    0.62,
+    0.62,
+    0.05
+   ],
+   "finishes": [
+    "white",
+    "silver"
+   ],
+   "mount": "ceiling"
+  },
+  {
+   "model": "modern:ac_ceiling",
+   "name": "Air conditioner (under-ceiling unit)",
+   "group": "climate",
+   "type": "item",
+   "size": [
+    1.2,
+    0.65,
+    0.24
+   ],
+   "finishes": [
+    "white",
+    "silver"
+   ],
+   "mount": "ceiling"
+  },
+  {
+   "model": "modern:ac_floor",
+   "name": "Air conditioner (floor console)",
+   "group": "climate",
+   "type": "item",
+   "size": [
+    0.7,
+    0.22,
+    0.6
+   ],
+   "finishes": [
+    "white",
+    "silver",
+    "black"
+   ]
+  },
+  {
+   "model": "modern:ac_outdoor",
+   "name": "Air conditioner (outdoor unit)",
+   "group": "climate",
+   "type": "item",
+   "size": [
+    0.8,
+    0.3,
+    0.55
+   ],
+   "finishes": [
+    "white",
+    "anthracite",
+    "grey"
+   ]
+  },
+  {
+   "model": "modern:ac_outdoor_wall",
+   "name": "Air conditioner (outdoor unit on wall bracket)",
+   "group": "climate",
+   "type": "item",
+   "size": [
+    0.8,
+    0.4,
+    0.6
+   ],
+   "finishes": [
+    "white",
+    "anthracite",
+    "grey"
+   ],
+   "mount": "wall",
+   "elevation": 1.2
+  },
+  {
+   "model": "modern:heat_pump",
+   "name": "Heat pump (outdoor unit)",
+   "group": "climate",
+   "type": "item",
+   "size": [
+    1.1,
+    0.45,
+    0.95
+   ],
+   "finishes": [
+    "white",
+    "anthracite",
+    "grey"
+   ]
+  },
+  {
+   "model": "modern:heat_pump_indoor",
+   "name": "Heat pump indoor unit",
+   "group": "climate",
+   "type": "item",
+   "size": [
+    0.6,
+    0.65,
+    1.85
+   ],
+   "finishes": [
+    "white",
+    "anthracite",
+    "silver"
+   ]
+  },
+  {
+   "model": "modern:radiator_panel",
+   "name": "Radiator",
+   "group": "climate",
+   "type": "item",
+   "size": [
+    1,
+    0.1,
+    0.6
+   ],
+   "finishes": [
+    "white",
+    "anthracite",
+    "black"
+   ],
+   "mount": "wall",
+   "elevation": 0.15
+  },
+  {
+   "model": "modern:fan_standing",
+   "name": "Standing fan",
+   "group": "climate",
+   "type": "item",
+   "size": [
+    0.45,
+    0.45,
+    1.3
+   ],
+   "finishes": [
+    "white",
+    "black",
+    "silver"
+   ],
+   "accents": [
+    "white",
+    "black",
+    "silver"
+   ]
+  },
+  {
+   "model": "modern:air_purifier",
+   "name": "Air purifier",
+   "group": "climate",
+   "type": "item",
+   "size": [
+    0.3,
+    0.3,
+    0.6
+   ],
+   "finishes": [
+    "white",
+    "anthracite",
+    "sand"
+   ]
+  },
+  {
+   "model": "modern:dehumidifier",
+   "name": "Dehumidifier",
+   "group": "climate",
+   "type": "item",
+   "size": [
+    0.35,
+    0.25,
+    0.55
+   ],
+   "finishes": [
+    "white",
+    "grey",
+    "black"
+   ]
+  },
+  {
    "model": "modern:washer",
    "name": "Washing machine",
    "group": "utility",
@@ -6639,95 +6861,6 @@
    ]
   },
   {
-   "model": "modern:radiator_panel",
-   "name": "Radiator",
-   "group": "utility",
-   "type": "item",
-   "size": [
-    1,
-    0.1,
-    0.6
-   ],
-   "finishes": [
-    "white",
-    "anthracite",
-    "black"
-   ],
-   "mount": "wall",
-   "elevation": 0.15
-  },
-  {
-   "model": "modern:ac_split",
-   "name": "Air conditioner (indoor unit)",
-   "group": "utility",
-   "type": "item",
-   "size": [
-    0.9,
-    0.25,
-    0.3
-   ],
-   "finishes": [
-    "white",
-    "silver",
-    "black"
-   ],
-   "mount": "wall",
-   "elevation": 2
-  },
-  {
-   "model": "modern:fan_standing",
-   "name": "Standing fan",
-   "group": "utility",
-   "type": "item",
-   "size": [
-    0.45,
-    0.45,
-    1.3
-   ],
-   "finishes": [
-    "white",
-    "black",
-    "silver"
-   ],
-   "accents": [
-    "white",
-    "black",
-    "silver"
-   ]
-  },
-  {
-   "model": "modern:air_purifier",
-   "name": "Air purifier",
-   "group": "utility",
-   "type": "item",
-   "size": [
-    0.3,
-    0.3,
-    0.6
-   ],
-   "finishes": [
-    "white",
-    "anthracite",
-    "sand"
-   ]
-  },
-  {
-   "model": "modern:dehumidifier",
-   "name": "Dehumidifier",
-   "group": "utility",
-   "type": "item",
-   "size": [
-    0.35,
-    0.25,
-    0.55
-   ],
-   "finishes": [
-    "white",
-    "grey",
-    "black"
-   ]
-  },
-  {
    "model": "modern:ironing_board",
    "name": "Ironing board",
    "group": "utility",
@@ -6772,22 +6905,6 @@
     "white",
     "silver",
     "anthracite"
-   ]
-  },
-  {
-   "model": "modern:heat_pump_indoor",
-   "name": "Heat pump indoor unit",
-   "group": "utility",
-   "type": "item",
-   "size": [
-    0.6,
-    0.65,
-    1.85
-   ],
-   "finishes": [
-    "white",
-    "anthracite",
-    "silver"
    ]
   },
   {
@@ -7815,22 +7932,6 @@
    ],
    "finishes": [
     "anthracite"
-   ]
-  },
-  {
-   "model": "modern:heat_pump",
-   "name": "Heat pump (outdoor unit)",
-   "group": "garden",
-   "type": "item",
-   "size": [
-    1.1,
-    0.45,
-    0.95
-   ],
-   "finishes": [
-    "white",
-    "anthracite",
-    "grey"
    ]
   },
   {

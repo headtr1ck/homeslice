@@ -8,6 +8,7 @@ import { listedLights, placeLights, type PlacedLight } from "../model/lights";
 import { deriveWalls, innerPolygon, type Wall } from "../model/walls";
 import { formatPower, readEnergy, type EnergyPrefs, type EnergyReading } from "../ha/energy";
 import { readRobot, type RobotReading, type RobotStatus } from "../ha/robots";
+import { deviceLook } from "../ha/devices";
 import { ENERGY_COLORS, HouseRenderer, viewOptions, type ViewOptions } from "../render/scene";
 
 export interface PopupOverride {
@@ -203,6 +204,8 @@ export class HomesliceCard extends LitElement {
   private intersection?: IntersectionObserver;
   /** Lamps of the whole house, placed for the current HA areas. */
   private lamps: PlacedLight[] = [];
+  /** Entities of linked pieces that are not lights (TVs, fans, fires, curtains…). */
+  private devices: string[] = [];
   private lampSignature = "";
   private walls = new Map<string, Wall[]>();
   /** The view options in use (from config.view). */
@@ -396,6 +399,8 @@ export class HomesliceCard extends LitElement {
       if (!this.energyPrefs) void this.loadEnergyPrefs();
     }
     this.renderer.setRobots(house.robots.map((r) => ({ key: `robot-${r.index}`, kind: r.kind, levelIndex: r.levelIndex, dock: r.dock })));
+    // pieces linked to something other than a light (lights glow with the lamps)
+    this.devices = [...new Set(house.levels.flatMap((l) => l.rooms.flatMap((r) => r.furniture.map((f) => f.entity ?? "")))).values()].filter((e) => e && !e.startsWith("light."));
     // keep the focused floor across model updates, if it still exists; a plan always shows one
     if (!this._level && (this.plan || this.config.level)) this._level = this.startLevel(house);
     const focused = this._level ? house.levels.find((l) => l.id === this._level) : undefined;
@@ -421,13 +426,22 @@ export class HomesliceCard extends LitElement {
     this.syncStates();
   }
 
-  /** Runs the flow animation (about 30 frames a second) while something flows and the card is seen. */
+  /** Whether something moves: energy flowing, a linked fan or drum turning. */
+  private get moving() {
+    return !!this.renderer && ((!!this.config.energy && this.renderer.flowing) || this.renderer.spinning);
+  }
+
+  /**
+   * Runs the animation while something moves and the card is seen: about 30 frames a
+   * second for flows, 15 when only fans turn (a wall tablet runs all day).
+   */
   private animateFlows() {
     cancelAnimationFrame(this.flowFrame);
-    if (!this.config.energy || !this.renderer?.flowing || !this.visible || document.visibilityState === "hidden") return;
+    if (!this.moving || !this.visible || document.visibilityState === "hidden") return;
     const step = (now: number) => {
-      if (!this.renderer || !this.renderer.flowing || !this.visible || document.visibilityState === "hidden") return;
-      if (now - this.lastFlowFrame >= 33 && !this.transitioning) {
+      if (!this.renderer || !this.moving || !this.visible || document.visibilityState === "hidden") return;
+      const frame = this.config.energy && this.renderer.flowing ? 33 : 66;
+      if (now - this.lastFlowFrame >= frame && !this.transitioning) {
         this.lastFlowFrame = now;
         this.renderer.draw(now);
       }
@@ -513,21 +527,21 @@ export class HomesliceCard extends LitElement {
       if (s.alerts.length) lights[i] = { rgb: [255, 40, 30], brightness: 1 };
     });
     const awnings = this.rooms.map((r) => (r.room.awning ? coverOpen(hass, r.room.awning, inverted.has(r.room.awning)) : null));
+    const devices = this.devices.map((entity) => deviceLook(hass, entity, inverted.has(entity)));
     this.energyReadings = this.config.energy ? this.house.energy.map((e) => readEnergy(hass, e, this.energyPrefs)) : [];
     this.robotReadings = this.house.robots.map((r) => readRobot(hass, r));
     // the real sun, turned into the plan's directions; rounded so it redraws now and then, not always
     const sun = this.config.sun !== false ? hass.states["sun.sun"]?.attributes : undefined;
     const sunAt = typeof sun?.azimuth === "number" && typeof sun?.elevation === "number" ? [Math.round(sun.azimuth - this.house.north), Math.round(sun.elevation)] : null;
-    const signature = JSON.stringify([lights, lamps, covers, contacts, temperatures, sensors, awnings, this.energyReadings, this.robotReadings, sunAt]);
+    const signature = JSON.stringify([lights, lamps, covers, contacts, temperatures, sensors, awnings, devices, this.energyReadings, this.robotReadings, sunAt]);
     if (signature === this.stateSignature) return;
     this.stateSignature = signature;
     this.lamps.forEach((l, i) => this.renderer!.setLamp(l.entity, lamps[i]));
+    this.devices.forEach((entity, i) => this.renderer!.setDevice(entity, devices[i]));
     this.renderer.setSun(sunAt?.[0] ?? null, sunAt?.[1] ?? null);
     this.house.robots.forEach((r, i) => this.renderer!.setRobotState(`robot-${r.index}`, this.robotReadings[i].at, ROBOT_COLORS[this.robotReadings[i].status]));
-    if (this.config.energy) {
-      this.renderer.setFlows(Object.fromEntries(this.house.energy.map((e, i) => [`energy-${e.index}`, this.energyReadings[i]?.flow ?? null])));
-      this.animateFlows();
-    }
+    if (this.config.energy) this.renderer.setFlows(Object.fromEntries(this.house.energy.map((e, i) => [`energy-${e.index}`, this.energyReadings[i]?.flow ?? null])));
+    this.animateFlows();
     this.rooms.forEach((r, i) => {
       this.renderer!.setRoomLight(r.levelId, r.room.id, lights[i]);
       if (r.room.awning) this.renderer!.setAwning(r.levelId, r.room.id, awnings[i]);

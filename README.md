@@ -30,7 +30,9 @@ on your dashboards.
 Alpha: card and editor work and are used daily on one house, but nothing is stable yet.
 
 - **Card:** exploded 3D view with live lights (lamps light their rooms, more so at night;
-  a linked lamp lights up itself), blinds, window contacts, temperatures and awnings; one
+  a linked lamp lights up itself), blinds, garage doors, window contacts, temperatures and
+  awnings; linked devices show their state (TV screens, fires, fans and outdoor units
+  turning, washers running, curtains); one
   floor on its own (the others slide away) and hover; tap a linked piece to switch it;
   room popups (a bottom sheet on phones); optional roof and energy overlay (solar,
   battery, grid and devices with animated power flows).

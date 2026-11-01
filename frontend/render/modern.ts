@@ -61,12 +61,29 @@ class Builder {
   readonly g = new THREE.Group();
   /** Geometries merged per material at the end (plants: thousands of leaves, one mesh). */
   private batches = new Map<THREE.Material, THREE.BufferGeometry[]>();
+  /** Where new meshes go: the piece, or a part being drawn (see spinner). */
+  private into: THREE.Object3D = this.g;
 
   add(geo: THREE.BufferGeometry, m: THREE.Material, x = 0, y = 0, z = 0) {
     const mesh = new THREE.Mesh(geo, m);
     mesh.position.set(x, y, z);
-    this.g.add(mesh);
+    this.into.add(mesh);
     return mesh;
+  }
+  /**
+   * Draws a part that turns around (x, y, z) on an axis when its device runs: fan blades,
+   * a drum. Drawn in the piece's coordinates; a card turns it (scene.ts linkDevice).
+   */
+  spinner(x: number, y: number, z: number, axis: "y" | "z", draw: () => void) {
+    const part = new THREE.Group();
+    part.position.set(x, y, z);
+    part.userData.spin = axis;
+    this.g.add(part);
+    this.into = part;
+    draw();
+    this.into = this.g;
+    for (const child of part.children) child.position.sub(part.position);
+    return part;
   }
   /** A box from its bottom centre, optionally with rounded edges. */
   box(w: number, h: number, d: number, x: number, y: number, z: number, m: THREE.Material, r = 0) {
@@ -280,6 +297,17 @@ function glowing<M extends THREE.Material>(m: M): M {
   m.userData.glow = true;
   return m;
 }
+/**
+ * Marks a material as a part a linked device drives (scene.ts linkDevice): a screen that
+ * lights up while it plays, flames that burn while it is on, a status light. Unlinked
+ * pieces keep the look they are drawn with.
+ */
+function part<M extends THREE.Material>(m: M, role: "screen" | "fire" | "led"): M {
+  m.userData.part = role;
+  return m;
+}
+const screenMat = () => part(mat(C.screen, { roughness: 0.15, metalness: 0.2, name: "screen" }), "screen");
+const ledMat = (color = "#3fd27a") => part(mat(color, { emissive: color, emissiveIntensity: 0.7, name: "led" }), "led");
 const shadeMat = (_finish: THREE.Material, color: string) =>
   ["black", "anthracite"].includes(color) ? mat(FINISHES[color], { side: THREE.DoubleSide }) : glowing(mat(C.shade, { side: THREE.DoubleSide }));
 
@@ -1089,7 +1117,7 @@ const BUILDERS: Record<string, Build> = {
   garden_light: (b, w, d, h, f) => {
     const r = Math.min(w, d) / 2;
     b.cyl(r, r, h - 0.08, 0, 0, 0, f, 20);
-    b.cyl(r * 0.95, r * 0.95, 0.06, 0, h - 0.08, 0, mat("#fff3d6", { emissive: "#ffe2a8", emissiveIntensity: 0.6 }), 20);
+    b.cyl(r * 0.95, r * 0.95, 0.06, 0, h - 0.08, 0, glowing(mat("#fff3d6", { emissive: "#ffe2a8", emissiveIntensity: 0.6 })), 20);
     b.cyl(r * 1.05, r * 1.05, 0.02, 0, h - 0.02, 0, f, 20);
   },
   bbq_kettle: (b, w, d, h, f) => {
@@ -1126,7 +1154,7 @@ const BUILDERS: Record<string, Build> = {
       const a = (i / 5) * Math.PI * 2;
       b.rod(v(Math.cos(a) * r * 0.45, h * 0.35, Math.sin(a) * r * 0.45), v(Math.cos(a + 2.4) * r * 0.4, h * 0.5 + rand() * 0.05, Math.sin(a + 2.4) * r * 0.4), 0.035, mat(C.trunk), 6);
     }
-    b.sphere(r * 0.25, 0, h * 0.42, 0, mat("#ff8a3a", { emissive: "#ff5a1a", emissiveIntensity: 0.8 }), 1, 0.4, 1, 10);
+    b.sphere(r * 0.25, 0, h * 0.42, 0, part(mat("#ff8a3a", { emissive: "#ff5a1a", emissiveIntensity: 0.8 }), "fire"), 1, 0.4, 1, 10);
   },
   raised_bed: (b, w, d, h, f) => {
     const t = 0.04;
@@ -1313,17 +1341,7 @@ const BUILDERS: Record<string, Build> = {
       b.rod(v(x - bw * 0.4, h - 0.05, -d / 2 + 0.01), v(x + bw * 0.4, h - 0.05, -d / 2 + 0.01), 0.015, body, 6);
     }
   },
-  heat_pump: (b, w, d, h, f) => {
-    b.box(w, h - 0.1, d - 0.05, 0, 0.1, -0.025, f, 0.015);
-    for (const sx of [-1, 1]) b.box(0.08, 0.1, d, sx * (w / 2 - 0.15), 0, 0, mat(C.black));
-    const r = Math.min(w * 0.3, (h - 0.1) * 0.4);
-    const cx = -w * 0.12;
-    const cy = 0.1 + (h - 0.1) / 2;
-    b.add(new THREE.CircleGeometry(r, 32), mat(C.black), cx, cy, d / 2 - 0.045);
-    for (let k = 1; k <= 4; k++) b.add(new THREE.TorusGeometry((r * k) / 4, 0.004, 3, 32), mat(C.steel), cx, cy, d / 2 - 0.04);
-    for (let i = 0; i < 2; i++) b.box(0.006, r * 2, 0.006, cx, cy - r, d / 2 - 0.04, mat(C.steel))!.rotation.z = (i * Math.PI) / 2;
-    b.box(w * 0.18, 0.06, 0.01, w * 0.32, h * 0.8, d / 2 - 0.045, mat(C.steel));
-  },
+  heat_pump: (b, w, d, h, f) => outdoorUnit(b, w, d, h, f, false),
   // ----- kitchen, piece by piece (fronts in the finish, the worktop in the accent) -----
   kitchen_base: (b, w, d, h, f, _c, a) => {
     const u = kitchenBase(b, w, d, h, a);
@@ -2048,12 +2066,14 @@ const BUILDERS: Record<string, Build> = {
     b.cyl(0.012, 0.012, h * 0.5, 0, h * 0.45, 0, a, 8);
     b.cyl(0.11, 0.09, 0.09, 0, h * 0.35, 0, a, 24);
     b.add(new THREE.SphereGeometry(0.09, 24, 8, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2), opal(), 0, h * 0.35, 0);
-    for (let i = 0; i < 5; i++) {
-      const ang = (i / 5) * Math.PI * 2;
-      const blade = b.box(r - 0.12, 0.012, 0.13, 0, 0, 0, f, 0.006);
-      blade?.position.set(Math.cos(ang) * (r / 2 + 0.06), h * 0.4, Math.sin(ang) * (r / 2 + 0.06));
-      blade?.rotation.set(0.12, -ang, 0);
-    }
+    b.spinner(0, h * 0.4, 0, "y", () => {
+      for (let i = 0; i < 5; i++) {
+        const ang = (i / 5) * Math.PI * 2;
+        const blade = b.box(r - 0.12, 0.012, 0.13, 0, 0, 0, f, 0.006);
+        blade?.position.set(Math.cos(ang) * (r / 2 + 0.06), h * 0.4, Math.sin(ang) * (r / 2 + 0.06));
+        blade?.rotation.set(0.12, -ang, 0);
+      }
+    });
   },
   laundry_basket: (b, w, d, h, f) => {
     const geo = new THREE.CylinderGeometry(0.5, 0.42, 1, 24, 1, true);
@@ -2279,7 +2299,7 @@ const BUILDERS: Record<string, Build> = {
     b.box(w * 0.3, 0.012, d * 0.9, 0, 0, 0, f, 0.006);
     b.box(0.04, h * 0.5, 0.02, 0, 0.012, -d * 0.2, f, 0.006);
     b.box(w, h * 0.62, 0.025, 0, h * 0.36, -d * 0.1, f, 0.008);
-    b.box(w - 0.02, h * 0.62 - 0.03, 0.002, 0, h * 0.36 + 0.02, -d * 0.1 + 0.0135, mat(C.screen, { emissive: "#24303c", emissiveIntensity: 0.4 }));
+    b.box(w - 0.02, h * 0.62 - 0.03, 0.002, 0, h * 0.36 + 0.02, -d * 0.1 + 0.0135, part(mat(C.screen, { emissive: "#24303c", emissiveIntensity: 0.4 }), "screen"));
   },
   books: (b, w, d, h) => {
     const rand = random(251);
@@ -2517,6 +2537,8 @@ const BUILDERS: Record<string, Build> = {
     b.box(w - 0.04, th * 0.8, d - 0.04, 0, cab + 0.05, 0, mat("#5fb4d8", { transparent: true, opacity: 0.35, roughness: 0.05 }));
     b.box(w, th, d, 0, cab, 0, glass());
     b.box(w, 0.04, d, 0, h - 0.04, 0, mat(C.black), 0.004);
+    // the tank's light under the lid
+    b.box(w - 0.1, 0.008, 0.04, 0, h - 0.05, 0, glowing(mat("#eaf6ff", { emissive: "#cfeaff", emissiveIntensity: 0.5 })));
     const rand = random(281);
     for (let i = 0; i < 9; i++) grass(b, rand, 0.08, 0.06, th * (0.3 + rand() * 0.5), cab + 0.05, 8, ["#3f8a4a", "#6aa84f"]);
     for (let i = 0; i < 6; i++) b.sphere(0.02, (rand() - 0.5) * w * 0.8, cab + 0.15 + rand() * th * 0.5, (rand() - 0.5) * d * 0.6, mat(["#ff7a2e", "#f2d14b", "#3f8fe0"][i % 3]), 1.6, 1, 0.6, 8);
@@ -2567,7 +2589,10 @@ const BUILDERS: Record<string, Build> = {
       const pos = panel.attributes.position;
       for (let i = 0; i < pos.count; i++) pos.setZ(i, Math.sin((pos.getX(i) / pw) * Math.PI * 9) * 0.035);
       panel.computeVertexNormals();
-      b.add(panel, mat((f as THREE.MeshStandardMaterial).color.getStyle(), { side: THREE.DoubleSide, roughness: 1 }), sx * (w / 2 - pw / 2), (h - 0.06) / 2, 0);
+      // pinned at the outer end, so a linked cover draws it closed by widening it
+      panel.translate(-sx * (pw / 2), 0, 0);
+      const m = b.add(panel, mat((f as THREE.MeshStandardMaterial).color.getStyle(), { side: THREE.DoubleSide, roughness: 1 }), sx * (w / 2), (h - 0.06) / 2, 0);
+      m.userData.curtain = (w / 2 + 0.01) / pw;
     }
     void d;
   },
@@ -2848,7 +2873,7 @@ const BUILDERS: Record<string, Build> = {
     // an indoor unit with its hot-water tank: a tall cabinet, a display, pipes on top
     b.box(w, h - 0.15, d, 0, 0, 0, f, 0.02);
     b.box(w, 0.04, d, 0, h * 0.42, 0.001, mat("#d9dcdf"));
-    b.box(0.16, 0.1, 0.01, 0, h * 0.7, d / 2 + 0.001, mat(C.screen, { emissive: "#2a5a8a", emissiveIntensity: 0.4 }), 0.006);
+    b.box(0.16, 0.1, 0.01, 0, h * 0.7, d / 2 + 0.001, part(mat(C.screen, { emissive: "#2a5a8a", emissiveIntensity: 0.4 }), "led"), 0.006);
     for (let i = 0; i < 4; i++) b.cyl(0.018, 0.018, 0.15, -w / 2 + 0.12 + i * (w - 0.24) / 3, h - 0.15, -d * 0.2, i % 2 ? mat("#b87333", { metalness: 0.6, roughness: 0.35 }) : mat(C.ceramic), 10);
   },
   fuse_box: (b, w, d, h, f) => {
@@ -3449,7 +3474,7 @@ const BUILDERS: Record<string, Build> = {
   },
   projector_screen: (b, w, d, h, f) => {
     b.box(w + 0.1, 0.08, d, 0, h - 0.08, 0, f, 0.02);
-    b.box(w, h - 0.12, 0.004, 0, 0.04, 0, mat("#f6f6f4", { roughness: 1 }));
+    b.box(w, h - 0.12, 0.004, 0, 0.04, 0, part(mat("#f6f6f4", { roughness: 1 }), "screen"));
     b.box(w, 0.04, 0.01, 0, 0.0, 0, mat(C.black));
   },
   cat_tree: (b, w, d, h, f) => {
@@ -3556,10 +3581,47 @@ const BUILDERS: Record<string, Build> = {
     b.cyl(0.02, 0.025, 0.08, w / 2 - 0.05, h, d * 0.1, mat(C.ceramic), 12);
   },
   ac_split: (b, w, d, h, f) => {
+    // a classic wall unit: a rounded body, an intake grille on top, the louvre underneath
     b.box(w, h, d, 0, 0, 0, f, Math.min(0.06, h / 3));
-    b.box(w - 0.04, 0.04, 0.03, 0, 0.02, d / 2 - 0.01, mat("#c9cdd1"), 0.01)?.rotation.set(0.5, 0, 0);
-    b.box(0.04, 0.012, 0.004, w * 0.3, h * 0.6, d / 2 + 0.001, mat("#3fd27a", { emissive: "#3fd27a", emissiveIntensity: 0.7 }));
+    for (let i = 0; i <= Math.floor((w - 0.12) / 0.03); i++) b.box(0.012, 0.004, d * 0.5, -w / 2 + 0.06 + i * 0.03, h - 0.002, -d * 0.1, mat("#aeb3b8"));
+    b.box(w - 0.1, 0.03, 0.006, 0, 0.012, d / 2 - 0.004, mat("#3a3d41"));
+    b.box(w - 0.06, 0.04, 0.03, 0, 0.02, d / 2 - 0.01, mat("#c9cdd1"), 0.01)?.rotation.set(0.5, 0, 0);
+    b.box(0.04, 0.012, 0.004, w * 0.3, h * 0.6, d / 2 + 0.001, ledMat());
   },
+  ac_wall_design: (b, w, d, h, f) => {
+    // a flat designer unit: a slim body behind a front panel in the finish, a thin outlet slot
+    b.box(w - 0.02, h - 0.02, d - 0.03, 0, 0.01, -0.015, mat("#dcdfe2"), 0.02);
+    b.box(w, h - 0.03, 0.025, 0, 0.03, d / 2 - 0.0125, f, 0.012);
+    b.box(w - 0.08, 0.012, 0.01, 0, 0.012, d / 2 - 0.03, mat("#2b2c2e"));
+    b.box(w * 0.18, 0.004, 0.002, 0, h * 0.25, d / 2 + 0.001, ledMat("#f2f2f2"));
+  },
+  ac_ceiling: (b, w, d, h, f) => {
+    // an under-ceiling unit: a wide flat body, the outlet and louvre along its front
+    b.box(w, h - 0.02, d, 0, 0.02, 0, f, Math.min(0.05, h / 3));
+    for (const sx of [-1, 1]) b.box(0.05, 0.02, d * 0.6, sx * (w / 2 - 0.1), h - 0.02, -d * 0.1, mat(C.steel));
+    b.box(w - 0.12, h * 0.25, 0.006, 0, 0.02 + h * 0.2, d / 2 - 0.002, mat("#3a3d41"));
+    b.box(w - 0.14, 0.03, 0.035, 0, 0.0, d / 2 - 0.03, mat("#c9cdd1"), 0.01)?.rotation.set(-0.4, 0, 0);
+    b.box(0.03, 0.012, 0.004, w / 2 - 0.08, h * 0.6, d / 2 + 0.001, ledMat());
+  },
+  ac_cassette: (b, w, d, h, f) => {
+    // a ceiling cassette: the unit sits above the ceiling, only its square panel shows
+    b.box(w, h - 0.006, d, 0, 0.006, 0, f, 0.01);
+    const g = Math.min(w, d) * 0.45;
+    b.box(g, 0.005, g, 0, 0, 0, mat("#c3c7cb"));
+    for (let i = 0; i < 9; i++) b.box(g, 0.006, 0.006, 0, 0, -g / 2 + (g * (i + 0.5)) / 9, mat("#aeb3b8"));
+    for (const [x, z, rw, rd] of [[0, 1, w * 0.6, 0.05], [0, -1, w * 0.6, 0.05], [1, 0, 0.05, d * 0.6], [-1, 0, 0.05, d * 0.6]])
+      b.box(rw, 0.006, rd, x * (w / 2 - 0.07), 0, z * (d / 2 - 0.07), mat("#3a3d41"));
+    b.box(0.03, 0.006, 0.012, w / 2 - 0.05, 0, d / 2 - 0.03, ledMat());
+  },
+  ac_floor: (b, w, d, h, f) => {
+    // a floor console: a low cabinet, an outlet on top, an intake below
+    b.box(w, h, d, 0, 0, 0, f, 0.03);
+    b.box(w - 0.08, 0.01, d * 0.5, 0, h - 0.002, 0, mat("#3a3d41"));
+    for (let i = 0; i < 6; i++) b.box(w - 0.12, 0.006, 0.006, 0, 0.05 + i * 0.025, d / 2 + 0.002, mat("#aeb3b8"));
+    b.box(0.04, 0.012, 0.004, w * 0.3, h * 0.75, d / 2 + 0.001, ledMat());
+  },
+  ac_outdoor: (b, w, d, h, f) => outdoorUnit(b, w, d, h, f, false),
+  ac_outdoor_wall: (b, w, d, h, f) => outdoorUnit(b, w, d, h, f, true),
   fan_standing: (b, w, d, h, f, _c, a) => {
     const r = Math.min(w, d) * 0.45;
     b.cyl(r * 0.8, r * 0.85, 0.04, 0, 0, 0, a, 24);
@@ -3568,23 +3630,25 @@ const BUILDERS: Record<string, Build> = {
     b.box(0.12, 0.12, 0.16, 0, y - 0.06, -0.08, a, 0.04);
     for (let k = 1; k <= 3; k++) b.add(new THREE.TorusGeometry((r * k) / 3, 0.004, 4, 28), f, 0, y, 0.04);
     for (let k = 0; k < 8; k++) b.box(0.004, r * 2, 0.004, 0, y - r, 0.04, f)?.rotation.set(0, 0, (k / 8) * Math.PI);
-    for (let k = 0; k < 3; k++) {
-      const blade = b.add(new THREE.CircleGeometry(r * 0.75, 12, 0, 0.9).scale(1, 1, 1), mat("#cfe3ea", { transparent: true, opacity: 0.7, side: THREE.DoubleSide }), 0, y, 0.02);
-      blade.rotation.z = (k / 3) * Math.PI * 2;
-    }
+    b.spinner(0, y, 0.02, "z", () => {
+      for (let k = 0; k < 3; k++) {
+        const blade = b.add(new THREE.CircleGeometry(r * 0.75, 12, 0, 0.9), mat("#cfe3ea", { transparent: true, opacity: 0.7, side: THREE.DoubleSide }), 0, y, 0.02);
+        blade.rotation.z = (k / 3) * Math.PI * 2;
+      }
+    });
   },
   air_purifier: (b, w, d, h, f) => {
     const r = Math.min(w, d) / 2;
     b.cyl(r, r, h - 0.03, 0, 0, 0, f, 32);
     b.cyl(r * 0.9, r * 0.9, 0.03, 0, h - 0.03, 0, mat("#2b2c2e"), 32);
     for (let k = 1; k < 4; k++) b.add(new THREE.RingGeometry(r * 0.2 * k, r * 0.2 * k + 0.006, 32), mat("#5a5d61"), 0, h + 0.001, 0).rotation.x = -Math.PI / 2;
-    b.box(0.05, 0.02, 0.004, 0, h * 0.8, r + 0.001, mat("#3f8fe0", { emissive: "#3f8fe0", emissiveIntensity: 0.6 }));
+    b.box(0.05, 0.02, 0.004, 0, h * 0.8, r + 0.001, ledMat("#3f8fe0"));
   },
   dehumidifier: (b, w, d, h, f) => {
     b.box(w, h, d, 0, 0, 0, f, 0.03);
     for (let i = 0; i < 8; i++) b.box(w * 0.7, 0.008, 0.01, 0, h * 0.55 + i * 0.025, d / 2, mat("#9aa0a6"));
     b.box(w * 0.8, h * 0.3, 0.01, 0, 0.04, d / 2, mat("#d9dcdf"), 0.01);
-    b.box(0.05, 0.02, 0.004, 0, h * 0.92, d / 2 + 0.001, mat("#3f8fe0", { emissive: "#3f8fe0", emissiveIntensity: 0.6 }));
+    b.box(0.05, 0.02, 0.004, 0, h * 0.92, d / 2 + 0.001, ledMat("#3f8fe0"));
   },
   // ----- decor and kitchen things -----
   vase_flowers: (b, w, d, h, f) => {
@@ -3860,11 +3924,44 @@ const BUILDERS: Record<string, Build> = {
   wallbox: (b, w, d, h, f) => {
     b.box(w, h, d * 0.7, 0, 0, -d * 0.15, f, 0.03);
     b.box(w * 0.5, h * 0.18, 0.005, 0, h * 0.62, d * 0.2, mat(C.screen));
-    b.box(w * 0.3, 0.01, 0.006, 0, h * 0.82, d * 0.2, mat("#3fd27a", { emissive: "#3fd27a", emissiveIntensity: 0.7 }));
+    b.box(w * 0.3, 0.01, 0.006, 0, h * 0.82, d * 0.2, ledMat());
     b.add(new THREE.TorusGeometry(w * 0.32, 0.012, 6, 20), mat(C.black), 0, h * 0.3, d * 0.3).rotation.y = 0;
     b.box(0.05, 0.1, 0.06, 0, h * 0.05, d * 0.25, mat(C.black), 0.01);
   },
 };
+
+
+/**
+ * An outdoor unit (heat pump or air conditioner): a box with a round fan grille, on feet or
+ * on a wall bracket; the fan turns while its linked climate entity runs.
+ */
+function outdoorUnit(b: Builder, w: number, d: number, h: number, f: THREE.Material, bracket: boolean) {
+  if (bracket) {
+    // two steel arms from the wall under the unit
+    for (const sx of [-1, 1]) {
+      b.box(0.04, 0.04, d, sx * (w / 2 - 0.12), 0, 0, mat(C.steel));
+      b.box(0.04, h * 0.6, 0.04, sx * (w / 2 - 0.12), 0, back(d) + 0.02, mat(C.steel));
+    }
+    d -= 0.08;
+  }
+  const z0 = bracket ? 0.04 : 0;
+  b.box(w, h - 0.1, d - 0.05, 0, 0.1, z0 - 0.025, f, 0.015);
+  if (!bracket) for (const sx of [-1, 1]) b.box(0.08, 0.1, d, sx * (w / 2 - 0.15), 0, 0, mat(C.black));
+  else for (const sx of [-1, 1]) b.box(0.06, 0.1, d - 0.05, sx * (w / 2 - 0.12), 0.0, z0 - 0.025, mat(C.black));
+  const r = Math.min(w * 0.3, (h - 0.1) * 0.4);
+  const cx = -w * 0.12;
+  const cy = 0.1 + (h - 0.1) / 2;
+  const z = z0 + d / 2;
+  b.add(new THREE.CircleGeometry(r, 32), mat(C.black), cx, cy, z - 0.045);
+  for (let k = 1; k <= 4; k++) b.add(new THREE.TorusGeometry((r * k) / 4, 0.004, 3, 32), mat(C.steel), cx, cy, z - 0.04);
+  // the fan behind the grille: three dark blades that turn while it runs
+  b.spinner(cx, cy, z - 0.042, "z", () => {
+    for (let i = 0; i < 3; i++) b.add(new THREE.CircleGeometry(r * 0.92, 10, 0, 0.75), mat("#3a3d41", { side: THREE.DoubleSide }), cx, cy, z - 0.042).rotation.z = (i / 3) * Math.PI * 2;
+  });
+  for (let i = 0; i < 2; i++) b.box(0.006, r * 2, 0.006, cx, cy - r, z - 0.04, mat(C.steel))!.rotation.z = (i * Math.PI) / 2;
+  b.box(w * 0.18, 0.06, 0.01, w * 0.32, h * 0.8, z - 0.045, mat(C.steel));
+  b.box(0.03, 0.012, 0.004, w * 0.32, h * 0.7, z - 0.044, ledMat());
+}
 
 /** A row of books standing between x0 and x1 on a shelf at y. */
 function books(b: Builder, rand: () => number, x0: number, x1: number, y: number, maxH: number, depth: number, z: number) {
@@ -4255,6 +4352,11 @@ function laundry(b: Builder, w: number, d: number, h: number, f: THREE.Material,
   b.add(new THREE.TorusGeometry(r, 0.028, 10, 36), a, 0, cy, d / 2 + 0.012);
   b.add(new THREE.CircleGeometry(r * 0.94, 36), mat(kind === "washer" ? "#2c3e48" : "#3a3f44", { roughness: 0.1, metalness: 0.3 }), 0, cy, d / 2 + 0.006);
   b.add(new THREE.CircleGeometry(r * 0.7, 36), mat("#8e9398", { metalness: 0.6, roughness: 0.4 }), 0, cy, d / 2 + 0.003);
+  // the drum's paddles, turning while it runs
+  b.spinner(0, cy, d / 2 + 0.004, "z", () => {
+    for (let i = 0; i < 3; i++) b.add(new THREE.BoxGeometry(0.03, r * 0.4, 0.004).translate(0, r * 0.45, 0), mat("#6c7176", { metalness: 0.5 }), 0, cy, d / 2 + 0.004).rotation.z = (i / 3) * Math.PI * 2;
+  });
+  b.box(0.012, 0.012, 0.004, w * 0.12, h - 0.07, d / 2 + 0.007, ledMat());
 }
 
 /** A thin green stem from a to b (merged with the leaves). */
@@ -4353,7 +4455,7 @@ function fire(b: Builder, w: number, y: number, z: number, h: number) {
   for (let i = 0; i < Math.max(3, Math.round(w / 0.08)); i++) {
     const x = -w / 2 + (w * (i + 0.5)) / Math.max(3, Math.round(w / 0.08));
     const fh = h * (0.4 + rand() * 0.6);
-    b.add(new THREE.ConeGeometry(0.035, fh, 6), mat(i % 2 ? "#ffb347" : "#ff7a2e", { emissive: i % 2 ? "#ff9a2a" : "#ff5a1a", emissiveIntensity: 0.9 }), x, y + 0.03 + fh / 2, z + (rand() - 0.5) * 0.04);
+    b.add(new THREE.ConeGeometry(0.035, fh, 6), part(mat(i % 2 ? "#ffb347" : "#ff7a2e", { emissive: i % 2 ? "#ff9a2a" : "#ff5a1a", emissiveIntensity: 0.9 }), "fire"), x, y + 0.03 + fh / 2, z + (rand() - 0.5) * 0.04);
   }
 }
 
@@ -4393,7 +4495,7 @@ function bedding(b: Builder, w: number, d: number, y: number, back = 0.04) {
 
 function tvPanel(b: Builder, w: number, h: number, y: number, z: number) {
   b.box(w, h, 0.03, 0, y, z, mat(C.black, { roughness: 0.4 }), 0.004);
-  b.box(w - 0.016, h - 0.016, 0.002, 0, y + 0.008, z + 0.016, mat(C.screen, { roughness: 0.15, metalness: 0.2 }));
+  b.box(w - 0.016, h - 0.016, 0.002, 0, y + 0.008, z + 0.016, screenMat());
 }
 
 function letterBox(b: Builder, w: number, d: number, h: number, y: number, f: THREE.Material) {
