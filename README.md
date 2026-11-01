@@ -30,21 +30,56 @@ Spanish, Italian and Polish (help with more languages is welcome).
 
 *The demo house (`npm run dev`); pictures made by `node scripts/showcase.mjs`.*
 
-## Status
+## Why Homeslice
+
+- **Everything is free, for good.** No paid add-ons, no furniture packs to buy, no licence
+  keys, no shop the integration talks to. Every feature and every piece of furniture is in
+  this repository under MIT.
+- **Home Assistant is the source of truth.** Levels are your HA floors, rooms are your HA
+  areas, and their lights, blinds, sensors and devices are found by themselves. Rename an
+  area in HA and the house follows; nothing to keep in sync by hand.
+- **No drawing program needed.** No SVG to draw in another tool, no 3D model to export
+  from Blender: the editor is in Home Assistant, with snapping walls, a plan image to trace
+  over, a wall view for exact placing, and imports (Sweet Home 3D today).
+- **3D, 2.5D and 2D from one house.** The same house is an exploded 3D model, a tilted
+  plan, a flat floor plan or all floors side by side — switch per card, not per drawing.
+- **Your AI assistant can draw it.** The house is short, readable YAML with clear errors;
+  Homeslice offers it to HA's conversation agents (LLM API), to MCP clients and over HTTP,
+  with a guide that lists your real floors, areas and entities.
+- **400+ pieces drawn to their size, with nothing to download.** Sofas get more seats as
+  they get wider, kitchens more units, wardrobes more doors — in your finishes, and they
+  react: screens show what plays, fans turn, radiators glow, cars come and go. Poly Haven
+  models and your own glTF files on top, checked before they load.
+- **Real roofs.** Roof parts at any angle, roofs that start a floor lower (walls cut along
+  them), coverings, dormers, roof windows with shutters, solar panels on the slope.
+- **Private.** Nothing leaves your Home Assistant: no cloud, no telemetry, no account.
+- **Made for wall tablets.** Draws only when something changes, a low-quality mode for old
+  tablets, kiosk options (back to the start view, dim at night, a clock), and HA's own
+  cards and actions everywhere you tap.
+
+## What it does
 
 Alpha: card and editor work and are used daily on one house, but nothing is stable yet.
 
-- **Card:** exploded 3D view with live lights (lamps light their rooms, more so at night;
-  a linked lamp lights up itself), blinds, garage doors, doors and windows that open with their contacts, temperatures and
-  awnings; linked devices show their state (TV screens, fires, fans and outdoor units
-  turning, washers running, curtains); one
-  floor on its own (the others slide away) and hover; tap a linked piece to switch it; on a lamp button drag up or down to dim, hold for details;
-  room popups (a bottom sheet on phones); optional roof and energy overlay (solar,
-  battery, grid and devices with animated power flows).
+- **Live house:** lights glow in their colours (spots, strips, indirect light, light
+  through the windows at night), blinds, shutters, awnings, curtains and garage doors move
+  with their covers, doors swing and windows tilt with their contacts, devices show their
+  state, people stand in their rooms, robot vacuums drive around with their dock's warnings.
+- **On the plan:** readings on the room labels, a heatmap (temperature, humidity, CO₂,
+  PM2.5), presence, leak/smoke/gas alarms, a window open in the rain, notes for bin day,
+  thirsty plants, post and an appliance's time left, cameras with what they see.
+- **Energy:** solar, battery, grid and devices with animated power flows and their readings.
+- **Around the house:** the real sun and its path today, weather (rain, snow, fog), a
+  garden with trees and hedges, balconies and roof terraces.
+- **Using it:** tap to switch, drag to dim, long press for details; room panels with HA's
+  own cards; shortcut buttons; layers viewers switch; time travel through the last day;
+  walk through the house at eye level; the card flies to what happens (a doorbell) or to
+  what you ask Assist for ("Show the kitchen").
 - **Editor** (admin sidebar page *Homeslice*): start a house from Home Assistant's floors
   and areas, trace rooms over a floor plan image, drag walls and corners with snapping,
-  doors and windows with their blinds, stairs, lights and energy devices; undo/redo;
-  the whole house as YAML in and out.
+  doors and windows with their blinds, stairs, furniture, lights, cameras, energy devices,
+  robots, roof levels; undo/redo; the whole house as YAML in and out; backup and restore.
+- **In seven languages**, with number formats as your HA settings say.
 
 ## Installation
 
