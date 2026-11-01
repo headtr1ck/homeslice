@@ -1733,15 +1733,15 @@ export class HomeslicePanel extends LitElement {
     else void send();
   }
 
-  private async uploadUnderlay(file: File) {
+  private async uploadUnderlay(file: File | Blob, metresPerPixel?: number) {
     const level = this._level;
     try {
-      const image = await shrinkImage(file, 2400);
+      const image = await shrinkImage(file as File, 2400);
       const { width, height } = await imageSize(image);
-      // start by fitting the image to the house's width
+      // start by fitting the image to the house's width (a robot's map comes at its own scale)
       const outline = outlineScope(this._model!, level).poly;
       const { min, max } = outline.length ? bbox(outline) : { min: [0, 0] as Vec2, max: [10, 8] as Vec2 };
-      const scale = Math.max(0.001, (max[0] - min[0]) / width);
+      const scale = metresPerPixel ?? Math.max(0.001, (max[0] - min[0]) / width);
       const place = { origin: [min[0], min[1]] as Vec2, scale, rotation: 0 };
       await this._hass!.callWS({ type: "homeslice/underlay/set", house: this._house, level, image, place, opacity: 0.5 });
       this._underlay = { level, image, width, height, place, opacity: 0.5 };
@@ -1808,6 +1808,16 @@ export class HomeslicePanel extends LitElement {
       ${line}${mark(c?.a)}${mark(c?.b)}`;
   }
 
+  /** Map pictures of robot vacuums: image entities on the same device as a vacuum. */
+  private robotMaps(): string[] {
+    const hass = this._hass;
+    if (!hass?.entities) return [];
+    const devices = new Set(Object.values(hass.entities).filter((e) => e.entity_id.startsWith("vacuum.") && e.device_id).map((e) => e.device_id));
+    return Object.values(hass.entities)
+      .filter((e) => e.entity_id.startsWith("image.") && e.device_id && devices.has(e.device_id) && hass.states[e.entity_id]?.attributes.entity_picture)
+      .map((e) => e.entity_id);
+  }
+
   private renderUnderlayInspector() {
     const u = this._underlay?.level === this._level ? this._underlay : null;
     const c = this._calib;
@@ -1819,7 +1829,23 @@ export class HomeslicePanel extends LitElement {
       }} />
       <span>${u ? this.t("editor.underlay_replace") : this.t("editor.underlay_upload")}</span>
     </label>`;
-    if (!u) return html`<h3>${this.t("editor.underlay")}</h3><p class="muted">${this.t("editor.underlay_hint")}</p>${fileInput}`;
+    // robot vacuums' maps (image entities of a vacuum's device): true to scale, to trace rooms on
+    const maps = this.robotMaps();
+    const mapButtons = maps.length
+      ? html`<div class="row wrap">
+          ${maps.map(
+            (id) => html`<button data-robot-map=${id} @click=${async () => {
+              const url = this._hass?.states[id]?.attributes.entity_picture as string | undefined;
+              if (!url) return;
+              const blob = await (await fetch(url)).blob();
+              // Roborock draws its maps at 12.5 mm per pixel
+              await this.uploadUnderlay(blob, 0.0125);
+            }}>${this.t("editor.underlay_robot_map", { map: this.entityName(id) })}</button>`,
+          )}
+        </div>
+        <p class="muted">${this.t("editor.underlay_robot_hint")}</p>`
+      : nothing;
+    if (!u) return html`<h3>${this.t("editor.underlay")}</h3><p class="muted">${this.t("editor.underlay_hint")}</p>${fileInput}${mapButtons}`;
     return html`<h3>${this.t("editor.underlay")}</h3>
       ${c
         ? html`<div class="calib">

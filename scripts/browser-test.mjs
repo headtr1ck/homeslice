@@ -2502,6 +2502,31 @@ console.log("editor, starting from scratch");
     assert(!(await page.locator("homeslice-panel svg.plan image.underlay").count()), "image still shown");
   });
 
+  await test("floor plan image: a robot vacuum's map, true to scale", async () => {
+    await page.keyboard.press("Escape");
+    // a vacuum with a map picture on its device
+    await page.route("**/api/image_proxy/image.robo_map**", (route) => route.fulfill({ contentType: "image/jpeg", body: readFileSync("dev/fixtures/texture.jpg") }));
+    await page.evaluate(() => {
+      const p = window.panel;
+      const h = p.hass;
+      p.hass = {
+        ...h,
+        entities: { ...h.entities, "vacuum.robo": { ...(h.entities["vacuum.robo"] ?? { entity_id: "vacuum.robo" }), device_id: "robo_device" }, "image.robo_map": { entity_id: "image.robo_map", device_id: "robo_device" } },
+        states: { ...h.states, "image.robo_map": { entity_id: "image.robo_map", state: "2026-11-01", attributes: { friendly_name: "Robo Ground Floor", entity_picture: "/api/image_proxy/image.robo_map?token=x" } } },
+      };
+    });
+    const b = await page.locator("homeslice-panel svg.plan").boundingBox();
+    await page.mouse.click(b.x + 5, b.y + b.height - 5); // empty space: the level inspector
+    const button = page.locator("homeslice-panel .inspector button[data-robot-map='image.robo_map']");
+    await button.waitFor({ timeout: 5000 });
+    await button.click();
+    await page.waitForSelector("homeslice-panel svg.plan image.underlay");
+    const scale = await page.evaluate(() => window.panel._underlay.place.scale);
+    assert(scale === 0.0125, `scale ${scale}`);
+    await page.locator("homeslice-panel .inspector button", { hasText: "Remove image" }).click();
+    await page.keyboard.press("Escape");
+  });
+
   await test("import from Sweet Home 3D: rooms on the wall centres, doors, windows, furniture", async () => {
     await page.keyboard.press("Escape");
     await page.locator("homeslice-panel header button[aria-label='House settings']").click();

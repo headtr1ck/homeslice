@@ -1488,5 +1488,7 @@
   "alias.record_player": "record player, turntable, vinyl, hifi",
   "modern.game_console": "Games console",
   "alias.game_console": "game console, playstation, xbox, gaming",
-  "editor.robot_roborock": "Roborock (asks the robot for its position)"
+  "editor.robot_roborock": "Roborock (asks the robot for its position)",
+  "editor.underlay_robot_map": "Use the map: {map}",
+  "editor.underlay_robot_hint": "A robot vacuum's map is true to scale: drag it into place over the house, then trace the rooms on it."
 }

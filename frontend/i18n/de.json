@@ -1488,5 +1488,7 @@
   "alias.record_player": "Plattenspieler, Schallplatte, Vinyl, HiFi",
   "modern.game_console": "Spielkonsole",
   "alias.game_console": "Spielkonsole, Konsole, Gaming",
-  "editor.robot_roborock": "Roborock (fragt den Roboter nach seiner Position)"
+  "editor.robot_roborock": "Roborock (fragt den Roboter nach seiner Position)",
+  "editor.underlay_robot_map": "Karte verwenden: {map}",
+  "editor.underlay_robot_hint": "Die Karte eines Saugroboters ist maßstabsgetreu: über das Haus ziehen, dann die Räume darauf nachzeichnen."
 }
