@@ -4402,6 +4402,24 @@ export class HomeslicePanel extends LitElement {
             }}>${st.errorsCopied ? this.t("editor.copied") : this.t("editor.ai_errors")}</button>`
         : nothing}
       <button class="primary" ?disabled=${!st.paste?.trim()} @click=${applyPaste}>${this.t("editor.yaml_apply")}</button>
+      <h3>${this.t("editor.import")}</h3>
+      <label class="file"
+        >${this.t("editor.import_sh3d")}
+        <input type="file" accept=".sh3d" @change=${async (e: Event) => {
+          const file = (e.target as HTMLInputElement).files?.[0];
+          if (!file) return;
+          try {
+            // the converter (and its unzip) loads only when someone imports
+            const { sh3dXml, sweetHomeToHouse } = await import("../import/sweethome");
+            const house = sweetHomeToHouse(sh3dXml(new Uint8Array(await file.arrayBuffer())), m.id);
+            // into the box above, to look at (and fix) before using it
+            this._settings = { ...st, paste: toYaml(house, { lineWidth: 0, flowCollectionPadding: false }), problems: undefined };
+          } catch (err) {
+            this._settings = { ...st, problems: [String((err as Error).message)] };
+          }
+        }} />
+      </label>
+      <p class="muted">${this.t("editor.import_hint")}</p>
       <h3>${this.t("editor.danger")}</h3>
       <button class="danger" @click=${async () => {
         if (!confirm(this.t("editor.delete_house_confirm", { name: m.name ?? this._house }))) return;

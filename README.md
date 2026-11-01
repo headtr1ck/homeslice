@@ -132,6 +132,9 @@ so any save can be undone (editor → ⚙ → *Restore the version from …*).
 
 The guide itself is [`custom_components/homeslice/guide.md`](custom_components/homeslice/guide.md).
 
+**Coming from Sweet Home 3D?** Editor → ⚙ → *Import* → *From Sweet Home 3D (.sh3d)*: rooms, doors, windows and
+furniture come in as YAML to check before using it.
+
 ## Card
 
 ```yaml

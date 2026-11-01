@@ -9,6 +9,7 @@ import { existsSync, mkdirSync, readFileSync, readdirSync } from "node:fs";
 import { extname, join, resolve } from "node:path";
 import { chromium } from "playwright-core";
 import { parse } from "yaml";
+import { strToU8, zipSync } from "three/examples/jsm/libs/fflate.module.js";
 
 const root = resolve(import.meta.dirname, "..");
 const out = join(root, "test-results");
@@ -2463,6 +2464,36 @@ console.log("editor, starting from scratch");
     assert(stored?.place?.rotation === 90 && Math.abs(stored.place.scale - 0.02) < 1e-6, `stored: ${JSON.stringify(stored?.place)}`);
     await page.locator("homeslice-panel .inspector button", { hasText: "Remove image" }).click();
     assert(!(await page.locator("homeslice-panel svg.plan image.underlay").count()), "image still shown");
+  });
+
+  await test("import from Sweet Home 3D: rooms on the wall centres, doors, windows, furniture", async () => {
+    await page.keyboard.press("Escape");
+    await page.locator("homeslice-panel header button[aria-label='House settings']").click();
+    // two rooms inside 20 cm walls, a door between them, a window, a sofa and a bed
+    const xml = `<?xml version="1.0"?><home name="Flat">
+      <level id="l0" name="Ground" elevation="0" height="250" floorThickness="12"/>
+      <wall level="l0" xStart="0" yStart="0" xEnd="820" yEnd="0" thickness="20"/>
+      <room level="l0" name="Living"><point x="10" y="10"/><point x="490" y="10"/><point x="490" y="390"/><point x="10" y="390"/></room>
+      <room level="l0" name="Bedroom"><point x="510" y="10"/><point x="810" y="10"/><point x="810" y="390"/><point x="510" y="390"/></room>
+      <doorOrWindow level="l0" name="Door" x="500" y="200" angle="1.5708" width="90" depth="20" height="210" elevation="0"/>
+      <doorOrWindow level="l0" name="Window" x="250" y="0" angle="0" width="150" depth="20" height="130" elevation="90"/>
+      <pieceOfFurniture level="l0" name="Sofa" x="250" y="300" angle="3.14159" width="220" depth="90" height="80"/>
+      <pieceOfFurniture level="l0" name="Double bed" x="660" y="200" angle="0" width="160" depth="200" height="50"/>
+    </home>`;
+    const sh3d = Buffer.from(zipSync({ "Home.xml": strToU8(xml) }));
+    await page.locator("homeslice-panel input[type=file][accept='.sh3d']").setInputFiles({ name: "flat.sh3d", mimeType: "application/octet-stream", buffer: sh3d });
+    await page.waitForFunction(() => window.panel._settings?.paste?.includes("Bedroom"), null, { timeout: 5000 });
+    const house = parse(await page.evaluate(() => window.panel._settings.paste));
+    const [living, bedroom] = house.levels[0].rooms;
+    assert(living.name === "Living" && JSON.stringify(living.polygon[0]) === "[0,0]", `living: ${JSON.stringify(living)}`);
+    assert(bedroom.polygon.some(([x]) => x === 8.2), `bedroom: ${JSON.stringify(bedroom)}`);
+    const types = house.levels[0].openings.map((o) => `${o.type}:${o.room}:${o.side}`).sort();
+    assert(JSON.stringify(types) === JSON.stringify(["door:bedroom:west", "window:living:north"].sort()) || JSON.stringify(types) === JSON.stringify(["door:living:east", "window:living:north"].sort()), `openings: ${types}`);
+    assert(living.furniture[0].type === "sofa" && living.furniture[0].rotation === 180 && bedroom.furniture[0].type === "bed", `furniture: ${JSON.stringify([living.furniture, bedroom.furniture])}`);
+    await page.locator("homeslice-panel textarea.yaml").fill("");
+    await page.evaluate(() => window.panel.shadowRoot.activeElement?.blur());
+    await page.locator("homeslice-panel header button[aria-label='House settings']").click();
+    assert(!(await page.evaluate(() => window.panel._settings)), "settings still open");
   });
 
   await test("house settings: YAML in and out, invalid YAML is explained", async () => {
