@@ -12,7 +12,7 @@
     "useDefineForClassFields": false,
     "resolveJsonModule": true,
     "skipLibCheck": true,
-    "types": ["vitest/importMeta", "node"]
+    "types": ["vitest/importMeta", "vite/client", "node"]
   },
   "include": ["frontend/**/*.ts", "frontend/**/*.json"]
 }

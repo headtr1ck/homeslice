@@ -1,0 +1,43 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Homeslice",
+        "description": "Dodaje kartę Homeslice do Twoich dashboardów. Umieść model domu w pliku `homeslice/home.yaml` w folderze konfiguracji."
+      }
+    },
+    "abort": {
+      "single_instance_allowed": "Homeslice jest już skonfigurowany."
+    }
+  },
+  "issues": {
+    "missing_floor": {
+      "title": "Homeslice: piętro {ref} już nie istnieje",
+      "description": "Dom **{house}** łączy poziom {level} z piętrem `{ref}`, którego Home Assistant już nie ma. Połącz poziom z innym piętrem lub przywróć piętro."
+    },
+    "missing_area": {
+      "title": "Homeslice: obszar {ref} już nie istnieje",
+      "description": "Dom **{house}** łączy pokój {room} z obszarem `{ref}`, którego Home Assistant już nie ma. Połącz pokój z innym obszarem lub przywróć obszar."
+    },
+    "missing_entity_opening": {
+      "title": "Homeslice: encja {ref} już nie istnieje",
+      "description": "Dom **{house}** używa `{ref}` dla drzwi lub okna w pokoju {room}, ale Home Assistant już nie zna tej encji. Wybierz inną encję lub usuń powiązanie."
+    },
+    "missing_entity_facade": {
+      "title": "Homeslice: encja {ref} już nie istnieje",
+      "description": "Dom **{house}** używa `{ref}` dla okna fasady {opening}, ale Home Assistant już nie zna tej encji. Wybierz inną encję lub usuń powiązanie."
+    }
+  },
+  "services": {
+    "import_files": {
+      "name": "Importuj pliki domów",
+      "description": "Importuje każdy plik YAML z folderu homeslice w konfiguracji do magazynu Homeslice. Nazwa pliku to identyfikator domu. Domy ostatnio zapisane w edytorze są pomijane, chyba że wymusisz import.",
+      "fields": {
+        "force": {
+          "name": "Wymuś",
+          "description": "Nadpisz także domy edytowane w edytorze."
+        }
+      }
+    }
+  }
+}

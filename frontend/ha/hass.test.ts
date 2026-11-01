@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { areaEntities, areaLight, areaPopup, areaSensors, areaTemperature, coverOpen, daylight, HEATMAP_STEPS, stepColor, type Hass } from "./hass";
+import { areaEntities, areaLight, areaPopup, areaValues, areaSensors, areaTemperature, coverOpen, daylight, HEATMAP_STEPS, stepColor, type Hass } from "./hass";
 
 const fixture = JSON.parse(readFileSync("dev/fixtures/demo-hass.json", "utf8"));
 const hass = (): Hass => ({ ...fixture, callWS: async () => null, callService: async () => null });
@@ -65,6 +65,21 @@ describe("room popup", () => {
     expect(sections.map((s) => s.title)).toEqual(["cameras", "scenes", "sensors"]);
     expect(sections[0].cards[0]).toMatchObject({ type: "picture-entity", entity: "camera.terrace" });
     expect(sections[2].cards).toEqual([{ type: "tile", entity: "sensor.pm" }]);
+  });
+});
+
+describe("room values", () => {
+  it("writes readings with their units and colours the ones outside the comfortable range", () => {
+    expect(areaValues(hass(), "living_room", ["temperature", "humidity", "carbon_dioxide", "pm25"])).toEqual([
+      { kind: "temperature", text: "21.4 °C", color: null },
+      { kind: "humidity", text: "48%", color: null },
+      { kind: "carbon_dioxide", text: "1240 ppm", color: "#f0a33c" },
+    ]);
+  });
+
+  it("takes the card's own steps", () => {
+    const [co2] = areaValues(hass(), "living_room", ["carbon_dioxide"], { carbon_dioxide: [{ value: 1200, color: "red" }] });
+    expect(co2.color).toBe("red");
   });
 });
 

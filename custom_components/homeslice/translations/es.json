@@ -1,0 +1,43 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Homeslice",
+        "description": "Añade la tarjeta Homeslice a tus paneles. Pon el modelo de tu casa en `homeslice/home.yaml` dentro de tu carpeta de configuración."
+      }
+    },
+    "abort": {
+      "single_instance_allowed": "Homeslice ya está configurado."
+    }
+  },
+  "issues": {
+    "missing_floor": {
+      "title": "Homeslice: la planta {ref} ya no existe",
+      "description": "La casa **{house}** vincula el nivel {level} con la planta `{ref}`, que Home Assistant ya no tiene. Vincula el nivel a otra planta o restaura la planta."
+    },
+    "missing_area": {
+      "title": "Homeslice: el área {ref} ya no existe",
+      "description": "La casa **{house}** vincula la habitación {room} con el área `{ref}`, que Home Assistant ya no tiene. Vincula la habitación a otra área o restaura el área."
+    },
+    "missing_entity_opening": {
+      "title": "Homeslice: la entidad {ref} ya no existe",
+      "description": "La casa **{house}** usa `{ref}` para una puerta o ventana de la habitación {room}, pero Home Assistant ya no conoce esta entidad. Elige otra entidad o quita el vínculo."
+    },
+    "missing_entity_facade": {
+      "title": "Homeslice: la entidad {ref} ya no existe",
+      "description": "La casa **{house}** usa `{ref}` para la ventana de fachada {opening}, pero Home Assistant ya no conoce esta entidad. Elige otra entidad o quita el vínculo."
+    }
+  },
+  "services": {
+    "import_files": {
+      "name": "Importar archivos de casas",
+      "description": "Importa todos los archivos YAML de la carpeta homeslice de tu configuración al almacenamiento de Homeslice. El nombre del archivo es el id de la casa. Las casas guardadas por última vez en el editor se omiten salvo que se fuerce.",
+      "fields": {
+        "force": {
+          "name": "Forzar",
+          "description": "Sobrescribe también las casas que se editaron en el editor."
+        }
+      }
+    }
+  }
+}

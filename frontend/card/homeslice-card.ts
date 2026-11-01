@@ -1,6 +1,6 @@
 import { LitElement, css, html, nothing, svg, type PropertyValues } from "lit";
-import { HEATMAP_STEPS, areaEntities, areaIlluminance, areaPopup, areaReading, areaTemperature, daylight, stepColor, contactOpen, coverOpen, lightsLook, type Hass, type PopupSection, alertIcon, areaSensors, type AreaSensors } from "../ha/hass";
-import { formatNumber, localize, type StringKey } from "../i18n/localize";
+import { HEATMAP_STEPS, areaEntities, areaValues, type AreaValue, areaIlluminance, areaPopup, areaReading, areaTemperature, daylight, stepColor, contactOpen, coverOpen, lightsLook, type Hass, type PopupSection, alertIcon, areaSensors, type AreaSensors } from "../ha/hass";
+import { formatNumber, loadLanguage, localize, type StringKey } from "../i18n/localize";
 import { expandHouse } from "../model/expand";
 import { labelPoint } from "../model/geometry";
 import type { House, Issue, Room, Vec2 } from "../model/types";
@@ -64,7 +64,15 @@ export interface HomesliceCardConfig {
    * yellow … damp blue) or `carbon_dioxide` (orange, red when stale). Comfortable rooms
    * keep their look.
    */
-  heatmap?: "temperature" | "humidity" | "carbon_dioxide";
+  heatmap?: "temperature" | "humidity" | "carbon_dioxide" | "pm25";
+  /**
+   * Readings on each room's label (default `["temperature"]`; `[]` for none): `temperature`,
+   * `humidity`, `carbon_dioxide`, `pm25`, `volatile_organic_compounds`. A dot shows a
+   * reading's colour when it is outside the comfortable range.
+   */
+  values?: string[];
+  /** Own colour steps per reading (they replace the defaults, for the labels and the heatmap). */
+  thresholds?: Record<string, { value: number; color: string | null }[]>;
   /** Rooms with a lux sensor look as bright as it reads, and show it on their label (default false). */
   lux?: boolean;
   /** Mark rooms with someone in them (motion, occupancy, presence sensors; default true). Leak, smoke and gas alarms always show. */
@@ -103,7 +111,8 @@ interface Label {
   x: number;
   y: number;
   name: string;
-  temperature: string | null;
+  values: AreaValue[];
+  lux: string | null;
   areaId?: string;
   presence: boolean;
   alerts: string[];
@@ -417,6 +426,11 @@ export class HomesliceCard extends LitElement {
    */
   set hass(hass: Hass | undefined) {
     this._hass = hass;
+    void loadLanguage(hass?.locale?.language).then((loaded) => {
+      if (!loaded) return;
+      this.requestUpdate();
+      this.scheduleDraw();
+    });
     if (!hass || !this.config) return;
     for (const c of this.popupCards) c.hass = hass;
     if (this.loadedFor !== this.config.house) {
@@ -672,7 +686,7 @@ export class HomesliceCard extends LitElement {
     const inverted = new Set(this.house.invertedCovers);
     const covers = this.openings.map((o) => (o.cover ? coverOpen(hass, o.cover, inverted.has(o.cover)) : null));
     const contacts = this.openings.map((o) => (o.contact ? contactOpen(hass, o.contact) : false));
-    const temperatures = this.rooms.map((r) => (r.room.areaId ? areaTemperature(hass, r.room.areaId) : null));
+    const values = this.rooms.map((r) => this.roomValues(r));
     // lux readings, rounded so small changes don't redraw (outside, the sun does it)
     const lux = this.rooms.map((r) => (this.config.lux && r.room.areaId && r.room.kind === "room" ? areaIlluminance(hass, r.room.areaId) : null)).map((v) => (v === null ? null : Math.round(daylight(v) * 20) / 20));
     // an alarm turns the room's floor red, over its lights
@@ -700,9 +714,9 @@ export class HomesliceCard extends LitElement {
     const heat = this.rooms.map((r) => {
       const kind = this.config.heatmap;
       const v = kind && r.room.areaId && r.room.kind === "room" ? areaReading(hass, r.room.areaId, kind) : null;
-      return v === null || !kind ? null : stepColor(v, HEATMAP_STEPS[kind] ?? []);
+      return v === null || !kind ? null : stepColor(v, this.steps[kind] ?? []);
     });
-    const signature = JSON.stringify([look, this.config.accent, lux, heat, lights, lamps, covers, contacts, temperatures, sensors, awnings, devices, cameras, this.energyReadings, this.robotReadings, this.robotNeeds, sunAt]);
+    const signature = JSON.stringify([look, this.config.accent, lux, heat, lights, lamps, covers, contacts, values, sensors, awnings, devices, cameras, this.energyReadings, this.robotReadings, this.robotNeeds, sunAt]);
     if (signature === this.stateSignature) return;
     this.stateSignature = signature;
     this.lamps.forEach((l, i) => this.renderer!.setLamp(l.entity, lamps[i]));
@@ -806,6 +820,17 @@ export class HomesliceCard extends LitElement {
     if (back === null) {
       if (this._level) await this.selectLevel(this._level);
     } else await this.selectLevel(back);
+  }
+
+  /** The colour steps per reading: the card's own, else the defaults. */
+  private get steps() {
+    return { ...HEATMAP_STEPS, ...this.config.thresholds };
+  }
+
+  /** The readings on a room's label. */
+  private roomValues(r: PlacedRoom): AreaValue[] {
+    if (!this.hass || !r.room.areaId) return [];
+    return areaValues(this.hass, r.room.areaId, this.config.values ?? ["temperature"], this.steps);
   }
 
   /** A room's lux reading for its label, when the card shows them. */
@@ -1215,7 +1240,8 @@ export class HomesliceCard extends LitElement {
         levelIndex: r.levelIndex,
         ...p,
         name: this.roomName(r),
-        temperature: [areaId ? areaTemperature(this.hass, areaId) : null, this.luxText(r)].filter(Boolean).join(" · ") || null,
+        values: this.roomValues(r),
+        lux: this.luxText(r),
         areaId,
         ...this.roomSensors(r.room),
         hasLights: this.roomLights(r.key).length > 0,
@@ -1309,11 +1335,11 @@ export class HomesliceCard extends LitElement {
                 : nothing}
               <button class="name" @click=${() => this.openPopup(l.key)}>
                 <span class="name">${l.name}</span>
-                ${l.temperature || l.presence || l.alerts.length
+                ${l.values.length || l.lux || l.presence || l.alerts.length
                   ? html`<span class="temp"
                       >${l.alerts.map((a) => html`<ha-icon class="alert-icon" icon=${alertIcon(a)} title=${this.t(`card.alert_${a}` as StringKey)}></ha-icon>`)}${l.presence
                         ? html`<ha-icon class="presence" icon="mdi:motion-sensor" title=${this.t("card.presence")}></ha-icon>`
-                        : nothing}${l.temperature ?? ""}</span
+                        : nothing}${[...l.values.map((v) => html`<span class="value">${v.color ? html`<i class="dot" style="background:${v.color}"></i>` : nothing}${v.text}</span>`), ...(l.lux ? [html`<span class="value">${l.lux}</span>`] : [])].map((v, i) => (i ? html` · ${v}` : v))}</span
                     >`
                   : nothing}
               </button>
@@ -1573,6 +1599,17 @@ export class HomesliceCard extends LitElement {
       display: inline-flex;
       align-items: center;
       gap: 2px;
+    }
+    .label span.value {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+    }
+    .label i.dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.7);
     }
     .label span.temp ha-icon {
       --mdc-icon-size: 13px;

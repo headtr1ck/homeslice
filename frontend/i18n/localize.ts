@@ -6,11 +6,34 @@ import en from "./en.json";
 
 export type StringKey = keyof typeof en;
 
-const LANGUAGES: Record<string, Partial<Record<StringKey, string>>> = { en, de };
+type Table = Partial<Record<StringKey, string>>;
+
+// English and German come with the bundle; the other languages load the first time a
+// card or the editor needs them (wall tablets shouldn't download every language).
+const LANGUAGES: Record<string, Table> = { en, de };
+const MORE = import.meta.glob<Table>(["./*.json", "!./en.json", "!./de.json"], { import: "default" });
+const pending = new Map<string, Promise<void>>();
+
+const code = (language: string | undefined) =>
+  [language ?? "en", (language ?? "").split("-")[0]].find((c) => LANGUAGES[c] || MORE[`./${c}.json`]);
+
+/** Loads a language's texts; true when it wasn't there yet (the caller redraws). */
+export async function loadLanguage(language: string | undefined): Promise<boolean> {
+  const c = code(language);
+  if (!c || LANGUAGES[c]) return false;
+  if (!pending.has(c)) pending.set(c, MORE[`./${c}.json`]().then((t) => void (LANGUAGES[c] = t)));
+  await pending.get(c);
+  return true;
+}
+
+/** The texts of a language as far as loaded (English until then). */
+export function texts(language: string | undefined): Table {
+  const c = code(language);
+  return (c && LANGUAGES[c]) || en;
+}
 
 export function localize(language: string | undefined, key: StringKey, vars: Record<string, string | number> = {}): string {
-  const table = LANGUAGES[language ?? "en"] ?? LANGUAGES[(language ?? "").split("-")[0]] ?? en;
-  const text = table[key] ?? en[key] ?? key;
+  const text = texts(language)[key] ?? en[key] ?? key;
   return text.replace(/\{(\w+)\}/g, (m, name: string) => (name in vars ? String(vars[name]) : m));
 }
 

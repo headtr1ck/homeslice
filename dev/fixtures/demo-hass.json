@@ -154,6 +154,14 @@
     "binary_sensor.kids_room_leak": {
       "entity_id": "binary_sensor.kids_room_leak",
       "area_id": "kids_room"
+    },
+    "sensor.living_room_humidity": {
+      "entity_id": "sensor.living_room_humidity",
+      "area_id": "living_room"
+    },
+    "sensor.living_room_co2": {
+      "entity_id": "sensor.living_room_co2",
+      "area_id": "living_room"
     }
   },
   "states": {
@@ -383,6 +391,24 @@
       "attributes": {
         "friendly_name": "Kids room leak",
         "device_class": "moisture"
+      }
+    },
+    "sensor.living_room_humidity": {
+      "entity_id": "sensor.living_room_humidity",
+      "state": "48",
+      "attributes": {
+        "friendly_name": "Living Room Humidity",
+        "device_class": "humidity",
+        "unit_of_measurement": "%"
+      }
+    },
+    "sensor.living_room_co2": {
+      "entity_id": "sensor.living_room_co2",
+      "state": "1240",
+      "attributes": {
+        "friendly_name": "Living Room CO2",
+        "device_class": "carbon_dioxide",
+        "unit_of_measurement": "ppm"
       }
     }
   },

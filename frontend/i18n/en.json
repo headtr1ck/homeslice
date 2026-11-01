@@ -1496,5 +1496,8 @@
   "card.robot_needs": "Needs attention: {items}",
   "popup.cameras": "Cameras",
   "popup.scenes": "Scenes",
-  "cardeditor.room_panel": "A tap on a room opens its panel"
+  "cardeditor.room_panel": "A tap on a room opens its panel",
+  "cardeditor.heatmap_pm25": "Fine dust (PM2.5)",
+  "cardeditor.heatmap_volatile_organic_compounds": "VOC",
+  "cardeditor.values": "On the room labels"
 }

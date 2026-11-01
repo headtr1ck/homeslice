@@ -9,7 +9,7 @@ import { GLTFExporter } from "three/examples/jsm/exporters/GLTFExporter.js";
 import { parse as parseYaml, stringify as toYaml } from "yaml";
 import { areaEntities, type Hass } from "../ha/hass";
 import { linkDomain } from "../ha/devices";
-import { formatNumber, localize, type StringKey } from "../i18n/localize";
+import { formatNumber, loadLanguage, localize, texts, type StringKey } from "../i18n/localize";
 import en from "../i18n/en.json";
 import de from "../i18n/de.json";
 import { DEFAULTS, LIGHT_TYPES, expandHouse } from "../model/expand";
@@ -509,6 +509,7 @@ export class HomeslicePanel extends LitElement {
   set hass(hass: Hass | undefined) {
     const first = !this._hass && hass;
     this._hass = hass;
+    void loadLanguage(hass?.locale?.language).then((loaded) => loaded && this.requestUpdate());
     if (first) void this.loadHouses();
     // live readings (robots, lights) follow HA, at most once a second
     if (!this.hassRefresh)
@@ -4119,9 +4120,9 @@ export class HomeslicePanel extends LitElement {
       )}`;
   }
 
-  /** Other words for a piece, in every language (people search in the words they think in). */
+  /** Other words for a piece in English, German and the user's language (people search in the words they think in). */
   private aliases(kind: string): string[] {
-    return [en, de].map((l) => (l as Record<string, string>)[`alias.${kind}`] ?? "").filter(Boolean);
+    return [...new Set([en, de, texts(this._hass?.locale?.language)])].map((l) => (l as Record<string, string>)[`alias.${kind}`] ?? "").filter(Boolean);
   }
 
   /** Where a piece's model is from and its name, e.g. "Poly Haven · Sofa 01". */

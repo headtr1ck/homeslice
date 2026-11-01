@@ -17,7 +17,8 @@ floors, areas and entities, and see it live on your dashboards as an interactive
 exploded isometric 3D house or a 2D floor plan: a Lovelace card that turns your home into a
 digital twin, with lights, blinds, shutters, garage doors, climate, media players and
 energy flows. Free and open source (MIT), installed with HACS, made for wall tablets.
-**No paywall, no premium features: everything is free.**
+**No paywall, no premium features: everything is free.** In English, German, French, Dutch,
+Spanish, Italian and Polish (help with more languages is welcome).
 
 | The card: your house in 3D | At night, with its lights on |
 |---|---|
@@ -153,7 +154,10 @@ accent: "#4fc3f7"              # the night look's outline colour
 presence: true                 # mark rooms with motion/occupancy/presence; leak, smoke and gas alarms always show
 lux: false                     # true: rooms as bright as their lux sensor reads (dark rooms look dark), with the reading
 quality: auto                  # low: for weak wall tablets (no shadows, plain colours, simple furniture); high; auto picks
-heatmap: temperature           # optional: tint rooms by temperature (blue cold … red hot), humidity or carbon_dioxide
+heatmap: temperature           # optional: tint rooms by temperature (blue cold … red hot), humidity, carbon_dioxide or pm25
+values: [temperature, humidity, carbon_dioxide]   # readings on the room labels (default: temperature), a dot when out of range
+thresholds:                    # optional: own colour steps (labels and heatmap)
+  carbon_dioxide: [{ value: 800, color: orange }, { value: 1200, color: red }]
 follow: [event.doorbell, binary_sensor.front_door]   # turn to where these go active (a note says what), then back
 follow_alarms: false           # true: also turn to leak, smoke and gas alarms
 follow_seconds: 30             # how long to stay; nothing moves while someone uses the card

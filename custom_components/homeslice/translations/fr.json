@@ -1,0 +1,43 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Homeslice",
+        "description": "Ajoute la carte Homeslice à vos tableaux de bord. Placez le modèle de votre maison dans `homeslice/home.yaml` dans votre dossier de configuration."
+      }
+    },
+    "abort": {
+      "single_instance_allowed": "Homeslice est déjà configuré."
+    }
+  },
+  "issues": {
+    "missing_floor": {
+      "title": "Homeslice : l'étage {ref} n'existe plus",
+      "description": "La maison **{house}** lie le niveau {level} à l'étage `{ref}`, que Home Assistant ne connaît plus. Liez le niveau à un autre étage ou recréez l'étage."
+    },
+    "missing_area": {
+      "title": "Homeslice : la zone {ref} n'existe plus",
+      "description": "La maison **{house}** lie la pièce {room} à la zone `{ref}`, que Home Assistant ne connaît plus. Liez la pièce à une autre zone ou recréez la zone."
+    },
+    "missing_entity_opening": {
+      "title": "Homeslice : l'entité {ref} n'existe plus",
+      "description": "La maison **{house}** utilise `{ref}` pour une porte ou une fenêtre de la pièce {room}, mais Home Assistant ne connaît plus cette entité. Choisissez une autre entité ou supprimez le lien."
+    },
+    "missing_entity_facade": {
+      "title": "Homeslice : l'entité {ref} n'existe plus",
+      "description": "La maison **{house}** utilise `{ref}` pour la fenêtre de façade {opening}, mais Home Assistant ne connaît plus cette entité. Choisissez une autre entité ou supprimez le lien."
+    }
+  },
+  "services": {
+    "import_files": {
+      "name": "Importer les fichiers de maison",
+      "description": "Importe tous les fichiers YAML du dossier homeslice de votre configuration dans le stockage de Homeslice. Le nom du fichier est l'ID de la maison. Les maisons enregistrées en dernier dans l'éditeur sont ignorées, sauf si l'import est forcé.",
+      "fields": {
+        "force": {
+          "name": "Forcer",
+          "description": "Écrase aussi les maisons modifiées dans l'éditeur."
+        }
+      }
+    }
+  }
+}

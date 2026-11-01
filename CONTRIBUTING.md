@@ -24,7 +24,12 @@ Home Assistant.
 ## Pull requests
 
 - One topic per pull request, with tests (see `AGENTS.md`).
-- Texts in English and German (a rough German translation is fine; say so).
+- Texts in English and German (a rough German translation is fine; say so). Other languages
+  (French, Dutch, Spanish, Italian, Polish) get the new keys too; a machine translation is fine,
+  fixes by native speakers are very welcome.
+- A new language: copy `frontend/i18n/en.json` and `custom_components/homeslice/translations/en.json`
+  to `<code>.json` and translate them; `npm test` checks keys and placeholders. Only English and
+  German are in the main bundle, other languages load when needed.
 - Furniture: CI posts pictures of added and changed pieces on the pull request.
 - Never include a real home, photos or floor plans.
 

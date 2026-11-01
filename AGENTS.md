@@ -40,7 +40,7 @@ npm run showcase         # the README's pictures (docs/images/): after changing 
 - **Two copies of the rules.** `expand.ts` (editor, card) and `validate.py` (API, AI
   tools) must agree: same rules, order and messages. Change both, regenerate the cases
   (`UPDATE_CASES=1 …`), and `pytest tests/test_validate.py` proves the Python side.
-- **Every text in English and German** (`frontend/i18n/*.json`, and
+- **Every text in every language** (English and German by hand; French, Dutch, Spanish, Italian, Polish need the key too) (`frontend/i18n/*.json`, and
   `custom_components/homeslice/translations/` for the integration); `npm test` checks keys
   and placeholders.
 - **Tests with every change**: a unit test for logic (`*.test.ts`, `tests/*.py`), a browser

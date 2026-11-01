@@ -1496,5 +1496,8 @@
   "card.robot_needs": "Braucht Aufmerksamkeit: {items}",
   "popup.cameras": "Kameras",
   "popup.scenes": "Szenen",
-  "cardeditor.room_panel": "Tippen auf einen Raum öffnet seine Übersicht"
+  "cardeditor.room_panel": "Tippen auf einen Raum öffnet seine Übersicht",
+  "cardeditor.heatmap_pm25": "Feinstaub (PM2,5)",
+  "cardeditor.heatmap_volatile_organic_compounds": "VOC",
+  "cardeditor.values": "Auf den Raumschildern"
 }

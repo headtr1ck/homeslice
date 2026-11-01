@@ -292,6 +292,24 @@ console.log("demo house");
     await page.keyboard.press("Escape");
   });
 
+  await test("room labels show the chosen readings, stale air with a dot", async () => {
+    await page.evaluate(() => {
+      window.card.setConfig({ ...window.card.config, values: ["temperature", "humidity", "carbon_dioxide"] });
+      window.card.hass = window.card.hass;
+    });
+    const label = page.locator("homeslice-card .label", { hasText: "Living Room" }).first();
+    await page.waitForFunction(() => document.querySelector("homeslice-card").shadowRoot.textContent.includes("1240 ppm"), null, { timeout: 5000 });
+    const text = (await label.locator("span.temp").textContent()).replace(/\s+/g, " ");
+    assert(text.includes("21.4 °C · 48% · 1240 ppm"), `label: ${text}`);
+    assert((await label.locator("i.dot").count()) === 1, "no dot for the stale air");
+    await shot(page, "demo-values");
+    await page.evaluate(() => {
+      const { values, ...config } = window.card.config;
+      window.card.setConfig(config);
+      window.card.hass = window.card.hass;
+    });
+  });
+
   await test("room_panel: false keeps rooms from opening their panel", async () => {
     await page.evaluate(() => (window.card.config.room_panel = false));
     await page.locator("homeslice-card .label button.name", { hasText: "Garden" }).click();

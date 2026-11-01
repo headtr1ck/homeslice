@@ -12,7 +12,7 @@ export interface HassEntityState {
 export interface Hass {
   locale?: { language: string; number_format?: string };
   states: Record<string, HassEntityState>;
-  areas?: Record<string, { area_id: string; name: string; icon?: string | null; floor_id?: string | null; temperature_entity_id?: string | null }>;
+  areas?: Record<string, { area_id: string; name: string; icon?: string | null; floor_id?: string | null; temperature_entity_id?: string | null; humidity_entity_id?: string | null }>;
   floors?: Record<string, { floor_id: string; name: string; level?: number | null }>;
   devices?: Record<string, { id: string; area_id?: string | null; name?: string | null; name_by_user?: string | null }>;
   entities?: Record<string, { entity_id: string; area_id?: string | null; device_id?: string | null; hidden?: boolean; entity_category?: string | null }>;
@@ -104,16 +104,47 @@ export function areaTemperature(hass: Hass, areaId: string): string | null {
   return `${formatNumber(hass.locale, Number(s.state), 1)} ${unit}`.trim();
 }
 
+/** The area's sensor of a kind: the one chosen in HA's area settings, else the first. */
+function areaSensor(hass: Hass, areaId: string, deviceClass: string): string | undefined {
+  const area = hass.areas?.[areaId];
+  const chosen = deviceClass === "temperature" ? area?.temperature_entity_id : deviceClass === "humidity" ? area?.humidity_entity_id : undefined;
+  return chosen ?? areaEntities(hass, areaId, "sensor").find((e) => hass.states[e]?.attributes.device_class === deviceClass);
+}
+
 /** The area's first reading of a sensor kind (temperature, humidity, carbon_dioxide…), or null. */
 export function areaReading(hass: Hass, areaId: string, deviceClass: string): number | null {
-  const chosen = deviceClass === "temperature" ? hass.areas?.[areaId]?.temperature_entity_id : undefined;
-  const id = chosen ?? areaEntities(hass, areaId, "sensor").find((e) => hass.states[e]?.attributes.device_class === deviceClass);
+  const id = areaSensor(hass, areaId, deviceClass);
   const v = id ? Number(hass.states[id]?.state) : NaN;
   return Number.isFinite(v) ? v : null;
 }
 
+/** Readings a room's label can show, with their decimals. */
+export const VALUE_KINDS: Record<string, number> = { temperature: 1, humidity: 0, carbon_dioxide: 0, pm25: 0, volatile_organic_compounds: 0 };
+
+export type Steps = { value: number; color: string | null }[];
+
+export interface AreaValue {
+  kind: string;
+  text: string;
+  /** Its step colour (null: comfortable). */
+  color: string | null;
+}
+
+/** The area's readings of these kinds, written with their units and coloured by the steps. */
+export function areaValues(hass: Hass, areaId: string, kinds: string[], steps: Record<string, Steps> = HEATMAP_STEPS): AreaValue[] {
+  return kinds.flatMap((kind) => {
+    const id = areaSensor(hass, areaId, kind);
+    const s = id ? hass.states[id] : undefined;
+    const v = Number(s?.state);
+    if (!s || !Number.isFinite(v)) return [];
+    const unit = (s.attributes.unit_of_measurement as string | undefined) ?? "";
+    const text = `${formatNumber(hass.locale, v, VALUE_KINDS[kind] ?? 0)}${unit === "%" ? "" : " "}${unit}`.trim();
+    return [{ kind, text, color: steps[kind] ? stepColor(v, steps[kind]) : null }];
+  });
+}
+
 /** Colour steps per reading: below the first value its colour, from each value on the next. */
-export const HEATMAP_STEPS: Record<string, { value: number; color: string | null }[]> = {
+export const HEATMAP_STEPS: Record<string, Steps> = {
   temperature: [
     { value: -Infinity, color: "#3d7be0" },
     { value: 18, color: "#6fb7e8" },
@@ -132,10 +163,16 @@ export const HEATMAP_STEPS: Record<string, { value: number; color: string | null
     { value: 1000, color: "#f0a33c" },
     { value: 1500, color: "#e8483c" },
   ],
+  // µg/m³, around the WHO's daily guideline
+  pm25: [
+    { value: -Infinity, color: null },
+    { value: 25, color: "#f0a33c" },
+    { value: 50, color: "#e8483c" },
+  ],
 };
 
 /** The colour of a reading in steps (null: comfortable, no tint). */
-export function stepColor(value: number, steps: { value: number; color: string | null }[]): string | null {
+export function stepColor(value: number, steps: Steps): string | null {
   let color: string | null = null;
   for (const s of steps) if (value >= s.value) color = s.color;
   return color;

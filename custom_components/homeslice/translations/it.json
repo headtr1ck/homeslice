@@ -1,0 +1,43 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Homeslice",
+        "description": "Aggiunge la card Homeslice alle tue dashboard. Metti il modello della tua casa in `homeslice/home.yaml` nella cartella di configurazione."
+      }
+    },
+    "abort": {
+      "single_instance_allowed": "Homeslice è già configurato."
+    }
+  },
+  "issues": {
+    "missing_floor": {
+      "title": "Homeslice: il piano {ref} non esiste più",
+      "description": "La casa **{house}** collega il livello {level} al piano `{ref}`, che Home Assistant non ha più. Collega il livello a un altro piano o ripristina il piano."
+    },
+    "missing_area": {
+      "title": "Homeslice: l'area {ref} non esiste più",
+      "description": "La casa **{house}** collega la stanza {room} all'area `{ref}`, che Home Assistant non ha più. Collega la stanza a un'altra area o ripristina l'area."
+    },
+    "missing_entity_opening": {
+      "title": "Homeslice: l'entità {ref} non esiste più",
+      "description": "La casa **{house}** usa `{ref}` per una porta o una finestra della stanza {room}, ma Home Assistant non conosce più questa entità. Scegli un'altra entità o rimuovi il collegamento."
+    },
+    "missing_entity_facade": {
+      "title": "Homeslice: l'entità {ref} non esiste più",
+      "description": "La casa **{house}** usa `{ref}` per la finestra di facciata {opening}, ma Home Assistant non conosce più questa entità. Scegli un'altra entità o rimuovi il collegamento."
+    }
+  },
+  "services": {
+    "import_files": {
+      "name": "Importa i file della casa",
+      "description": "Importa nell'archivio di Homeslice ogni file YAML presente nella cartella homeslice della tua configurazione. Il nome del file è l'id della casa. Le case salvate per ultime nell'editor vengono saltate, a meno che non si forzi.",
+      "fields": {
+        "force": {
+          "name": "Forza",
+          "description": "Sovrascrive anche le case modificate nell'editor."
+        }
+      }
+    }
+  }
+}

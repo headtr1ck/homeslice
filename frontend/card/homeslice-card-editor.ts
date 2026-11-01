@@ -3,7 +3,7 @@
 
 import { LitElement, css, html, nothing, type PropertyValues } from "lit";
 import type { Hass } from "../ha/hass";
-import { localize, type StringKey } from "../i18n/localize";
+import { loadLanguage, localize, type StringKey } from "../i18n/localize";
 import { expandHouse } from "../model/expand";
 import { deriveWalls, type Wall } from "../model/walls";
 import { DEFAULT_ACCENT, DEFAULT_VIEW, HouseRenderer, viewOptions } from "../render/scene";
@@ -29,6 +29,7 @@ export class HomesliceCardEditor extends LitElement {
   set hass(hass: Hass) {
     const first = !this._hass;
     this._hass = hass;
+    void loadLanguage(hass?.locale?.language).then((loaded) => loaded && this.requestUpdate());
     if (first) void this.loadHouses();
   }
 
@@ -233,9 +234,26 @@ export class HomesliceCardEditor extends LitElement {
           const h = (e.target as HTMLSelectElement).value;
           this.change({ heatmap: h ? (h as HomesliceCardConfig["heatmap"]) : undefined });
         }}>
-          ${(["", "temperature", "humidity", "carbon_dioxide"] as const).map((h) => html`<option value=${h} ?selected=${(this._config.heatmap ?? "") === h}>${this.t(`cardeditor.heatmap_${h || "none"}`)}</option>`)}
+          ${(["", "temperature", "humidity", "carbon_dioxide", "pm25"] as const).map((h) => html`<option value=${h} ?selected=${(this._config.heatmap ?? "") === h}>${this.t(`cardeditor.heatmap_${h || "none"}`)}</option>`)}
         </select>
       </label>
+      <fieldset class="values">
+        <legend>${this.t("cardeditor.values")}</legend>
+        ${(["temperature", "humidity", "carbon_dioxide", "pm25", "volatile_organic_compounds"] as const).map((kind) => {
+          const values = this._config.values ?? ["temperature"];
+          return html`<label class="check"
+            ><input
+              type="checkbox"
+              .checked=${values.includes(kind)}
+              @change=${(e: Event) => {
+                const next = (e.target as HTMLInputElement).checked ? [...values, kind] : values.filter((v) => v !== kind);
+                this.change({ values: next.length === 1 && next[0] === "temperature" ? undefined : next });
+              }}
+            />
+            ${this.t(`cardeditor.heatmap_${kind}`)}</label
+          >`;
+        })}
+      </fieldset>
       <label
         >${this.t("cardeditor.quality")}
         <select @change=${(e: Event) => {
@@ -277,6 +295,18 @@ export class HomesliceCardEditor extends LitElement {
   }
 
   static override styles = css`
+    fieldset.values {
+      border: none;
+      padding: 0;
+      margin: 0;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0 16px;
+    }
+    fieldset.values legend {
+      padding: 0;
+      margin-bottom: 4px;
+    }
     :host {
       display: flex;
       flex-direction: column;
