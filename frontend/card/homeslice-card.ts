@@ -1,5 +1,5 @@
 import { LitElement, css, html, nothing, svg, type PropertyValues } from "lit";
-import { HEATMAP_STEPS, areaEntities, areaValues, type AreaValue, areaIlluminance, areaPopup, areaReading, areaTemperature, daylight, stepColor, contactOpen, coverOpen, lightsLook, type Hass, type PopupSection, alertIcon, areaSensors, type AreaSensors } from "../ha/hass";
+import { HEATMAP_STEPS, areaEntities, areaValues, type AreaValue, areaIlluminance, areaPopup, areaReading, areaTemperature, daylight, stepColor, contactOpen, coverOpen, lightsLook, type Hass, type PopupSection, alertIcon, areaSensors, type AreaSensors, alarmTriggered } from "../ha/hass";
 import { formatNumber, loadLanguage, localize, type StringKey } from "../i18n/localize";
 import { expandHouse } from "../model/expand";
 import { labelPoint } from "../model/geometry";
@@ -44,6 +44,8 @@ export interface HomesliceCardConfig {
   lamp_style?: "icon" | "circle";
   /** A short note of what a tap or a drag just did ("Kitchen lights off"); false hides it (default true). */
   feedback?: boolean;
+  /** Hours after which a door or window contact that sent nothing counts as silent (default: only when unavailable). */
+  sensor_timeout?: number;
   /** A tap on a room opens its panel with everything in its area (default true; false: rooms do nothing). */
   room_panel?: boolean;
   /** Drag to turn, scroll/pinch to zoom, two fingers (or a trackpad scroll) to move, double-click to reset (default false: the view is locked). */
@@ -224,6 +226,10 @@ interface PlacedOpening {
   room: string;
   cover?: string;
   contact?: string;
+  lock?: string;
+  /** Its middle on the plan and its top (for notes on it). */
+  at: Vec2;
+  top: number;
 }
 
 interface Label {
@@ -357,6 +363,7 @@ export class HomesliceCard extends LitElement {
     _robotLabels: { state: true },
     _dockAlerts: { state: true },
     _badges: { state: true },
+    _openingBadges: { state: true },
     _sunTimes: { state: true },
     _replay: { state: true },
     _walking: { state: true },
@@ -784,7 +791,16 @@ export class HomesliceCard extends LitElement {
         .map((room) => ({ key: `${level.id}/${room.id}`, levelId: level.id, levelIndex: level.index, room, point: labelPoint(room.polygon) })),
     );
     this.openings = [...walls.entries()].flatMap(([levelId, ws]) =>
-      ws.flatMap((w) => w.openings.filter((o) => o.cover || o.contact).map((o) => ({ levelId, id: o.id, room: o.room, cover: o.cover, contact: o.contact }))),
+      ws.flatMap((w) =>
+        w.openings
+          .filter((o) => o.cover || o.contact || o.lock)
+          .map((o) => {
+            const len = Math.hypot(w.line[1][0] - w.line[0][0], w.line[1][1] - w.line[0][1]) || 1;
+            const t = (o.start + o.end) / 2 / len;
+            const at: Vec2 = [w.line[0][0] + (w.line[1][0] - w.line[0][0]) * t, w.line[0][1] + (w.line[1][1] - w.line[0][1]) * t];
+            return { levelId, id: o.id, room: o.room, cover: o.cover, contact: o.contact, lock: o.lock, at, top: o.sill + o.height };
+          }),
+      ),
     );
     this.renderer.setModel(house, walls, this.view);
     this.sunPathKey = "";
@@ -1262,6 +1278,7 @@ export class HomesliceCard extends LitElement {
 
   private _people: { key: string; x: number; y: number; color: string; name: string; picture?: string }[] = [];
   private _badges: { entity: string; x: number; y: number; icon: string; text: string; urgent: boolean }[] = [];
+  private _openingBadges: { key: string; entity: string; x: number; y: number; icon: string; text: string; urgent: boolean; lock?: boolean }[] = [];
 
   /** A placed piece's tags, from its built-in model (or the type's default piece). */
   private pieceTags(f: { type: FurnitureType; model?: string; mount: FurnitureMount }): Tag[] {
@@ -1290,6 +1307,46 @@ export class HomesliceCard extends LitElement {
         }),
       );
     });
+  }
+
+  /**
+   * Notes on doors and windows: a smart lock (a tap locks or unlocks), a contact sensor that
+   * stopped reporting, and, while an alarm goes off, the open ones that may have set it off.
+   */
+  private openingBadges() {
+    if (!this.house || !this.renderer || !this.hass || this.config.badges === false) return [];
+    const hass = this.hass;
+    const alarm = alarmTriggered(hass);
+    const stale = (this.config.sensor_timeout ?? 0) * 3600e3;
+    return this.openings.flatMap((o) => {
+      if ((this._level && o.levelId !== this._level) || !this.renderer!.isLevelVisible(o.levelId)) return [];
+      const notes: { entity: string; icon: string; text: string; urgent: boolean; lock?: boolean }[] = [];
+      const lock = o.lock ? hass.states[o.lock] : undefined;
+      if (lock) {
+        const s = lock.state;
+        const icon = s === "locked" ? "mdi:lock" : s === "jammed" ? "mdi:lock-alert" : s === "locking" || s === "unlocking" ? "mdi:lock-clock" : s === "unavailable" ? "mdi:lock-question" : "mdi:lock-open-variant";
+        notes.push({ entity: o.lock!, icon, text: this.t(`card.lock_${["locked", "jammed", "locking", "unlocking", "unavailable", "open"].includes(s) ? s : "unlocked"}` as StringKey), urgent: s === "jammed", lock: true });
+      }
+      const contact = o.contact ? hass.states[o.contact] : undefined;
+      if (o.contact && (!contact || contact.state === "unavailable" || contact.state === "unknown" || (stale && Date.now() - Date.parse(String(contact.last_updated ?? "")) > stale))) {
+        notes.push({ entity: o.contact, icon: "mdi:access-point-off", text: this.t("card.sensor_silent", { name: this.entityName(o.contact) }), urgent: false });
+      } else if (alarm && o.contact && contactOpen(hass, o.contact)) {
+        notes.push({ entity: o.contact, icon: "mdi:alarm-light", text: this.t("card.alarm_open", { name: this.entityName(o.contact) }), urgent: true });
+      }
+      if (!notes.length) return [];
+      const p = this.renderer!.project(o.levelId, o.at, o.top + 0.15);
+      if (!p) return [];
+      return notes.map((n, i) => ({ key: `${o.levelId}:${o.id}:${i}`, ...n, x: p.x + i * 30, y: p.y }));
+    });
+  }
+
+  /** A tap on a door's lock: locks it, or unlocks it (the card's own action first). */
+  private useLock(entity: string) {
+    if (this.ownAction(entity, "tap")) return;
+    const s = this.hass?.states[entity]?.state;
+    if (!s || s === "unavailable") return this.moreInfo(entity);
+    this.noteToggle(entity);
+    void this.hass!.callService("lock", s === "locked" ? "unlock" : "lock", {}, { entity_id: entity });
   }
 
   /** A warning sign at each robot's dock that needs something, listing what. */
@@ -1380,6 +1437,8 @@ export class HomesliceCard extends LitElement {
     const inverted = new Set(this.house.invertedCovers);
     const covers = this.openings.map((o) => (o.cover ? coverOpen(hass, o.cover, inverted.has(o.cover)) : null));
     const contacts = this.openings.map((o) => (o.contact ? contactOpen(hass, o.contact) : false));
+    // the doors' locks, whether their contacts still report, and an alarm going off
+    const doorNotes = [alarmTriggered(hass), ...this.openings.map((o) => [o.lock && hass.states[o.lock]?.state, o.contact && hass.states[o.contact]?.state, o.contact && this.config.sensor_timeout ? hass.states[o.contact]?.last_updated : null])];
     const values = this.rooms.map((r) => this.roomValues(r));
     // lux readings, rounded so small changes don't redraw (outside, the sun does it)
     const lux = this.rooms.map((r) => (this.config.lux && r.room.areaId && r.room.kind === "room" ? areaIlluminance(hass, r.room.areaId) : null)).map((v) => (v === null ? null : Math.round(daylight(v) * 20) / 20));
@@ -1425,7 +1484,7 @@ export class HomesliceCard extends LitElement {
       const v = kind && r.room.areaId && r.room.kind === "room" ? areaReading(hass, r.room.areaId, kind) : null;
       return v === null || !kind ? null : stepColor(v, this.steps[kind] ?? []);
     });
-    const signature = JSON.stringify([look, this.config.accent, lux, heat, lights, lamps, covers, contacts, values, sensors, awnings, devices, roofWindows, underfloor, badges, energyDetails, weather, this.placedPeople(hass).map((p) => [p.key, p.levelId, p.at]), this.config.weather ? hass.states[this.config.weather]?.attributes.temperature : null, cameras, this.energyReadings, this.robotReadings, this.robotNeeds, sunAt]);
+    const signature = JSON.stringify([look, this.config.accent, lux, heat, lights, lamps, covers, contacts, doorNotes, values, sensors, awnings, devices, roofWindows, underfloor, badges, energyDetails, weather, this.placedPeople(hass).map((p) => [p.key, p.levelId, p.at]), this.config.weather ? hass.states[this.config.weather]?.attributes.temperature : null, cameras, this.energyReadings, this.robotReadings, this.robotNeeds, sunAt]);
     if (signature === this.stateSignature) return;
     this.stateSignature = signature;
     this.lamps.forEach((l, i) => this.renderer!.setLamp(l.entity, lamps[i]));
@@ -1652,6 +1711,8 @@ export class HomesliceCard extends LitElement {
     const alerts = room.kind === "outdoor" ? [] : [...s.alerts];
     // a window or door of the room open while it rains
     if (room.kind === "room" && this.raining && this.openings.some((o) => o.levelId === levelId && o.room === room.id && o.contact && contactOpen(this.hass!, o.contact))) alerts.push("rain");
+    // an alarm going off: the rooms where something moves
+    if (room.kind === "room" && s.presence && alarmTriggered(this.hass)) alerts.unshift("alarm");
     return { presence: this.config.presence !== false && s.presence, alerts };
   }
 
@@ -2093,6 +2154,7 @@ export class HomesliceCard extends LitElement {
       this._robotLabels = [];
       this._dockAlerts = [];
       this._badges = [];
+      this._openingBadges = [];
       this._sunTimes = [];
       return;
     }
@@ -2144,6 +2206,7 @@ export class HomesliceCard extends LitElement {
     this._robotLabels = this.robotLabels();
     this._dockAlerts = this.dockAlerts();
     this._badges = this.pieceBadges();
+    this._openingBadges = this.openingBadges();
     this._sunTimes = this.sunTimeLabels();
     this._people = this.personLabels();
   }
@@ -2253,6 +2316,16 @@ export class HomesliceCard extends LitElement {
           ${this._badges.map(
             (b) => html`<button class="piece-badge ${b.urgent ? "urgent" : ""}" style="left:${b.x}px;top:${b.y}px" title=${b.text} @click=${() => this.moreInfo(b.entity)}>
               <ha-icon icon=${b.icon}></ha-icon><span>${b.text}</span>
+            </button>`,
+          )}
+          ${this._openingBadges.map(
+            (b) => html`<button class="piece-badge opening-badge ${b.urgent ? "urgent" : ""} ${b.lock ? "lock" : ""}" data-badge=${b.key} style="left:${b.x}px;top:${b.y}px" title=${b.text} aria-label=${b.text}
+              @click=${() => (b.lock ? this.useLock(b.entity) : this.moreInfo(b.entity))}
+              @contextmenu=${(e: Event) => {
+                e.preventDefault();
+                this.moreInfo(b.entity);
+              }}>
+              <ha-icon icon=${b.icon}></ha-icon>${b.lock ? nothing : html`<span>${b.text}</span>`}
             </button>`,
           )}
           ${this._dockAlerts.map(

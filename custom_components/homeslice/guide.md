@@ -114,6 +114,8 @@ vertical:
 - `cover: cover.…` (blind, shutter, garage door: drawn as far open as it reports) and
   `contact: binary_sensor.…` (window or door sensor: the door swings open, the window tilts;
   a garage door with only a contact opens with it).
+- `lock: lock.…` on a door: a smart lock, shown on the door (a tap locks or unlocks; jammed
+  is marked). Façade openings take `locks: {level: lock.…}`.
 - Windows stacked on several floors at the same place can be written once as
   `facade_openings` on the house: `{side, at, width, levels: [ground, first], covers:
   {ground: cover.a, first: cover.b}}` with `at` from the outline's west or north end.

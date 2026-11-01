@@ -214,6 +214,8 @@ export function makeHass(fixture, onChange) {
         else if (service === "toggle") set(id, cur === "on" ? "off" : "on");
         else if (service === "open_cover") move(id, 100);
         else if (service === "close_cover") move(id, 0);
+        else if (service === "lock") set(id, "locked");
+        else if (service === "unlock") set(id, "unlocked");
         else if (service === "media_play_pause") set(id, cur === "playing" ? "paused" : "playing");
         else if (service === "volume_set") set(id, cur, { volume_level: data.volume_level });
         else if (service === "volume_mute") set(id, cur, { is_volume_muted: data.is_volume_muted });

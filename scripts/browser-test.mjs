@@ -170,6 +170,49 @@ if (selected()) {
     await page.evaluate(() => window.card.hass.setState("media_player.living_room_tv", "off", { media_title: undefined, source: "Live TV", volume_level: 0.3 }));
   });
 
+  await test("doors: a smart lock to tap, a silent contact, what is open while the alarm goes off", async () => {
+    await act(page, () =>
+      page.evaluate(() => {
+        const h = window.card.hass;
+        h.setState("lock.front_door", "unlocked", { friendly_name: "Front door lock" });
+        h.setState("binary_sensor.patio_door", "unavailable", { friendly_name: "Patio door", device_class: "door" });
+        h.setState("alarm_control_panel.home", "armed_away", {});
+        const m = structuredClone(window.__demoModel);
+        const ops = m.levels[0].openings;
+        ops[0].lock = "lock.front_door";
+        ops[3].contact = "binary_sensor.patio_door";
+        h.pushModel(m);
+      }),
+    );
+    const badges = () => page.evaluate(() => [...document.querySelector("homeslice-card").shadowRoot.querySelectorAll(".opening-badge")].map((b) => ({ icon: b.querySelector("ha-icon").getAttribute("icon"), text: b.title, urgent: b.classList.contains("urgent") })));
+    await page.waitForFunction(() => document.querySelector("homeslice-card").shadowRoot.querySelectorAll(".opening-badge").length === 2);
+    let list = await badges();
+    assert(list.some((b) => b.icon === "mdi:lock-open-variant" && b.text === "Unlocked"), `no unlocked lock: ${JSON.stringify(list)}`);
+    assert(list.some((b) => b.icon === "mdi:access-point-off" && b.text === "Patio door not reporting"), `no silent contact: ${JSON.stringify(list)}`);
+    await act(page, () => page.locator("homeslice-card .opening-badge.lock").click());
+    const last = (await calls(page)).at(-1);
+    assert(last.domain === "lock" && last.service === "lock", `lock call ${JSON.stringify(last)}`);
+    await page.waitForFunction(() => document.querySelector("homeslice-card").shadowRoot.querySelector(".opening-badge.lock ha-icon")?.getAttribute("icon") === "mdi:lock");
+    // the patio door opens, then the alarm goes off: it is the suspect
+    await act(page, () =>
+      page.evaluate(() => {
+        window.card.hass.setState("binary_sensor.patio_door", "on");
+        window.card.hass.setState("alarm_control_panel.home", "triggered");
+      }),
+    );
+    await page.waitForFunction(() => [...document.querySelector("homeslice-card").shadowRoot.querySelectorAll(".opening-badge")].some((b) => b.classList.contains("urgent")));
+    list = await badges();
+    assert(list.some((b) => b.icon === "mdi:alarm-light" && b.urgent && b.text.startsWith("Patio door")), `no alarm note: ${JSON.stringify(list)}`);
+    await shot(page, "demo-door-notes");
+    await act(page, () =>
+      page.evaluate(() => {
+        window.card.hass.setState("alarm_control_panel.home", "disarmed");
+        window.card.hass.pushModel(window.__demoModel);
+      }),
+    );
+    await page.waitForFunction(() => !document.querySelector("homeslice-card").shadowRoot.querySelector(".opening-badge"));
+  });
+
   await test("hidden entities don't count and aren't switched", async () => {
     await act(page, () => lamp(page, "Living Room").click());
     assert((await calls(page)).at(-1).service === "turn_off", "living room lamp should have turned lights off");

@@ -299,6 +299,7 @@ export function expandHouse(input: unknown): ExpandResult {
       const type = oi.type ?? "window";
       if (!OPENING_TYPES.includes(type)) return err(op, `type must be one of ${OPENING_TYPES.join(", ")}, got "${type}".`);
       if (!(oi.width > 0)) return err(op, "width must be positive.");
+      if (oi.lock !== undefined && !(typeof oi.lock === "string" && oi.lock.startsWith("lock."))) return err(`${op}.lock`, "lock must be a lock entity, e.g. lock.….");
       const d = { ...DEFAULTS.opening[type], ...h.opening_defaults?.[type] };
       openings.push({
         id: oi.id ?? `${oi.room}_${oi.side}_${i}`,
@@ -313,6 +314,7 @@ export function expandHouse(input: unknown): ExpandResult {
         ...look(oi, type, oi.height ?? d.height),
         cover: oi.cover,
         contact: oi.contact,
+        ...(oi.lock ? { lock: oi.lock } : {}),
       });
     });
 
@@ -452,6 +454,7 @@ export function expandHouse(input: unknown): ExpandResult {
         ...look(fi, type, fi.height ?? d.height),
         cover: fi.covers?.[levelId],
         contact: fi.contacts?.[levelId],
+        ...(fi.locks?.[levelId] ? { lock: fi.locks[levelId] } : {}),
       });
     }
   });

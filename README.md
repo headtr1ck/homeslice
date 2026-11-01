@@ -215,6 +215,8 @@ view:                          # all optional
 room_panel: true               # a tap on a room opens its panel (false: rooms do nothing)
 lamp_style: icon               # lamp buttons: a glowing bulb (icon) or a bulb in a dark disc (circle)
 feedback: true                 # a short note of what a tap or a drag did ("Kitchen: lights off"); false hides it
+sensor_timeout: 24             # hours: a door or window contact that sent nothing that long is marked silent
+                               #   (default: only when unavailable)
 idle_return: 120               # wall tablets: back to the start view after 2 minutes without a touch
 night: "22:00-06:00"           # dim the card at night (or: sun), night_brightness: 0.4
 idle_orbit: true               # turn the house slowly while nobody uses it
@@ -362,7 +364,7 @@ levels:
       # at = metres from the room's west end (north/south sides) or north end (east/west sides)
       - { room: living, side: south, at: 1, width: 2.4, cover: cover.living_room }
       - { room: living, side: south, at: 5, width: 0.9, type: door, hinge: right, swing: out }  # style: double, sliding, fixed, arch
-      - { room: kitchen, side: north, at: 1.5, width: 1, type: door }
+      - { room: kitchen, side: north, at: 1.5, width: 1, type: door, lock: lock.back_door }  # a smart lock: a tap locks
   - id: first
     floor_id: first_floor
     rooms:

@@ -438,6 +438,10 @@ def validate(house: Any) -> list[dict[str, str]]:
             if not num(get(oi, "width")) > 0:
                 err(op, "width must be positive.")
                 continue
+            lock = get(oi, "lock")
+            if lock is not MISSING and not (isinstance(lock, str) and lock.startswith("lock.")):
+                err(f"{op}.lock", "lock must be a lock entity, e.g. lock.….")
+                continue
 
         for i, wi in enumerate(items(get(li, "walls"))):
             wp = f"{lp}.walls[{i}]"

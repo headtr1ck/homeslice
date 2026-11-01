@@ -7,6 +7,7 @@ export interface HassEntityState {
   entity_id: string;
   state: string;
   attributes: Record<string, unknown>;
+  last_updated?: string;
 }
 
 export interface Hass {
@@ -239,7 +240,7 @@ export function areaPopup(hass: Hass, areaId: string | undefined, extra: string[
 /** Binary sensors that mean someone is in a room. */
 const PRESENCE = ["motion", "occupancy", "presence"];
 /** Binary sensors that call for attention, with their icons. */
-const ALERTS: Record<string, string> = { rain: "mdi:weather-pouring", moisture: "mdi:water-alert", smoke: "mdi:smoke-detector-alert", gas: "mdi:gas-cylinder", carbon_monoxide: "mdi:molecule-co" };
+const ALERTS: Record<string, string> = { alarm: "mdi:alarm-light", rain: "mdi:weather-pouring", moisture: "mdi:water-alert", smoke: "mdi:smoke-detector-alert", gas: "mdi:gas-cylinder", carbon_monoxide: "mdi:molecule-co" };
 
 export interface AreaSensors {
   /** A motion, occupancy or presence sensor of the area is on. */
@@ -261,6 +262,9 @@ export function areaSensors(hass: Hass, areaId: string): AreaSensors {
   }
   return { presence, alerts };
 }
+
+/** Some alarm panel is going off. */
+export const alarmTriggered = (hass: Hass) => Object.values(hass.states).some((s) => s.entity_id.startsWith("alarm_control_panel.") && s.state === "triggered");
 
 /** The icon for an alert's device class. */
 export const alertIcon = (deviceClass: string) => ALERTS[deviceClass] ?? "mdi:alert";

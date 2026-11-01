@@ -166,6 +166,8 @@ const MUTATIONS: [string, (h: House) => unknown][] = [
   ["roof window without at", (h) => ((h.roof = { windows: [{ side: "south" }] }), h)],
   ["roof window too big", (h) => ((h.roof = { windows: [{ side: "south", at: 2, width: 5 }] }), h)],
   ["roof window cover not a cover", (h) => ((h.roof = { windows: [{ side: "south", at: 2, cover: "light.x" }] }), h)],
+  ["door lock not a lock", (h) => ((h.levels[0].openings[0].lock = "switch.x"), h)],
+  ["valid: a door with a lock", (h) => ((h.levels[0].openings[0].lock = "lock.front"), h)],
   ["dormer odd shape", (h) => ((h.roof = { dormers: [{ side: "south", at: 2, shape: "round" }] }), h)],
   ["energy details not entities", (h) => ((h.energy[2].details = ["cop"]), h)],
   ["furniture readings not entities", (h) => ((L(h).rooms[0].furniture = [{ type: "car", at: [1, 1], readings: ["range"] }]), h)],

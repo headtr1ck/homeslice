@@ -3545,6 +3545,7 @@ export class HomeslicePanel extends LitElement {
       ${this.entitySelect(this.t("editor.opening_contact"), "binary_sensor", areaId, o.contact, (contact) => set({ contact }), (id) =>
         ["door", "window", "opening", "garage_door"].includes(String(states[id]?.attributes.device_class)),
       )}
+      ${(o.type ?? "window") === "door" ? this.entitySelect(this.t("editor.opening_lock"), "lock", areaId, o.lock, (lock) => set({ lock })) : nothing}
       ${this.renderOpeningFloors(sel, shared)}
       <button class="danger" @click=${() => {
         this.commit(deleteOpening(m, this._level, sel.src));

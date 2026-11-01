@@ -228,6 +228,8 @@ export interface OpeningInput {
   split?: number;
   cover?: string;
   contact?: string;
+  /** A smart lock on the door: shown on it, a tap locks or unlocks. */
+  lock?: string;
 }
 
 export interface LevelInput {
@@ -292,6 +294,8 @@ export interface FacadeOpeningInput {
   covers?: Record<string, string>;
   /** Contact sensor per level id. */
   contacts?: Record<string, string>;
+  /** Smart lock per level id. */
+  locks?: Record<string, string>;
 }
 
 export type StairShape = "straight" | "u_turn";
@@ -533,6 +537,7 @@ export interface Opening {
   split: number;
   cover?: string;
   contact?: string;
+  lock?: string;
 }
 
 /** A roof part as drawn: its polygon in plan coordinates and everything filled in. */
