@@ -400,6 +400,7 @@
   "editor.key_duplicate": "Ausgewähltes Möbelstück duplizieren",
   "cardeditor.mode": "Darstellung",
   "cardeditor.mode_3d": "3D-Haus",
+  "cardeditor.mode_tilted": "Schräger Grundriss (niedrige Wände, ein Stockwerk)",
   "cardeditor.mode_plan": "Grundriss (2D, eine Etage auf einmal)",
   "editor.opening_floors": "Auch auf diesen Etagen",
   "editor.opening_floors_hint": "Dasselbe Fenster an derselben Stelle der Fassade auf anderen Etagen (z. B. eine Fensterreihe übereinander). Größe und Position ändern sich bei allen gemeinsam; Rollläden und Kontakte werden je Etage festgelegt.",

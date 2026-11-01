@@ -140,7 +140,8 @@ house: home                    # the house id
 interactive: false             # true: drag to turn, scroll/pinch to zoom, double-click to reset;
                                #   buttons turn, show from above or tilted, and keep a start view on this device
 energy: false                  # true: energy overlay (shows the roof unless view.roof: false)
-mode: 3d                       # or plan: a flat floor plan from above, one floor at a time
+mode: 3d                       # or plan: a drawn floor plan from above (dark walls, door swings),
+                               #   or tilted: a plan at an angle with low walls; both one floor at a time
 sun: true                      # light from the real sun (sun.sun), darker at night
 look: day                      # or night (dark, glowing outlines), auto (night after sunset),
                                #   white (a white model) or blueprint (dark blue, glowing edges)

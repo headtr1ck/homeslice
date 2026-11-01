@@ -44,8 +44,12 @@ export interface HomesliceCardConfig {
   lux?: boolean;
   /** Mark rooms with someone in them (motion, occupancy, presence sensors; default true). Leak, smoke and gas alarms always show. */
   presence?: boolean;
-  /** `plan`: a flat floor plan seen from straight above, one floor at a time (default `3d`). */
-  mode?: "3d" | "plan";
+  /**
+   * `plan`: a drawn floor plan from straight above (dark walls, door swings); `tilted`: a
+   * plan seen at an angle with low walls, looking into the rooms. Both show one floor at a
+   * time. Default `3d`.
+   */
+  mode?: "3d" | "plan" | "tilted";
   /** The floor shown first (level id); default: the whole house, or in plan mode the entrance floor. */
   level?: string;
 }
@@ -267,6 +271,13 @@ export class HomesliceCard extends LitElement {
       this.view.levels = {};
       this.view.roof = false;
       this.view.plan = true;
+    } else if (config.mode === "tilted") {
+      // a plan at an angle: walls cut low so every room is seen into
+      this.view.focus = { azimuth: 180, elevation: 52, projection: "isometric", ...config.view?.focus };
+      this.view.levels = {};
+      this.view.roof = false;
+      this.view.lowWalls = 1.1;
+      this.applySavedViews();
     } else this.applySavedViews();
     this.loadedFor = undefined;
   }
@@ -647,7 +658,8 @@ export class HomesliceCard extends LitElement {
   // ----- floors -----
 
   private get plan() {
-    return this.config?.mode === "plan";
+    // one floor at a time: the plan and the tilted plan
+    return this.config?.mode === "plan" || this.config?.mode === "tilted";
   }
 
   /** The floor shown first: the configured one, else the entrance floor (HA floor level 0), else the lowest. */

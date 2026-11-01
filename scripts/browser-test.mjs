@@ -970,6 +970,33 @@ console.log("demo house, lux");
   await page.close();
 }
 
+console.log("demo house, tilted plan");
+{
+  const { page, errors } = await open("dev/fixtures/demo-hass.json", { mode: "tilted" });
+  await test("tilted plan: one floor at an angle, walls cut low", async () => {
+    await page.waitForFunction(() => window.card.renderer.focusedIndex !== null, null, { timeout: 5000 });
+    const o = await page.evaluate(() => window.card.renderer.orientation);
+    assert(Math.abs(o.elevation - 52) < 0.5 && o.azimuth === 180, `camera ${JSON.stringify(o)}`);
+    // the highest wall of the ground floor ends at 1.1 m
+    const top = await page.evaluate(() => {
+      const level = window.card.renderer.levels[0].group;
+      let max = 0;
+      level.traverse((m) => {
+        if (!m.isMesh || m.userData.outdoor || m.geometry.type !== "BoxGeometry") return;
+        m.geometry.computeBoundingBox();
+        max = Math.max(max, m.position.y + m.geometry.boundingBox.max.y);
+      });
+      return max;
+    });
+    assert(top <= 1.11, `walls up to ${top} m`);
+    const floors = await page.locator("homeslice-card nav.levels button").allTextContents();
+    assert(!floors.some((f) => f.includes("All floors")), `floor buttons: ${floors}`);
+    await shot(page, "demo-tilted");
+    assert(errors.length === 0, errors.join(" | "));
+  });
+  await page.close();
+}
+
 console.log("demo house, floor plan");
 {
   const { page, errors } = await open("dev/fixtures/demo-hass.json", { mode: "plan" });
@@ -981,6 +1008,7 @@ console.log("demo house, floor plan");
     assert(!floors.some((f) => f.includes("All floors")), `floor buttons: ${floors}`);
     assert((await page.locator("homeslice-card nav.levels button.active").textContent()).includes("Ground Floor"), "not on the entrance floor");
     assert(!(await page.evaluate(() => window.card.renderer.roofVisible())), "a plan has no roof");
+    assert((await page.evaluate(() => window.card.renderer.planLines.length)) === 2, "a door swing per door on the plan");
     await shot(page, "demo-plan");
     await act(page, () => page.locator("homeslice-card nav.levels button", { hasText: "First Floor" }).click());
     await page.waitForFunction(() => window.card.renderer.focusedIndex === 1, null, { timeout: 5000 });

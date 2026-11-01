@@ -50,8 +50,10 @@ export interface ViewOptions {
   roof: boolean;
   /** Furniture from simple shapes, or detailed models (loaded when first needed). */
   furniture: "simple" | "detailed";
-  /** A floor plan: no shadows (they read as dirt from above), gardens framed with the floor. */
+  /** A floor plan: no shadows (they read as dirt from above), gardens framed with the floor, walls dark as on a drawn plan, door swings on the floor. */
   plan: boolean;
+  /** Walls (and doors, windows) end at this height: a tilted plan that looks into the rooms (null: full height). */
+  lowWalls: number | null;
 }
 
 export const DEFAULT_VIEW: ViewOptions = {
@@ -67,6 +69,7 @@ export const DEFAULT_VIEW: ViewOptions = {
   roof: false,
   furniture: "detailed",
   plan: false,
+  lowWalls: null,
 };
 
 /** View options from a card config or a saved view (which use snake_case keys). */
@@ -114,6 +117,7 @@ export const DEFAULT_ACCENT = "#4fc3f7";
 
 const COLORS = {
   wall: "#eeeae3",
+  planWall: "#3a3f45",
   slab: "#6f7275",
   stairs: "#d8d3ca",
   tread: "#c9965c",
@@ -235,6 +239,23 @@ function fadeTexture(): THREE.Texture {
   g.addColorStop(1, "rgba(255,255,255,0)");
   ctx.fillStyle = g;
   ctx.fillRect(0, 0, 4, 128);
+  const t = new THREE.CanvasTexture(canvas);
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+
+/** Bright at the bottom, fading out upwards: the night look's light at the foot of walls. */
+function riseTexture(): THREE.Texture {
+  const canvas = document.createElement("canvas");
+  canvas.width = 4;
+  canvas.height = 64;
+  const ctx = canvas.getContext("2d")!;
+  const g = ctx.createLinearGradient(0, 64, 0, 0);
+  g.addColorStop(0, "rgba(255,255,255,0.6)");
+  g.addColorStop(0.3, "rgba(255,255,255,0.2)");
+  g.addColorStop(1, "rgba(255,255,255,0)");
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, 4, 64);
   const t = new THREE.CanvasTexture(canvas);
   t.colorSpace = THREE.SRGBColorSpace;
   return t;
@@ -372,6 +393,8 @@ export class HouseRenderer {
   private ownLooks = new WeakMap<THREE.Material, { color: THREE.Color; map: THREE.Texture | null }>();
   private accent = DEFAULT_ACCENT;
   private outlines: THREE.Group[] = [];
+  /** A drawn plan's door swings (wide lines need the canvas size). */
+  private planLines: LineSegments2[] = [];
   /** Door leaves and window panes that open with their contact, by opening. */
   private leaves = new Map<string, LeafView[]>();
   private lastSpin = 0;
@@ -379,6 +402,7 @@ export class HouseRenderer {
   private lampObjects: THREE.Object3D[] = [];
   private glowTexture?: THREE.Texture;
   private fadeTexture?: THREE.Texture;
+  private riseTexture?: THREE.Texture;
   private white?: THREE.Texture;
   private roof: THREE.Group | null = null;
   /** Furniture materials of the level being built. */
@@ -433,6 +457,8 @@ export class HouseRenderer {
     this.sun.castShadow = true;
     this.sun.shadow.mapSize.set(2048, 2048);
     this.sun.shadow.bias = -0.0005;
+    // round shapes (hedges, bushes) would shade themselves in stripes without it
+    this.sun.shadow.normalBias = 0.03;
     this.scene.add(this.sun, this.sun.target);
     for (let i = 0; i < LIGHT_POOL; i++) {
       const light = new THREE.PointLight(0xffe4b8, 0, 7, 2);
@@ -508,6 +534,7 @@ export class HouseRenderer {
     this.devices.clear();
     this.leaves.clear();
     this.outlines = [];
+    this.planLines = [];
     this.linked = [];
     this.covers.clear();
     this.glasses.clear();
@@ -576,7 +603,8 @@ export class HouseRenderer {
     for (const room of level.rooms) if (room.awning && (room.kind !== "outdoor" || this.view.showOutdoor)) this.awning(g, level, room);
 
     // walls, split around openings; each face in its room's finish (or the facade's)
-    const wallMat = this.lambert(COLORS.wall);
+    // a drawn plan shows walls dark from above
+    const wallMat = this.lambert(this.view.plan ? COLORS.planWall : COLORS.wall);
     const finishMats = new Map<string, THREE.MeshLambertMaterial>();
     const finishMat = (id: string | undefined) => {
       if (!id) return wallMat;
@@ -609,7 +637,7 @@ export class HouseRenderer {
       // outer walls are split at the cut height; the upper part hides while it faces a low camera
       const cuttable = w.type !== "interior";
       const cutAt = Math.min(this.view.cutHeight, w.height);
-      const H = w.height;
+      const H = this.view.lowWalls ? Math.min(w.height, this.view.lowWalls) : w.height;
       const box = (s: number, e: number, z0: number, z1: number, plain: THREE.Material, thickness = w.thickness) => {
         if (e - s < 1e-3 || z1 - z0 < 1e-3) return;
         // wall pieces carry their faces' finishes (frames and leaves stay as they are)
@@ -627,9 +655,15 @@ export class HouseRenderer {
       const length = Math.hypot(w.b[0] - w.a[0], w.b[1] - w.a[1]) + w.extendEnd;
       for (const o of w.openings) {
         box(cursor, o.start, 0, H, wallMat);
-        box(o.start, o.end, 0, o.sill, wallMat);
+        box(o.start, o.end, 0, Math.min(o.sill, H), wallMat);
         box(o.start, o.end, o.sill + o.height, H, wallMat);
-        const top = o.sill + o.height;
+        // low walls end below the top of a door or window (and a high window is gone)
+        const top = Math.min(o.sill + o.height, H);
+        if (top - o.sill < 0.02) {
+          cursor = o.end;
+          continue;
+        }
+        if (this.view.plan && o.type === "door") this.doorSwing(g, w, o, rooms);
         const mid = (o.start + o.end) / 2;
         // a bar in the middle (double windows, sliding doors)
         const bar = () => box(mid - 0.03, mid + 0.03, o.sill, top, wallMat, 0.07);
@@ -702,7 +736,7 @@ export class HouseRenderer {
         }
         if (o.type === "garage_door" && (o.cover || o.contact)) this.addGarageDoor(g, w, o, top, garage);
         else if (o.type === "garage_door") box(o.start, o.end, o.sill, top, garage, 0.06);
-        if (o.cover && o.type !== "garage_door") this.addCover(g, w, o, cutAt, cuttable);
+        if (o.cover && o.type !== "garage_door" && !this.view.lowWalls) this.addCover(g, w, o, cutAt, cuttable);
         cursor = o.end;
       }
       box(cursor, length, 0, H, wallMat);
@@ -710,16 +744,20 @@ export class HouseRenderer {
 
     // one flight of stairs per storey the stairwell passes through
     for (const v of vertical) if (v.kind === "stairs" && level.index >= v.from && level.index < v.to) g.add(this.stairs(v, level));
-    g.add(this.outline(level, walls));
+    g.add(this.outline(walls));
     return g;
   }
 
   /**
-   * The night look's glowing lines: the tops of the walls and the edges of the room
-   * floors, one line object per level (hidden by day).
+   * The night look's glow: lines along the foot of every wall, and a soft light rising
+   * from the floor up each wall face, one group per level (hidden by day).
    */
-  private outline(level: Level, walls: Wall[]): THREE.Group {
+  private outline(walls: Wall[]): THREE.Group {
     const pts: number[] = [];
+    this.riseTexture ??= riseTexture();
+    const glow = new THREE.MeshBasicMaterial({ color: this.accent, map: this.riseTexture, transparent: true, opacity: 0.7, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide });
+    this.building?.add(glow);
+    const faces: THREE.Mesh[] = [];
     const seg = (a: Vec2, b: Vec2, y: number) => pts.push(a[0], y, a[1], b[0], y, b[1]);
     for (const w of walls) {
       if (w.type === "open") continue;
@@ -728,19 +766,24 @@ export class HouseRenderer {
       const t = w.thickness / 2;
       const p = (along: number, side: number): Vec2 => [w.a[0] + u[0] * along + w.normal[0] * t * side, w.a[1] + u[1] * along + w.normal[1] * t * side];
       const [s0, s1] = [-w.extendStart, len + w.extendEnd];
-      const y = w.height + 0.002;
+      const y = 0.015;
       seg(p(s0, 1), p(s1, 1), y);
       seg(p(s0, -1), p(s1, -1), y);
       seg(p(s0, 1), p(s0, -1), y);
       seg(p(s1, 1), p(s1, -1), y);
-    }
-    for (const room of level.rooms) {
-      if (room.kind !== "room") continue;
-      const poly = innerPolygon(room.polygon, walls);
-      poly.forEach((a, i) => seg(a, poly[(i + 1) % poly.length], 0.012));
+      // the rising light on both faces, a hair in front of them
+      for (const side of [1, -1]) {
+        const h = Math.min(0.45, w.height);
+        const face = new THREE.Mesh(new THREE.PlaneGeometry(s1 - s0, h), glow);
+        const c = p((s0 + s1) / 2, side);
+        face.position.set(c[0] + w.normal[0] * 0.004 * side, h / 2, c[1] + w.normal[1] * 0.004 * side);
+        face.rotation.y = Math.atan2(-u[1], u[0]);
+        faces.push(face);
+      }
     }
     // a sharp line over a wide faint one: a soft glow
     const lines = new THREE.Group();
+    lines.add(...faces);
     for (const [linewidth, opacity] of [[6, 0.22], [1.6, 0.95]]) {
       const geo = new LineSegmentsGeometry().setPositions(pts);
       const material = new LineMaterial({ color: this.accent, linewidth, transparent: true, opacity, depthWrite: false });
@@ -764,7 +807,7 @@ export class HouseRenderer {
     this.accent = accent;
     for (const l of this.outlines) {
       l.visible = look === "night" || look === "blueprint";
-      for (const line of l.children as LineSegments2[]) line.material.color.set(accent);
+      for (const part of l.children as (LineSegments2 | THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>)[]) part.material.color.set(accent);
     }
     this.scene.background = look === "blueprint" ? new THREE.Color(BLUEPRINT.background) : null;
     this.applyTheme();
@@ -805,6 +848,49 @@ export class HouseRenderer {
     const own = this.ownLooks.get(m);
     if (own) this.ownLooks.set(c, own);
     return c;
+  }
+
+  /**
+   * A drawn plan's door swing: the leaf's quarter circle on the floor, on the side it
+   * opens to (as the editor draws it); sliding doors have none.
+   */
+  private doorSwing(g: THREE.Group, w: Wall, o: WallOpening, rooms: Level["rooms"]) {
+    if (["sliding", "sliding_glass"].includes(o.style) || o.style === "entrance_sidelight") return;
+    const len = Math.hypot(w.b[0] - w.a[0], w.b[1] - w.a[1]) || 1;
+    const u: Vec2 = [(w.b[0] - w.a[0]) / len, (w.b[1] - w.a[1]) / len];
+    const n: Vec2 = [-u[1], u[0]];
+    const at = (t: number): Vec2 => [w.a[0] + u[0] * t, w.a[1] + u[1] * t];
+    const room = rooms.find((r) => r.id === o.room);
+    const m = at((o.start + o.end) / 2);
+    const inward = room && pointInPolygon([m[0] + n[0] * 0.3, m[1] + n[1] * 0.3], room.polygon) ? 1 : -1;
+    const swing = o.swing === "out" ? -inward : inward;
+    const hingeAtStart = (o.hinge === "right") === (inward > 0);
+    const leaves: [number, number][] = o.style === "double" || o.style === "glass_double" ? [[o.start, (o.start + o.end) / 2], [o.end, (o.start + o.end) / 2]] : [hingeAtStart ? [o.start, o.end] : [o.end, o.start]];
+    const pts: number[] = [];
+    const face = (w.thickness / 2) * swing;
+    for (const [h, e] of leaves) {
+      const r = Math.abs(e - h);
+      const along: Vec2 = [u[0] * Math.sign(e - h), u[1] * Math.sign(e - h)];
+      const p = (a: number): Vec2 => {
+        const hp = at(h);
+        return [hp[0] + n[0] * face + (along[0] * Math.cos(a) + n[0] * swing * Math.sin(a)) * r, hp[1] + n[1] * face + (along[1] * Math.cos(a) + n[1] * swing * Math.sin(a)) * r];
+      };
+      const hp: Vec2 = [at(h)[0] + n[0] * face, at(h)[1] + n[1] * face];
+      // the open leaf, then the arc back to the frame
+      const tip = p(Math.PI / 2);
+      pts.push(hp[0], 0.03, hp[1], tip[0], 0.03, tip[1]);
+      for (let k = 0; k < 12; k++) {
+        const [a, b] = [p((k / 12) * (Math.PI / 2)), p(((k + 1) / 12) * (Math.PI / 2))];
+        pts.push(a[0], 0.03, a[1], b[0], 0.03, b[1]);
+      }
+    }
+    const material = new LineMaterial({ color: COLORS.planWall, linewidth: 1.2, transparent: true, opacity: 0.8 });
+    material.resolution.set(this.size.width, this.size.height);
+    this.building?.add(material);
+    const line = new LineSegments2(new LineSegmentsGeometry().setPositions(pts), material);
+    line.userData.outdoor = true;
+    this.planLines.push(line);
+    g.add(line);
   }
 
   /**
@@ -2315,7 +2401,8 @@ export class HouseRenderer {
     this.size = { width, height };
     // wide lines are sized in pixels
     for (const f of this.flows) for (const m of [f.line.material, f.pulse, f.glow]) m.resolution.set(width, height);
-    for (const l of this.outlines) for (const line of l.children as LineSegments2[]) line.material.resolution.set(width, height);
+    for (const l of this.outlines) for (const part of l.children) if (part instanceof LineSegments2) part.material.resolution.set(width, height);
+    for (const line of this.planLines) line.material.resolution.set(width, height);
     this.draw();
   }
 
