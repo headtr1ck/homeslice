@@ -142,7 +142,8 @@ interactive: false             # true: drag to turn, scroll/pinch to zoom, doubl
 energy: false                  # true: energy overlay (shows the roof unless view.roof: false)
 mode: 3d                       # or plan: a flat floor plan from above, one floor at a time
 sun: true                      # light from the real sun (sun.sun), darker at night
-look: day                      # or night (dark, glowing outlines) or auto (night after sunset)
+look: day                      # or night (dark, glowing outlines), auto (night after sunset),
+                               #   white (a white model) or blueprint (dark blue, glowing edges)
 accent: "#4fc3f7"              # the night look's outline colour
 presence: true                 # mark rooms with motion/occupancy/presence; leak, smoke and gas alarms always show
 lux: false                     # true: rooms as bright as their lux sensor reads (dark rooms look dark), with the reading

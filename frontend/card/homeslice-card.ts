@@ -9,7 +9,7 @@ import { deriveWalls, innerPolygon, type Wall } from "../model/walls";
 import { formatPower, readEnergy, type EnergyPrefs, type EnergyReading } from "../ha/energy";
 import { readRobot, type RobotReading, type RobotStatus } from "../ha/robots";
 import { deviceLook } from "../ha/devices";
-import { ENERGY_COLORS, HouseRenderer, viewOptions, type ViewOptions } from "../render/scene";
+import { ENERGY_COLORS, HouseRenderer, viewOptions, type Look, type ViewOptions } from "../render/scene";
 
 export interface PopupOverride {
   /** `extend` (default) adds the cards after the generated ones, `replace` shows only them. */
@@ -32,8 +32,12 @@ export interface HomesliceCardConfig {
   energy?: boolean;
   /** Light the house from the real sun (HA's sun.sun) and dim it at night (default true). */
   sun?: boolean;
-  /** `day` (lit by the sun), `night` (dark, glowing outlines; for wall tablets at night) or `auto` (night after sunset). Default `day`. */
-  look?: "day" | "night" | "auto";
+  /**
+   * `day` (lit by the sun), `night` (dark, glowing outlines; for wall tablets at night),
+   * `auto` (night after sunset), `white` (a white model, only light and shade) or
+   * `blueprint` (dark blue, glowing edges). Default `day`.
+   */
+  look?: "day" | "night" | "auto" | "white" | "blueprint";
   /** The night look's outline colour (CSS colour, default light blue). */
   accent?: string;
   /** Rooms with a lux sensor look as bright as it reads, and show it on their label (default false). */
@@ -597,7 +601,12 @@ export class HomesliceCard extends LitElement {
     const sun = this.config.sun !== false ? hass.states["sun.sun"]?.attributes : undefined;
     const sunAt = typeof sun?.azimuth === "number" && typeof sun?.elevation === "number" ? [Math.round(sun.azimuth - this.house.north), Math.round(sun.elevation)] : null;
     // the look: auto follows the sun (night while it is below the horizon)
-    const look = this.config.look === "night" || (this.config.look === "auto" && hass.states["sun.sun"]?.state === "below_horizon") ? "night" : "day";
+    const look: Look =
+      this.config.look === "white" || this.config.look === "blueprint" || this.config.look === "night"
+        ? this.config.look
+        : this.config.look === "auto" && hass.states["sun.sun"]?.state === "below_horizon"
+          ? "night"
+          : "day";
     const signature = JSON.stringify([look, this.config.accent, lux, lights, lamps, covers, contacts, temperatures, sensors, awnings, devices, this.energyReadings, this.robotReadings, sunAt]);
     if (signature === this.stateSignature) return;
     this.stateSignature = signature;

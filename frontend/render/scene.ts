@@ -104,6 +104,11 @@ interface CameraState {
   fov: number;
 }
 
+/** How the house is drawn: by day, at night, as a white model or as a blueprint. */
+export type Look = "day" | "night" | "white" | "blueprint";
+
+const BLUEPRINT = { background: "#0b1a33", surface: "#2f5c9e", glass: "#6aa6ff" };
+
 /** The night look's outlines, unless the card picks another colour. */
 export const DEFAULT_ACCENT = "#4fc3f7";
 
@@ -362,7 +367,9 @@ export class HouseRenderer {
   /** The parts of linked pieces their device drives (screens, flames, fans…), by entity. */
   private devices = new Map<string, DeviceParts[]>();
   private deviceLooks = new Map<string, DeviceLook | null>();
-  private look: "day" | "night" = "day";
+  private look: Look = "day";
+  /** Each material's own colour and texture, while a look paints over them. */
+  private ownLooks = new WeakMap<THREE.Material, { color: THREE.Color; map: THREE.Texture | null }>();
   private accent = DEFAULT_ACCENT;
   private outlines: THREE.Group[] = [];
   /** Door leaves and window panes that open with their contact, by opening. */
@@ -479,6 +486,7 @@ export class HouseRenderer {
     this.orientation = this.cameraFor(null);
     this.box = this.boxFor(null);
     this.aspect = this.extent(this.orientation, this.box);
+    this.applyTheme();
     this.placeSun();
   }
 
@@ -740,7 +748,7 @@ export class HouseRenderer {
       this.building?.add(material);
       lines.add(new LineSegments2(geo, material));
     }
-    lines.visible = this.look === "night";
+    lines.visible = this.look === "night" || this.look === "blueprint";
     lines.traverse((o) => (o.userData.outdoor = true)); // not a tap target
     this.outlines.push(lines);
     return lines;
@@ -750,15 +758,53 @@ export class HouseRenderer {
    * The look: `day` (as lit by the sun) or `night` (dark, lamps and glowing outlines in the
    * accent colour stand out; for wall tablets at night).
    */
-  setLook(look: "day" | "night", accent = DEFAULT_ACCENT) {
+  setLook(look: Look, accent = DEFAULT_ACCENT) {
     if (look === this.look && accent === this.accent) return;
     this.look = look;
     this.accent = accent;
     for (const l of this.outlines) {
-      l.visible = look === "night";
+      l.visible = look === "night" || look === "blueprint";
       for (const line of l.children as LineSegments2[]) line.material.color.set(accent);
     }
+    this.scene.background = look === "blueprint" ? new THREE.Color(BLUEPRINT.background) : null;
+    this.applyTheme();
     this.setSun(this.sunAt?.azimuth ?? null, this.sunAt?.elevation ?? null);
+  }
+
+  /** Every material in the house in the look's colours (or back in its own). */
+  private applyTheme() {
+    for (const level of this.levels) for (const m of level.materials) this.themeMaterial(m);
+  }
+
+  /**
+   * One material in the look: its own colour and texture by day and night; one plain
+   * colour for every surface of a white model or a blueprint (glass stays see-through,
+   * lit parts keep their glow). A room's daylight (lux) dims its floor on top.
+   */
+  private themeMaterial(m: THREE.Material) {
+    if (!(m instanceof THREE.MeshLambertMaterial)) return;
+    let own = this.ownLooks.get(m);
+    if (!own) this.ownLooks.set(m, (own = { color: m.color.clone(), map: m.map }));
+    const plain = this.look === "white" || this.look === "blueprint";
+    const see = m.transparent && ((m.userData.baseOpacity as number | undefined) ?? m.opacity) < 0.9;
+    if (!plain) m.color.copy(own.color);
+    else if (this.look === "white") m.color.set(see ? "#dfe8ee" : "#f1f0ec");
+    else m.color.set(see ? BLUEPRINT.glass : BLUEPRINT.surface);
+    const map = plain ? null : own.map;
+    if (m.map !== map) {
+      m.map = map;
+      m.needsUpdate = true;
+    }
+    const daylight = m.userData.daylight as number | undefined;
+    if (daylight !== undefined) m.color.multiplyScalar(0.3 + 0.7 * daylight);
+  }
+
+  /** A copy of a material that keeps its own look (for linked pieces' own materials). */
+  private copyMaterial(m: THREE.MeshLambertMaterial): THREE.MeshLambertMaterial {
+    const c = m.clone();
+    const own = this.ownLooks.get(m);
+    if (own) this.ownLooks.set(c, own);
+    return c;
   }
 
   /**
@@ -1023,8 +1069,9 @@ export class HouseRenderer {
   setRoomDaylight(levelId: string, roomId: string, k: number | null) {
     const m = this.floors.get(`${levelId}/${roomId}`)?.material;
     if (!m) return;
-    const base = (m.userData.daylightBase ??= m.color.clone()) as THREE.Color;
-    m.color.copy(base).multiplyScalar(k === null ? 1 : 0.3 + 0.7 * k);
+    if (k === null) delete m.userData.daylight;
+    else m.userData.daylight = k;
+    this.themeMaterial(m);
   }
 
   setRoomLight(levelId: string, roomId: string, light: LightLook | null) {
@@ -1195,7 +1242,7 @@ export class HouseRenderer {
         if (!m.userData.glow) return m;
         let c = own.get(m);
         if (!c) {
-          own.set(m, (c = (m as THREE.MeshLambertMaterial).clone()));
+          own.set(m, (c = this.copyMaterial(m as THREE.MeshLambertMaterial)));
           materials.add(c);
         }
         return c;
@@ -1225,7 +1272,7 @@ export class HouseRenderer {
         if (!m.userData.part && !m.userData.glow) return m;
         let c = own.get(m);
         if (!c) {
-          own.set(m, (c = (m as THREE.MeshLambertMaterial).clone()));
+          own.set(m, (c = this.copyMaterial(m as THREE.MeshLambertMaterial)));
           c.userData.lit = c.emissive.clone();
           c.userData.litIntensity = c.emissiveIntensity;
           materials.add(c);
@@ -1718,6 +1765,7 @@ export class HouseRenderer {
         if (source.userData.part) m.userData.part = source.userData.part;
         converted.set(source, m);
         materials.add(m);
+        this.themeMaterial(m);
         // join the level's fading and hover tint as they are now
         const level = this.levels.find((l) => l.materials === materials);
         if (level) {
@@ -2157,7 +2205,7 @@ export class HouseRenderer {
   setSun(azimuth: number | null, elevation: number | null) {
     this.sunAt = azimuth === null || elevation === null ? null : { azimuth, elevation };
     // the night look is night whatever the sun does (it still sets the shadows' direction)
-    const e = this.look === "night" ? -10 : (this.sunAt?.elevation ?? 45);
+    const e = this.look === "night" || this.look === "blueprint" ? -10 : this.look === "white" ? Math.max(35, this.sunAt?.elevation ?? 45) : (this.sunAt?.elevation ?? 45);
     // day: full light, a little warmer and weaker when the sun is low; night: dim and cool
     const day = Math.max(0, Math.min(1, (e + 4) / 14));
     this.sun.intensity = 2.2 * day;
@@ -2165,11 +2213,12 @@ export class HouseRenderer {
     this.sky.intensity = 0.55 + 0.85 * day;
     this.sky.color.set(day > 0.5 ? 0xffffff : 0xb8c4ff);
     this.ambient.intensity = 0.2 + 0.15 * day;
-    if (this.look === "night") {
+    if (this.look === "night" || this.look === "blueprint") {
       // darker than a plain night, a little blue, so lamps and outlines carry the picture
-      this.sky.intensity = 0.32;
+      // (a blueprint a little lighter: its surfaces are already dark blue)
+      this.sky.intensity = this.look === "blueprint" ? 0.6 : 0.32;
       this.sky.color.set(0x8f9cff);
-      this.ambient.intensity = 0.1;
+      this.ambient.intensity = this.look === "blueprint" ? 0.2 : 0.1;
     }
     this.night = 1 - day;
     this.placeSun();

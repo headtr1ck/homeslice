@@ -418,6 +418,8 @@
   "cardeditor.look_day": "Day",
   "cardeditor.look_night": "Night (glowing outlines)",
   "cardeditor.look_auto": "Auto (night after sunset)",
+  "cardeditor.look_white": "White model (light and shade only)",
+  "cardeditor.look_blueprint": "Blueprint (dark blue, glowing edges)",
   "cardeditor.accent": "Outline colour",
   "cardeditor.sun": "Light from the real sun, darker at night (needs sun.sun)",
   "cardeditor.lux": "Rooms as bright as their lux sensor reads, with the reading",

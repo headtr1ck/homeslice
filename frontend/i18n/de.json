@@ -418,6 +418,8 @@
   "cardeditor.look_day": "Tag",
   "cardeditor.look_night": "Nacht (leuchtende Umrisse)",
   "cardeditor.look_auto": "Automatisch (Nacht nach Sonnenuntergang)",
+  "cardeditor.look_white": "Weißes Modell (nur Licht und Schatten)",
+  "cardeditor.look_blueprint": "Blaupause (dunkelblau, leuchtende Kanten)",
   "cardeditor.accent": "Farbe der Umrisse",
   "cardeditor.sun": "Licht von der echten Sonne, nachts dunkler (benötigt sun.sun)",
   "cardeditor.lux": "Räume so hell, wie ihr Lux-Sensor misst, mit dem Messwert",

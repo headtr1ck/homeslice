@@ -214,12 +214,12 @@ export class HomesliceCardEditor extends LitElement {
         >${this.t("cardeditor.look")}
         <select @change=${(e: Event) => {
           const look = (e.target as HTMLSelectElement).value;
-          this.change({ look: look === "day" ? undefined : (look as "night" | "auto") });
+          this.change({ look: look === "day" ? undefined : (look as HomesliceCardConfig["look"]) });
         }}>
-          ${(["day", "night", "auto"] as const).map((l) => html`<option value=${l} ?selected=${(this._config.look ?? "day") === l}>${this.t(`cardeditor.look_${l}`)}</option>`)}
+          ${(["day", "night", "auto", "white", "blueprint"] as const).map((l) => html`<option value=${l} ?selected=${(this._config.look ?? "day") === l}>${this.t(`cardeditor.look_${l}`)}</option>`)}
         </select>
       </label>
-      <label ?hidden=${(this._config.look ?? "day") === "day"}
+      <label ?hidden=${["day", "white"].includes(this._config.look ?? "day")}
         >${this.t("cardeditor.accent")}
         <input type="color" .value=${this._config.accent ?? DEFAULT_ACCENT} @change=${(e: Event) => {
           const accent = (e.target as HTMLInputElement).value;
