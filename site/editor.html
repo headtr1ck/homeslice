@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Homeslice demo — the editor</title>
+<link rel="icon" href="data:,">
+<style>
+  :root { color-scheme: dark; }
+  body { margin: 0; background: #111418; color: #e8eaed; font-family: system-ui, Roboto, sans-serif; }
+  #bar { padding: 6px 12px; font-size: 13px; background: #1c2026; color: #9aa4ae; }
+  #bar a { color: #4fc3f7; }
+  .demo-tile { border: 1px solid #333a42; border-radius: 12px; padding: 8px 12px; }
+</style>
+<script type="module" src="stand-ins.js"></script>
+</head>
+<body>
+<div id="bar">Homeslice editor demo — draw, furnish and link the demo house. Nothing is saved. <a href="index.html">Back to the card</a></div>
+<div id="root"></div>
+<script type="module">
+  import { makeHass } from "./fake-hass.js";
+  await import("./stand-ins.js");
+  await import("./frontend/homeslice-editor.js");
+  const fixture = await (await fetch("demo.json")).json();
+  await customElements.whenDefined("homeslice-panel");
+  const panel = document.createElement("homeslice-panel");
+  panel.style.cssText = "display:flex;height:calc(100vh - 30px)";
+  document.getElementById("root").append(panel);
+  panel.hass = makeHass(fixture, (h) => (panel.hass = h));
+</script>
+</body>
+</html>

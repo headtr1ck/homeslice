@@ -20,6 +20,10 @@ energy flows. Free and open source (MIT), installed with HACS, made for wall tab
 **No paywall, no premium features: everything is free.** In English, German, French, Dutch,
 Spanish, Italian and Polish (help with more languages is welcome).
 
+▶️ **[Try the live demo](https://headtr1ck.github.io/homeslice/)** — the card and the editor in your browser, on a demo house (nothing to install, nothing is saved).
+
+![Homeslice in motion: 3D by day, lights coming on, shutters and a door, night, the white model and the blueprint, one floor, the tilted and the flat plan, all floors, rain and the sun's path](docs/images/showreel.webp)
+
 | The card: your house in 3D | At night, with its lights on |
 |---|---|
 | ![The demo house as the card shows it: two floors, furnished, the garden](docs/images/card-3d.jpg) | ![The same house at night, lamps lighting the rooms](docs/images/card-3d-night.jpg) |

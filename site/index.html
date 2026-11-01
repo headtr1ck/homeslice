@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Homeslice demo — a 3D floor plan for Home Assistant</title>
+<meta name="description" content="Try Homeslice in your browser: a 3D floor plan card and editor for Home Assistant, on a demo house. Free and open source.">
+<link rel="icon" href="data:,">
+<style>
+  :root { color-scheme: dark; --primary-text-color: #e8eaed; --card-background-color: #1c2026; --divider-color: #333a42; --primary-color: #4fc3f7; }
+  body { margin: 0; background: #111418; color: #e8eaed; font: 15px/1.5 system-ui, -apple-system, Roboto, sans-serif; }
+  header, main, footer { max-width: 1400px; margin: 0 auto; padding: 16px; box-sizing: border-box; }
+  header { display: flex; flex-wrap: wrap; gap: 12px; align-items: baseline; justify-content: space-between; }
+  h1 { margin: 0; font-size: 26px; }
+  h1 small { font-weight: 400; color: #9aa4ae; font-size: 15px; margin-left: 8px; }
+  a { color: #4fc3f7; }
+  .controls { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0 14px; }
+  .controls button { background: #1c2026; color: #e8eaed; border: 1px solid #333a42; border-radius: 18px; padding: 6px 14px; font: inherit; cursor: pointer; }
+  .controls button.on { background: #4fc3f7; color: #0b1a22; border-color: #4fc3f7; }
+  .controls .sep { width: 1px; background: #333a42; margin: 0 4px; }
+  .note { color: #9aa4ae; font-size: 13px; }
+  .demo-tile { border: 1px solid #333a42; border-radius: 12px; padding: 8px 12px; display: flex; justify-content: space-between; gap: 12px; cursor: pointer; background: #1c2026; }
+  .demo-tile.on { border-color: #ffcf6b; }
+  .demo-tile span { color: #9aa4ae; }
+  #card { min-height: 420px; }
+</style>
+<script type="module" src="stand-ins.js"></script>
+</head>
+<body>
+<header>
+  <h1>Homeslice <small>a 3D floor plan for Home Assistant — live demo</small></h1>
+  <nav><a href="editor.html">Open the editor</a> · <a href="https://github.com/headtr1ck/homeslice">GitHub</a></nav>
+</header>
+<main>
+  <div class="controls" id="controls"></div>
+  <div id="card"></div>
+  <p class="note">A demo house on a pretend Home Assistant: tap a room, switch lamps (drag to dim), turn the house, pick a floor. Nothing here is saved or sent anywhere.</p>
+</main>
+<script type="module">
+  import { makeHass } from "./fake-hass.js";
+  await import("./stand-ins.js");
+  await import("./frontend/homeslice-app.js");
+  const fixture = await (await fetch("demo.json")).json();
+  await customElements.whenDefined("homeslice-card");
+  let card;
+  let hass;
+  const base = { type: "custom:homeslice-card", interactive: true, weather: "weather.home", view: { azimuth: 200, elevation: 38, furniture: "detailed" } };
+  let config = { ...base };
+  const mount = () => {
+    const el = document.createElement("homeslice-card");
+    el.setConfig(config);
+    document.getElementById("card").replaceChildren(el);
+    hass = hass ?? makeHass(fixture, (h) => (card.hass = h));
+    el.hass = hass;
+    card = el;
+  };
+  mount();
+  const setState = (id, state, attributes = {}) => {
+    const h = card.hass;
+    h.states = { ...h.states, [id]: { ...h.states[id], state, attributes: { ...h.states[id]?.attributes, ...attributes } } };
+    card.hass = h;
+  };
+  const groups = [
+    { name: "View", items: [
+      ["3D", () => (config = { ...config, mode: undefined, floors: undefined })],
+      ["2.5D", () => (config = { ...config, mode: "tilted", floors: undefined })],
+      ["2D plan", () => (config = { ...config, mode: "plan", floors: undefined })],
+      ["All floors", () => (config = { ...config, mode: "plan", floors: "all" })],
+    ] },
+    { name: "Look", items: [
+      ["Day", () => { config = { ...config, look: "day" }; setState("sun.sun", "above_horizon", { elevation: 35 }); }],
+      ["Night", () => { config = { ...config, look: "night" }; setState("sun.sun", "below_horizon", { elevation: -15 }); }],
+      ["White", () => (config = { ...config, look: "white" })],
+      ["Blueprint", () => (config = { ...config, look: "blueprint" })],
+    ] },
+    { name: "Weather", items: [
+      ["Sunny", () => setState("weather.home", "sunny")],
+      ["Rain", () => setState("weather.home", "pouring")],
+      ["Snow", () => setState("weather.home", "snowy")],
+    ] },
+  ];
+  const controls = document.getElementById("controls");
+  groups.forEach((g, gi) => {
+    if (gi) controls.append(Object.assign(document.createElement("span"), { className: "sep" }));
+    g.items.forEach(([label, act], i) => {
+      const b = document.createElement("button");
+      b.textContent = label;
+      if (i === 0) b.classList.add("on");
+      b.onclick = () => {
+        act();
+        for (const x of b.parentElement.querySelectorAll(`button[data-group="${gi}"]`)) x.classList.toggle("on", x === b);
+        if (g.name !== "Weather") mount();
+      };
+      b.dataset.group = gi;
+      controls.append(b);
+    });
+  });
+  const lights = document.createElement("button");
+  lights.textContent = "All lights";
+  lights.onclick = () => {
+    const ids = Object.keys(card.hass.states).filter((id) => id.startsWith("light."));
+    const on = ids.some((id) => card.hass.states[id].state === "on");
+    for (const id of ids) card.hass.callService("light", on ? "turn_off" : "turn_on", {}, { entity_id: id });
+  };
+  controls.append(Object.assign(document.createElement("span"), { className: "sep" }), lights);
+</script>
+</body>
+</html>

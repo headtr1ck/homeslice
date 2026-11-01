@@ -10,3 +10,4 @@ coverage/
 test-results/
 dev/fixtures/private/
 .venv-install.log
+dist-site/

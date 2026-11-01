@@ -15,7 +15,7 @@
     "pull": "node scripts/pull-house.mjs",
     "check": "npm run typecheck && npm test && npm run test:browser && (test -x .venv/bin/python && .venv/bin/python -m pytest -q || echo 'Python tests skipped: no .venv (see CONTRIBUTING.md)')",
     "dev": "vite build && echo 'Card: http://localhost:8123/dev/harness.html?demo=card  Editor: …?demo=editor' && python3 -m http.server 8123",
-    "showcase": "vite build && node scripts/showcase.mjs"
+    "showcase": "vite build && node scripts/showcase.mjs && node scripts/showreel.mjs"
   },
   "dependencies": {
     "lit": "^3.3.3",
