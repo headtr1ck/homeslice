@@ -232,7 +232,8 @@ interface Underlay {
   image: string;
   width: number;
   height: number;
-  place: { origin: Vec2; scale: number; rotation: number };
+  /** `ruler`: the line the scale was set on (image pixels), shown as a measuring line. */
+  place: { origin: Vec2; scale: number; rotation: number; ruler?: { a: Vec2; b: Vec2 } };
   opacity: number;
 }
 
@@ -359,6 +360,8 @@ export class HomeslicePanel extends LitElement {
     _underlay: { state: true },
     _underlayHidden: { state: true },
     _calib: { state: true },
+    _straighten: { state: true },
+    _rulerHidden: { state: true },
     _underlayMove: { state: true },
     _show: { state: true },
     _dimEdit: { state: true },
@@ -427,6 +430,9 @@ export class HomeslicePanel extends LitElement {
   private _underlayHidden = false;
   /** Setting the image's scale: two clicked points (image pixels), then their distance. */
   private _calib: { a?: Vec2; b?: Vec2; distance?: string } | null = null;
+  /** Straightening a scan: two points (plan metres) along a wall that should run straight. */
+  private _straighten: { a?: Vec2; to?: Vec2 } | null = null;
+  private _rulerHidden = false;
   /** Dragging moves the image instead of editing the plan. */
   private _underlayMove = false;
   private underlayRequest = "";
@@ -883,12 +889,13 @@ export class HomeslicePanel extends LitElement {
       // first Escape: let go of the selection and anything half done; the next: back to Select
       const busy =
         !!(this._room || this._wall || this._opening || this._stair || this._furn || this._energyPlace || this._robotPlace || this._robotCalib || this._settings || this._checklist) ||
-        this._freeWall !== null || this._energySel !== null || this._robotSel !== null || !!this._measure || !!this._dimEdit || !!this._calib || this._underlayMove;
+        this._freeWall !== null || this._energySel !== null || this._robotSel !== null || !!this._measure || !!this._dimEdit || !!this._calib || !!this._straighten || this._underlayMove;
       if (!busy) this._tool = "select";
       this.clearSelection();
       this._checklist = false;
       this._pendingArea = null;
       this._calib = null;
+      this._straighten = null;
       this._underlayMove = false;
       this._energyPlace = null;
       this._furn = null;
@@ -1036,6 +1043,11 @@ export class HomeslicePanel extends LitElement {
     }
     const world = this.eventWorld(e);
     const u = this._underlay?.level === this._level ? this._underlay : null;
+    if (u && this._straighten) {
+      if (!this._straighten.a) this._straighten = { a: world };
+      else this.straightenUnderlay(this._straighten.a, world);
+      return;
+    }
     if (u && this._calib && !(this._calib.a && this._calib.b)) {
       const p = this.planToUnderlay(u, world);
       this._calib = this._calib.a ? { ...this._calib, b: p } : { a: p };
@@ -1250,6 +1262,7 @@ export class HomeslicePanel extends LitElement {
   }
 
   private onPlanMove(e: PointerEvent) {
+    if (this._straighten?.a) this._straighten = { ...this._straighten, to: this.eventWorld(e) };
     const drag = this._drag;
     if (!drag || !this._model) return;
     const world = this.eventWorld(e);
@@ -1753,10 +1766,21 @@ export class HomeslicePanel extends LitElement {
       await this._hass!.callWS({ type: "homeslice/underlay/set", house: this._house, level, image, place, opacity: 0.5 });
       this._underlay = { level, image, width, height, place, opacity: 0.5 };
       this._underlayHidden = false;
-      this._calib = {};
+      // first straighten the scan (a robot's map is straight), then set its scale
+      if (metresPerPixel) this._calib = {};
+      else this._straighten = {};
     } catch (e) {
       this._error = this.t("editor.underlay_failed", { message: String((e as { message?: string }).message ?? e) });
     }
+  }
+
+  /** Turns the image so the line a→b (along a wall) runs exactly across or up the plan, then on to the scale. */
+  private straightenUnderlay(a: Vec2, b: Vec2) {
+    this._straighten = null;
+    if (Math.hypot(b[0] - a[0], b[1] - a[1]) < 0.05) return;
+    const angle = (Math.atan2(b[1] - a[1], b[0] - a[0]) * 180) / Math.PI;
+    this.rotateUnderlay(Math.round(angle / 90) * 90 - angle);
+    if (!this._underlay?.place.ruler) this._calib = {};
   }
 
   private rotateUnderlay(by: number) {
@@ -1786,8 +1810,9 @@ export class HomeslicePanel extends LitElement {
     const x = c.a[0] * scale;
     const y = c.a[1] * scale;
     const origin: Vec2 = [anchor[0] - (x * Math.cos(r) - y * Math.sin(r)), anchor[1] - (x * Math.sin(r) + y * Math.cos(r))];
-    this.saveUnderlay({ place: { ...u.place, origin, scale } });
+    this.saveUnderlay({ place: { ...u.place, origin, scale, ruler: { a: c.a, b: c.b } } });
     this._calib = null;
+    this._rulerHidden = false;
     this._underlayMove = true;
   }
 
@@ -1810,9 +1835,28 @@ export class HomeslicePanel extends LitElement {
             return svg`<line class="calib-line" x1=${x1} y1=${y1} x2=${x2} y2=${y2}></line>`;
           })()
         : nothing;
+    // the straightening line: from its first point to the pointer
+    const st = this._straighten?.a ? this.toScreen(this._straighten.a) : null;
+    const hover = st && this._straighten?.to ? this.toScreen(this._straighten.to) : null;
     return svg`<image class="underlay" href=${u.image} x="0" y="0" width=${u.width} height=${u.height} opacity=${u.opacity}
         transform="translate(${sx} ${sy}) rotate(${u.place.rotation}) scale(${k})" preserveAspectRatio="none"></image>
-      ${line}${mark(c?.a)}${mark(c?.b)}`;
+      ${line}${mark(c?.a)}${mark(c?.b)}${!c && !this._rulerHidden && u.place.ruler ? this.renderRuler(u, u.place.ruler) : nothing}
+      ${st ? svg`<circle class="calib-point" cx=${st[0]} cy=${st[1]} r="6"></circle>${hover ? svg`<line class="calib-line" x1=${st[0]} y1=${st[1]} x2=${hover[0]} y2=${hover[1]}></line>` : nothing}` : nothing}`;
+  }
+
+  /** The line the scale was set on, with end ticks and its length: a check that the scale still fits. */
+  private renderRuler(u: Underlay, r: { a: Vec2; b: Vec2 }) {
+    const [x1, y1] = this.toScreen(this.underlayToPlan(u, r.a));
+    const [x2, y2] = this.toScreen(this.underlayToPlan(u, r.b));
+    const len = Math.hypot(x2 - x1, y2 - y1);
+    if (len < 2) return nothing;
+    const [nx, ny] = [-(y2 - y1) / len, (x2 - x1) / len];
+    const metres = Math.hypot(r.b[0] - r.a[0], r.b[1] - r.a[1]) * u.place.scale;
+    const tick = (x: number, y: number) => svg`<line x1=${x - nx * 7} y1=${y - ny * 7} x2=${x + nx * 7} y2=${y + ny * 7}></line>`;
+    return svg`<g class="ruler" data-ruler>
+      <line x1=${x1} y1=${y1} x2=${x2} y2=${y2}></line>${tick(x1, y1)}${tick(x2, y2)}
+      <text x=${(x1 + x2) / 2 + nx * 14} y=${(y1 + y2) / 2 + ny * 14} text-anchor="middle" dominant-baseline="middle">${this.fmtM(metres)}</text>
+    </g>`;
   }
 
   /** Map pictures of robot vacuums: image entities on the same device as a vacuum. */
@@ -1854,7 +1898,15 @@ export class HomeslicePanel extends LitElement {
       : nothing;
     if (!u) return html`<h3>${this.t("editor.underlay")}</h3><p class="muted">${this.t("editor.underlay_hint")}</p>${fileInput}${mapButtons}`;
     return html`<h3>${this.t("editor.underlay")}</h3>
-      ${c
+      ${this._straighten
+        ? html`<div class="calib">
+            <p>${this.t(this._straighten.a ? "editor.straighten_second" : "editor.straighten_first")}</p>
+            <button @click=${() => {
+              this._straighten = null;
+              if (!u.place.ruler) this._calib = {};
+            }}>${this.t(u.place.ruler ? "editor.cancel" : "editor.straighten_skip")}</button>
+          </div>`
+        : c
         ? html`<div class="calib">
             <p>${!c.a ? this.t("editor.calib_first") : !c.b ? this.t("editor.calib_second") : this.t("editor.calib_distance")}</p>
             ${c.a && c.b
@@ -1874,6 +1926,19 @@ export class HomeslicePanel extends LitElement {
               this._underlayMove = false;
             }}>${this.t("editor.underlay_scale")}</button>
             <button class=${this._underlayMove ? "active" : ""} @click=${() => (this._underlayMove = !this._underlayMove)}>${this.t("editor.underlay_move")}</button>
+            <button data-straighten @click=${() => {
+              this._straighten = {};
+              this._underlayMove = false;
+            }}>${this.t("editor.underlay_straighten")}</button>
+          </div>
+          <div class="row">
+            <label>${this.t("editor.underlay_rotation")}
+              <input class="underlay-rotation" type="number" step="0.1" .value=${String(Math.round(u.place.rotation * 10) / 10)}
+                @change=${(e: Event) => {
+                  const v = parseFloat((e.target as HTMLInputElement).value.replace(",", "."));
+                  if (Number.isFinite(v)) this.rotateUnderlay(v - u.place.rotation);
+                }} />
+            </label>
             <button title=${this.t("editor.underlay_rotate_left")} aria-label=${this.t("editor.underlay_rotate_left")} @click=${() => this.rotateUnderlay(-90)}>⟲</button>
             <button title=${this.t("editor.underlay_rotate_right")} aria-label=${this.t("editor.underlay_rotate_right")} @click=${() => this.rotateUnderlay(90)}>⟳</button>
           </div>`}
@@ -1883,6 +1948,10 @@ export class HomeslicePanel extends LitElement {
       <div class="row">
         <label class="check"><input type="checkbox" .checked=${!this._underlayHidden} @change=${(e: Event) => (this._underlayHidden = !(e.target as HTMLInputElement).checked)} />
           ${this.t("editor.underlay_show")}</label>
+        ${u.place.ruler
+          ? html`<label class="check"><input type="checkbox" .checked=${!this._rulerHidden} @change=${(e: Event) => (this._rulerHidden = !(e.target as HTMLInputElement).checked)} />
+              ${this.t("editor.underlay_ruler")}</label>`
+          : nothing}
       </div>
       <div class="row">
         ${fileInput}
@@ -5410,6 +5479,21 @@ export class HomeslicePanel extends LitElement {
       fill: #ff6b6b;
       stroke: #fff;
       stroke-width: 2;
+      pointer-events: none;
+    }
+    .ruler line {
+      stroke: #ff6b6b;
+      stroke-width: 2;
+    }
+    .ruler text {
+      fill: #ff6b6b;
+      font-size: 12px;
+      font-weight: 600;
+      paint-order: stroke;
+      stroke: var(--card, #fff);
+      stroke-width: 3px;
+    }
+    .ruler {
       pointer-events: none;
     }
     .calib-line {

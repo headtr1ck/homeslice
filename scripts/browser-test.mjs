@@ -3081,7 +3081,7 @@ if (selected()) {
     assert(!(await page.locator("homeslice-panel ul.unplaced li", { hasText: "Hall" }).count()), "hall still listed as unplaced");
   });
 
-  await test("floor plan image: upload, scale from two points, move, turn, remove", async () => {
+  await test("floor plan image: upload, straighten, scale from two points with a ruler, move, turn, remove", async () => {
     await page.keyboard.press("Escape");
     // a 400 × 200 test image
     const dataUrl = await page.evaluate(() => {
@@ -3097,7 +3097,7 @@ if (selected()) {
     });
     await page.locator("homeslice-panel .inspector label.file input").setInputFiles({ name: "plan.png", mimeType: "image/png", buffer: Buffer.from(dataUrl.split(",")[1], "base64") });
     await page.waitForSelector("homeslice-panel svg.plan image.underlay");
-    assert((await page.locator("homeslice-panel .calib").textContent()).includes("Click the start"), "calibration not started");
+    assert((await page.locator("homeslice-panel .calib").textContent()).includes("askew"), "straightening not offered first");
     const screenOf = (px) =>
       page.evaluate((px) => {
         const p = window.panel;
@@ -3105,12 +3105,22 @@ if (selected()) {
         const r = p.shadowRoot.querySelector("svg.plan").getBoundingClientRect();
         return [r.left + x, r.top + y];
       }, px);
+    // a wall drawn 4 px askew over 200 px: the image turns back by atan(4/200)
+    await page.mouse.click(...(await screenOf([100, 100])));
+    await page.mouse.click(...(await screenOf([300, 104])));
+    const tilt = (Math.atan2(4, 200) * 180) / Math.PI;
+    const turned = await page.evaluate(() => window.panel._underlay.place.rotation);
+    assert(Math.abs(turned - (360 - tilt)) < 0.05, `straightened to ${turned}, expected ${360 - tilt}`);
+    assert((await page.locator("homeslice-panel .calib").textContent()).includes("Click the start"), "calibration not started after straightening");
     await page.mouse.click(...(await screenOf([100, 100])));
     await page.mouse.click(...(await screenOf([300, 100])));
     await page.locator("homeslice-panel .calib input.calib-distance").fill("4");
     await page.locator("homeslice-panel .calib button.primary").click();
     const placed = await page.evaluate(() => window.panel._underlay.place);
     assert(Math.abs(placed.scale - 0.02) < 1e-6, `scale: ${placed.scale}`);
+    // the line stays as a ruler with its length
+    const ruler = await page.locator("homeslice-panel svg.plan g.ruler text").textContent();
+    assert(/^4([.,]00?)? ?m$/.test(ruler.trim()), `ruler label ${ruler}`);
     // moving is on after scaling
     const scale = await page.evaluate(() => window.panel._view.scale);
     const from = await screenOf([200, 150]);
@@ -3122,10 +3132,15 @@ if (selected()) {
     assert(Math.abs(moved[0] - placed.origin[0] - 1) < 0.02, `moved: ${JSON.stringify(moved)} from ${JSON.stringify(placed.origin)}`);
     await shot(page, "editor-underlay");
     await page.keyboard.press("Escape");
+    await page.locator("homeslice-panel .inspector input.underlay-rotation").fill("0");
+    await page.locator("homeslice-panel .inspector input.underlay-rotation").press("Enter");
+    assert((await page.evaluate(() => window.panel._underlay.place.rotation)) === 0, "rotation field ignored");
     await page.locator("homeslice-panel .inspector button[aria-label='Turn right 90°']").click();
     assert((await page.evaluate(() => window.panel._underlay.place.rotation)) === 90, "not turned");
     const stored = await page.evaluate(() => window.panel.hass.callWS({ type: "homeslice/underlay/get", house: "test_house", level: "ground_floor" }));
-    assert(stored?.place?.rotation === 90 && Math.abs(stored.place.scale - 0.02) < 1e-6, `stored: ${JSON.stringify(stored?.place)}`);
+    assert(stored?.place?.rotation === 90 && Math.abs(stored.place.scale - 0.02) < 1e-6 && stored.place.ruler, `stored: ${JSON.stringify(stored?.place)}`);
+    await page.locator("homeslice-panel .inspector label.check", { hasText: "Show the ruler" }).locator("input").uncheck();
+    assert(!(await page.locator("homeslice-panel svg.plan g.ruler").count()), "ruler still shown");
     await page.locator("homeslice-panel .inspector button", { hasText: "Remove image" }).click();
     assert(!(await page.locator("homeslice-panel svg.plan image.underlay").count()), "image still shown");
   });

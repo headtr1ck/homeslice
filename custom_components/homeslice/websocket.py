@@ -155,6 +155,11 @@ PLACE = vol.Schema(
         vol.Required("origin"): vol.All([vol.Coerce(float)], vol.Length(min=2, max=2)),
         vol.Required("scale"): vol.All(vol.Coerce(float), vol.Range(min=1e-5, max=10)),
         vol.Optional("rotation", default=0): vol.Coerce(float),
+        # the line the scale was set on (image pixels), kept as a ruler
+        vol.Optional("ruler"): {
+            vol.Required("a"): vol.All([vol.Coerce(float)], vol.Length(min=2, max=2)),
+            vol.Required("b"): vol.All([vol.Coerce(float)], vol.Length(min=2, max=2)),
+        },
     }
 )
 

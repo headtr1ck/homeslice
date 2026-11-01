@@ -180,6 +180,15 @@ async def test_underlays_are_stored_per_level_admin_only(
         {"type": "homeslice/underlay/set", "house": "home", "level": "ground", "place": {"origin": [1, 2], "scale": 0.02}}
     )
     assert (await client.receive_json())["result"]["place"] == {"origin": [1.0, 2.0], "scale": 0.02, "rotation": 0}
+    ruler = {"a": [10, 20], "b": [210, 20]}
+    await client.send_json_auto_id(
+        {"type": "homeslice/underlay/set", "house": "home", "level": "ground", "place": {"origin": [1, 2], "scale": 0.02, "rotation": 1.5, "ruler": ruler}}
+    )
+    assert (await client.receive_json())["result"]["place"]["ruler"] == {"a": [10.0, 20.0], "b": [210.0, 20.0]}
+    await client.send_json_auto_id(
+        {"type": "homeslice/underlay/set", "house": "home", "level": "ground", "place": {"origin": [1, 2], "scale": 0.02, "ruler": {"a": [1, 2]}}}
+    )
+    assert not (await client.receive_json())["success"]
     await client.send_json_auto_id({"type": "homeslice/underlay/get", "house": "home", "level": "ground"})
     got = (await client.receive_json())["result"]
     assert got["image"] == PNG and got["opacity"] == 0.5

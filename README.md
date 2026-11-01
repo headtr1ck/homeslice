@@ -74,7 +74,7 @@ Alpha: card and editor work and are used daily on one house, but nothing is stab
   walk through the house at eye level; the card flies to what happens (a doorbell) or to
   what you ask Assist for ("Show the kitchen").
 - **Editor** (admin sidebar page *Homeslice*): start a house from Home Assistant's floors
-  and areas, trace rooms over a floor plan image, drag walls and corners with snapping,
+  and areas, trace rooms over a floor plan image (straightened and scaled with a ruler), drag walls and corners with snapping,
   doors and windows with their blinds, stairs, furniture, lights, cameras, energy devices,
   robots, roof levels; undo/redo; the whole house as YAML in and out; backup and restore.
 - **In seven languages**, with number formats as your HA settings say.
