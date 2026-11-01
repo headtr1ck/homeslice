@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import type { HouseInput, Vec2 } from "../model/types";
 import {
+  duplicateLevel,
+  moveRoomToLevel,
+  movePieceToLevel,
   addRoofLevel,
   addRoofPart,
   addSolarPanels,
@@ -318,6 +321,44 @@ describe("houses and levels", () => {
     expect(m.facade_openings![0]).toEqual({ side: "south", at: 1, width: 1, levels: ["g"] });
     expect(m.vertical).toBeUndefined();
     expect(deleteLevel(m, "g").levels).toHaveLength(1); // the last level stays
+  });
+
+  it("duplicates a floor above it, without its links to Home Assistant", () => {
+    let m = house();
+    Object.assign(m.levels[0], { floor_id: "ground" });
+    Object.assign(m.levels[0].rooms[0], { area_id: "kitchen", lights: [{ entity: "light.k" }], furniture: [{ type: "sofa", at: [1, 1], entity: "media_player.tv" }] });
+    m.levels[0].openings![0].cover = "cover.x";
+    const r = duplicateLevel(m, "g");
+    m = r.model;
+    expect(m.levels.map((l) => l.id)).toEqual(["g", "g_copy"]);
+    const copy = m.levels[1];
+    expect(copy.floor_id).toBeUndefined();
+    expect(copy.rooms[0]).toEqual({ id: "left", rect: [0, 0, 5, 8], furniture: [{ type: "sofa", at: [1, 1] }] });
+    expect(copy.openings![0].cover).toBeUndefined();
+    // the original keeps its links
+    expect(m.levels[0].rooms[0].area_id).toBe("kitchen");
+  });
+
+  it("moves a room with its doors to another floor, and a piece into the room under it", () => {
+    let m = house();
+    m = addLevel(m, 1, { name: "Up", areas: [] }).model;
+    m.levels[1].rooms = [{ id: "west", rect: [0, 0, 5, 8] }, { id: "right", rect: [5, 0, 5, 8] }];
+    // in the right room, 2 m from its corner: 7 m from the house's
+    m.levels[0].rooms[1].furniture = [{ type: "sofa", at: [2, 2] }];
+    m.levels[0].walls = [{ between: ["left", "right"] }];
+    const moved = moveRoomToLevel(m, "g", "right", "up");
+    expect(moved.roomId).toBe("right_2");
+    expect(moved.model.levels[0].rooms.map((r) => r.id)).toEqual(["left"]);
+    expect(moved.model.levels[0].openings).toBeUndefined();
+    expect(moved.model.levels[0].walls).toBeUndefined();
+    expect(moved.model.levels[1].openings).toEqual([{ room: "right_2", side: "south", at: 1, width: 1 }]);
+    const piece = movePieceToLevel(m, "g", "right", 0, "up");
+    expect(piece.roomId).toBe("right");
+    expect(piece.model.levels[0].rooms[1].furniture).toBeUndefined();
+    expect(piece.model.levels[1].rooms[1].furniture).toEqual([{ type: "sofa", at: [2, 2] }]);
+    // into a room that starts elsewhere: the same spot on the plan
+    m.levels[1].rooms = [{ id: "all", rect: [1, 0, 9, 8] }];
+    expect(movePieceToLevel(m, "g", "right", 0, "up").model.levels[1].rooms[0].furniture).toEqual([{ type: "sofa", at: [6, 2] }]);
   });
 
   it("makes ids from names", () => {

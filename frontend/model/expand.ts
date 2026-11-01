@@ -157,6 +157,8 @@ export function expandHouse(input: unknown): ExpandResult {
       if (fi.accent !== undefined && typeof fi.accent !== "string") return err(fp, "accent must be a name like black, brass or oak.");
       if (fi.readings !== undefined && !(Array.isArray(fi.readings) && fi.readings.every((r) => typeof r === "string" && r.includes("."))))
         return err(fp, "readings must be a list of entity ids, e.g. [sensor.car_battery].");
+      if (fi.visible_when !== undefined && !(typeof fi.visible_when === "string" && fi.visible_when.includes(".")))
+        return err(fp, "visible_when must be an entity id, e.g. input_boolean.christmas.");
       furniture.push({
         type: fi.type,
         at: [min[0] + fi.at[0], min[1] + fi.at[1]],
@@ -171,6 +173,7 @@ export function expandHouse(input: unknown): ExpandResult {
         ...(fi.finish ? { finish: fi.finish } : {}),
         ...(fi.accent ? { accent: fi.accent } : {}),
         ...(fi.readings?.length ? { readings: fi.readings } : {}),
+        ...(fi.visible_when ? { visibleWhen: fi.visible_when } : {}),
       });
     });
     return furniture;

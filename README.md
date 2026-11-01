@@ -77,7 +77,8 @@ Alpha: card and editor work and are used daily on one house, but nothing is stab
 - **Editor** (admin sidebar page *Homeslice*): start a house from Home Assistant's floors
   and areas, trace rooms over a floor plan image (straightened and scaled with a ruler), drag walls and corners with snapping,
   doors and windows with their blinds, stairs, furniture, lights, cameras, energy devices,
-  robots, roof levels; undo/redo; the whole house as YAML in and out; backup and restore.
+  robots, roof levels; duplicate floors, move rooms and pieces between floors, pieces only
+  there while a helper is on; undo/redo; the whole house as YAML in and out; backup and restore.
 - **In seven languages**, with number formats as your HA settings say.
 
 ## Installation

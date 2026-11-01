@@ -916,6 +916,22 @@ if (selected()) {
     await act(page, () => page.evaluate(() => window.card.hass.pushModel(window.__demoModel)));
   });
 
+  await test("a piece shown only while its helper is on", async () => {
+    await act(page, async () => {
+      await page.evaluate(() => {
+        window.card.hass.setState("input_boolean.guests", "off", {});
+        const m = structuredClone(window.__demoModel);
+        m.levels[0].rooms.find((r) => r.id === "living").furniture = [{ type: "bed", at: [2, 2], visible_when: "input_boolean.guests" }];
+        window.card.hass.pushModel(m);
+      });
+    });
+    const shown = () => page.evaluate(() => window.card.renderer.shownPieces("input_boolean.guests"));
+    assert((await shown()) === 0, "the guest bed shows while off");
+    await act(page, () => page.evaluate(() => window.card.hass.setState("input_boolean.guests", "on")));
+    assert((await shown()) === 1, "the guest bed is missing while on");
+    await act(page, () => page.evaluate(() => window.card.hass.pushModel(window.__demoModel)));
+  });
+
   await test("a top-hung window and a lift-and-slide door open with their contacts", async () => {
     await act(page, () =>
       page.evaluate(() => {
@@ -2718,7 +2734,7 @@ if (selected()) {
     assert(guides === 1, `${guides} guide lines while snapped`);
     assert((await model()).levels[0].openings.at(-1).at === 1.75, `not centred: ${JSON.stringify((await model()).levels[0].openings.at(-1))}`);
 
-    const coverSelect = page.locator("homeslice-panel .inspector label", { hasText: "Blind" }).locator("select");
+    const coverSelect = page.locator("homeslice-panel .inspector label", { hasText: /^\s*Blind/ }).locator("select");
     const options = await coverSelect.locator("option").allTextContents();
     assert(options[1].startsWith("★"), `the kitchen's own blind should come first: ${options.join(" | ")}`);
     await coverSelect.selectOption("cover.kitchen");
@@ -3487,6 +3503,35 @@ if (selected()) {
     assert(scale === 0.0125, `scale ${scale}`);
     await page.locator("homeslice-panel .inspector button", { hasText: "Remove image" }).click();
     await page.keyboard.press("Escape");
+  });
+
+  await test("floors: duplicate one, move a room to another floor, undo both", async () => {
+    await page.keyboard.press("Escape");
+    const before = await page.evaluate(() => ({ levels: window.panel._model.levels.map((l) => l.id), level: window.panel._level }));
+    await page.evaluate(() => {
+      window.panel._settings = null;
+      window.panel._tool = "select";
+      window.panel._room = null;
+    });
+    await page.locator("homeslice-panel button[data-duplicate-level]").click();
+    let m = await page.evaluate(() => ({ levels: window.panel._model.levels.map((l) => l.id), level: window.panel._level }));
+    assert(m.levels.length === before.levels.length + 1 && m.level === `${before.level}_copy`, `after duplicating: ${JSON.stringify(m)}`);
+    await page.keyboard.press("Control+z");
+    await page.evaluate((id) => (window.panel._level = id), before.level);
+    // a room to the next floor
+    const room = await page.evaluate(() => window.panel._model.levels.find((l) => l.id === window.panel._level).rooms[0].id);
+    await page.evaluate((room) => (window.panel._room = room), room);
+    const other = before.levels.find((l) => l !== before.level);
+    await page.locator("homeslice-panel label.move-floor select").selectOption(other);
+    m = await page.evaluate(([from, to]) => ({ here: window.panel._model.levels.find((l) => l.id === from).rooms.map((r) => r.id), there: window.panel._model.levels.find((l) => l.id === to).rooms.map((r) => r.id), level: window.panel._level }), [before.level, other]);
+    assert(!m.here.includes(room) && m.there.some((r) => r.startsWith(room)) && m.level === other, `after moving: ${JSON.stringify(m)}`);
+    await page.keyboard.press("Control+z");
+    m = await page.evaluate(() => window.panel._model.levels.map((l) => l.id));
+    assert(JSON.stringify(m) === JSON.stringify(before.levels), `undo: ${JSON.stringify(m)}`);
+    await page.evaluate((id) => {
+      window.panel._level = id;
+      window.panel._room = null;
+    }, before.level);
   });
 
   await test("roof level: add it, pick a preset, a second part at an angle, solar panels", async () => {

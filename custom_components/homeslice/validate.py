@@ -281,6 +281,10 @@ def validate(house: Any) -> list[dict[str, str]]:
             if readings is not MISSING and not (isinstance(readings, list) and all(isinstance(r, str) and "." in r for r in readings)):
                 err(fp, "readings must be a list of entity ids, e.g. [sensor.car_battery].")
                 continue
+            visible_when = get(fi, "visible_when")
+            if visible_when is not MISSING and not (isinstance(visible_when, str) and "." in visible_when):
+                err(fp, "visible_when must be an entity id, e.g. input_boolean.christmas.")
+                continue
 
     def check_dormers(list_in: Any, path: str) -> None:
         for i, d in enumerate(items(list_in)):

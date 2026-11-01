@@ -1610,9 +1610,13 @@ export class HomesliceCard extends LitElement {
     });
     // smooth: each level's readings where they are (room middles, placed sensors), spread across its floors
     const fields = smooth && this.config.heatmap ? this.heatSamples(hass, this.config.heatmap, heat as (number | null)[]) : null;
+    // pieces there only while an entity is on (a guest bed, the Christmas tree)
+    const shownWhen = [...new Set(this.house.levels.flatMap((l) => l.rooms.flatMap((r) => r.furniture.flatMap((f) => (f.visibleWhen ? [f.visibleWhen] : [])))))].map(
+      (e) => [e, ["on", "home", "open", "playing", "active"].includes(hass.states[e]?.state ?? "")] as const,
+    );
     const ruleHits = (this.config.rules ?? []).map((r) => ruleMatches(hass, r));
     const ruleTexts = (this.config.rules ?? []).map((r, i) => (ruleHits[i] ? ruleText(hass, r) : ""));
-    const signature = JSON.stringify([look, this.config.accent, lux, heat, fields, ruleHits, ruleTexts, lights, lamps, covers, blinds, contacts, doorNotes, values, sensors, awnings, devices, roofWindows, underfloor, badges, energyDetails, weather, this.placedPeople(hass).map((p) => [p.key, p.levelId, p.at]), this.config.weather ? hass.states[this.config.weather]?.attributes.temperature : null, cameras, this.energyReadings, this.robotReadings, this.robotNeeds, sunAt]);
+    const signature = JSON.stringify([look, this.config.accent, lux, heat, fields, ruleHits, ruleTexts, shownWhen, lights, lamps, covers, blinds, contacts, doorNotes, values, sensors, awnings, devices, roofWindows, underfloor, badges, energyDetails, weather, this.placedPeople(hass).map((p) => [p.key, p.levelId, p.at]), this.config.weather ? hass.states[this.config.weather]?.attributes.temperature : null, cameras, this.energyReadings, this.robotReadings, this.robotNeeds, sunAt]);
     if (signature === this.stateSignature) return;
     this.stateSignature = signature;
     this.lamps.forEach((l, i) => this.renderer!.setLamp(l.entity, lamps[i]));
@@ -1624,6 +1628,7 @@ export class HomesliceCard extends LitElement {
       if (r.color && ruleHits[i]) tints.set(r.entity, r.color);
     });
     for (const [entity, color] of tints) this.renderer.setEntityTint(entity, color);
+    for (const [entity, on] of shownWhen) this.renderer.setShownWhen(entity, on);
     for (const [entity, heating] of underfloor) this.renderer.setUnderfloor(entity, heating);
     for (const [key, closed, open] of roofWindows) this.renderer.setRoofWindow(key, closed, open);
     for (const [entity, moving] of cameras) this.renderer.setCameraMotion(entity, moving);

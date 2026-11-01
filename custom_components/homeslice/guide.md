@@ -164,6 +164,8 @@ accent, entity, readings}]`.
   sensor), `plant` a `plant.…` problem, `mailbox` post (a binary sensor), `appliance` its
   time left (a duration sensor).
 - `readings: [sensor.…]`: values in a note above the piece, e.g. a car's charge and range.
+- `visible_when: input_boolean.…`: the piece is only there while that entity is on (a guest
+  bed, the Christmas tree).
 
 ### Energy and robots (optional)
 

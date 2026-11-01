@@ -466,6 +466,9 @@ export class HouseRenderer {
   private lampLooks = new Map<string, LightLook | null>();
   /** Pieces linked to an entity, for taps. */
   private linked: THREE.Object3D[] = [];
+  /** Pieces shown only while an entity is on, and what those entities say. */
+  private conditional: THREE.Object3D[] = [];
+  private shownWhen = new Map<string, boolean>();
   /** The parts of linked pieces their device drives (screens, flames, fans…), by entity. */
   private devices = new Map<string, DeviceParts[]>();
   private deviceLooks = new Map<string, DeviceLook | null>();
@@ -663,6 +666,7 @@ export class HouseRenderer {
     this.planLines = [];
     this.cameraViews.clear();
     this.linked = [];
+    this.conditional = [];
     this.covers.clear();
     this.blinds.clear();
     this.glasses.clear();
@@ -1441,6 +1445,19 @@ export class HouseRenderer {
 
   /** Linked pieces tinted by a card rule, with their materials' own glow to go back to. */
   private entityTints = new Map<string, string>();
+
+  /** Shows or hides the pieces that are there only while this entity is on. */
+  setShownWhen(entity: string, on: boolean) {
+    if (this.shownWhen.get(entity) === on) return;
+    this.shownWhen.set(entity, on);
+    for (const g of this.conditional) if (g.userData.visibleWhen === entity) g.visible = on;
+    this.draw();
+  }
+
+  /** For tests: how many pieces an entity shows. */
+  shownPieces(entity: string) {
+    return this.conditional.filter((g) => g.userData.visibleWhen === entity && g.visible).length;
+  }
 
   /** Tints the pieces linked to an entity (a state rule), or back to their own look with null. */
   setEntityTint(entity: string, color: string | null) {
@@ -2830,6 +2847,11 @@ export class HouseRenderer {
     if (f.entity) {
       g.userData.entity = f.entity;
       this.linked.push(g);
+    }
+    if (f.visibleWhen) {
+      g.userData.visibleWhen = f.visibleWhen;
+      g.visible = this.shownWhen.get(f.visibleWhen) ?? false;
+      this.conditional.push(g);
     }
     if (this.view.furniture === "detailed" && detailFor(f)) this.detail(g, f);
     return g;

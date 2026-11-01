@@ -77,6 +77,9 @@ import {
   moveFurniture,
   updateFurniture,
   copyRooms,
+  duplicateLevel,
+  moveRoomToLevel,
+  movePieceToLevel,
   addEnergy,
   deleteEnergy,
   updateEnergy,
@@ -2472,7 +2475,15 @@ export class HomeslicePanel extends LitElement {
         <button title=${this.t("editor.furniture_mirror_h")} @click=${() => set(flipFurniture(f, "x"))}>⇋ ${this.t("editor.furniture_mirror_h")}</button>
         <button title=${this.t("editor.furniture_mirror_v")} @click=${() => set(flipFurniture(f, "y"))}>⇅ ${this.t("editor.furniture_mirror_v")}</button>
       </div>
+      ${this.entitySelect(this.t("editor.visible_when"), "input_boolean", undefined, f.visible_when, (visible_when) => set({ visible_when }))}
       <button @click=${() => this.duplicateFurniture()}>${this.t("editor.furniture_duplicate")}</button>
+      ${this.moveToFloor((to) => {
+        const moved = movePieceToLevel(m, this._level, r.id, sel.index, to);
+        if (!moved.roomId) return;
+        this.commit(moved.model);
+        this._furn = null;
+        this._level = to;
+      })}
       <button class="danger" @click=${() => {
         this.commit(deleteFurniture(m, this._level, r.id, sel.index));
         this._furn = null;
@@ -3280,6 +3291,12 @@ export class HomeslicePanel extends LitElement {
         ${(["north", "east", "south", "west"] as Side[]).map((sd) => html`<button data-wall-view=${sd} @click=${() => (this._wallView = { room: r.id, side: sd })}>${this.t(`editor.side_${sd}` as StringKey)}</button>`)}
       </div>
       ${this.renderRoomObjects(r)}
+      ${this.moveToFloor((to) => {
+        const moved = moveRoomToLevel(m, this._level, r.id, to);
+        this.commit(moved.model);
+        this._level = to;
+        this._room = moved.roomId;
+      })}
       <button class="danger" @click=${() => {
         this.commit(deleteRoom(m, this._level, r.id));
         this._room = null;
@@ -4002,12 +4019,33 @@ export class HomeslicePanel extends LitElement {
         <button @click=${() => this.addLevelAt(index + 1)}>${this.t("editor.add_level_above")}</button>
         <button @click=${() => this.addLevelAt(index)}>${this.t("editor.add_level_below")}</button>
       </div>
+      <button data-duplicate-level @click=${() => {
+        const copy = duplicateLevel(m, l.id);
+        this.commit(copy.model);
+        this._level = copy.id;
+      }}>${this.t("editor.duplicate_level")}</button>
       <button class="danger" ?disabled=${m.levels.length <= 1} @click=${() => {
         if (!confirm(this.t("editor.delete_level_confirm", { name: this.levelName(l) }))) return;
         const next = deleteLevel(m, l.id);
         this.commit(next);
         this._level = next.levels[Math.max(0, index - 1)].id;
       }}>${this.t("editor.delete_level")}</button>`;
+  }
+
+  /** "Move to floor…": the other floors (not the roof). */
+  private moveToFloor(onPick: (levelId: string) => void) {
+    const others = (this._model?.levels ?? []).filter((l) => l.id !== this._level && l.kind !== "roof");
+    if (!others.length) return nothing;
+    return html`<label class="move-floor">${this.t("editor.move_to_floor")}
+      <select @change=${(e: Event) => {
+        const v = (e.target as HTMLSelectElement).value;
+        (e.target as HTMLSelectElement).value = "";
+        if (v) onPick(v);
+      }}>
+        <option value="">—</option>
+        ${others.map((l) => html`<option value=${l.id}>${this.levelName(l)}</option>`)}
+      </select>
+    </label>`;
   }
 
   /**

@@ -1,7 +1,7 @@
 // Pure editing operations on the input (short-form) model. They never mutate their input:
 // each returns a new model, which keeps undo/redo trivial and makes them easy to test.
 
-import { bbox, dist, normalizeOrientation, project, signedArea } from "../model/geometry";
+import { bbox, dist, normalizeOrientation, pointInPolygon, project, signedArea } from "../model/geometry";
 import { expandHouse } from "../model/expand";
 import type {
   RoofPartInput, CameraInput, Coord, EnergyInput, FacadeOpeningInput, FurnitureInput, HouseInput, LevelInput, LightType, OpeningInput, OpeningSource, OpeningType, RoomInput, ShapeInput, RobotInput, RoofInput, Side, Vec2, VerticalInput, WallInput, WallThickness } from "../model/types";
@@ -956,7 +956,7 @@ export function deleteLevel(model: HouseInput, levelId: string): HouseInput {
     m.facade_openings = m.facade_openings
       .map((o) => {
         const next = { ...o, levels: o.levels.filter((l) => l !== levelId) };
-        for (const key of ["covers", "contacts"] as const) {
+        for (const key of ["covers", "contacts", "locks", "blinds"] as const) {
           if (!next[key]) continue;
           const map = { ...next[key] };
           delete map[levelId];
@@ -975,6 +975,83 @@ export function deleteLevel(model: HouseInput, levelId: string): HouseInput {
   return m;
 }
 
+/** A room without its links to Home Assistant (its copy on another floor is a new place). */
+function unlinkRoom(r: RoomInput): RoomInput {
+  const out = clone(r);
+  delete out.area_id;
+  delete out.awning;
+  delete out.underfloor;
+  delete out.lights;
+  delete out.cameras;
+  for (const f of out.furniture ?? []) {
+    delete f.entity;
+    delete f.readings;
+  }
+  return out;
+}
+
+/**
+ * A copy of a floor right above it: its outline, rooms, walls, openings and furniture,
+ * without what links them to Home Assistant (areas, entities). Not a HA floor yet.
+ */
+export function duplicateLevel(model: HouseInput, levelId: string): { model: HouseInput; id: string } {
+  const m = clone(model);
+  const i = m.levels.findIndex((l) => l.id === levelId);
+  const src = m.levels[i];
+  const id = uniqueId(
+    m.levels.map((l) => l.id),
+    `${levelId}_copy`,
+  );
+  const copy: LevelInput = { ...clone(src), id, rooms: src.rooms.map(unlinkRoom) };
+  delete copy.floor_id;
+  delete copy.include_floors;
+  copy.name = `${src.name ?? src.floor_id ?? src.id} (2)`;
+  if (copy.openings) copy.openings = copy.openings.map(({ cover: _c, contact: _k, lock: _l, blind: _b, ...o }) => o);
+  m.levels.splice(i + 1, 0, copy);
+  return { model: m, id };
+}
+
+/**
+ * Moves a room with its furniture to another floor, same place on the plan; its doors and
+ * windows go along, walls naming it stay behind (they'd name a room that is not there).
+ */
+export function moveRoomToLevel(model: HouseInput, fromId: string, roomId: string, toId: string): { model: HouseInput; roomId: string } {
+  const m = clone(model);
+  const from = level(m, fromId);
+  const to = level(m, toId);
+  const room = from.rooms.find((r) => r.id === roomId);
+  if (!room || fromId === toId) return { model: m, roomId };
+  const newId = uniqueRoomId(to, roomId);
+  from.rooms = from.rooms.filter((r) => r !== room);
+  to.rooms.push({ ...room, id: newId });
+  const going = (from.openings ?? []).filter((o) => o.room === roomId);
+  from.openings = (from.openings ?? []).filter((o) => o.room !== roomId);
+  if (!from.openings.length) delete from.openings;
+  if (going.length) to.openings = [...(to.openings ?? []), ...going.map((o) => ({ ...o, room: newId }))];
+  if (from.walls) {
+    from.walls = from.walls.filter((w) => !w.between?.includes(roomId));
+    if (!from.walls.length) delete from.walls;
+  }
+  return { model: m, roomId: newId };
+}
+
+/** Moves a piece to another floor, same spot: into the room there that holds it, else the first (pieces stand relative to their room). */
+export function movePieceToLevel(model: HouseInput, fromId: string, roomId: string, index: number, toId: string): { model: HouseInput; roomId: string | null } {
+  const m = clone(model);
+  const room = level(m, fromId).rooms.find((r) => r.id === roomId);
+  const piece = room?.furniture?.[index];
+  const to = level(m, toId);
+  if (!room || !piece || fromId === toId || !to.rooms.length) return { model: m, roomId: null };
+  const origin = bbox(roomPolygon(m, room)).min;
+  const spot: Vec2 = [origin[0] + piece.at[0], origin[1] + piece.at[1]];
+  const target = to.rooms.find((r) => pointInPolygon(spot, roomPolygon(m, r))) ?? to.rooms[0];
+  const there = bbox(roomPolygon(m, target)).min;
+  room.furniture = room.furniture!.filter((_, i) => i !== index);
+  if (!room.furniture.length) delete room.furniture;
+  (target.furniture ??= []).push({ ...piece, at: [round(spot[0] - there[0]), round(spot[1] - there[1])] });
+  return { model: m, roomId: target.id };
+}
+
 /** Changes level properties; empty values are dropped (defaults apply). Renaming the id updates references. */
 export function updateLevel(model: HouseInput, levelId: string, patch: Partial<Omit<LevelInput, "rooms">>): HouseInput {
   const m = clone(model);
@@ -985,7 +1062,7 @@ export function updateLevel(model: HouseInput, levelId: string, patch: Partial<O
   if (id && id !== levelId) {
     for (const o of m.facade_openings ?? []) {
       o.levels = o.levels.map((x) => (x === levelId ? id : x));
-      for (const key of ["covers", "contacts"] as const) {
+      for (const key of ["covers", "contacts", "locks", "blinds"] as const) {
         const map = o[key];
         if (map && levelId in map) {
           map[id] = map[levelId];
