@@ -2,7 +2,7 @@
 // area's lights spread evenly over the room.
 
 import { bbox, labelPoint, pointInPolygon } from "./geometry";
-import type { House, Room, Vec2 } from "./types";
+import type { House, LightType, Room, Vec2 } from "./types";
 
 export interface PlacedLight {
   levelId: string;
@@ -13,6 +13,11 @@ export interface PlacedLight {
   auto: boolean;
   /** The light of a piece of furniture. */
   piece?: boolean;
+  /** How it looks (see LightInput.type); spots' further downlights, a strip's other end. */
+  type: LightType;
+  spots: Vec2[];
+  to?: Vec2;
+  height?: number;
 }
 
 /** Lights listed in any room of the house: those are never auto-placed elsewhere. */
@@ -51,9 +56,20 @@ export function placeLights(levelId: string, room: Room, polygon: Vec2[], areaLi
   const own = new Set(room.lights.map((l) => l.entity));
   const entries = [
     ...room.lights.filter((l) => !l.hidden),
-    ...areaLights.filter((e) => !own.has(e) && !listed.has(e)).map((entity) => ({ entity, at: undefined })),
+    ...areaLights.filter((e) => !own.has(e) && !listed.has(e)).map((entity) => ({ entity, at: undefined, type: "lamp" as LightType, spots: [] as Vec2[] })),
   ];
   const free = spread(polygon, entries.filter((e) => !e.at).length);
   let i = 0;
-  return entries.map((e) => ({ levelId, roomId: room.id, entity: e.entity, at: e.at ?? free[i++], auto: !e.at, ...("piece" in e && e.piece ? { piece: true } : {}) }));
+  return entries.map((e) => ({
+    levelId,
+    roomId: room.id,
+    entity: e.entity,
+    at: e.at ?? free[i++],
+    auto: !e.at,
+    ...("piece" in e && e.piece ? { piece: true } : {}),
+    type: e.type,
+    spots: e.spots,
+    ...("to" in e && e.to ? { to: e.to } : {}),
+    ...("height" in e && e.height !== undefined ? { height: e.height } : {}),
+  }));
 }

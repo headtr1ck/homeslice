@@ -326,15 +326,15 @@ describe("stairs", () => {
 describe("lights", () => {
   const room = (lights: Room["lights"] = []): Room => ({ id: "r", kind: "room", floor: "wood", polygon: [[0, 0], [4, 0], [4, 2], [0, 2]], lights, furniture: [] });
   it("spreads the area's lights and keeps placed ones", () => {
-    const placed = placeLights("g", room([{ entity: "light.a", at: [1, 1], hidden: false }]), room().polygon, ["light.a", "light.b", "light.c"], new Set(["light.a"]));
+    const placed = placeLights("g", room([{ entity: "light.a", at: [1, 1], hidden: false, type: "lamp", spots: [] }]), room().polygon, ["light.a", "light.b", "light.c"], new Set(["light.a"]));
     expect(placed).toEqual([
-      { levelId: "g", roomId: "r", entity: "light.a", at: [1, 1], auto: false },
-      { levelId: "g", roomId: "r", entity: "light.b", at: [1, 1], auto: true },
-      { levelId: "g", roomId: "r", entity: "light.c", at: [3, 1], auto: true },
+      { levelId: "g", roomId: "r", entity: "light.a", at: [1, 1], auto: false, type: "lamp", spots: [] },
+      { levelId: "g", roomId: "r", entity: "light.b", at: [1, 1], auto: true, type: "lamp", spots: [] },
+      { levelId: "g", roomId: "r", entity: "light.c", at: [3, 1], auto: true, type: "lamp", spots: [] },
     ]);
   });
   it("leaves out hidden lights and lights placed in another room", () => {
-    const placed = placeLights("g", room([{ entity: "light.a", hidden: true }]), room().polygon, ["light.a", "light.b"], new Set(["light.a", "light.b"]));
+    const placed = placeLights("g", room([{ entity: "light.a", hidden: true, type: "lamp", spots: [] }]), room().polygon, ["light.a", "light.b"], new Set(["light.a", "light.b"]));
     expect(placed).toEqual([]);
   });
   it("expands at relative to the room's north-west corner", () => {
@@ -343,6 +343,19 @@ describe("lights", () => {
     const r = expand(input).levels[0].rooms[1];
     const { min } = bbox(r.polygon);
     expect(r.lights[0].at).toEqual([min[0] + 1, min[1] + 2]);
+  });
+  it("expands spots and strips to plan coordinates, and checks them", () => {
+    const input = twoRooms();
+    input.levels[0].rooms[1].lights = [
+      { entity: "light.spots", type: "spot", at: [1, 1], spots: [[2, 1], [3, 1]] },
+      { entity: "light.strip", type: "strip", at: [0.5, 0.2], to: [3, 0.2], height: 0.9 },
+    ];
+    const r = expand(input).levels[0].rooms[1];
+    const { min } = bbox(r.polygon);
+    expect(r.lights[0]).toMatchObject({ type: "spot", spots: [[min[0] + 2, min[1] + 1], [min[0] + 3, min[1] + 1]] });
+    expect(r.lights[1]).toMatchObject({ type: "strip", to: [min[0] + 3, min[1] + 0.2], height: 0.9 });
+    input.levels[0].rooms[1].lights = [{ entity: "light.strip", type: "strip", at: [0.5, 0.2] }];
+    expect(expandHouse(input).issues.map((i) => i.message)).toContain("A strip needs at and to: its two ends.");
     input.levels[0].rooms[1].lights = [{ entity: "switch.x" }];
     expect(expandHouse(input).issues[0].message).toContain("A light needs entity: light.");
   });
@@ -410,7 +423,7 @@ describe("furniture linked to entities", () => {
   it("a floor lamp's light is where the lamp stands, and moves with it", () => {
     const input = (at: [number, number]) => ({ schema: 1, id: "f", outline: { rect: [0, 0, 5, 5] }, levels: [{ id: "g", rooms: [{ id: "r", rect: [0, 0, 5, 5], lights: [{ entity: "light.lamp", at: [1, 1] }], furniture: [{ type: "floor_lamp", at, entity: "light.lamp" }, { type: "tv", at: [2, 4], entity: "media_player.tv" }] }] }] });
     const room = expandHouse(input([4, 1])).house!.levels[0].rooms[0];
-    expect(room.lights).toEqual([{ entity: "light.lamp", at: [4, 1], hidden: false, piece: true }]);
+    expect(room.lights).toEqual([{ entity: "light.lamp", at: [4, 1], hidden: false, piece: true, type: "lamp", spots: [] }]);
     expect(room.furniture.map((f) => f.entity)).toEqual(["light.lamp", "media_player.tv"]);
     expect(expandHouse(input([2, 3])).house!.levels[0].rooms[0].lights[0].at).toEqual([2, 3]);
   });

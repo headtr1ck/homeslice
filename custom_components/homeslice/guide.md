@@ -72,7 +72,10 @@ vertical:
   `void` (an empty gap, e.g. the air space of a gallery).
 - Every area of a floor should get a room; the editor's checklist lists missing ones.
 - `lights` are optional: the area's lights are placed automatically. List one only to
-  place it (`at`), hide it (`hidden: true`) or add a light from another area.
+  place it (`at`), hide it (`hidden: true`) or add a light from another area. `type`
+  says how it looks: `lamp` (default), `spot` (ceiling downlights; `spots: [[x, y], …]`
+  adds more downlights on the same light), `strip` (an LED strip from `at` to `to`,
+  optional `height` in metres) or `indirect` (light washing the room's walls).
 - `awning: cover.…` on an outdoor room: an awning on the house wall over it.
 - Finishes: `floor` (wood, oak_herringbone, tile_white, terrazzo, concrete, carpet…;
   outdoor: lawn, paving, gravel, decking), `wall` for the room's inside walls (paint_white,

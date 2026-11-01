@@ -23,6 +23,7 @@ TEXTURE_REF = re.compile(r"^polyhaven:[A-Za-z0-9_-]+$")
 FLOOR_HINT = "a floor finish like wood, oak_herringbone or tile_white (see the catalogue) or polyhaven:<texture>"
 WALL_HINT = "a wall finish like paint_white, acoustic_oak or brick_red (see the catalogue) or polyhaven:<texture>"
 MODEL_REF = re.compile(r"^(builtin|(kenney|polyhaven|custom|modern):[A-Za-z0-9_-]+)$")
+LIGHT_TYPES = ["lamp", "spot", "strip", "indirect"]
 SIDES = ["north", "south", "east", "west"]
 ENERGY_KINDS = ["solar", "battery", "grid", "inverter", "device"]
 
@@ -281,9 +282,26 @@ def validate(house: Any) -> list[dict[str, str]]:
                 if not isinstance(entity, str) or not entity.startswith("light."):
                     err(f"{rp}.lights.{j}", f"A light needs entity: light.…, got {stringify(entity)}.")
                     continue
+                def point(v: Any) -> bool:
+                    return isinstance(v, list) and len(v) == 2 and all(is_num(x) for x in v)
+
                 at = get(light, "at")
-                if at is not MISSING and not (isinstance(at, list) and len(at) == 2 and all(is_num(v) for v in at)):
+                ltype = get(light, "type")
+                spots = get(light, "spots")
+                to = get(light, "to")
+                height = get(light, "height")
+                if at is not MISSING and not point(at):
                     err(f"{rp}.lights.{j}", "at must be [metres east, metres south] of the room's north-west corner.")
+                elif ltype is not MISSING and ltype not in LIGHT_TYPES:
+                    err(f"{rp}.lights.{j}.type", f"type must be {', '.join(LIGHT_TYPES)}, got {stringify(ltype)}.")
+                elif spots is not MISSING and not (isinstance(spots, list) and all(point(p) for p in spots)):
+                    err(f"{rp}.lights.{j}.spots", "spots must be a list of [metres east, metres south] of the room's north-west corner.")
+                elif to is not MISSING and not point(to):
+                    err(f"{rp}.lights.{j}.to", "to must be [metres east, metres south] of the room's north-west corner.")
+                elif height is not MISSING and not (is_num(height) and 0 <= height <= 6):
+                    err(f"{rp}.lights.{j}.height", "height must be metres above the floor (0–6).")
+                elif ltype == "strip" and (at is MISSING or to is MISSING):
+                    err(f"{rp}.lights.{j}", "A strip needs at and to: its two ends.")
             for j, fi in enumerate(items(get(ri, "furniture"))):
                 fp = f"{rp}.furniture.{j}"
                 ftype = get(fi, "type")

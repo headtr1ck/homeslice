@@ -128,12 +128,27 @@ export interface FurnitureInput {
   entity?: string;
 }
 
+/**
+ * What a light looks like: `lamp` (a pool of light under it, default), `spot` (ceiling
+ * downlights: a cone and a bright spot each), `strip` (an LED strip from `at` to `to`) or
+ * `indirect` (light washing the room's walls from the ceiling down).
+ */
+export type LightType = "lamp" | "spot" | "strip" | "indirect";
+
 export interface LightInput {
   entity: string;
   /** Metres east and south of the room's north-west corner (its bounding box). */
   at?: [number, number];
   /** Leave this light out of the house view. */
   hidden?: boolean;
+  /** How it looks (default `lamp`). */
+  type?: LightType;
+  /** Spots: more downlights on the same light (a row on one switch), positions like `at`. */
+  spots?: [number, number][];
+  /** Strips: the other end, like `at`. */
+  to?: [number, number];
+  /** Strips: metres above the floor (default under the ceiling). */
+  height?: number;
 }
 
 /**
@@ -384,7 +399,8 @@ export interface Room {
   wallSides?: Partial<Record<Side, string>>;
   /** As in the input, with `at` in plan coordinates. */
   /** `piece`: the light of a piece of furniture (placed where the piece is). */
-  lights: { entity: string; at?: Vec2; hidden: boolean; piece?: boolean }[];
+  /** `spots` and `to` in plan coordinates too. */
+  lights: { entity: string; at?: Vec2; hidden: boolean; piece?: boolean; type: LightType; spots: Vec2[]; to?: Vec2; height?: number }[];
   /** `elevation`: bottom above the floor in metres (ceiling pieces: null, they hang from the ceiling). */
   furniture: { type: FurnitureType; at: Vec2; rotation: number; size: [number, number]; height: number; mount: FurnitureMount; elevation: number | null; mirror: boolean; entity?: string; model?: string; finish?: string; accent?: string }[];
 }

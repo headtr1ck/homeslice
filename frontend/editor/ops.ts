@@ -3,7 +3,7 @@
 
 import { bbox, dist, normalizeOrientation, project, signedArea } from "../model/geometry";
 import { expandHouse } from "../model/expand";
-import type { Coord, EnergyInput, FacadeOpeningInput, FurnitureInput, HouseInput, LevelInput, OpeningInput, OpeningSource, OpeningType, RoomInput, ShapeInput, RobotInput, RoofInput, Side, Vec2, VerticalInput, WallInput, WallThickness } from "../model/types";
+import type { Coord, EnergyInput, FacadeOpeningInput, FurnitureInput, HouseInput, LevelInput, LightType, OpeningInput, OpeningSource, OpeningType, RoomInput, ShapeInput, RobotInput, RoofInput, Side, Vec2, VerticalInput, WallInput, WallThickness } from "../model/types";
 
 /** Points closer than this count as the same corner (shared by neighbouring rooms). */
 export const SAME_POINT = 0.01;
@@ -1070,6 +1070,40 @@ export function placeLight(model: HouseInput, levelId: string, roomId: string, e
   const entry = room.lights?.find((x) => x.entity === entity) ?? { entity };
   if (at) entry.at = [round(at[0]), round(at[1])];
   else delete entry.at;
+  room.lights = [...(room.lights ?? []).filter((x) => x.entity !== entity), entry];
+  return m;
+}
+
+/**
+ * Changes how a light looks: its type (spots, strip, indirect…), and for spots and strips
+ * their extra points. `at` (room-relative) pins a light that was placed automatically, as
+ * spots and strips need one. Switching back to a lamp drops what only the others use.
+ */
+export function setLightShape(model: HouseInput, levelId: string, roomId: string, entity: string, shape: { type?: LightType; spots?: [number, number][]; to?: [number, number] | null; height?: number | null }, at?: [number, number]): HouseInput {
+  const m = clone(model);
+  const room = level(m, levelId).rooms.find((r) => r.id === roomId);
+  if (!room) return m;
+  const entry = room.lights?.find((x) => x.entity === entity) ?? { entity };
+  if (!entry.at && at) entry.at = [round(at[0]), round(at[1])];
+  if (shape.type !== undefined) {
+    if (shape.type === "lamp") delete entry.type;
+    else entry.type = shape.type;
+    if (shape.type !== "spot") delete entry.spots;
+    if (shape.type !== "strip") {
+      delete entry.to;
+      delete entry.height;
+    }
+    // a new strip runs 1.5 m east from where the light is
+    if (shape.type === "strip" && !entry.to && entry.at) entry.to = [round(entry.at[0] + 1.5), entry.at[1]];
+  }
+  if (shape.spots !== undefined) {
+    if (shape.spots.length) entry.spots = shape.spots.map(([x, y]) => [round(x), round(y)] as [number, number]);
+    else delete entry.spots;
+  }
+  if (shape.to === null) delete entry.to;
+  else if (shape.to) entry.to = [round(shape.to[0]), round(shape.to[1])];
+  if (shape.height === null) delete entry.height;
+  else if (shape.height !== undefined) entry.height = shape.height;
   room.lights = [...(room.lights ?? []).filter((x) => x.entity !== entity), entry];
   return m;
 }

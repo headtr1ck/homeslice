@@ -9,6 +9,8 @@ import { FLOOR_FINISHES, WALL_FINISHES } from "./finishes";
 /** A furniture model reference (see FurnitureInput.model). */
 // kenney:<name> was a bundled model; such pieces now show their type's built-in piece
 const MODEL_REF = /^(builtin|(kenney|polyhaven|custom|modern):[A-Za-z0-9_-]+)$/;
+/** How a light can look (see LightInput.type). */
+export const LIGHT_TYPES: LightType[] = ["lamp", "spot", "strip", "indirect"];
 import type {
   Coord,
   Energy,
@@ -17,6 +19,7 @@ import type {
   HouseInput,
   Issue,
   Level,
+  LightType,
   Opening,
   OpeningStyle,
   OpeningType,
@@ -166,9 +169,24 @@ export function expandHouse(input: unknown): ExpandResult {
       const lights: Room["lights"] = [];
       (ri.lights ?? []).forEach((li, j) => {
         if (typeof li?.entity !== "string" || !li.entity.startsWith("light.")) return err(`${rp}.lights.${j}`, `A light needs entity: light.…, got ${JSON.stringify(li?.entity)}.`);
-        if (li.at !== undefined && !(Array.isArray(li.at) && li.at.length === 2 && li.at.every((v) => typeof v === "number")))
-          return err(`${rp}.lights.${j}`, "at must be [metres east, metres south] of the room's north-west corner.");
-        lights.push({ entity: li.entity, at: li.at ? [min[0] + li.at[0], min[1] + li.at[1]] : undefined, hidden: !!li.hidden });
+        const point = (v: unknown) => Array.isArray(v) && v.length === 2 && v.every((x) => typeof x === "number");
+        if (li.at !== undefined && !point(li.at)) return err(`${rp}.lights.${j}`, "at must be [metres east, metres south] of the room's north-west corner.");
+        if (li.type !== undefined && !LIGHT_TYPES.includes(li.type)) return err(`${rp}.lights.${j}.type`, `type must be ${LIGHT_TYPES.join(", ")}, got ${JSON.stringify(li.type)}.`);
+        if (li.spots !== undefined && !(Array.isArray(li.spots) && li.spots.every(point)))
+          return err(`${rp}.lights.${j}.spots`, "spots must be a list of [metres east, metres south] of the room's north-west corner.");
+        if (li.to !== undefined && !point(li.to)) return err(`${rp}.lights.${j}.to`, "to must be [metres east, metres south] of the room's north-west corner.");
+        if (li.height !== undefined && !(typeof li.height === "number" && li.height >= 0 && li.height <= 6)) return err(`${rp}.lights.${j}.height`, "height must be metres above the floor (0–6).");
+        if (li.type === "strip" && (li.at === undefined || li.to === undefined)) return err(`${rp}.lights.${j}`, "A strip needs at and to: its two ends.");
+        const abs = (p: [number, number]): Vec2 => [min[0] + p[0], min[1] + p[1]];
+        lights.push({
+          entity: li.entity,
+          at: li.at ? abs(li.at) : undefined,
+          hidden: !!li.hidden,
+          type: li.type ?? "lamp",
+          spots: (li.spots ?? []).map(abs),
+          ...(li.to ? { to: abs(li.to) } : {}),
+          ...(li.height !== undefined ? { height: li.height } : {}),
+        });
       });
       const furniture: Room["furniture"] = [];
       (ri.furniture ?? []).forEach((fi, j) => {
@@ -206,7 +224,7 @@ export function expandHouse(input: unknown): ExpandResult {
         if (!f.entity?.startsWith("light.")) continue;
         const listed = lights.find((x) => x.entity === f.entity);
         if (listed) Object.assign(listed, { at: f.at, piece: true });
-        else lights.push({ entity: f.entity, at: f.at, hidden: false, piece: true });
+        else lights.push({ entity: f.entity, at: f.at, hidden: false, piece: true, type: "lamp", spots: [] });
       }
       const room: Room = { id: ri.id, areaId: ri.area_id, name: ri.name, kind, floor: ri.floor ?? DEFAULTS.floor[kind], polygon, lights, furniture };
       if (ri.awning) room.awning = ri.awning;

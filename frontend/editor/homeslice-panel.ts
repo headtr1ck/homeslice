@@ -12,9 +12,9 @@ import { linkDomain } from "../ha/devices";
 import { formatNumber, localize, type StringKey } from "../i18n/localize";
 import en from "../i18n/en.json";
 import de from "../i18n/de.json";
-import { DEFAULTS, expandHouse } from "../model/expand";
+import { DEFAULTS, LIGHT_TYPES, expandHouse } from "../model/expand";
 import { bbox, labelPoint, pointInPolygon } from "../model/geometry";
-import type { EnergyInput, FurnitureInput, FurnitureMount, FurnitureType, HouseInput, Issue, OpeningInput, OpeningSource, OpeningType, RoomInput, Side, Vec2, Vertical } from "../model/types";
+import type { EnergyInput, FurnitureInput, FurnitureMount, FurnitureType, HouseInput, Issue, LightType, OpeningInput, OpeningSource, OpeningType, RoomInput, Side, Vec2, Vertical } from "../model/types";
 import { deriveWalls, innerPolygon, sideOfRoom, type Wall, type WallOpening } from "../model/walls";
 import { HouseRenderer } from "../render/scene";
 import { stairFrame, stairHole } from "../model/stairs";
@@ -84,6 +84,7 @@ import {
   placeLight,
   removeLight,
   setLightHidden,
+  setLightShape,
   addStairs,
   deleteStairs,
   setStairsRect,
@@ -245,7 +246,7 @@ type Drag =
   | { kind: "stair-resize"; origin: HouseInput; id: string; fixed: Vec2; ctx: SnapContext }
   | { kind: "furniture"; origin: HouseInput; room: string; index: number; startWorld: Vec2; centre: Vec2; moved: boolean }
   | { kind: "energy"; origin: HouseInput; index: number; startWorld: Vec2; at: Vec2; moved: boolean }
-  | { kind: "light"; origin: HouseInput; entity: string; room: string; startWorld: Vec2; ctx: SnapContext; moved: boolean }
+  | { kind: "light"; origin: HouseInput; entity: string; room: string; startWorld: Vec2; ctx: SnapContext; moved: boolean; part?: number | "to" }
   | { kind: "wall"; origin: HouseInput; a: Vec2; b: Vec2; startWorld: Vec2; normal: Vec2; thickness: number; faces: number[] }
   | { kind: "opening"; origin: HouseInput; src: OpeningSource; axis: 0 | 1; startWorld: Vec2; at: number; snaps: OpeningSnaps }
   | { kind: "measure"; ctx: SnapContext }
@@ -1095,7 +1096,7 @@ export class HomeslicePanel extends LitElement {
     }
     const hitLight = target.closest("[data-light]") as SVGElement | null;
     if (hitLight) {
-      const { entity, room } = JSON.parse(hitLight.dataset.light!) as { entity: string; room: string };
+      const { entity, room, part } = JSON.parse(hitLight.dataset.light!) as { entity: string; room: string; part?: number | "to" };
       const lamps = this.levelLamps();
       const ctx = this.snapContext();
       // line up with the other lamps and the rooms' centres
@@ -1104,7 +1105,7 @@ export class HomeslicePanel extends LitElement {
       ctx.align = { x: extra.map((p) => p[0]), y: extra.map((p) => p[1]) };
       this.clearSelection();
       this._room = room;
-      this._drag = { kind: "light", origin: clone(this._model), entity, room, startWorld: world, ctx, moved: false };
+      this._drag = { kind: "light", origin: clone(this._model), entity, room, startWorld: world, ctx, moved: false, part };
       return;
     }
     const hitOpening = target.closest("[data-opening]") as SVGElement | null;
@@ -1319,6 +1320,18 @@ export class HomeslicePanel extends LitElement {
       if (!drag.moved && Math.hypot(world[0] - drag.startWorld[0], world[1] - drag.startWorld[1]) * this._view.scale < 4) return;
       drag.moved = true;
       const s = snapped(world, drag.ctx);
+      if (drag.part !== undefined) {
+        // a spot of a row or a strip's far end: stays in the light's room
+        const room = this.levelInput?.rooms.find((r) => r.id === drag.room);
+        const entry = room?.lights?.find((x) => x.entity === drag.entity);
+        if (!room || !entry) return;
+        const { min } = bbox(roomPolygon(this._model!, room));
+        const p: [number, number] = [s.p[0] - min[0], s.p[1] - min[1]];
+        this._guides = { x: s.alignX, y: s.alignY, ring: s.target };
+        const shape = drag.part === "to" ? { to: p } : { spots: (entry.spots ?? []).map((q, i) => (i === drag.part ? p : q)) };
+        this._model = setLightShape(drag.origin, this._level, room.id, drag.entity, shape);
+        return;
+      }
       const rooms = (this.levelInput?.rooms ?? []).filter((r) => r.kind !== "void");
       const room = rooms.find((r) => pointInPolygon(s.p, roomPolygon(this._model!, r))) ?? rooms.find((r) => r.id === drag.room);
       if (!room) return;
@@ -2130,7 +2143,18 @@ export class HomeslicePanel extends LitElement {
       const [x, y] = this.toScreen(l.at);
       const on = this._hass?.states[l.entity]?.state === "on";
       const sel = this._room === l.roomId;
-      return svg`<g class="lamp-marker ${l.auto ? "auto" : "placed"} ${on ? "on" : ""} ${sel ? "selected" : ""}" data-light=${JSON.stringify({ entity: l.entity, room: l.roomId })}>
+      // a strip's line and far end, a row's further spots: each dragged on its own
+      const part = (p: Vec2, which: number | "to") => {
+        const [px, py] = this.toScreen(p);
+        return svg`<circle class="lamp-part ${on ? "on" : ""}" cx=${px} cy=${py} r="6" data-light=${JSON.stringify({ entity: l.entity, room: l.roomId, part: which })}><title>${this.entityName(l.entity)}</title></circle>`;
+      };
+      const extra =
+        l.type === "strip" && l.to
+          ? svg`<line class="lamp-strip ${on ? "on" : ""}" x1=${x} y1=${y} x2=${this.toScreen(l.to)[0]} y2=${this.toScreen(l.to)[1]}></line>${part(l.to, "to")}`
+          : l.type === "spot"
+            ? svg`${l.spots.map((p, i) => part(p, i))}`
+            : nothing;
+      return svg`${extra}<g class="lamp-marker ${l.auto ? "auto" : "placed"} ${on ? "on" : ""} ${sel ? "selected" : ""}" data-light=${JSON.stringify({ entity: l.entity, room: l.roomId })}>
         <circle cx=${x} cy=${y} r="10"></circle>
         <path d="M ${x - 3.5} ${y + 5} h 7 M ${x - 2.5} ${y + 7.5} h 5" class="base"></path>
         <circle cx=${x} cy=${y - 1.5} r="4.5" class="bulb"></circle>
@@ -3637,6 +3661,38 @@ export class HomeslicePanel extends LitElement {
       ${this.renderRobotSection()}`;
   }
 
+  /** How a light looks: lamp, spots (add or remove one), strip (its height), indirect. */
+  private renderLightShape(r: RoomInput, l: PlacedLight) {
+    const m = this._model!;
+    const { min } = bbox(roomPolygon(m, r));
+    const rel = (p: Vec2): [number, number] => [p[0] - min[0], p[1] - min[1]];
+    const set = (shape: Parameters<typeof setLightShape>[4]) => this.commit(setLightShape(m, this._level, r.id, l.entity, shape, rel(l.at)));
+    const spots = l.spots.map(rel);
+    return html`<span class="light-shape">
+      <select aria-label=${this.t("editor.light_type")} @change=${(e: Event) => set({ type: (e.target as HTMLSelectElement).value as LightType })}>
+        ${LIGHT_TYPES.map((t) => html`<option value=${t} ?selected=${l.type === t}>${this.t(`editor.light_type_${t}` as StringKey)}</option>`)}
+      </select>
+      ${l.type === "spot"
+        ? html`<button title=${this.t("editor.light_spot_add")} @click=${() => {
+              // the next spot continues the row (or starts it east of the first)
+              const last = spots.at(-1) ?? rel(l.at);
+              const prev = spots.length > 1 ? spots.at(-2)! : rel(l.at);
+              const step: [number, number] = spots.length ? [last[0] - prev[0], last[1] - prev[1]] : [0.8, 0];
+              set({ spots: [...spots, [last[0] + step[0], last[1] + step[1]]] });
+            }}>+</button>
+            <button ?disabled=${!spots.length} title=${this.t("editor.light_spot_remove")} @click=${() => set({ spots: spots.slice(0, -1) })}>−</button>`
+        : nothing}
+      ${l.type === "strip"
+        ? html`<label class="inline">${this.t("editor.light_height")}
+            <input type="number" min="0" max="6" step="0.05" placeholder=${this.t("editor.default")} .value=${l.height === undefined ? "" : String(l.height)} @change=${(e: Event) => {
+              const v = (e.target as HTMLInputElement).value;
+              set({ height: v === "" ? null : Math.max(0, Math.min(6, Number(v))) });
+            }} />
+          </label>`
+        : nothing}
+    </span>`;
+  }
+
   /** A room's lights and furniture (part of the room inspector). */
   private renderRoomObjects(r: RoomInput) {
     const m = this._model!;
@@ -3651,6 +3707,7 @@ export class HomeslicePanel extends LitElement {
             ${own.map(
               (l) => html`<li>
                 <span class="name">${this.entityName(l.entity)}<small class="muted">${l.auto ? this.t("editor.light_auto") : this.t("editor.light_placed")}</small></span>
+                ${l.piece ? nothing : this.renderLightShape(r, l)}
                 ${l.auto ? nothing : html`<button title=${this.t("editor.light_reset_hint")} @click=${() => this.commit(placeLight(m, this._level, r.id, l.entity))}>${this.t("editor.light_reset")}</button>`}
                 ${areaLights.has(l.entity)
                   ? html`<button @click=${() => this.commit(setLightHidden(m, this._level, r.id, l.entity, true))}>${this.t("editor.light_hide")}</button>`
@@ -5074,6 +5131,35 @@ export class HomeslicePanel extends LitElement {
       fill: #222;
       pointer-events: none;
     }
+    .lamp-part {
+      fill: #2b2f36;
+      stroke: #f4c96b;
+      stroke-width: 2;
+      cursor: grab;
+    }
+    .lamp-part.on {
+      fill: #ffd56b;
+    }
+    .lamp-strip {
+      stroke: #f4c96b;
+      stroke-width: 4;
+      stroke-linecap: round;
+      pointer-events: none;
+    }
+    .lamp-strip.on {
+      stroke: #ffd56b;
+    }
+    /* on its own line under the light's name and buttons */
+    .light-shape {
+      order: 3;
+      flex-basis: 100%;
+      display: flex;
+      gap: 4px;
+      align-items: center;
+    }
+    .light-shape select {
+      flex: 1;
+    }
     .lamp-marker {
       cursor: grab;
     }
@@ -5196,6 +5282,7 @@ export class HomeslicePanel extends LitElement {
     }
     ul.lights li {
       display: flex;
+      flex-wrap: wrap;
       align-items: center;
       gap: 6px;
     }

@@ -226,6 +226,8 @@ levels:
         wall_sides: { north: acoustic_oak }
         lights:                         # optional: the area's lights are placed automatically
           - { entity: light.reading_lamp, at: [1, 2] }   # metres from the room's north-west corner
+          - { entity: light.downlights, type: spot, at: [1, 1], spots: [[2, 1], [3, 1]] }  # a row on one light
+          - { entity: light.cove, type: strip, at: [0.2, 0.2], to: [4, 0.2], height: 2.4 }  # also: indirect
         furniture:                      # optional; the editor's library shows every type
           - { type: sofa, at: [3, 6.5] }
           - { type: table, at: [3, 2], rotation: 90 }

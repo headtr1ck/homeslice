@@ -637,6 +637,34 @@ console.log("demo house, roof");
     await lamp.click();
     assert((await calls()) === n + 1, "tap did not toggle");
   });
+  await test("light types: spots with their cones, an LED strip, indirect light on the walls", async () => {
+    await act(page, async () => {
+      await page.evaluate(() => {
+        const m = structuredClone(window.__demoModel);
+        const rooms = m.levels[0].rooms;
+        rooms.find((r) => r.id === "living").lights = [{ entity: "light.living_room", type: "spot", at: [1.5, 3], spots: [[2.5, 3], [3.5, 3]] }];
+        rooms.find((r) => r.id === "kitchen").lights = [{ entity: "light.kitchen", type: "strip", at: [0.5, 0.4], to: [4.5, 0.4], height: 1.4 }];
+        rooms.find((r) => r.id === "hall").lights = [{ entity: "light.hall", type: "indirect" }];
+        window.card.hass.pushModel(m);
+      });
+      await page.evaluate(async () => {
+        window.__wasOff = ["light.living_room", "light.kitchen", "light.hall"].filter((e) => window.card.hass.states[e].state !== "on");
+        for (const e of window.__wasOff) await window.card.hass.callService("light", "turn_on", {}, { entity_id: e });
+      });
+    });
+    const st = (e) => page.evaluate((e) => window.card.renderer.lampState(e), e);
+    assert((await st("light.living_room")).count === 6 && (await st("light.living_room")).on, `spots: ${JSON.stringify(await st("light.living_room"))}`);
+    assert((await st("light.kitchen")).count === 2, `strip: ${JSON.stringify(await st("light.kitchen"))}`);
+    assert((await st("light.hall")).count >= 5, `indirect: ${JSON.stringify(await st("light.hall"))}`);
+    await act(page, () => page.locator("homeslice-card nav.levels button", { hasText: "Ground Floor" }).click());
+    await page.waitForTimeout(700);
+    await shot(page, "demo-light-types");
+    await act(page, () => page.locator("homeslice-card nav.levels button", { hasText: "Ground Floor" }).click());
+    await page.waitForTimeout(700);
+    await act(page, () => page.evaluate(async () => {
+      for (const e of window.__wasOff) await window.card.hass.callService("light", "turn_off", {}, { entity_id: e });
+    }));
+  });
   await test("a lamp linked to a light glows with it, and a tap on it toggles the light", async () => {
     await act(page, async () => {
       await page.evaluate(() => {
@@ -1801,6 +1829,39 @@ console.log("editor");
     await page.evaluate(() => window.panel.shadowRoot.activeElement?.blur());
     await page.keyboard.press("Control+z");
     await page.keyboard.press("Control+z");
+    await page.keyboard.press("Escape");
+    await page.keyboard.press("Escape");
+  });
+
+  await test("lights: turn one into a row of spots, add a spot and drag it", async () => {
+    await page.keyboard.press("Escape");
+    await page.keyboard.press("Escape");
+    const lb = await page.locator('homeslice-panel svg.plan g[data-room="living"] polygon').boundingBox();
+    await page.mouse.click(lb.x + lb.width * 0.85, lb.y + lb.height * 0.9);
+    const item = page.locator("homeslice-panel .inspector ul.lights li", { hasText: "Sofa lamp" }).first();
+    await item.locator("select").selectOption("spot");
+    const light = async () => (await room("living")).lights.find((l) => l.entity === "light.living_room");
+    assert((await light())?.type === "spot" && (await light()).at, `spot light: ${JSON.stringify(await light())}`);
+    await item.locator("button", { hasText: "+" }).click();
+    await item.locator("button", { hasText: "+" }).click();
+    let l = await light();
+    assert(l.spots?.length === 2 && Math.abs(l.spots[1][0] - l.spots[0][0] - 0.8) < 1e-6, `spots: ${JSON.stringify(l.spots)}`);
+    // drag the last spot
+    const spot = page.locator('homeslice-panel svg.plan circle.lamp-part[data-light*="light.living_room"]').last();
+    const b = await spot.boundingBox();
+    await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2 + 40, { steps: 5 });
+    await page.mouse.up();
+    l = await light();
+    assert(l.spots[1][1] > l.spots[0][1] + 0.3, `dragged spot: ${JSON.stringify(l.spots)}`);
+    await shot(page, "editor-spots");
+    // back to a lamp: the spots go
+    await item.locator("select").selectOption("lamp");
+    l = await light();
+    assert(!l.type && !l.spots, `back to a lamp: ${JSON.stringify(l)}`);
+    await page.evaluate(() => window.panel.shadowRoot.activeElement?.blur());
+    for (let i = 0; i < 5; i++) await page.keyboard.press("Control+z");
     await page.keyboard.press("Escape");
     await page.keyboard.press("Escape");
   });

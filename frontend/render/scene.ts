@@ -13,7 +13,7 @@ import { LineGeometry } from "three/examples/jsm/lines/LineGeometry.js";
 import { LineMaterial } from "three/examples/jsm/lines/LineMaterial.js";
 import { LineSegments2 } from "three/examples/jsm/lines/LineSegments2.js";
 import { LineSegmentsGeometry } from "three/examples/jsm/lines/LineSegmentsGeometry.js";
-import type { House, Level, Side, Vec2, Vertical } from "../model/types";
+import type { House, Level, LightType, Side, Vec2, Vertical } from "../model/types";
 import { innerPolygon, type Wall, type WallOpening } from "../model/walls";
 import { bbox, overlap, pointInPolygon } from "../model/geometry";
 import { stairFrame, stairHole } from "../model/stairs";
@@ -218,6 +218,23 @@ function glowTexture(): THREE.Texture {
   return t;
 }
 
+/** Bright at the top, fading out downwards: cones of downlights, washes on walls. */
+function fadeTexture(): THREE.Texture {
+  const canvas = document.createElement("canvas");
+  canvas.width = 4;
+  canvas.height = 128;
+  const ctx = canvas.getContext("2d")!;
+  const g = ctx.createLinearGradient(0, 0, 0, 128);
+  g.addColorStop(0, "rgba(255,255,255,0.55)");
+  g.addColorStop(0.35, "rgba(255,255,255,0.18)");
+  g.addColorStop(1, "rgba(255,255,255,0)");
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, 4, 128);
+  const t = new THREE.CanvasTexture(canvas);
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+
 function holesFor(level: Level, vertical: Vertical[]): Vec2[][] {
   // a stairwell cuts the floors it leads up to, not the one it starts on
   return vertical.filter((v) => level.index > v.from && level.index <= v.to).map(stairHole);
@@ -271,6 +288,19 @@ export interface DeviceLook {
 
 type LeafHow = "swing" | "tilt" | "slide";
 
+/** A light as the card places it (see model/lights.ts PlacedLight). */
+export interface LampPlace {
+  levelId: string;
+  entity: string;
+  at: Vec2;
+  type?: LightType;
+  spots?: Vec2[];
+  to?: Vec2;
+  height?: number;
+  /** Indirect light: the room's floor inside its walls, whose walls it washes. */
+  outline?: Vec2[];
+}
+
 interface LeafView {
   pivot: THREE.Group;
   how: LeafHow;
@@ -322,7 +352,7 @@ export class HouseRenderer {
    * to the brightest lamps on the levels in view. Where each lamp is: level and plan point.
    */
   private lightPool: THREE.PointLight[] = [];
-  private lampPlaces = new Map<string, { level: number; at: Vec2 }[]>();
+  private lampPlaces = new Map<string, { level: number; at: Vec2; high?: boolean }[]>();
   /** 0 by day … 1 at night: lamps light the rooms more when it is dark. */
   private night = 0;
   /** Each light's last look, for pieces that finish loading later. */
@@ -340,6 +370,8 @@ export class HouseRenderer {
   private lastSpin = 0;
   private lampObjects: THREE.Object3D[] = [];
   private glowTexture?: THREE.Texture;
+  private fadeTexture?: THREE.Texture;
+  private white?: THREE.Texture;
   private roof: THREE.Group | null = null;
   /** Furniture materials of the level being built. */
   private furnitureMaterials = new Map<string, THREE.MeshLambertMaterial>();
@@ -1042,7 +1074,7 @@ export class HouseRenderer {
    * Places the lamps (replacing the previous ones): a soft pool of light on the floor
    * under each, shown while the light is on.
    */
-  setLamps(lamps: { levelId: string; entity: string; at: Vec2 }[]) {
+  setLamps(lamps: LampPlace[]) {
     for (const o of this.lampObjects) {
       o.removeFromParent();
       if (o instanceof THREE.Mesh) o.geometry.dispose();
@@ -1051,29 +1083,92 @@ export class HouseRenderer {
     this.lamps.clear();
     this.lampPlaces.clear();
     this.glowTexture ??= glowTexture();
+    this.fadeTexture ??= fadeTexture();
     for (const lamp of lamps) {
       const i = this.levelIds.indexOf(lamp.levelId);
       const level = this.levels[i];
       if (!level) continue;
-      const glow = new THREE.Mesh(
-        new THREE.CircleGeometry(1.2, 32).rotateX(-Math.PI / 2),
-        new THREE.MeshBasicMaterial({ map: this.glowTexture, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }),
-      );
-      glow.position.set(lamp.at[0], 0.02, lamp.at[1]);
-      glow.visible = false;
-      glow.renderOrder = 2;
-      glow.userData.outdoor = true; // not a tap target for rooms
-      level.group.add(glow);
-      level.materials.add(glow.material);
-      this.lampObjects.push(glow);
+      const height = this.levelHeights[i] ?? 2.6;
+      // each part glows in the light's colour times k while it is on
+      const glow = (geometry: THREE.BufferGeometry, k: number, map = this.glowTexture!, side: THREE.Side = THREE.FrontSide) => {
+        const mesh = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({ map, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side }));
+        mesh.visible = false;
+        mesh.renderOrder = 2;
+        mesh.userData.outdoor = true; // not a tap target for rooms
+        mesh.userData.k = k;
+        level.group.add(mesh);
+        level.materials.add(mesh.material);
+        this.lampObjects.push(mesh);
+        const list = this.lamps.get(lamp.entity) ?? [];
+        list.push(mesh);
+        this.lamps.set(lamp.entity, list);
+        return mesh;
+      };
+      const places: Vec2[] = [];
+      const type = lamp.type ?? "lamp";
+      if (type === "spot") {
+        // a downlight: a soft cone from the ceiling and a bright spot under it
+        for (const at of [lamp.at, ...(lamp.spots ?? [])]) {
+          glow(new THREE.CircleGeometry(0.6, 32).rotateX(-Math.PI / 2), 1.25).position.set(at[0], 0.02, at[1]);
+          const cone = glow(new THREE.CylinderGeometry(0.03, 0.45, height - 0.05, 24, 1, true), 0.35, this.fadeTexture!, THREE.DoubleSide);
+          cone.position.set(at[0], (height - 0.05) / 2, at[1]);
+          places.push(at);
+        }
+      } else if (type === "strip" && lamp.to) {
+        // an LED strip: the strip itself, and a long pool of light under it
+        const [a, b] = [lamp.at, lamp.to];
+        const len = Math.hypot(b[0] - a[0], b[1] - a[1]);
+        const turn = Math.atan2(-(b[1] - a[1]), b[0] - a[0]);
+        const y = lamp.height ?? height - 0.06;
+        const bar = glow(new THREE.BoxGeometry(len, 0.02, 0.03), 2.2, this.whiteTexture());
+        bar.position.set((a[0] + b[0]) / 2, y, (a[1] + b[1]) / 2);
+        bar.rotation.y = turn;
+        const pool = glow(new THREE.PlaneGeometry(len + 1.2, 1.4).rotateX(-Math.PI / 2), 0.9);
+        pool.position.set((a[0] + b[0]) / 2, 0.02, (a[1] + b[1]) / 2);
+        pool.rotation.y = turn;
+        places.push([(a[0] + b[0]) / 2, (a[1] + b[1]) / 2]);
+      } else if (type === "indirect" && lamp.outline?.length) {
+        // light washing the walls from the ceiling down, all round the room
+        const poly = lamp.outline;
+        const band = Math.min(1.1, height * 0.45);
+        poly.forEach((p, k) => {
+          const q = poly[(k + 1) % poly.length];
+          const len = Math.hypot(q[0] - p[0], q[1] - p[1]);
+          if (len < 0.05) return;
+          const wash = glow(new THREE.PlaneGeometry(len, band), 0.8, this.fadeTexture!, THREE.DoubleSide);
+          // a hair inside the wall face
+          const inward = 0.01;
+          const nx = -(q[1] - p[1]) / len;
+          const ny = (q[0] - p[0]) / len;
+          const centre: Vec2 = [(p[0] + q[0]) / 2, (p[1] + q[1]) / 2];
+          const side = pointInPolygon([centre[0] + nx * 0.05, centre[1] + ny * 0.05], poly) ? 1 : -1;
+          wash.position.set(centre[0] + nx * inward * side, height - band / 2 - 0.02, centre[1] + ny * inward * side);
+          wash.rotation.y = Math.atan2(-(q[1] - p[1]), q[0] - p[0]);
+        });
+        glow(new THREE.CircleGeometry(1.6, 32).rotateX(-Math.PI / 2), 0.45).position.set(lamp.at[0], 0.02, lamp.at[1]);
+        places.push(lamp.at);
+      } else {
+        glow(new THREE.CircleGeometry(1.2, 32).rotateX(-Math.PI / 2), 1).position.set(lamp.at[0], 0.02, lamp.at[1]);
+        places.push(lamp.at);
+      }
       this.applyLevel(level);
-      const list = this.lamps.get(lamp.entity) ?? [];
-      list.push(glow);
-      this.lamps.set(lamp.entity, list);
-      const places = this.lampPlaces.get(lamp.entity) ?? [];
-      places.push({ level: i, at: lamp.at });
-      this.lampPlaces.set(lamp.entity, places);
+      const list = this.lampPlaces.get(lamp.entity) ?? [];
+      list.push(...places.map((at) => ({ level: i, at, high: type === "spot" || type === "indirect" })));
+      this.lampPlaces.set(lamp.entity, list);
     }
+  }
+
+  /** A plain white texture (parts glowing evenly in the light's colour). */
+  private whiteTexture() {
+    if (!this.white) {
+      const c = document.createElement("canvas");
+      c.width = c.height = 2;
+      const ctx = c.getContext("2d")!;
+      ctx.fillStyle = "#fff";
+      ctx.fillRect(0, 0, 2, 2);
+      this.white = new THREE.CanvasTexture(c);
+    }
+    return this.white;
   }
 
   /**
@@ -1231,7 +1326,7 @@ export class HouseRenderer {
       }
       const c = new THREE.Color().setRGB(light.rgb[0] / 255, light.rgb[1] / 255, light.rgb[2] / 255, THREE.SRGBColorSpace);
       // by day the room's real light does most of it: the pool on the floor stays soft
-      glow.material.color.copy(c).multiplyScalar((0.35 + 0.65 * light.brightness) * (0.4 + 0.6 * this.night));
+      glow.material.color.copy(c).multiplyScalar((0.35 + 0.65 * light.brightness) * (0.4 + 0.6 * this.night) * ((glow.userData.k as number | undefined) ?? 1));
       glow.visible = true;
     }
   }
@@ -2135,15 +2230,16 @@ export class HouseRenderer {
    * (the focused one first), placed under the ceiling where each lamp is.
    */
   private placeLights() {
-    const candidates: { score: number; pos: THREE.Vector3; look: LightLook }[] = [];
+    const candidates: { score: number; pos: THREE.Vector3; look: LightLook; share: number }[] = [];
     for (const [entity, places] of this.lampPlaces) {
       const look = this.lampLooks.get(entity);
       if (!look) continue;
       for (const p of places) {
         const level = this.levels[p.level];
         if (!level?.group.visible || level.opacity < 0.5) continue;
-        const pos = level.group.localToWorld(new THREE.Vector3(p.at[0], (this.levelHeights[p.level] ?? 2.6) * 0.78, p.at[1]));
-        candidates.push({ score: look.brightness + (this.focus === p.level ? 2 : 0), pos, look });
+        const pos = level.group.localToWorld(new THREE.Vector3(p.at[0], (this.levelHeights[p.level] ?? 2.6) * (p.high ? 0.92 : 0.78), p.at[1]));
+        // a row of spots shares its light's brightness
+        candidates.push({ score: look.brightness + (this.focus === p.level ? 2 : 0), pos, look, share: 1 / Math.sqrt(places.length) });
       }
     }
     candidates.sort((a, b) => b.score - a.score);
@@ -2156,7 +2252,7 @@ export class HouseRenderer {
       light.position.copy(c.pos);
       light.color.setRGB(c.look.rgb[0] / 255, c.look.rgb[1] / 255, c.look.rgb[2] / 255, THREE.SRGBColorSpace);
       // stronger at night, when it is what lights the room
-      light.intensity = (2.5 + 7 * this.night) * (0.3 + 0.7 * c.look.brightness);
+      light.intensity = (2.5 + 7 * this.night) * (0.3 + 0.7 * c.look.brightness) * c.share;
     });
   }
 

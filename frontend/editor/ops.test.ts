@@ -35,6 +35,7 @@ import {
   deleteEnergy,
   setRoof,
   placeLight,
+  setLightShape,
   setLightHidden,
   removeLight,
   addStairs,
@@ -352,6 +353,18 @@ describe("lights", () => {
     expect(rooms(m).right.lights).toEqual([{ entity: "light.a", hidden: true }]);
     m = removeLight(m, "g", "right", "light.a");
     expect(rooms(m).right.lights).toBeUndefined();
+  });
+  it("turns a light into spots or a strip and back", () => {
+    // an automatic light gets pinned where it is
+    let m = setLightShape(house(), "g", "left", "light.a", { type: "spot" }, [1, 1]);
+    expect(rooms(m).left.lights).toEqual([{ entity: "light.a", at: [1, 1], type: "spot" }]);
+    m = setLightShape(m, "g", "left", "light.a", { spots: [[1.8, 1]] });
+    expect(rooms(m).left.lights![0].spots).toEqual([[1.8, 1]]);
+    m = setLightShape(m, "g", "left", "light.a", { type: "strip" });
+    expect(rooms(m).left.lights).toEqual([{ entity: "light.a", at: [1, 1], type: "strip", to: [2.5, 1] }]);
+    m = setLightShape(m, "g", "left", "light.a", { height: 0.9 });
+    m = setLightShape(m, "g", "left", "light.a", { type: "lamp" });
+    expect(rooms(m).left.lights).toEqual([{ entity: "light.a", at: [1, 1] }]);
   });
 });
 

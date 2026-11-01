@@ -689,7 +689,8 @@ export class HomesliceCard extends LitElement {
         .filter((room) => room.kind !== "void")
         .flatMap((room) => {
           const floor = room.kind === "room" ? innerPolygon(room.polygon, this.walls.get(level.id) ?? []) : room.polygon;
-          return placeLights(level.id, room, floor, room.areaId ? areaEntities(hass, room.areaId, "light") : [], listed);
+          // indirect light washes the walls of the room's floor
+          return placeLights(level.id, room, floor, room.areaId ? areaEntities(hass, room.areaId, "light") : [], listed).map((l) => (l.type === "indirect" ? { ...l, outline: floor } : l));
         }),
     );
     const signature = JSON.stringify(lamps);
