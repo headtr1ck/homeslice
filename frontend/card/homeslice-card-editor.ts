@@ -247,6 +247,10 @@ export class HomesliceCardEditor extends LitElement {
         ><input type="checkbox" .checked=${this._config.feedback !== false} @change=${(e: Event) => this.change({ feedback: (e.target as HTMLInputElement).checked ? undefined : false })} />
         ${this.t("cardeditor.feedback")}</label
       >
+      <label class="check"
+        ><input type="checkbox" .checked=${!!this._config.climate_hints} @change=${(e: Event) => this.change({ climate_hints: (e.target as HTMLInputElement).checked || undefined })} />
+        ${this.t("cardeditor.climate_hints")}</label
+      >
       <label
         >${this.t("cardeditor.sensor_timeout")}
         <input
@@ -350,7 +354,7 @@ export class HomesliceCardEditor extends LitElement {
       >
       <fieldset class="values">
         <legend>${this.t("cardeditor.layers")}</legend>
-        ${(["energy", "heating", "heatmap", "values", "presence"] as const).map((layer) => {
+        ${(["energy", "heating", "heatmap", "values", "presence", "climate"] as const).map((layer) => {
           const layers = this._config.layers ?? [];
           return html`<label class="check"
             ><input

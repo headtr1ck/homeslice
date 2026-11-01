@@ -213,6 +213,31 @@ if (selected()) {
     await page.waitForFunction(() => !document.querySelector("homeslice-card").shadowRoot.querySelector(".opening-badge"));
   });
 
+  await test("climate hints: a humid room is a note (air it, mould risk), not an alarm", async () => {
+    const label = () =>
+      page.evaluate(() => {
+        const l = [...document.querySelector("homeslice-card").shadowRoot.querySelectorAll(".label")].find((x) => x.textContent.includes("Living Room"));
+        return { cls: l.className, icons: [...l.querySelectorAll(".alert-icon")].map((i) => i.getAttribute("icon")) };
+      });
+    // (nothing to redraw without the hints)
+    await page.evaluate(() => window.card.hass.setState("sensor.living_room_humidity", "74"));
+    await page.waitForTimeout(300);
+    assert(!(await label()).icons.length, "a hint without climate_hints");
+    await act(page, () => page.evaluate(() => window.card.setConfig({ ...window.card.config, climate_hints: true })));
+    let l = await label();
+    assert(l.icons.includes("mdi:water-percent-alert") && l.cls.includes("note") && !l.cls.includes("alert"), `mould: ${JSON.stringify(l)}`);
+    await act(page, () => page.evaluate(() => window.card.hass.setState("sensor.living_room_humidity", "63")));
+    l = await label();
+    assert(l.icons.includes("mdi:window-open-variant"), `air: ${JSON.stringify(l)}`);
+    await act(page, () =>
+      page.evaluate(() => {
+        window.card.hass.setState("sensor.living_room_humidity", "48");
+        const { climate_hints, ...config } = window.card.config;
+        window.card.setConfig(config);
+      }),
+    );
+  });
+
   await test("hidden entities don't count and aren't switched", async () => {
     await act(page, () => lamp(page, "Living Room").click());
     assert((await calls(page)).at(-1).service === "turn_off", "living room lamp should have turned lights off");

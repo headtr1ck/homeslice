@@ -18,7 +18,7 @@ export interface Hass {
   devices?: Record<string, { id: string; area_id?: string | null; name?: string | null; name_by_user?: string | null }>;
   entities?: Record<string, { entity_id: string; area_id?: string | null; device_id?: string | null; hidden?: boolean; entity_category?: string | null }>;
   /** Where the home is (for the sun's path). */
-  config?: { latitude?: number; longitude?: number };
+  config?: { latitude?: number; longitude?: number; unit_system?: { temperature?: string } };
   /** The services Home Assistant offers, by domain. */
   services?: Record<string, Record<string, unknown>>;
   callWS<T>(msg: Record<string, unknown>): Promise<T>;
@@ -114,11 +114,40 @@ function areaSensor(hass: Hass, areaId: string, deviceClass: string): string | u
   return chosen ?? areaEntities(hass, areaId, "sensor").find((e) => hass.states[e]?.attributes.device_class === deviceClass);
 }
 
+/** Without a sensor: what a thermostat or AC of the area measures (temperature, humidity). */
+function climateMeasure(hass: Hass, areaId: string, deviceClass: string): number | null {
+  const attribute = deviceClass === "temperature" ? "current_temperature" : deviceClass === "humidity" ? "current_humidity" : null;
+  if (!attribute) return null;
+  for (const id of areaEntities(hass, areaId, "climate")) {
+    const v = hass.states[id]?.attributes[attribute];
+    if (typeof v === "number" && Number.isFinite(v)) return v;
+  }
+  return null;
+}
+
 /** The area's first reading of a sensor kind (temperature, humidity, carbon_dioxide…), or null. */
 export function areaReading(hass: Hass, areaId: string, deviceClass: string): number | null {
   const id = areaSensor(hass, areaId, deviceClass);
   const v = id ? Number(hass.states[id]?.state) : NaN;
-  return Number.isFinite(v) ? v : null;
+  return Number.isFinite(v) ? v : climateMeasure(hass, areaId, deviceClass);
+}
+
+/** Grams of water in a cubic metre of air at this temperature (°C) and relative humidity (%). */
+export function absoluteHumidity(t: number, rh: number) {
+  return (6.112 * Math.exp((17.67 * t) / (t + 243.5)) * rh * 2.1674) / (273.15 + t);
+}
+
+/**
+ * A room's climate hint: `mould` from 70 % humidity on, `air` from 60 % when airing helps
+ * (the outside air holds less water; unknown outside: always), else null.
+ */
+export function climateHint(hass: Hass, areaId: string, outside: { temperature: number; humidity: number } | null): "mould" | "air" | null {
+  const rh = areaReading(hass, areaId, "humidity");
+  if (rh === null || rh < 60) return null;
+  if (rh >= 70) return "mould";
+  const t = areaReading(hass, areaId, "temperature") ?? 20;
+  if (outside && absoluteHumidity(outside.temperature, outside.humidity) > absoluteHumidity(t, rh) * 0.9) return null;
+  return "air";
 }
 
 /** Readings a room's label can show, with their decimals. */
@@ -138,9 +167,10 @@ export function areaValues(hass: Hass, areaId: string, kinds: string[], steps: R
   return kinds.flatMap((kind) => {
     const id = areaSensor(hass, areaId, kind);
     const s = id ? hass.states[id] : undefined;
-    const v = Number(s?.state);
-    if (!s || !Number.isFinite(v)) return [];
-    const unit = (s.attributes.unit_of_measurement as string | undefined) ?? "";
+    const sensed = Number(s?.state);
+    const v = s && Number.isFinite(sensed) ? sensed : climateMeasure(hass, areaId, kind);
+    if (v === null) return [];
+    const unit = s && Number.isFinite(sensed) ? ((s.attributes.unit_of_measurement as string | undefined) ?? "") : kind === "humidity" ? "%" : (hass.config?.unit_system?.temperature ?? "°C");
     const text = `${formatNumber(hass.locale, v, VALUE_KINDS[kind] ?? 0)}${unit === "%" ? "" : " "}${unit}`.trim();
     return [{ kind, text, color: steps[kind] ? stepColor(v, steps[kind]) : null }];
   });
@@ -240,7 +270,7 @@ export function areaPopup(hass: Hass, areaId: string | undefined, extra: string[
 /** Binary sensors that mean someone is in a room. */
 const PRESENCE = ["motion", "occupancy", "presence"];
 /** Binary sensors that call for attention, with their icons. */
-const ALERTS: Record<string, string> = { alarm: "mdi:alarm-light", rain: "mdi:weather-pouring", moisture: "mdi:water-alert", smoke: "mdi:smoke-detector-alert", gas: "mdi:gas-cylinder", carbon_monoxide: "mdi:molecule-co" };
+const ALERTS: Record<string, string> = { alarm: "mdi:alarm-light", air: "mdi:window-open-variant", mould: "mdi:water-percent-alert", rain: "mdi:weather-pouring", moisture: "mdi:water-alert", smoke: "mdi:smoke-detector-alert", gas: "mdi:gas-cylinder", carbon_monoxide: "mdi:molecule-co" };
 
 export interface AreaSensors {
   /** A motion, occupancy or presence sensor of the area is on. */
@@ -262,6 +292,10 @@ export function areaSensors(hass: Hass, areaId: string): AreaSensors {
   }
   return { presence, alerts };
 }
+
+/** Alerts that are notes (a hint, an open window in the rain): no red room, no flying to them. */
+export const SOFT_ALERTS = ["rain", "air", "mould"];
+export const hardAlerts = (alerts: string[]) => alerts.filter((a) => !SOFT_ALERTS.includes(a));
 
 /** Some alarm panel is going off. */
 export const alarmTriggered = (hass: Hass) => Object.values(hass.states).some((s) => s.entity_id.startsWith("alarm_control_panel.") && s.state === "triggered");

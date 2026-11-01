@@ -1,5 +1,5 @@
 import { LitElement, css, html, nothing, svg, type PropertyValues } from "lit";
-import { HEATMAP_STEPS, areaEntities, areaValues, type AreaValue, areaIlluminance, areaPopup, areaReading, areaTemperature, daylight, stepColor, contactOpen, coverOpen, lightsLook, type Hass, type PopupSection, alertIcon, areaSensors, type AreaSensors, alarmTriggered } from "../ha/hass";
+import { HEATMAP_STEPS, areaEntities, areaValues, type AreaValue, areaIlluminance, areaPopup, areaReading, areaTemperature, daylight, stepColor, contactOpen, coverOpen, lightsLook, type Hass, type PopupSection, alertIcon, areaSensors, type AreaSensors, alarmTriggered, climateHint, hardAlerts } from "../ha/hass";
 import { formatNumber, loadLanguage, localize, type StringKey } from "../i18n/localize";
 import { expandHouse } from "../model/expand";
 import { labelPoint } from "../model/geometry";
@@ -147,7 +147,7 @@ export interface HomesliceCardConfig {
   overlays?: CardOverlay[];
   /**
    * Layers the viewer can switch on the card (a layers button; the choice stays on that
-   * device): `energy`, `heating`, `heatmap`, `values`, `presence`. The card's options are
+   * device): `energy`, `heating`, `heatmap`, `values`, `presence`, `climate`. The card's options are
    * where they start.
    */
   layers?: Layer[];
@@ -161,6 +161,8 @@ export interface HomesliceCardConfig {
   weather_effects?: boolean;
   /** Show underfloor heating loops glowing in the floor while they heat (default false). */
   heating?: boolean;
+  /** Notes on humid rooms: air it (when the air outside, from `weather`, is drier) or a mould risk (default false). */
+  climate_hints?: boolean;
 }
 
 /** Colours for people, in the order the card lists them. */
@@ -181,7 +183,7 @@ const shortcutIcon = (entity: string) =>
   ({ scene: "mdi:palette", script: "mdi:script-text-play", light: "mdi:lightbulb", switch: "mdi:toggle-switch", cover: "mdi:blinds", lock: "mdi:lock", button: "mdi:gesture-tap-button", media_player: "mdi:play-pause" })[entity.split(".")[0]] ?? "mdi:star";
 
 /** What a viewer can switch on the card (see `layers`). */
-export type Layer = "energy" | "heating" | "heatmap" | "values" | "presence";
+export type Layer = "energy" | "heating" | "heatmap" | "values" | "presence" | "climate";
 
 /** Another card placed on the house card (see `overlays`). */
 export interface CardOverlay {
@@ -487,7 +489,7 @@ export class HomesliceCard extends LitElement {
     } else this.applySavedViews();
     this.loadedFor = undefined;
     // a changed look or what the rooms show applies at once (a new house is drawn by load())
-    const visual = ["look", "accent", "heatmap", "values", "thresholds", "lux", "presence", "heating", "badges"] as const;
+    const visual = ["look", "accent", "heatmap", "values", "thresholds", "lux", "presence", "heating", "badges", "climate_hints"] as const;
     if (this.renderer && this.house && this.hass && visual.some((k) => JSON.stringify(previous?.[k]) !== JSON.stringify(config[k]))) {
       this.stateSignature = "";
       this.syncStates();
@@ -520,7 +522,9 @@ export class HomesliceCard extends LitElement {
     if (!offered.length) return {};
     try {
       const saved = JSON.parse(localStorage.getItem(this.layersKey(config)) ?? "{}") as Partial<HomesliceCardConfig>;
-      return Object.fromEntries(Object.entries(saved).filter(([k]) => offered.includes(k as Layer))) as Partial<HomesliceCardConfig>;
+      // (the climate layer is the climate_hints option)
+      const keys: string[] = offered.map((l) => (l === "climate" ? "climate_hints" : l));
+      return Object.fromEntries(Object.entries(saved).filter(([k]) => keys.includes(k))) as Partial<HomesliceCardConfig>;
     } catch {
       return {};
     }
@@ -568,6 +572,7 @@ export class HomesliceCard extends LitElement {
             ${check("heating", !!c.heating, (on) => ({ heating: on }))}
             ${check("values", (c.values ?? ["temperature"]).length > 1, (on) => ({ values: on ? ["temperature", "humidity", "carbon_dioxide"] : ["temperature"] }))}
             ${check("presence", c.presence !== false, (on) => ({ presence: on }))}
+            ${check("climate", !!c.climate_hints, (on) => ({ climate_hints: on }))}
             ${offered.includes("heatmap")
               ? html`<label
                   >${this.t("card.layer_heatmap")}
@@ -1340,6 +1345,12 @@ export class HomesliceCard extends LitElement {
     });
   }
 
+  /** The weather's temperature and humidity outside, if the card has a weather entity. */
+  private outsideAir() {
+    const a = this.config.weather ? this.hass?.states[this.config.weather]?.attributes : undefined;
+    return typeof a?.temperature === "number" && typeof a?.humidity === "number" ? { temperature: a.temperature, humidity: a.humidity } : null;
+  }
+
   /** A tap on a door's lock: locks it, or unlocks it (the card's own action first). */
   private useLock(entity: string) {
     if (this.ownAction(entity, "tap")) return;
@@ -1446,7 +1457,7 @@ export class HomesliceCard extends LitElement {
     const sensors = this.rooms.map((r) => this.roomSensors(r.room, r.levelId));
     sensors.forEach((s, i) => {
       // (an open window in the rain is a note, not an alarm: no red room)
-      if (s.alerts.some((a) => a !== "rain")) lights[i] = { rgb: [255, 40, 30], brightness: 1 };
+      if (hardAlerts(s.alerts).length) lights[i] = { rgb: [255, 40, 30], brightness: 1 };
     });
     const awnings = this.rooms.map((r) => (r.room.awning ? coverOpen(hass, r.room.awning, inverted.has(r.room.awning)) : null));
     const devices = this.devices.map((entity) => deviceLook(hass, entity, inverted.has(entity)));
@@ -1618,7 +1629,7 @@ export class HomesliceCard extends LitElement {
     }
     if (this.config.follow_alarms)
       for (const r of this.rooms) {
-        const alerts = this.roomSensors(r.room, r.levelId).alerts.join(",");
+        const alerts = hardAlerts(this.roomSensors(r.room, r.levelId).alerts).join(",");
         const before = this.followed.get(`alarm:${r.key}`);
         if (before !== undefined && alerts && alerts !== before && !hit) hit = { entity: `alarm:${r.key}`, text: this.t(`card.alert_${alerts.split(",")[0]}` as StringKey) };
         this.followed.set(`alarm:${r.key}`, alerts);
@@ -1713,6 +1724,11 @@ export class HomesliceCard extends LitElement {
     if (room.kind === "room" && this.raining && this.openings.some((o) => o.levelId === levelId && o.room === room.id && o.contact && contactOpen(this.hass!, o.contact))) alerts.push("rain");
     // an alarm going off: the rooms where something moves
     if (room.kind === "room" && s.presence && alarmTriggered(this.hass)) alerts.unshift("alarm");
+    // humid: air the room (when the air outside is drier), or a mould risk
+    if (this.config.climate_hints && room.kind === "room" && room.areaId) {
+      const hint = climateHint(this.hass, room.areaId, this.outsideAir());
+      if (hint) alerts.push(hint);
+    }
     return { presence: this.config.presence !== false && s.presence, alerts };
   }
 
@@ -2269,7 +2285,7 @@ export class HomesliceCard extends LitElement {
               </div>`
             : nothing}
           ${this._labels.map(
-            (l) => html`<div class="label ${this._hover !== null && l.levelIndex > this._hover ? "faded" : ""} ${l.alerts.some((a) => a !== "rain") ? "alert" : l.alerts.length ? "note" : ""}" style="left:${l.x}px;top:${l.y}px">
+            (l) => html`<div class="label ${this._hover !== null && l.levelIndex > this._hover ? "faded" : ""} ${hardAlerts(l.alerts).length ? "alert" : l.alerts.length ? "note" : ""}" style="left:${l.x}px;top:${l.y}px">
               ${l.hasLights
                 ? html`<button
                     class="lamp ${l.on ? "on" : ""}"

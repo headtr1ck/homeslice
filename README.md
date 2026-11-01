@@ -230,13 +230,14 @@ buttons:                       # shortcuts in the bottom right: scenes/scripts r
 rain: binary_sensor.rain       # warn about open windows while it rains (default: the weather entity)
 power_outage: binary_sensor.grid_down   # a warning on the card while it is on
 heating: true                  # underfloor heating loops glow while they heat (rooms with underfloor:)
+climate_hints: true            # humid rooms: "air the room" (when the air outside is drier, from weather:), mould risk from 70 %
 badges: true                   # notes above linked pieces: bin pickup today/tomorrow, thirsty plants, post, time left
 weather: weather.home          # its condition and temperature in a corner (tap: forecast); rain, snow and fog
 weather_effects: true          #   around the house (false: only the badge)
 sun_path: true                 # today's sun path as an arc around the house, sunrise and sunset times
 time_travel: true              # a button to replay the last day from HA's history (lights, doors, blinds, devices)
 walk: true                     # a button to walk through the house at eye level (keys, touch stick, drag to look)
-layers: [energy, heating, heatmap, values, presence]   # a layers button: viewers switch these (kept per device)
+layers: [energy, heating, heatmap, values, presence, climate]   # a layers button: viewers switch these (kept per device)
 overlays:                      # other cards on the house card, to use its empty corners
   - card: { type: weather-forecast, entity: weather.home }
     top: 8px

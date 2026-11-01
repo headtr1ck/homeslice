@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { areaEntities, areaLight, areaPopup, areaValues, areaSensors, areaTemperature, coverOpen, daylight, HEATMAP_STEPS, stepColor, type Hass } from "./hass";
+import { absoluteHumidity, areaReading, climateHint, hardAlerts, areaEntities, areaLight, areaPopup, areaValues, areaSensors, areaTemperature, coverOpen, daylight, HEATMAP_STEPS, stepColor, type Hass } from "./hass";
 
 const fixture = JSON.parse(readFileSync("dev/fixtures/demo-hass.json", "utf8"));
 const hass = (): Hass => ({ ...fixture, callWS: async () => null, callService: async () => null });
@@ -106,5 +106,29 @@ describe("heatmap steps", () => {
     expect(stepColor(21, HEATMAP_STEPS.temperature)).toBeNull();
     expect(stepColor(25, HEATMAP_STEPS.temperature)).toBe("#f0a33c");
     expect(stepColor(1600, HEATMAP_STEPS.carbon_dioxide)).toBe("#e8483c");
+  });
+
+  it("reads a thermostat's own measurement when the area has no sensor", () => {
+    const h = hass();
+    const states = { ...h.states };
+    delete states["sensor.living_room_temperature"];
+    const areas = { ...h.areas, living_room: { ...h.areas!.living_room, temperature_entity_id: null } };
+    const without = { ...h, states, areas };
+    expect(areaReading(without, "living_room", "temperature")).toBe(21.4);
+    expect(areaValues(without, "living_room", ["temperature"])[0].text).toBe("21.4 °C");
+  });
+
+  it("hints to air a humid room when the air outside is drier, and warns of mould", () => {
+    const h = hass();
+    const humid = (rh: string) => ({ ...h, states: { ...h.states, "sensor.living_room_humidity": { ...h.states["sensor.living_room_humidity"], state: rh } } });
+    expect(climateHint(humid("48"), "living_room", null)).toBeNull();
+    expect(climateHint(humid("64"), "living_room", null)).toBe("air");
+    // a cold winter day holds little water: airing helps
+    expect(climateHint(humid("64"), "living_room", { temperature: 2, humidity: 90 })).toBe("air");
+    // a muggy summer day holds more than the room: airing doesn't
+    expect(climateHint(humid("64"), "living_room", { temperature: 28, humidity: 70 })).toBeNull();
+    expect(climateHint(humid("74"), "living_room", { temperature: 28, humidity: 70 })).toBe("mould");
+    expect(absoluteHumidity(20, 50)).toBeCloseTo(8.6, 1);
+    expect(hardAlerts(["rain", "air", "smoke", "mould"])).toEqual(["smoke"]);
   });
 });
