@@ -10,6 +10,7 @@ import { formatPower, readEnergy, type EnergyPrefs, type EnergyReading } from ".
 import { pollPosition, polledPositions, readRobot, robotAlerts, robotStatus, type RobotReading, type RobotStatus } from "../ha/robots";
 import { deviceLook } from "../ha/devices";
 import { activation, whereIs } from "../ha/follow";
+import { clockText, isNight } from "../ha/kiosk";
 import { ENERGY_COLORS, HouseRenderer, viewOptions, type Look, type ViewOptions } from "../render/scene";
 
 export interface PopupOverride {
@@ -27,6 +28,14 @@ export interface HomesliceCardConfig {
   height?: number;
   /** Popup overrides keyed by room id or area id. */
   popups?: Record<string, PopupOverride>;
+  /**
+   * Own Lovelace actions per entity, for the pieces and lamps linked to it, e.g.
+   * `light.hall: { tap_action: { action: more-info }, hold_action: { action: perform-action, perform_action: script.night } }`.
+   * Without one, lights and switches toggle on a tap and a long press shows their details.
+   */
+  actions?: Record<string, { tap_action?: Record<string, unknown>; hold_action?: Record<string, unknown> }>;
+  /** Lamp buttons: a bare bulb with a soft shadow that glows when on (`icon`, default) or a bulb in a dark disc (`circle`). */
+  lamp_style?: "icon" | "circle";
   /** A tap on a room opens its panel with everything in its area (default true; false: rooms do nothing). */
   room_panel?: boolean;
   /** Drag to turn, scroll/pinch to zoom, double-click to reset (default false: the view is locked). */
@@ -87,6 +96,47 @@ export interface HomesliceCardConfig {
   floors?: "one" | "all";
   /** The floor shown first (level id); default: the whole house, or in plan mode the entrance floor. */
   level?: string;
+  /** Wall tablets: seconds without a touch until the start view comes back (popup closed, camera reset). */
+  idle_return?: number;
+  /** Wall tablets: dim the card at night, `sun` (after sunset) or a time range like `22:00-06:00`. */
+  night?: string;
+  /** How bright the card is at night (0.1–1, default 0.4). */
+  night_brightness?: number;
+  /** Wall tablets: turn the house slowly while nobody uses the card (after `idle_return`, else a minute). */
+  idle_orbit?: boolean;
+  /** Show a clock in the top right corner. */
+  clock?: boolean;
+  /**
+   * Buttons in the bottom right corner: scenes and scripts run, lights and switches
+   * toggle, anything else shows its details; own `tap_action`/`hold_action` possible.
+   * `level` shows a button only while that floor is picked.
+   */
+  buttons?: ShortcutButton[];
+  /**
+   * Warn about windows and doors open while it rains: a rain sensor (binary sensor) or a
+   * weather entity (default: the first weather entity; `none` turns it off).
+   */
+  rain?: string;
+  /** A binary sensor that is on during a power outage: the card shows a warning. */
+  power_outage?: string;
+  /** Show underfloor heating loops glowing in the floor while they heat (default false). */
+  heating?: boolean;
+}
+
+/** Weather states that mean rain. */
+const RAINY = ["rainy", "pouring", "lightning-rainy", "snowy-rainy", "hail"];
+
+/** An icon for a button by the entity's domain. */
+const shortcutIcon = (entity: string) =>
+  ({ scene: "mdi:palette", script: "mdi:script-text-play", light: "mdi:lightbulb", switch: "mdi:toggle-switch", cover: "mdi:blinds", lock: "mdi:lock", button: "mdi:gesture-tap-button", media_player: "mdi:play-pause" })[entity.split(".")[0]] ?? "mdi:star";
+
+export interface ShortcutButton {
+  entity: string;
+  name?: string;
+  icon?: string;
+  level?: string;
+  tap_action?: Record<string, unknown>;
+  hold_action?: Record<string, unknown>;
 }
 
 interface PlacedRoom {
@@ -236,6 +286,8 @@ export class HomesliceCard extends LitElement {
     _popup: { state: true },
     _hover: { state: true },
     _readout: { state: true },
+    _night: { state: true },
+    _clock: { state: true },
   };
 
   private _hass?: Hass;
@@ -313,6 +365,9 @@ export class HomesliceCard extends LitElement {
 
   setConfig(config: HomesliceCardConfig) {
     this.config = { house: "home", ...config };
+    clearInterval(this.kioskTimer);
+    this.kioskTimer = this.isConnected && this.kiosk ? window.setInterval(this.kioskTick, 1000) : 0;
+    if (!this.kiosk) this._night = false;
     this.view = viewOptions(config.view);
     // the overlay puts solar panels on the roof, so it shows the roof unless told not to
     if (config.energy && config.view?.roof === undefined) this.view.roof = true;
@@ -450,6 +505,10 @@ export class HomesliceCard extends LitElement {
     window.addEventListener("keydown", this.onKey);
     // someone using the card: events don't move it for a while
     this.addEventListener("pointerdown", this.onTouch, { capture: true });
+    if (this.config && this.kiosk) {
+      this.kioskTick();
+      this.kioskTimer = window.setInterval(this.kioskTick, 1000);
+    }
     this.resizeObserver = new ResizeObserver(() => this.scheduleDraw());
     this.updateComplete.then(() => {
       const wrap = this.renderRoot.querySelector(".wrap");
@@ -468,6 +527,10 @@ export class HomesliceCard extends LitElement {
     super.disconnectedCallback();
     window.removeEventListener("keydown", this.onKey);
     this.removeEventListener("pointerdown", this.onTouch, { capture: true });
+    clearInterval(this.kioskTimer);
+    this.kioskTimer = 0;
+    clearInterval(this.orbitTimer);
+    this.orbitTimer = 0;
     clearTimeout(this.eventTimer);
     clearInterval(this.pollTimer);
     this.pollTimer = 0;
@@ -605,9 +668,70 @@ export class HomesliceCard extends LitElement {
 
   /** What a tap on a linked piece does: toggle what can be toggled, else HA's details. */
   private useEntity(entity: string) {
+    if (this.ownAction(entity, "tap")) return;
     const domain = entity.split(".")[0];
     if (["light", "switch", "fan", "input_boolean"].includes(domain)) void this.hass?.callService("homeassistant", "toggle", {}, { entity_id: entity });
     else this.moreInfo(entity);
+  }
+
+  /** Runs the card's own action for an entity through HA's action handler; false if it has none. */
+  private ownAction(entity: string, kind: "tap" | "hold"): boolean {
+    const own = this.config.actions?.[entity];
+    if (!own?.[`${kind}_action`]) return false;
+    this.dispatchEvent(new CustomEvent("hass-action", { detail: { config: { entity, ...own }, action: kind }, bubbles: true, composed: true }));
+    return true;
+  }
+
+  /** A long press: the card's own hold action, else HA's details. */
+  private hold(entity: string) {
+    if (!this.ownAction(entity, "hold")) this.moreInfo(entity);
+  }
+
+  // ----- shortcut buttons -----
+
+  private shortcutHold = 0;
+  private shortcutHeld = false;
+
+  private renderShortcuts() {
+    const buttons = (this.config.buttons ?? []).filter((b) => b.entity && (!b.level || b.level === this._level));
+    if (!buttons.length || !this.hass) return nothing;
+    return html`<div class="shortcuts">
+      ${buttons.map((b) => {
+        const state = this.hass!.states[b.entity];
+        const name = b.name ?? (state?.attributes.friendly_name as string | undefined) ?? b.entity;
+        const icon = b.icon ?? (state?.attributes.icon as string | undefined) ?? shortcutIcon(b.entity);
+        return html`<button
+          class=${state?.state === "on" ? "on" : ""}
+          title=${name}
+          @pointerdown=${() => {
+            this.shortcutHeld = false;
+            clearTimeout(this.shortcutHold);
+            this.shortcutHold = window.setTimeout(() => {
+              this.shortcutHeld = true;
+              if (b.hold_action) this.dispatchEvent(new CustomEvent("hass-action", { detail: { config: b, action: "hold" }, bubbles: true, composed: true }));
+              else this.moreInfo(b.entity);
+            }, 550);
+          }}
+          @pointerup=${() => clearTimeout(this.shortcutHold)}
+          @pointerleave=${() => clearTimeout(this.shortcutHold)}
+          @click=${() => !this.shortcutHeld && this.useShortcut(b)}
+        >
+          <ha-icon icon=${icon}></ha-icon><span>${name}</span>
+        </button>`;
+      })}
+    </div>`;
+  }
+
+  private useShortcut(b: ShortcutButton) {
+    if (b.tap_action) {
+      this.dispatchEvent(new CustomEvent("hass-action", { detail: { config: b, action: "tap" }, bubbles: true, composed: true }));
+      return;
+    }
+    const domain = b.entity.split(".")[0];
+    if (domain === "scene" || domain === "script") void this.hass?.callService(domain, "turn_on", {}, { entity_id: b.entity });
+    else if (["light", "switch", "fan", "input_boolean", "cover", "lock", "media_player"].includes(domain)) void this.hass?.callService("homeassistant", "toggle", {}, { entity_id: b.entity });
+    else if (domain === "button" || domain === "input_button") void this.hass?.callService(domain, "press", {}, { entity_id: b.entity });
+    else this.moreInfo(b.entity);
   }
 
   /** HA's own details dialog for an entity. */
@@ -690,12 +814,18 @@ export class HomesliceCard extends LitElement {
     // lux readings, rounded so small changes don't redraw (outside, the sun does it)
     const lux = this.rooms.map((r) => (this.config.lux && r.room.areaId && r.room.kind === "room" ? areaIlluminance(hass, r.room.areaId) : null)).map((v) => (v === null ? null : Math.round(daylight(v) * 20) / 20));
     // an alarm turns the room's floor red, over its lights
-    const sensors = this.rooms.map((r) => this.roomSensors(r.room));
+    const sensors = this.rooms.map((r) => this.roomSensors(r.room, r.levelId));
     sensors.forEach((s, i) => {
-      if (s.alerts.length) lights[i] = { rgb: [255, 40, 30], brightness: 1 };
+      // (an open window in the rain is a note, not an alarm: no red room)
+      if (s.alerts.some((a) => a !== "rain")) lights[i] = { rgb: [255, 40, 30], brightness: 1 };
     });
     const awnings = this.rooms.map((r) => (r.room.awning ? coverOpen(hass, r.room.awning, inverted.has(r.room.awning)) : null));
     const devices = this.devices.map((entity) => deviceLook(hass, entity, inverted.has(entity)));
+    // underfloor heating: a climate entity heating, or a valve/switch/sensor on
+    const underfloor = [...new Set(this.rooms.map((r) => r.room.underfloor).filter((e): e is string => !!e))].map((entity) => {
+      const look = deviceLook(hass, entity);
+      return [entity, this.config.heating === true && !!look && look.on && (entity.startsWith("climate.") || entity.startsWith("water_heater.") ? look.active && look.tone === "heat" : look.active || look.on)] as const;
+    });
     const cameras = this.house.levels.flatMap((l) => l.rooms.flatMap((r) => r.cameras.map((c) => [c.entity, !!c.motion && hass.states[c.motion]?.state === "on"] as const)));
     this.energyReadings = this.config.energy ? this.house.energy.map((e) => readEnergy(hass, e, this.energyPrefs)) : [];
     this.pollRobots(hass);
@@ -716,11 +846,12 @@ export class HomesliceCard extends LitElement {
       const v = kind && r.room.areaId && r.room.kind === "room" ? areaReading(hass, r.room.areaId, kind) : null;
       return v === null || !kind ? null : stepColor(v, this.steps[kind] ?? []);
     });
-    const signature = JSON.stringify([look, this.config.accent, lux, heat, lights, lamps, covers, contacts, values, sensors, awnings, devices, cameras, this.energyReadings, this.robotReadings, this.robotNeeds, sunAt]);
+    const signature = JSON.stringify([look, this.config.accent, lux, heat, lights, lamps, covers, contacts, values, sensors, awnings, devices, underfloor, cameras, this.energyReadings, this.robotReadings, this.robotNeeds, sunAt]);
     if (signature === this.stateSignature) return;
     this.stateSignature = signature;
     this.lamps.forEach((l, i) => this.renderer!.setLamp(l.entity, lamps[i]));
     this.devices.forEach((entity, i) => this.renderer!.setDevice(entity, devices[i]));
+    for (const [entity, heating] of underfloor) this.renderer.setUnderfloor(entity, heating);
     for (const [entity, moving] of cameras) this.renderer.setCameraMotion(entity, moving);
     this.renderer.setLook(look, this.config.accent || undefined);
     this.renderer.setSun(sunAt?.[0] ?? null, sunAt?.[1] ?? null);
@@ -776,7 +907,64 @@ export class HomesliceCard extends LitElement {
 
   private onTouch = () => {
     this.lastTouch = Date.now();
+    this.idleSince = this.lastTouch;
+    this.atHome = false;
+    this.stopOrbit();
   };
+
+  // ----- wall tablets: idle return, night, slow orbit, clock -----
+
+  private idleSince = Date.now();
+  /** The start view is showing (nothing to return to). */
+  private atHome = true;
+  private kioskTimer = 0;
+  private orbitTimer = 0;
+  private _night = false;
+  private _clock = "";
+
+  private get kiosk() {
+    const c = this.config;
+    return !!(c.idle_return || c.night || c.idle_orbit || c.clock);
+  }
+
+  private kioskTick = () => {
+    const c = this.config;
+    const idle = Date.now() - this.idleSince;
+    if (c.idle_return && !this.atHome && idle > c.idle_return * 1000 && !this.transitioning) void this.returnHome();
+    if (c.idle_orbit && !this.orbitTimer && idle > (c.idle_return ?? 60) * 1000 + 3000 && this.atHome && !this._event && !this._popup && this.quality !== "low") this.startOrbit();
+    this._night = isNight(c.night, this.hass, new Date());
+    if (c.clock) this._clock = clockText(this.hass, new Date());
+  };
+
+  /** Back to the start view: popup closed, the start floor, the card's camera. */
+  private async returnHome() {
+    this.atHome = true;
+    if (!this.house || !this.renderer) return;
+    this.closePopup();
+    const start = this.plan || this.config.level ? this.startLevel(this.house) : null;
+    if (this._level !== start) await this.selectLevel(start);
+    else await this.renderer.resetView();
+    this.placeLabels();
+  }
+
+  private startOrbit() {
+    // a slow turn, about 3° a second, drawn 20 times a second (labels hide while it turns)
+    this._labels = [];
+    this._lampButtons = [];
+    this.orbitTimer = window.setInterval(() => {
+      if (this.transitioning || this._event) return;
+      this.renderer?.orbit(0.15, 0);
+    }, 50);
+  }
+
+  private stopOrbit() {
+    if (!this.orbitTimer) return;
+    clearInterval(this.orbitTimer);
+    this.orbitTimer = 0;
+    // it moved the camera: the start view is not showing anymore
+    this.atHome = false;
+    this.placeLabels();
+  }
 
   /** Turns to the first followed entity (or alarm) that just went active. */
   private followEvents(hass: Hass) {
@@ -789,7 +977,7 @@ export class HomesliceCard extends LitElement {
     }
     if (this.config.follow_alarms)
       for (const r of this.rooms) {
-        const alerts = this.roomSensors(r.room).alerts.join(",");
+        const alerts = this.roomSensors(r.room, r.levelId).alerts.join(",");
         const before = this.followed.get(`alarm:${r.key}`);
         if (before !== undefined && alerts && alerts !== before && !hit) hit = { entity: `alarm:${r.key}`, text: this.t(`card.alert_${alerts.split(",")[0]}` as StringKey) };
         this.followed.set(`alarm:${r.key}`, alerts);
@@ -841,11 +1029,30 @@ export class HomesliceCard extends LitElement {
   }
 
   /** A room's motion/presence and alarm sensors, as the card shows them. */
-  private roomSensors(room: Room): AreaSensors {
-    if (!room.areaId || !this.hass) return { presence: false, alerts: [] };
-    const s = areaSensors(this.hass, room.areaId);
+  private roomSensors(room: Room, levelId: string): AreaSensors {
+    if (!this.hass) return { presence: false, alerts: [] };
+    const s = room.areaId ? areaSensors(this.hass, room.areaId) : { presence: false, alerts: [] };
     // outside, "moisture" is rain, not a leak
-    return { presence: this.config.presence !== false && s.presence, alerts: room.kind === "outdoor" ? [] : s.alerts };
+    const alerts = room.kind === "outdoor" ? [] : [...s.alerts];
+    // a window or door of the room open while it rains
+    if (room.kind === "room" && this.raining && this.openings.some((o) => o.levelId === levelId && o.room === room.id && o.contact && contactOpen(this.hass!, o.contact))) alerts.push("rain");
+    return { presence: this.config.presence !== false && s.presence, alerts };
+  }
+
+  /** It rains, says the rain sensor or the weather. */
+  private get raining(): boolean {
+    const hass = this.hass;
+    if (!hass || this.config.rain === "none") return false;
+    const id = this.config.rain ?? Object.keys(hass.states).find((e) => e.startsWith("weather."));
+    const state = id ? hass.states[id]?.state : undefined;
+    if (!id || !state) return false;
+    return id.startsWith("weather.") ? RAINY.includes(state) : state === "on";
+  }
+
+  /** The power is out, says the card's outage sensor. */
+  private get powerOut(): boolean {
+    const id = this.config.power_outage;
+    return !!id && this.hass?.states[id]?.state === "on";
   }
 
   // ----- floors -----
@@ -1063,7 +1270,7 @@ export class HomesliceCard extends LitElement {
         this.holdTimer = window.setTimeout(() => {
           if (this.holdFrom !== from) return;
           this.swallowClick = true;
-          this.moreInfo(entity);
+          this.hold(entity);
         }, 550);
       }
     }
@@ -1146,6 +1353,17 @@ export class HomesliceCard extends LitElement {
     e.preventDefault();
     this.renderer.zoomBy(Math.exp(-e.deltaY * 0.0015));
     this.afterCameraMove();
+  }
+
+  /** A right click on a linked piece is a long press (its details), elsewhere nothing. */
+  private onContextMenu(e: MouseEvent) {
+    if (!this.renderer || this.transitioning) return;
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const entity = this.renderer.pickEntity(e.clientX - rect.left, e.clientY - rect.top);
+    if (!entity) return;
+    e.preventDefault();
+    clearTimeout(this.holdTimer);
+    this.hold(entity);
   }
 
   private async onDoubleClick() {
@@ -1243,7 +1461,7 @@ export class HomesliceCard extends LitElement {
         values: this.roomValues(r),
         lux: this.luxText(r),
         areaId,
-        ...this.roomSensors(r.room),
+        ...this.roomSensors(r.room, r.levelId),
         hasLights: this.roomLights(r.key).length > 0,
         on: lightsLook(this.hass, this.roomLights(r.key)) !== null,
       });
@@ -1274,7 +1492,8 @@ export class HomesliceCard extends LitElement {
   protected override render() {
     const levels = [...(this.house?.levels ?? [])].reverse();
     return html`
-      <ha-card>
+      <ha-card class="${this.config.lamp_style === "circle" ? "" : "bare-lamps"} ${this._night ? "night-dim" : ""}" style=${this._night ? `--night-brightness:${Math.min(1, Math.max(0.1, this.config.night_brightness ?? 0.4))}` : ""}>
+        ${this.config.clock && this._clock ? html`<div class="clock" role="timer">${this._clock}</div>` : nothing}
           ${this.house
           ? html`<nav class="levels">
               ${levels.map(
@@ -1299,6 +1518,7 @@ export class HomesliceCard extends LitElement {
             class="${this.interactive ? "interactive" : ""} ${this.plan ? "swipe" : ""}"
             @click=${this.onCanvasClick}
             @dblclick=${this.onDoubleClick}
+            @contextmenu=${this.onContextMenu}
             @pointerdown=${this.onPointerDown}
             @pointermove=${this.onPointerMove}
             @pointerup=${this.onPointerUp}
@@ -1307,7 +1527,9 @@ export class HomesliceCard extends LitElement {
             @wheel=${this.onWheel}
           ></canvas>
           ${this._readout ? html`<div class="readout">${this._readout}</div>` : nothing}
+          ${this.powerOut ? html`<div class="outage" role="alert"><ha-icon icon="mdi:power-plug-off"></ha-icon>${this.t("card.power_outage")}</div>` : nothing}
           ${this._event ? html`<div class="event" role="status"><ha-icon icon="mdi:bell-ring-outline"></ha-icon>${this._event}</div>` : nothing}
+          ${this.renderShortcuts()}
           ${this.interactive && !this.plan
             ? html`<div class="views">
                 <button title=${this.t("card.view_left")} @click=${() => this.turnView(-90)}><ha-icon icon="mdi:rotate-left"></ha-icon></button>
@@ -1318,13 +1540,18 @@ export class HomesliceCard extends LitElement {
               </div>`
             : nothing}
           ${this._labels.map(
-            (l) => html`<div class="label ${this._hover !== null && l.levelIndex > this._hover ? "faded" : ""} ${l.alerts.length ? "alert" : ""}" style="left:${l.x}px;top:${l.y}px">
+            (l) => html`<div class="label ${this._hover !== null && l.levelIndex > this._hover ? "faded" : ""} ${l.alerts.some((a) => a !== "rain") ? "alert" : l.alerts.length ? "note" : ""}" style="left:${l.x}px;top:${l.y}px">
               ${l.hasLights
                 ? html`<button
                     class="lamp ${l.on ? "on" : ""}"
                     aria-label=${this.t(l.on ? "card.lights_off" : "card.lights_on", { room: l.name })}
                     title=${this.t("card.lamp_hint")}
                     @pointerdown=${(e: PointerEvent) => this.lampDown(e, this.roomLights(l.key), () => this.openPopup(l.key))}
+                    @contextmenu=${(e: Event) => {
+                      // a right click is a long press
+                      e.preventDefault();
+                      this.openPopup(l.key);
+                    }}
                     @pointermove=${this.lampMove}
                     @pointerup=${this.lampUp}
                     @pointercancel=${this.lampUp}
@@ -1378,11 +1605,15 @@ export class HomesliceCard extends LitElement {
               title=${b.name}
               aria-description=${this.t("card.lamp_hint")}
               aria-label=${this.t(b.on ? "card.light_off" : "card.light_on", { light: b.name })}
-              @pointerdown=${(e: PointerEvent) => this.lampDown(e, [b.entity], () => this.moreInfo(b.entity))}
+              @pointerdown=${(e: PointerEvent) => this.lampDown(e, [b.entity], () => this.hold(b.entity))}
+              @contextmenu=${(e: Event) => {
+                e.preventDefault();
+                this.hold(b.entity);
+              }}
               @pointermove=${this.lampMove}
               @pointerup=${this.lampUp}
               @pointercancel=${this.lampUp}
-              @click=${() => this.lampClick(() => this.toggleLamp(b))}
+              @click=${() => this.lampClick(() => this.ownAction(b.entity, "tap") || this.toggleLamp(b))}
             >
               <ha-icon icon=${b.on ? "mdi:lightbulb-on" : "mdi:lightbulb-outline"}></ha-icon>
             </button>`,
@@ -1540,6 +1771,54 @@ export class HomesliceCard extends LitElement {
       cursor: pointer;
       --mdc-icon-size: 20px;
     }
+    .outage {
+      position: absolute;
+      left: 50%;
+      top: 12px;
+      transform: translateX(-50%);
+      z-index: 3;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 16px;
+      border-radius: 18px;
+      background: var(--error-color, #db4437);
+      color: #fff;
+      font-weight: 500;
+      animation: homeslice-alert 1.2s ease-in-out infinite;
+    }
+    .shortcuts {
+      position: absolute;
+      right: 12px;
+      bottom: 12px;
+      display: flex;
+      flex-wrap: wrap-reverse;
+      justify-content: flex-end;
+      gap: 6px;
+      max-width: 60%;
+      z-index: 2;
+    }
+    .shortcuts button {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      height: 36px;
+      padding: 0 12px 0 10px;
+      border-radius: 18px;
+      border: 1px solid var(--divider-color, rgba(255, 255, 255, 0.2));
+      background: var(--card-background-color, rgba(20, 24, 28, 0.85));
+      color: var(--primary-text-color, #ddd);
+      font: inherit;
+      font-size: 13px;
+      cursor: pointer;
+      touch-action: manipulation;
+      --mdc-icon-size: 18px;
+    }
+    .shortcuts button.on {
+      background: #ffcf6b;
+      color: #3a2a05;
+      border-color: #ffe6ad;
+    }
     .readout {
       position: absolute;
       right: 12px;
@@ -1618,6 +1897,10 @@ export class HomesliceCard extends LitElement {
       background: var(--error-color, #db4437);
       color: #fff;
       animation: homeslice-alert 1.2s ease-in-out infinite;
+    }
+    .label.note button.name {
+      background: #e8913a;
+      color: #fff;
     }
     .label.alert span.temp {
       opacity: 1;
@@ -1778,8 +2061,42 @@ export class HomesliceCard extends LitElement {
       color: #3a2a05;
       box-shadow: 0 0 14px rgba(255, 207, 107, 0.6);
     }
+    /* lamp_style: icon — just the bulb, readable on any floor through its shadow; the
+       button keeps its size so it stays easy to hit */
+    ha-card.bare-lamps .lamp {
+      background: none;
+      border: none;
+      color: #fff;
+      --mdc-icon-size: 26px;
+      filter: drop-shadow(0 1px 1.5px rgba(0, 0, 0, 0.85)) drop-shadow(0 0 4px rgba(0, 0, 0, 0.45));
+    }
+    ha-card.bare-lamps .lamp.single {
+      --mdc-icon-size: 20px;
+    }
+    ha-card.bare-lamps .lamp.on {
+      background: none;
+      box-shadow: none;
+      color: #ffd27a;
+      filter: drop-shadow(0 0 5px rgba(255, 200, 90, 0.95)) drop-shadow(0 0 12px rgba(255, 190, 70, 0.6)) drop-shadow(0 1px 1px rgba(0, 0, 0, 0.5));
+    }
     ha-card {
       position: relative;
+    }
+    ha-card.night-dim {
+      filter: brightness(var(--night-brightness, 0.4));
+      transition: filter 2s;
+    }
+    .clock {
+      position: absolute;
+      right: 12px;
+      top: 8px;
+      z-index: 2;
+      font-size: 28px;
+      font-weight: 300;
+      font-variant-numeric: tabular-nums;
+      color: var(--primary-text-color);
+      text-shadow: 0 0 6px var(--card-background-color, #fff);
+      pointer-events: none;
     }
     .levels {
       position: absolute;

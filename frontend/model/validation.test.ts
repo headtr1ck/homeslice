@@ -148,6 +148,7 @@ const MUTATIONS: [string, (h: House) => unknown][] = [
   ["robot unknown level", (h) => ((h.robots[0].level = "attic"), h)],
   ["robot without dock", (h) => (delete h.robots[0].dock, h)],
   ["north as text", (h) => ((h.north = "NNE"), h)],
+  ["underfloor not an entity", (h) => ((L(h).rooms[0].underfloor = "warm"), h)],
   ["errors hide later checks", (h) => ((h.north = "NNE"), (h.roof.pitch = 90), h)],
   ["several errors at once", (h) => ((L(h).openings[0].room = "zz"), (L(h).rooms[0].furniture[0].type = "x"), (h.energy[0].kind = "?"), h)],
 ];

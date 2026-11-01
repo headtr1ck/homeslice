@@ -179,6 +179,24 @@ view:                          # all optional
   levels:                      # per-floor cameras, by level id
     ground: { elevation: 90, projection: isometric }
 room_panel: true               # a tap on a room opens its panel (false: rooms do nothing)
+lamp_style: icon               # lamp buttons: a glowing bulb (icon) or a bulb in a dark disc (circle)
+idle_return: 120               # wall tablets: back to the start view after 2 minutes without a touch
+night: "22:00-06:00"           # dim the card at night (or: sun), night_brightness: 0.4
+idle_orbit: true               # turn the house slowly while nobody uses it
+clock: true                    # a clock in the corner
+buttons:                       # shortcuts in the bottom right: scenes/scripts run, lights and switches toggle
+  - entity: scene.movie_night
+  - entity: script.good_night
+    name: Good night
+  - entity: light.terrace
+    level: ground              # only while this floor is picked
+rain: binary_sensor.rain       # warn about open windows while it rains (default: the weather entity)
+power_outage: binary_sensor.grid_down   # a warning on the card while it is on
+heating: true                  # underfloor heating loops glow while they heat (rooms with underfloor:)
+actions:                       # optional: own tap/hold actions for linked pieces and lamps (Lovelace actions)
+  light.hall:
+    tap_action: { action: more-info }
+    hold_action: { action: perform-action, perform_action: script.night_light }
 popups:                        # optional, by room id or area id
   living_room:
     mode: extend               # or replace

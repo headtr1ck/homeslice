@@ -237,7 +237,7 @@ export function areaPopup(hass: Hass, areaId: string | undefined, extra: string[
 /** Binary sensors that mean someone is in a room. */
 const PRESENCE = ["motion", "occupancy", "presence"];
 /** Binary sensors that call for attention, with their icons. */
-const ALERTS: Record<string, string> = { moisture: "mdi:water-alert", smoke: "mdi:smoke-detector-alert", gas: "mdi:gas-cylinder", carbon_monoxide: "mdi:molecule-co" };
+const ALERTS: Record<string, string> = { rain: "mdi:weather-pouring", moisture: "mdi:water-alert", smoke: "mdi:smoke-detector-alert", gas: "mdi:gas-cylinder", carbon_monoxide: "mdi:molecule-co" };
 
 export interface AreaSensors {
   /** A motion, occupancy or presence sensor of the area is on. */

@@ -78,6 +78,7 @@ vertical:
   adds more downlights on the same light), `strip` (an LED strip from `at` to `to`,
   optional `height` in metres) or `indirect` (light washing the room's walls).
 - `awning: cover.…` on an outdoor room: an awning on the house wall over it.
+- `underfloor: climate.…` on a room: underfloor heating, its loops glow in the floor while it heats, on cards with `heating: true` (also a valve, switch or binary sensor).
 - `cameras: [{entity: camera.…, at: [x, y], direction: 180, fov: 90, range: 5, height: 2.3,
   motion: binary_sensor.…}]`: a camera where it hangs and what it sees; `direction` is
   degrees clockwise from the plan's top (0 up, 90 right). The view turns red while

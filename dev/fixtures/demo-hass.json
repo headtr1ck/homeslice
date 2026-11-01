@@ -410,6 +410,13 @@
         "device_class": "carbon_dioxide",
         "unit_of_measurement": "ppm"
       }
+    },
+    "script.night": {
+      "entity_id": "script.night",
+      "state": "off",
+      "attributes": {
+        "friendly_name": "Night"
+      }
     }
   },
   "energy_prefs": {

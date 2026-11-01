@@ -237,6 +237,12 @@ export class HomesliceCardEditor extends LitElement {
           ${(["", "temperature", "humidity", "carbon_dioxide", "pm25"] as const).map((h) => html`<option value=${h} ?selected=${(this._config.heatmap ?? "") === h}>${this.t(`cardeditor.heatmap_${h || "none"}`)}</option>`)}
         </select>
       </label>
+      <label
+        >${this.t("cardeditor.lamp_style")}
+        <select @change=${(e: Event) => this.change({ lamp_style: (e.target as HTMLSelectElement).value === "circle" ? "circle" : undefined })}>
+          ${(["icon", "circle"] as const).map((v) => html`<option value=${v} ?selected=${(this._config.lamp_style ?? "icon") === v}>${this.t(`cardeditor.lamp_style_${v}`)}</option>`)}
+        </select>
+      </label>
       <fieldset class="values">
         <legend>${this.t("cardeditor.values")}</legend>
         ${(["temperature", "humidity", "carbon_dioxide", "pm25", "volatile_organic_compounds"] as const).map((kind) => {
@@ -283,12 +289,58 @@ export class HomesliceCardEditor extends LitElement {
         ${this.t("cardeditor.presence")}</label
       >
       <label class="check"
+        ><input type="checkbox" .checked=${this._config.heating === true} @change=${(e: Event) => this.change({ heating: (e.target as HTMLInputElement).checked || undefined })} />
+        ${this.t("cardeditor.heating")}</label
+      >
+      <label class="check"
         ><input type="checkbox" .checked=${this._config.room_panel !== false} @change=${(e: Event) => this.change({ room_panel: (e.target as HTMLInputElement).checked ? undefined : false })} />
         ${this.t("cardeditor.room_panel")}</label
       >
       <label class="check"
         ><input type="checkbox" .checked=${this._config.interactive === true} @change=${(e: Event) => this.change({ interactive: (e.target as HTMLInputElement).checked || undefined })} />
         ${this.t("cardeditor.interactive")}</label
+      >
+      <h3>${this.t("cardeditor.kiosk")}</h3>
+      <label
+        >${this.t("cardeditor.idle_return")}
+        <input
+          type="number"
+          min="0"
+          step="10"
+          .value=${String(this._config.idle_return ?? "")}
+          @change=${(e: Event) => {
+            const n = Number((e.target as HTMLInputElement).value);
+            this.change({ idle_return: n > 0 ? n : undefined });
+          }}
+        />
+      </label>
+      <label
+        >${this.t("cardeditor.night")}
+        <select
+          @change=${(e: Event) => {
+            const v = (e.target as HTMLSelectElement).value;
+            this.change({ night: v === "off" ? undefined : v === "time" ? "22:00-06:00" : v });
+          }}
+        >
+          ${(["off", "sun", "time"] as const).map((v) => {
+            const current = !this._config.night ? "off" : this._config.night === "sun" ? "sun" : "time";
+            return html`<option value=${v} ?selected=${current === v}>${this.t(`cardeditor.night_${v}`)}</option>`;
+          })}
+        </select>
+      </label>
+      ${this._config.night && this._config.night !== "sun"
+        ? html`<label
+            >${this.t("cardeditor.night_range")}
+            <input .value=${this._config.night} placeholder="22:00-06:00" @change=${(e: Event) => this.change({ night: (e.target as HTMLInputElement).value.trim() || undefined })} />
+          </label>`
+        : nothing}
+      <label class="check"
+        ><input type="checkbox" .checked=${this._config.idle_orbit === true} @change=${(e: Event) => this.change({ idle_orbit: (e.target as HTMLInputElement).checked || undefined })} />
+        ${this.t("cardeditor.idle_orbit")}</label
+      >
+      <label class="check"
+        ><input type="checkbox" .checked=${this._config.clock === true} @change=${(e: Event) => this.change({ clock: (e.target as HTMLInputElement).checked || undefined })} />
+        ${this.t("cardeditor.clock")}</label
       >
       <p class="hint">${this.t("cardeditor.more")}</p>
     `;

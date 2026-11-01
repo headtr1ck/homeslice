@@ -277,6 +277,9 @@ def validate(house: Any) -> list[dict[str, str]]:
                             err(f"{rp}.wall_sides", f'Unknown side "{text(side)}" (north, south, east or west).')
                         elif not finish_ok(v, wall_finishes):
                             err(f"{rp}.wall_sides.{text(side)}", f"A wall side must be {WALL_HINT}, got {stringify(v)}.")
+            underfloor = get(ri, "underfloor")
+            if underfloor is not MISSING and not (isinstance(underfloor, str) and "." in underfloor):
+                err(f"{rp}.underfloor", "underfloor must be an entity id, e.g. climate.….")
             for j, light in enumerate(items(get(ri, "lights"))):
                 entity = get(light, "entity")
                 if not isinstance(entity, str) or not entity.startswith("light."):

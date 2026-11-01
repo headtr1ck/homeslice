@@ -3171,6 +3171,7 @@ export class HomeslicePanel extends LitElement {
       </label>
       ${(r.kind ?? "room") !== "void" ? html`<h4>${this.t("editor.surface_floor")}</h4>${this.renderFinishPicker("floor", r.floor, (floor) => set({ floor }), this.t("editor.default"))}` : nothing}
       ${(r.kind ?? "room") === "room" ? this.renderWallFinishes(r, set) : nothing}
+      ${(r.kind ?? "room") === "room" ? this.entitySelect(this.t("editor.underfloor"), "climate", r.area_id, r.underfloor, (underfloor) => set({ underfloor })) : nothing}
       ${(r.kind ?? "room") === "outdoor"
         ? html`${this.entitySelect(this.t("editor.awning"), "cover", r.area_id, r.awning, (awning) => set({ awning }))}
             ${r.awning ? this.invertedToggle(r.awning, "editor.awning_inverted") : nothing}

@@ -267,6 +267,39 @@ function riseTexture(): THREE.Texture {
   return t;
 }
 
+/**
+ * Pipe runs filling a polygon (plan metres): straight runs `spacing` apart, `inset` from
+ * the walls, joined at alternating ends where a run is one piece. As [from, to] in plan x/y.
+ */
+export function serpentine(poly: Vec2[], spacing: number, inset: number): [Vec2, Vec2][] {
+  const ys = poly.map((p) => p[1]);
+  const runs: Vec2[][] = [];
+  for (let y = Math.min(...ys) + inset; y <= Math.max(...ys) - inset + 1e-9; y += spacing) {
+    const xs: number[] = [];
+    poly.forEach((a, i) => {
+      const b = poly[(i + 1) % poly.length];
+      if ((a[1] <= y && b[1] > y) || (b[1] <= y && a[1] > y)) xs.push(a[0] + ((y - a[1]) / (b[1] - a[1])) * (b[0] - a[0]));
+    });
+    xs.sort((p, q) => p - q);
+    const row: Vec2[] = [];
+    for (let i = 0; i + 1 < xs.length; i += 2) if (xs[i + 1] - xs[i] > 2 * inset + 0.05) row.push([xs[i] + inset, xs[i + 1] - inset]);
+    runs.push(row);
+  }
+  const out: [Vec2, Vec2][] = [];
+  let y = Math.min(...ys) + inset;
+  runs.forEach((row, i) => {
+    for (const [x0, x1] of row) out.push([[x0, y], [x1, y]]);
+    const next = runs[i + 1];
+    if (row.length === 1 && next?.length === 1) {
+      // the bend: at the right end after an even run, the left after an odd one
+      const end = i % 2 === 0 ? 1 : 0;
+      out.push([[row[0][end], y], [next[0][end], y + spacing]]);
+    }
+    y += spacing;
+  });
+  return out;
+}
+
 function holesFor(level: Level, vertical: Vertical[]): Vec2[][] {
   // a stairwell cuts the floors it leads up to, not the one it starts on
   return vertical.filter((v) => level.index > v.from && level.index <= v.to).map(stairHole);
@@ -497,6 +530,13 @@ export class HouseRenderer {
     return m;
   }
 
+  /** An unlit material owned by the level being built. */
+  private basic(params: THREE.MeshBasicMaterialParameters): THREE.MeshBasicMaterial {
+    const m = new THREE.MeshBasicMaterial(params);
+    this.building?.add(m);
+    return m;
+  }
+
   setModel(house: House, walls: Map<string, Wall[]>, view: Partial<ViewOptions> = {}) {
     this.view = { ...DEFAULT_VIEW, ...view, focus: { ...DEFAULT_VIEW.focus, ...view.focus }, levels: view.levels ?? {} };
     this.clear();
@@ -523,6 +563,7 @@ export class HouseRenderer {
       this.levelHeights.push(level.height);
       this.levelRooms.push(level.rooms.filter((r) => r.kind === "room").map((r) => r.polygon));
       this.levelIds.push(level.id);
+      this.updateWells(this.levels.length - 1);
     }
     const top = house.levels[house.levels.length - 1];
     this.roofInfo = top ? { level: top, shape: house.roof } : null;
@@ -557,6 +598,7 @@ export class HouseRenderer {
     this.floors.clear();
     this.pieceGlows.clear();
     this.devices.clear();
+    this.underfloors.clear();
     this.leaves.clear();
     this.outlines = [];
     this.planLines = [];
@@ -602,6 +644,9 @@ export class HouseRenderer {
       g.add(this.mesh(slab, this.lambert(COLORS.slab)));
     }
 
+    // a stairwell looks down into a dark shaft while the floor below is hidden
+    for (const hole of holes) g.add(this.well(hole, level.slab));
+
     // room floors
     for (const room of level.rooms) {
       if (room.kind === "void" || (room.kind === "outdoor" && !this.view.showOutdoor)) continue;
@@ -623,6 +668,8 @@ export class HouseRenderer {
       this.floors.set(`${level.id}/${room.id}`, floor);
       g.add(floor);
     }
+
+    for (const room of level.rooms) if (room.underfloor && room.kind === "room") g.add(this.underfloorLoops(room.underfloor, innerPolygon(room.polygon, walls)));
 
     for (const room of level.rooms) for (const f of room.furniture) g.add(this.furniture(f, level.height));
 
@@ -1489,6 +1536,10 @@ export class HouseRenderer {
           // a soft picture light; brighter while playing
           m.emissive.set(look.active ? "#6f8fc4" : "#3c4f6e");
           m.emissiveIntensity = look.on ? (look.active ? 0.75 : 0.45) : 0;
+        } else if (role === "warm") {
+          // a radiator: a warm glow while it heats
+          m.emissive.set("#ff6a2a");
+          m.emissiveIntensity = look.on && look.active && look.tone === "heat" ? 0.35 : 0;
         } else if (role === "led") {
           m.emissive.set(look.tone === "alarm" ? "#ff2a1f" : look.tone === "heat" ? "#ff8a3a" : look.tone === "cool" ? "#3fa8ff" : look.active ? "#3fd27a" : "#9fd6b0");
           m.emissiveIntensity = look.on ? (look.active ? (look.tone === "alarm" ? 1.4 : 0.9) : 0.3) : 0;
@@ -2190,6 +2241,100 @@ export class HouseRenderer {
     return !!l && l.group.visible && l.opacity > 0.5;
   }
 
+  /**
+   * A dark shaft under a stairwell, from the slab down a metre, fading to black. Shown
+   * while the floor below is hidden (one floor picked, plans), else one sees the stairs.
+   */
+  private well(hole: Vec2[], slab: number): THREE.Object3D {
+    const depth = 1.1;
+    const top = -0.002;
+    const bottom = -slab - depth;
+    const positions: number[] = [];
+    const colors: number[] = [];
+    const light = new THREE.Color("#5a5e63");
+    const dark = new THREE.Color("#121416");
+    hole.forEach((a, i) => {
+      const b = hole[(i + 1) % hole.length];
+      const quad = [
+        [a, top],
+        [b, top],
+        [b, bottom],
+        [a, top],
+        [b, bottom],
+        [a, bottom],
+      ] as const;
+      for (const [[x, y], h] of quad) {
+        positions.push(x, h, y);
+        const c = h === top ? light : dark;
+        colors.push(c.r, c.g, c.b);
+      }
+    });
+    const walls = new THREE.BufferGeometry();
+    walls.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+    walls.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
+    const well = new THREE.Group();
+    well.userData.well = true;
+    // unlit: a shaft has no light of its own, whatever the look
+    well.add(this.mesh(walls, this.basic({ vertexColors: true, side: THREE.DoubleSide }), false));
+    const floor = new THREE.ShapeGeometry(shapeOf(hole));
+    floor.rotateX(-Math.PI / 2);
+    floor.translate(0, bottom, 0);
+    well.add(this.mesh(floor, this.basic({ color: dark }), false));
+    return well;
+  }
+
+  /** Underfloor heating pipes, by their entity: they glow while it heats. */
+  private underfloors = new Map<string, THREE.MeshBasicMaterial[]>();
+
+  /** A serpentine of pipes in a room's floor, hidden until its heating runs. */
+  private underfloorLoops(entity: string, poly: Vec2[]): THREE.Object3D {
+    const runs = serpentine(poly, 0.22, 0.18);
+    const positions: number[] = [];
+    const half = 0.014;
+    const y = 0.011;
+    for (const [[ax, az], [bx, bz]] of runs) {
+      const len = Math.hypot(bx - ax, bz - az) || 1;
+      const nx = (-(bz - az) / len) * half;
+      const nz = ((bx - ax) / len) * half;
+      positions.push(ax + nx, y, az + nz, bx + nx, y, bz + nz, bx - nx, y, bz - nz, ax + nx, y, az + nz, bx - nx, y, bz - nz, ax - nx, y, az - nz);
+    }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+    const m = new THREE.MeshBasicMaterial({ color: "#ff7a3a", transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide });
+    // (not the level's: its own opacity says heating, the level's fade must not reset it)
+    const list = this.underfloors.get(entity) ?? [];
+    list.push(m);
+    this.underfloors.set(entity, list);
+    const mesh = new THREE.Mesh(geo, m);
+    mesh.visible = false;
+    mesh.userData.underfloor = entity;
+    mesh.renderOrder = 2;
+    return mesh;
+  }
+
+  /** Shows or hides a room's underfloor heating. */
+  setUnderfloor(entity: string, heating: boolean) {
+    for (const m of this.underfloors.get(entity) ?? []) m.opacity = heating ? 0.75 : 0;
+    this.object.traverse((o) => {
+      if (o.userData.underfloor === entity) o.visible = heating;
+    });
+    this.draw();
+  }
+
+  /** Underfloor heatings shown as running (tests). */
+  underfloorState(entity: string) {
+    return (this.underfloors.get(entity) ?? []).map((m) => m.opacity > 0);
+  }
+
+  /** Shafts show under the stairwells of a level whose floor below can't be seen. */
+  private updateWells(index: number) {
+    const l = this.levels[index];
+    if (!l) return;
+    const below = this.levels[index - 1];
+    const belowSeen = !!below && !this.view.sideBySide && below.group.visible && below.opacity * below.hoverOpacity > 0.5;
+    for (const child of l.group.children) if (child.userData.well) child.visible = !belowSeen;
+  }
+
   private applyLevel(l: LevelState) {
     l.group.position.y = l.baseY + l.lift + l.hoverLift;
     // the roof belongs to the overview only
@@ -2209,6 +2354,9 @@ export class HouseRenderer {
       m.opacity = base * opacity;
       m.depthWrite = !fading && baseDepthWrite;
     }
+    const index = this.levels.indexOf(l);
+    this.updateWells(index);
+    this.updateWells(index + 1);
   }
 
   // ----- hover -----

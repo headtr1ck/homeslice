@@ -7022,6 +7022,99 @@
    "elevation": 0.15
   },
   {
+   "model": "modern:radiator_flat",
+   "name": "Flat radiator",
+   "group": "climate",
+   "type": "item",
+   "size": [
+    1,
+    0.1,
+    0.6
+   ],
+   "finishes": [
+    "white",
+    "anthracite",
+    "black",
+    "silver"
+   ],
+   "mount": "wall",
+   "elevation": 0.15
+  },
+  {
+   "model": "modern:radiator_vertical",
+   "name": "Vertical radiator",
+   "group": "climate",
+   "type": "item",
+   "size": [
+    0.45,
+    0.08,
+    1.8
+   ],
+   "finishes": [
+    "anthracite",
+    "white",
+    "black",
+    "silver"
+   ],
+   "mount": "wall",
+   "elevation": 0.12
+  },
+  {
+   "model": "modern:radiator_tube",
+   "name": "Tube radiator",
+   "group": "climate",
+   "type": "item",
+   "size": [
+    1,
+    0.1,
+    0.6
+   ],
+   "finishes": [
+    "white",
+    "anthracite",
+    "black",
+    "red"
+   ],
+   "mount": "wall",
+   "elevation": 0.12
+  },
+  {
+   "model": "modern:radiator_cast_iron",
+   "name": "Cast-iron radiator",
+   "group": "climate",
+   "type": "item",
+   "size": [
+    0.9,
+    0.2,
+    0.75
+   ],
+   "finishes": [
+    "white",
+    "anthracite",
+    "silver",
+    "green",
+    "beige"
+   ]
+  },
+  {
+   "model": "modern:radiator_convector",
+   "name": "Convector heater",
+   "group": "climate",
+   "type": "item",
+   "size": [
+    1,
+    0.16,
+    0.55
+   ],
+   "finishes": [
+    "white",
+    "beige",
+    "grey"
+   ],
+   "mount": "wall",
+   "elevation": 0.1
+  },
+  {
    "model": "modern:fan_standing",
    "name": "Standing fan",
    "group": "climate",

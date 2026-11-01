@@ -310,6 +310,41 @@ console.log("demo house");
     });
   });
 
+  await test("lamp buttons are bare bulbs, or bulbs in a circle with lamp_style: circle", async () => {
+    const background = () => page.evaluate(() => getComputedStyle(document.querySelector("homeslice-card").shadowRoot.querySelector(".lamp")).backgroundColor);
+    assert((await background()) === "rgba(0, 0, 0, 0)", `bare lamp background ${await background()}`);
+    await page.evaluate(() => {
+      window.card.setConfig({ ...window.card.config, lamp_style: "circle" });
+      window.card.requestUpdate();
+    });
+    await page.waitForFunction(() => document.querySelector("homeslice-card").shadowRoot.querySelector("ha-card:not(.bare-lamps)"));
+    assert((await background()) !== "rgba(0, 0, 0, 0)", "no circle");
+    await page.evaluate(() => {
+      const { lamp_style, ...config } = window.card.config;
+      window.card.setConfig(config);
+      window.card.requestUpdate();
+    });
+  });
+
+  await test("wall tablet: back to the start view when idle, a clock, dimmed at night", async () => {
+    const now = new Date();
+    const hhmm = (d) => `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+    const night = `${hhmm(new Date(now - 3600e3))}-${hhmm(new Date(+now + 3600e3))}`;
+    await act(page, () => page.locator("homeslice-card nav.levels button", { hasText: "Ground Floor" }).click());
+    await page.evaluate((night) => window.card.setConfig({ ...window.card.config, idle_return: 1, clock: true, night }), night);
+    // a touch starts the idle time
+    await page.evaluate(() => window.card.dispatchEvent(new PointerEvent("pointerdown")));
+    await page.waitForFunction(() => window.card._level === null, null, { timeout: 5000 });
+    const clock = await page.locator("homeslice-card .clock").textContent();
+    assert(/\d\d:\d\d/.test(clock), `clock: ${clock}`);
+    assert(await page.locator("homeslice-card ha-card.night-dim").count(), "not dimmed at night");
+    await page.evaluate(() => {
+      const { idle_return, clock, night, ...config } = window.card.config;
+      window.card.setConfig(config);
+    });
+    await page.waitForFunction(() => !window.card.shadowRoot.querySelector("ha-card.night-dim"));
+  });
+
   await test("room_panel: false keeps rooms from opening their panel", async () => {
     await page.evaluate(() => (window.card.config.room_panel = false));
     await page.locator("homeslice-card .label button.name", { hasText: "Garden" }).click();
@@ -317,6 +352,18 @@ console.log("demo house");
     const open = await page.locator("homeslice-card .popup").count();
     await page.evaluate(() => delete window.card.config.room_panel);
     assert(open === 0, "a room opened its panel");
+  });
+
+  await test("a stairwell is a dark shaft while the floor below is hidden", async () => {
+    const wells = () => page.evaluate(() => window.card.renderer.levels.map((l) => l.group.children.filter((c) => c.userData.well).map((c) => c.visible)));
+    const all = await wells();
+    assert(all[1].length > 0 && all[1].every((v) => !v), `overview wells: ${JSON.stringify(all)}`);
+    await act(page, () => page.locator("homeslice-card nav.levels button", { hasText: "First Floor" }).click());
+    await page.waitForFunction(() => !window.card.renderer.levels[0].group.visible, null, { timeout: 5000 });
+    const focused = await wells();
+    assert(focused[1].every((v) => v), `first floor wells: ${JSON.stringify(focused)}`);
+    await shot(page, "demo-well");
+    await act(page, () => page.locator("homeslice-card nav.levels button", { hasText: "All floors" }).click());
   });
 
   await test("a room without devices shows a hint", async () => {
@@ -340,6 +387,55 @@ console.log("demo house");
     assert((await page.evaluate(() => window.card.renderer.lampState("light.reading_lamp"))).on, "reading lamp not drawn lit");
     await shot(page, "demo-lamps");
     await act(page, () => page.locator('homeslice-card button.lamp.single[title="Reading lamp"]').click());
+  });
+
+  await test("a right click on a lamp opens its details", async () => {
+    await page.evaluate(() => {
+      window.moreInfo = [];
+      window.addEventListener("hass-more-info", (e) => window.moreInfo.push(e.detail.entityId));
+    });
+    await page.locator('homeslice-card button.lamp.single[title="Reading lamp"]').click({ button: "right" });
+    assert((await page.evaluate(() => window.moreInfo)).includes("light.reading_lamp"), "no details on right click");
+    assert((await state(page, "light.reading_lamp")) === "off", "right click toggled the lamp");
+  });
+
+  await test("own tap and hold actions go to HA's action handler instead of toggling", async () => {
+    await page.evaluate(() => {
+      window.actions = [];
+      window.addEventListener("hass-action", (e) => window.actions.push(e.detail));
+      window.card.setConfig({ ...window.card.config, actions: { "light.reading_lamp": { tap_action: { action: "more-info" } } } });
+    });
+    await page.locator('homeslice-card button.lamp.single[title="Reading lamp"]').click();
+    await page.waitForTimeout(400);
+    const actions = await page.evaluate(() => window.actions);
+    assert(actions.length === 1 && actions[0].action === "tap" && actions[0].config.entity === "light.reading_lamp" && actions[0].config.tap_action.action === "more-info", `actions: ${JSON.stringify(actions)}`);
+    assert((await state(page, "light.reading_lamp")) === "off", "the lamp toggled anyway");
+    await page.evaluate(() => {
+      const { actions, ...config } = window.card.config;
+      window.card.setConfig(config);
+    });
+  });
+
+  await test("shortcut buttons toggle, run scripts, and show only on their floor", async () => {
+    await page.evaluate(() => {
+      window.card.setConfig({ ...window.card.config, buttons: [{ entity: "light.kitchen", name: "Kitchen" }, { entity: "script.night", name: "Night" }, { entity: "light.living_room", level: "first" }] });
+      window.card.requestUpdate();
+    });
+    const buttons = page.locator("homeslice-card .shortcuts button");
+    await page.waitForFunction(() => window.card.shadowRoot.querySelectorAll(".shortcuts button").length === 2);
+    const before = await state(page, "light.kitchen");
+    await act(page, () => buttons.filter({ hasText: "Kitchen" }).click());
+    assert((await state(page, "light.kitchen")) !== before, "kitchen light not toggled");
+    await buttons.filter({ hasText: "Night" }).click();
+    await page.waitForTimeout(100);
+    const ran = await page.evaluate(() => window.card.hass.calls.filter((c) => c.domain === "script").map((c) => c.target?.entity_id ?? c.data?.entity_id));
+    assert(ran.includes("script.night"), `script not run: ${JSON.stringify(ran)}`);
+    await act(page, () => buttons.filter({ hasText: "Kitchen" }).click());
+    await page.evaluate(() => {
+      const { buttons, ...config } = window.card.config;
+      window.card.setConfig(config);
+      window.card.requestUpdate();
+    });
   });
 
   await test("'All floors' returns to the overview camera", async () => {
@@ -566,6 +662,7 @@ console.log("demo house, roof");
           { type: "tv", model: "modern:tv_wall", at: [2, 0.3], entity: "media_player.living_room_tv" },
           { type: "item", model: "modern:curtains", at: [3, 0.2], entity: "cover.living_room" },
           { type: "item", model: "modern:ac_outdoor", at: [1, 2], entity: "climate.living_room" },
+          { type: "item", model: "modern:radiator_panel", at: [0.6, 0.1], entity: "climate.living_room" },
         ];
         window.card.hass.pushModel(m);
       });
@@ -584,12 +681,15 @@ console.log("demo house, roof");
     const unit = await state("climate.living_room");
     assert(unit.turn.length === 1 && unit.lit, `outdoor unit: ${JSON.stringify(unit)}`);
     assert(await page.evaluate(() => window.card.renderer.spinning), "not spinning while heating");
+    const warm = () => page.evaluate(() => window.card.renderer.devices.get("climate.living_room").flatMap((p) => p.materials).filter((m) => m.userData.part === "warm").map((m) => m.emissiveIntensity));
+    assert((await warm()).length && (await warm()).every((x) => x > 0.2), `radiator not warm while heating: ${await warm()}`);
     await page.waitForFunction((t) => window.card.renderer.deviceState("climate.living_room").turn[0] !== t, unit.turn[0], { timeout: 8000 }).catch(() => {});
     assert((await state("climate.living_room")).turn[0] !== unit.turn[0], "the fan did not turn");
     await shot(page, "demo-devices");
     await act(page, () => page.evaluate(() => window.card.hass.callService("climate", "turn_off", {}, { entity_id: "climate.living_room" })));
     assert(!(await page.evaluate(() => window.card.renderer.spinning)), "still spinning when off");
     assert(!(await state("climate.living_room")).lit, "status light on when off");
+    assert((await warm()).every((x) => x === 0), "radiator warm when off");
     await act(page, () =>
       page.evaluate(async () => {
         await window.card.hass.callService("media_player", "turn_off", {}, { entity_id: "media_player.living_room_tv" });
@@ -651,6 +751,25 @@ console.log("demo house, roof");
     await shot(page, "demo-door-open");
     await page.evaluate(() => window.card.hass.callService("homeassistant", "toggle", {}, { entity_id: "binary_sensor.kids_room_leak" }));
     await page.waitForFunction(() => window.card.renderer.leafState("living_south_3")[0].open === 0, null, { timeout: 10000 });
+  });
+  await test("a window open in the rain is a note on its room; a power outage a warning", async () => {
+    // (one sensor plays the rain, the window's contact and the outage)
+    await page.evaluate(() => {
+      window.card.setConfig({ ...window.card.config, rain: "binary_sensor.kids_room_leak", power_outage: "binary_sensor.kids_room_leak" });
+      window.card.hass.callService("homeassistant", "toggle", {}, { entity_id: "binary_sensor.kids_room_leak" });
+    });
+    await page.waitForSelector("homeslice-card .label.note", { timeout: 5000 });
+    const note = await page.locator("homeslice-card .label.note button.name").textContent();
+    assert(note.includes("Living Room"), `note on ${note}`);
+    assert(await page.locator('homeslice-card .label.note ha-icon[icon="mdi:weather-pouring"]').count(), "no rain icon");
+    assert((await page.locator("homeslice-card .outage").textContent()).includes("Power outage"), "no outage warning");
+    await shot(page, "demo-rain");
+    await page.evaluate(() => {
+      window.card.hass.callService("homeassistant", "toggle", {}, { entity_id: "binary_sensor.kids_room_leak" });
+      const { rain, power_outage, ...config } = window.card.config;
+      window.card.setConfig(config);
+    });
+    await page.waitForFunction(() => !window.card.shadowRoot.querySelector(".outage"));
   });
   await test("lamp gestures: drag to dim, hold for the room, tap toggles", async () => {
     const lamp = page.locator("homeslice-card .label", { has: page.locator("button.name", { hasText: "Living Room" }) }).locator("button.lamp");

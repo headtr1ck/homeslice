@@ -164,6 +164,7 @@ export function expandHouse(input: unknown): ExpandResult {
             else wallSides[side as Side] = v as string;
           }
       }
+      if (ri.underfloor !== undefined && !(typeof ri.underfloor === "string" && ri.underfloor.includes("."))) err(`${rp}.underfloor`, "underfloor must be an entity id, e.g. climate.….");
       const kind = ri.kind ?? "room";
       const { min } = bbox(polygon);
       const lights: Room["lights"] = [];
@@ -241,6 +242,7 @@ export function expandHouse(input: unknown): ExpandResult {
       });
       const room: Room = { id: ri.id, areaId: ri.area_id, name: ri.name, kind, floor: ri.floor ?? DEFAULTS.floor[kind], polygon, lights, furniture, cameras };
       if (ri.awning) room.awning = ri.awning;
+      if (typeof ri.underfloor === "string" && ri.underfloor.includes(".")) room.underfloor = ri.underfloor;
       if (ri.wall) room.wall = ri.wall;
       if (Object.keys(wallSides).length) room.wallSides = wallSides;
       rooms.push(room);

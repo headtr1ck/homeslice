@@ -302,10 +302,19 @@ function glowing<M extends THREE.Material>(m: M): M {
  * lights up while it plays, flames that burn while it is on, a status light. Unlinked
  * pieces keep the look they are drawn with.
  */
-function part<M extends THREE.Material>(m: M, role: "screen" | "fire" | "led"): M {
+function part<M extends THREE.Material>(m: M, role: "screen" | "fire" | "led" | "warm"): M {
   m.userData.part = role;
   return m;
 }
+/** A radiator's thermostatic valve: the pipe and a white head with ribs. */
+function radiatorValve(b: Builder, x: number, y: number, z: number) {
+  b.cyl(0.01, 0.01, 0.06, x - 0.03, y, z, mat(C.chrome), 10).rotation.z = Math.PI / 2;
+  b.cyl(0.024, 0.024, 0.07, x, y - 0.035, z, mat(C.ceramic), 16);
+  b.cyl(0.026, 0.026, 0.01, x, y + 0.02, z, mat("#d9d9d6"), 16);
+}
+
+/** A copy of a finish that glows warm while its heating runs (radiators). */
+const warmMat = <M extends THREE.Material>(f: M) => part(f.clone() as M, "warm");
 const screenMat = () => part(mat(C.screen, { roughness: 0.15, metalness: 0.2, name: "screen" }), "screen");
 const ledMat = (color = "#3fd27a") => part(mat(color, { emissive: color, emissiveIntensity: 0.7, name: "led" }), "led");
 const shadeMat = (_finish: THREE.Material, color: string) =>
@@ -793,6 +802,7 @@ const BUILDERS: Record<string, Build> = {
     floorTap(b, w / 2 + 0.15, h, 0, a);
   },
   towel_radiator: (b, w, d, h, f) => {
+    f = warmMat(f);
     for (const sx of [-1, 1]) b.cyl(0.015, 0.015, h, sx * (w / 2 - 0.02), 0, back(d) + 0.035, f, 10);
     const n = Math.max(4, Math.round(h / 0.08));
     for (let i = 0; i < n; i++) b.add(new THREE.CylinderGeometry(0.009, 0.009, w - 0.04, 8), f, 0, 0.04 + (i * (h - 0.08)) / (n - 1), back(d) + 0.035).rotation.z = Math.PI / 2;
@@ -3575,10 +3585,62 @@ const BUILDERS: Record<string, Build> = {
   },
   // ----- climate -----
   radiator_panel: (b, w, d, h, f) => {
+    f = warmMat(f);
     b.box(w, h, d * 0.5, 0, 0, -d * 0.1, f, 0.006);
     for (let i = 0; i < Math.round(w / 0.05); i++) b.box(0.018, h - 0.04, 0.012, -w / 2 + 0.025 + i * 0.05, 0.02, d * 0.15 + 0.006, f, 0.004);
     b.box(w, 0.03, d * 0.6, 0, h, -d * 0.05, f, 0.006);
     b.cyl(0.02, 0.025, 0.08, w / 2 - 0.05, h, d * 0.1, mat(C.ceramic), 12);
+  },
+  radiator_flat: (b, w, d, h, f) => {
+    // a flat-front panel: smooth face, closed ends, a grille on top, the valve at the side
+    f = warmMat(f);
+    b.box(w, h, d * 0.55, 0, 0, back(d) + d * 0.35, f, 0.008);
+    b.box(w - 0.02, h - 0.01, 0.012, 0, 0.005, back(d) + d * 0.66, f, 0.004);
+    for (let i = 0; i < Math.floor((w - 0.06) / 0.025); i++) b.box(0.008, 0.004, d * 0.4, -w / 2 + 0.04 + i * 0.025, h - 0.001, back(d) + d * 0.35, mat(C.black));
+    radiatorValve(b, w / 2 + 0.035, h * 0.75, back(d) + d * 0.35);
+  },
+  radiator_vertical: (b, w, d, h, f) => {
+    // a tall designer panel: a slim body, a front of vertical channels, a hidden valve below
+    f = warmMat(f);
+    b.box(w, h, d * 0.45, 0, 0, back(d) + d * 0.3, f, 0.01);
+    const n = Math.max(3, Math.round(w / 0.075));
+    for (let i = 0; i < n; i++) b.box(w / n - 0.008, h - 0.02, 0.02, -w / 2 + (i + 0.5) * (w / n), 0.01, back(d) + d * 0.62, f, 0.008);
+    b.cyl(0.012, 0.012, 0.1, w / 2 - 0.05, -0.1, back(d) + d * 0.3, mat(C.chrome), 10);
+  },
+  radiator_tube: (b, w, d, h, f) => {
+    // steel column tubes, two deep, with headers top and bottom
+    f = warmMat(f);
+    const n = Math.max(4, Math.round(w / 0.045));
+    const tube = new THREE.CylinderGeometry(0.0125, 0.0125, h - 0.05, 10);
+    for (let i = 0; i < n; i++)
+      for (const z of [back(d) + d * 0.3, back(d) + d * 0.7]) b.batch(tube.clone(), f, new THREE.Matrix4().makeTranslation(-w / 2 + (i + 0.5) * (w / n), h / 2, z));
+    for (const y of [0, h - 0.035]) b.box(w, 0.035, d * 0.75, 0, y, back(d) + d * 0.5, f, 0.012);
+    radiatorValve(b, w / 2 + 0.035, h * 0.15, back(d) + d * 0.5);
+  },
+  radiator_cast_iron: (b, w, d, h, f) => {
+    // an old cast-iron radiator on feet: sections of rounded columns, hubs top and bottom
+    f = warmMat(f);
+    const n = Math.max(4, Math.round(w / 0.065));
+    const pitch = w / n;
+    const col = new THREE.CapsuleGeometry(0.016, h - 0.16, 4, 10);
+    for (let i = 0; i < n; i++) {
+      const x = -w / 2 + (i + 0.5) * pitch;
+      for (const z of [-d * 0.22, 0, d * 0.22]) b.batch(col.clone(), f, new THREE.Matrix4().makeTranslation(x, h / 2 + 0.03, z));
+      for (const y of [0.1, h - 0.06]) b.batch(new THREE.CylinderGeometry(0.024, 0.024, pitch * 0.9, 10).rotateZ(Math.PI / 2), f, new THREE.Matrix4().makeTranslation(x, y, 0));
+    }
+    // a little ornament on the top of each section
+    for (let i = 0; i < n; i++) b.batch(new THREE.SphereGeometry(0.012, 8, 6), f, new THREE.Matrix4().makeTranslation(-w / 2 + (i + 0.5) * pitch, h - 0.012, 0));
+    for (const sx of [-1, 1]) b.box(0.05, 0.06, d * 0.8, sx * (w / 2 - pitch / 2), 0, 0, f, 0.01);
+    b.cyl(0.012, 0.012, 0.08, w / 2 + 0.03, h - 0.1, 0, mat(C.chrome), 10).rotation.z = Math.PI / 2;
+    b.cyl(0.022, 0.022, 0.04, w / 2 + 0.08, h - 0.11, 0, mat("#2b2c2e"), 12);
+  },
+  radiator_convector: (b, w, d, h, f) => {
+    // a 1970s convector: a box with a slanted front, louvres on top, a knob at the side
+    f = warmMat(f);
+    b.box(w, h, d * 0.9, 0, 0, back(d) + d * 0.45, f, 0.012);
+    for (let i = 0; i < Math.floor((w - 0.08) / 0.03); i++) b.box(0.012, 0.004, d * 0.6, -w / 2 + 0.05 + i * 0.03, h - 0.002, back(d) + d * 0.45, mat(C.black));
+    for (let i = 0; i < 6; i++) b.box(w - 0.12, 0.006, 0.004, 0, 0.05 + i * 0.022, back(d) + d * 0.9 + 0.001, mat(C.black));
+    b.cyl(0.02, 0.02, 0.025, w / 2 - 0.06, h * 0.6, back(d) + d * 0.9 + 0.012, mat(C.steel), 16).rotation.x = Math.PI / 2;
   },
   ac_split: (b, w, d, h, f) => {
     // a classic wall unit: a rounded body, an intake grille on top, the louvre underneath

@@ -36,6 +36,11 @@ export interface RoomInput extends ShapeInput {
   /** Cover entity of an awning over this (outdoor) area, mounted on the house wall. */
   awning?: string;
   /**
+   * Underfloor heating: the entity that says it heats (a climate entity, a valve, a switch
+   * or binary sensor). Its loops glow in the floor while it does.
+   */
+  underfloor?: string;
+  /**
    * Lights in this room. The area's lights are included automatically and placed
    * evenly; list a light to place it (`at`), hide it, or add one from another area.
    */
@@ -419,6 +424,7 @@ export interface Room {
   /** Positive shoelace area in plan coordinates (see geometry.signedArea). */
   polygon: Vec2[];
   awning?: string;
+  underfloor?: string;
   wall?: string;
   wallSides?: Partial<Record<Side, string>>;
   /** As in the input, with `at` in plan coordinates. */
