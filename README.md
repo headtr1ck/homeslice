@@ -148,6 +148,7 @@ look: day                      # or night (dark, glowing outlines), auto (night 
 accent: "#4fc3f7"              # the night look's outline colour
 presence: true                 # mark rooms with motion/occupancy/presence; leak, smoke and gas alarms always show
 lux: false                     # true: rooms as bright as their lux sensor reads (dark rooms look dark), with the reading
+quality: auto                  # low: for weak wall tablets (no shadows, plain colours, simple furniture); high; auto picks
 follow: [event.doorbell, binary_sensor.front_door]   # turn to where these go active (a note says what), then back
 follow_alarms: false           # true: also turn to leak, smoke and gas alarms
 follow_seconds: 30             # how long to stay; nothing moves while someone uses the card

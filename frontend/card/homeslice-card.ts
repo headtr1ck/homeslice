@@ -51,6 +51,12 @@ export interface HomesliceCardConfig {
   follow_alarms?: boolean;
   /** How long to stay there, in seconds (default 30). */
   follow_seconds?: number;
+  /**
+   * `low` for weak wall tablets (no shadows, plain colours, simple furniture, fewer frames),
+   * `high`, or `auto` (default): low on devices with little memory or few cores. Applies when
+   * the page loads.
+   */
+  quality?: "auto" | "high" | "low";
   /** Rooms with a lux sensor look as bright as it reads, and show it on their label (default false). */
   lux?: boolean;
   /** Mark rooms with someone in them (motion, occupancy, presence sensors; default true). Leak, smoke and gas alarms always show. */
@@ -285,6 +291,8 @@ export class HomesliceCard extends LitElement {
     this.view = viewOptions(config.view);
     // the overlay puts solar panels on the roof, so it shows the roof unless told not to
     if (config.energy && config.view?.roof === undefined) this.view.roof = true;
+    // weak devices: simple furniture unless the card asks for detailed
+    if (this.quality === "low" && config.view?.furniture === undefined) this.view.furniture = "simple";
     if (config.mode === "plan") {
       // a floor plan: straight from above, north up, no perspective; no roof over it
       this.view.focus = { azimuth: 180, elevation: 90, projection: "isometric" };
@@ -300,6 +308,14 @@ export class HomesliceCard extends LitElement {
       this.applySavedViews();
     } else this.applySavedViews();
     this.loadedFor = undefined;
+  }
+
+  /** The quality to draw with: the card's, or for `auto` what the device can do. */
+  private get quality(): "high" | "low" {
+    const q = this.config.quality ?? "auto";
+    if (q !== "auto") return q;
+    const nav = navigator as Navigator & { deviceMemory?: number };
+    return (nav.deviceMemory !== undefined && nav.deviceMemory <= 2) || (navigator.hardwareConcurrency || 8) <= 2 ? "low" : "high";
   }
 
   // ----- views: buttons to turn, and a start view saved on this device -----
@@ -475,7 +491,7 @@ export class HomesliceCard extends LitElement {
     if (!canvas) return;
     if (!this.renderer) {
       try {
-        this.renderer = new HouseRenderer(canvas);
+        this.renderer = new HouseRenderer(canvas, { quality: this.quality });
         this.renderer.onChange = () => this.scheduleDraw();
       } catch {
         this._error = this.t("card.no_webgl");
@@ -540,7 +556,7 @@ export class HomesliceCard extends LitElement {
     if (!this.moving || !this.visible || document.visibilityState === "hidden") return;
     const step = (now: number) => {
       if (!this.renderer || !this.moving || !this.visible || document.visibilityState === "hidden") return;
-      const frame = (this.config.energy && this.renderer.flowing) || this.renderer.leavesMoving ? 33 : 66;
+      const frame = this.quality === "low" ? 66 : (this.config.energy && this.renderer.flowing) || this.renderer.leavesMoving ? 33 : 66;
       if (now - this.lastFlowFrame >= frame && !this.transitioning) {
         this.lastFlowFrame = now;
         this.renderer.draw(now);

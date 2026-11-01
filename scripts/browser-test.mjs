@@ -987,6 +987,27 @@ console.log("demo house, following events");
   await page.close();
 }
 
+console.log("demo house, low quality");
+{
+  const { page, errors } = await open("dev/fixtures/demo-hass.json", { quality: "low" });
+  await test("quality low: no shadows, plain colours, simple furniture", async () => {
+    const r = await page.evaluate(() => {
+      const card = window.card;
+      let textured = 0;
+      let detailed = 0;
+      card.renderer.object.traverse((o) => {
+        if (o.userData.detailed) detailed++;
+        if (o.isMesh) for (const m of [o.material].flat()) if (m.map && m.type === "MeshLambertMaterial") textured++;
+      });
+      return { quality: card.renderer.quality, shadows: card.renderer.renderer.shadowMap.enabled, lights: card.renderer.lightPool.length, textured, detailed, ratio: card.renderer.renderer.getPixelRatio() };
+    });
+    assert(r.quality === "low" && !r.shadows && r.lights === 2 && r.textured === 0 && r.detailed === 0 && r.ratio === 1, JSON.stringify(r));
+    await shot(page, "demo-quality-low");
+    assert(errors.length === 0, errors.join(" | "));
+  });
+  await page.close();
+}
+
 console.log("demo house, lux");
 {
   const withLux = (f) => ({

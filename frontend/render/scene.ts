@@ -8,6 +8,7 @@ import { simplePiece } from "./simple";
 import { detailFor, fitModel, loadModel, modelColor } from "./models";
 import { nearestCorner, offsetPolygon, perimeterPath } from "../model/route";
 import { finishLook, onFinishLoaded } from "./finishes";
+import { FINISHES_BY_ID } from "../model/finishes";
 import { Line2 } from "three/examples/jsm/lines/Line2.js";
 import { LineGeometry } from "three/examples/jsm/lines/LineGeometry.js";
 import { LineMaterial } from "three/examples/jsm/lines/LineMaterial.js";
@@ -452,19 +453,27 @@ export class HouseRenderer {
   /** Width / height of the whole house as seen by the overview camera. */
   aspect = 1.6;
 
-  constructor(canvas: HTMLCanvasElement) {
-    this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
-    this.renderer.shadowMap.enabled = true;
+  /**
+   * `low` quality is for weak wall tablets: no shadows or edge smoothing, plain colours
+   * instead of textures, two lamp lights, one pixel per CSS pixel.
+   */
+  readonly quality: "high" | "low";
+
+  constructor(canvas: HTMLCanvasElement, options: { quality?: "high" | "low" } = {}) {
+    this.quality = options.quality ?? "high";
+    const low = this.quality === "low";
+    this.renderer = new THREE.WebGLRenderer({ canvas, antialias: !low, alpha: true });
+    this.renderer.shadowMap.enabled = !low;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.scene.add(this.root);
     this.scene.add(this.sky, this.ambient);
-    this.sun.castShadow = true;
+    this.sun.castShadow = !low;
     this.sun.shadow.mapSize.set(2048, 2048);
     this.sun.shadow.bias = -0.0005;
     // round shapes (hedges, bushes) would shade themselves in stripes without it
     this.sun.shadow.normalBias = 0.03;
     this.scene.add(this.sun, this.sun.target);
-    for (let i = 0; i < LIGHT_POOL; i++) {
+    for (let i = 0; i < (low ? 2 : LIGHT_POOL); i++) {
       const light = new THREE.PointLight(0xffe4b8, 0, 7, 2);
       this.lightPool.push(light);
       this.scene.add(light);
@@ -510,7 +519,7 @@ export class HouseRenderer {
       const l = this.levels[this.levels.length - 1];
       l.group.add(this.roof);
     }
-    this.sun.castShadow = !this.view.plan;
+    this.sun.castShadow = !this.view.plan && this.quality !== "low";
     this.focus = null;
     this.hover = null;
     this.orientation = this.cameraFor(null);
@@ -592,7 +601,7 @@ export class HouseRenderer {
       geo.rotateX(-Math.PI / 2);
       geo.translate(0, room.kind === "outdoor" ? -level.slab + 0.01 : 0.004, 0);
       // its finish: a texture in plan metres, or a colour
-      const { map, color } = finishLook(room.floor);
+      const { map, color } = this.finish(room.floor);
       // outdoor areas reach over the floors below in the exploded view: keep them see-through
       // (on the lowest level nothing is below: solid there)
       const material = room.kind === "outdoor" && level.index > 0 ? this.lambert(color, { map, transparent: true, opacity: 0.55, depthWrite: false }) : this.lambert(color, { map });
@@ -616,7 +625,7 @@ export class HouseRenderer {
       if (!id) return wallMat;
       let m = finishMats.get(id);
       if (!m) {
-        const look = finishLook(id);
+        const look = this.finish(id);
         finishMats.set(id, (m = this.lambert(look.color, { map: look.map })));
       }
       return m;
@@ -1356,6 +1365,12 @@ export class HouseRenderer {
       list.push(...places.map((at) => ({ level: i, at, high: type === "spot" || type === "indirect" })));
       this.lampPlaces.set(lamp.entity, list);
     }
+  }
+
+  /** A finish: its texture and colour, or at low quality only its colour (nothing downloaded). */
+  private finish(id: string): { map: THREE.Texture | null; color: string } {
+    if (this.quality !== "low") return finishLook(id);
+    return { map: null, color: FINISHES_BY_ID[id]?.color ?? (id.startsWith("polyhaven:") ? "#bdb6aa" : finishLook(id).color) };
   }
 
   /** A plain white texture (parts glowing evenly in the light's colour). */
@@ -2451,7 +2466,7 @@ export class HouseRenderer {
 
   /** Sets the canvas size (CSS px) and draws a frame. */
   render(width: number, height: number) {
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    this.renderer.setPixelRatio(this.quality === "low" ? 1 : Math.min(window.devicePixelRatio || 1, 2));
     this.renderer.setSize(width, height, false);
     this.size = { width, height };
     // wide lines are sized in pixels
