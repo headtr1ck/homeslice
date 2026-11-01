@@ -1769,12 +1769,26 @@ export class HouseRenderer {
   }
 
   /** Where a robot is (null: unknown, hidden) and its status colour. */
-  setRobotState(key: string, at: Vec2 | null, color: string) {
+  /** Where a robot is and its status colour; `unsure`: its last known spot, faded. */
+  setRobotState(key: string, at: Vec2 | null, color: string, unsure = false) {
     const r = this.robots.get(key);
     if (!r) return;
     r.body.visible = !!at;
     if (at) r.body.position.set(at[0], 0, at[1]);
     r.ring.color.set(color);
+    r.body.userData.unsure = unsure;
+    r.body.traverse((o) => {
+      if (!(o instanceof THREE.Mesh)) return;
+      for (const m of [o.material].flat() as THREE.Material[]) {
+        // the level's fade multiplies this base opacity; keep the part's own
+        const own = (m.userData.ownOpacity ??= m.userData.baseOpacity ?? m.opacity) as number;
+        const ownTransparent = (m.userData.ownTransparent ??= m.userData.baseTransparent ?? m.transparent) as boolean;
+        m.userData.baseOpacity = own * (unsure ? 0.4 : 1);
+        m.userData.baseTransparent = unsure || ownTransparent;
+      }
+    });
+    const level = this.levels[r.levelIndex];
+    if (level) this.applyLevel(level);
   }
 
   /** Screen position of a robot, or null when it isn't shown. */
@@ -1787,7 +1801,7 @@ export class HouseRenderer {
 
   /** For tests: where each robot is drawn. */
   robotState() {
-    return [...this.robots.entries()].map(([key, r]) => ({ key, visible: r.body.visible, at: [r.body.position.x, r.body.position.z], color: `#${r.ring.color.getHexString()}` }));
+    return [...this.robots.entries()].map(([key, r]) => ({ key, visible: r.body.visible, at: [r.body.position.x, r.body.position.z], color: `#${r.ring.color.getHexString()}`, unsure: !!r.body.userData.unsure }));
   }
 
   /** Power per item (W towards what it is connected to); flows below a few watts stand still. */

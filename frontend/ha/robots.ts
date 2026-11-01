@@ -32,7 +32,10 @@ export function robotStatus(state: string | undefined): RobotStatus {
  * Positions answered by a service (`position.service`), by robot entity: the card asks
  * while robots are out and keeps the last answer here.
  */
-export const polledPositions = new Map<string, Vec2>();
+export const polledPositions = new Map<string, { at: Vec2; time: number }>();
+
+/** An answer older than this no longer says where a robot that is out is. */
+export const POSITION_STALE_MS = 20000;
 
 /** Asks a position service for a robot's position (map units), or null. */
 export async function pollPosition(hass: Hass, entity: string, service: string): Promise<Vec2 | null> {
@@ -42,7 +45,7 @@ export async function pollPosition(hass: Hass, entity: string, service: string):
     const v = res?.response?.[entity] as { x?: unknown; y?: unknown } | undefined;
     if (typeof v?.x !== "number" || typeof v?.y !== "number") return null;
     const at: Vec2 = [v.x, v.y];
-    polledPositions.set(entity, at);
+    polledPositions.set(entity, { at, time: Date.now() });
     return at;
   } catch {
     return null;
@@ -50,10 +53,10 @@ export async function pollPosition(hass: Hass, entity: string, service: string):
 }
 
 /** The robot's own position reading: map units, or [latitude, longitude]. */
-export function rawPosition(hass: Hass, position: NonNullable<Robot["position"]>): { at: Vec2; gps: boolean } | null {
+export function rawPosition(hass: Hass, position: NonNullable<Robot["position"]>): { at: Vec2; gps: boolean; age?: number } | null {
   if (position.service) {
-    const at = polledPositions.get(position.entity);
-    return at ? { at, gps: false } : null;
+    const p = polledPositions.get(position.entity);
+    return p ? { at: p.at, gps: false, age: Date.now() - p.time } : null;
   }
   const s = hass.states[position.entity];
   if (!s) return null;
@@ -119,6 +122,11 @@ export interface RobotReading {
   /** Where it is on the plan: live, or at the dock while docked; null when unknown. */
   at: Vec2 | null;
   live: boolean;
+  /**
+   * Out (cleaning, returning) but not saying where: `at` is its last known spot (or its
+   * dock), drawn faded. Some robots report only while cleaning, or after their app ran.
+   */
+  unsure: boolean;
 }
 
 export function readRobot(hass: Hass, robot: Robot): RobotReading {
@@ -127,8 +135,12 @@ export function readRobot(hass: Hass, robot: Robot): RobotReading {
   const b = s?.attributes.battery_level ?? s?.attributes.battery;
   const battery = typeof b === "number" ? b : typeof b === "string" && b !== "" && !isNaN(Number(b)) ? Number(b) : null;
   const raw = robot.position ? rawPosition(hass, robot.position) : null;
-  const live = raw && robot.position ? readingToPlan(raw.at, robot.position.points, raw.gps) : null;
-  // without a live position: at the dock while docked, otherwise somewhere unknown
-  const at = live ?? (status === "docked" || status === "unknown" || status === "idle" ? robot.dock : null);
-  return { status, state: s?.state ?? "unknown", battery, at, live: !!live };
+  const known = raw && robot.position ? readingToPlan(raw.at, robot.position.points, raw.gps) : null;
+  const home = status === "docked" || status === "unknown" || status === "idle";
+  // an old answer while it is out: it has moved on since
+  const fresh = !!known && (home || raw?.age === undefined || raw.age < POSITION_STALE_MS);
+  if (fresh) return { status, state: s?.state ?? "unknown", battery, at: known, live: true, unsure: false };
+  if (home) return { status, state: s?.state ?? "unknown", battery, at: robot.dock, live: false, unsure: false };
+  // out without a position: where it was last seen (or its dock), marked as unsure
+  return { status, state: s?.state ?? "unknown", battery, at: robot.position ? (known ?? robot.dock) : null, live: false, unsure: !!robot.position };
 }

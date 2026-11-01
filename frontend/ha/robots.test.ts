@@ -51,11 +51,29 @@ describe("positions a service answers", () => {
   it("asks the service and keeps the answer for the robot", async () => {
     const hass = { states: {}, callService: async (_d: string, _s: string, _data: unknown, target: { entity_id: string }) => ({ response: { [target.entity_id]: { x: 25260, y: 25430 } } }) } as unknown as Hass;
     expect(await pollPosition(hass, "vacuum.saros", "roborock.get_vacuum_current_position")).toEqual([25260, 25430]);
-    expect(polledPositions.get("vacuum.saros")).toEqual([25260, 25430]);
-    expect(rawPosition(hass, { entity: "vacuum.saros", service: "roborock.get_vacuum_current_position", points: [] })).toEqual({ at: [25260, 25430], gps: false });
+    expect(polledPositions.get("vacuum.saros")?.at).toEqual([25260, 25430]);
+    expect(rawPosition(hass, { entity: "vacuum.saros", service: "roborock.get_vacuum_current_position", points: [] })).toMatchObject({ at: [25260, 25430], gps: false });
   });
   it("is quiet when the service fails", async () => {
     const hass = { states: {}, callService: async () => { throw new Error("offline"); } } as unknown as Hass;
     expect(await pollPosition(hass, "vacuum.x", "roborock.get_vacuum_current_position")).toBeNull();
+  });
+});
+
+describe("robots out without a position", () => {
+  const robot = { index: 0, entity: "vacuum.q10", kind: "vacuum", levelIndex: 0, dock: [1, 1], position: { entity: "vacuum.q10", service: "roborock.get_vacuum_current_position", points: [[[0, 0], [0, 0]], [[1000, 0], [1, 0]]] } } as unknown as Robot;
+  const hass = (state: string) => ({ states: { "vacuum.q10": { entity_id: "vacuum.q10", state, attributes: {} } } }) as unknown as Hass;
+  it("is at its last known spot, marked unsure, once the answer is old", () => {
+    polledPositions.set("vacuum.q10", { at: [2000, 0], time: Date.now() });
+    expect(readRobot(hass("cleaning"), robot)).toMatchObject({ at: [2, 0], live: true, unsure: false });
+    polledPositions.set("vacuum.q10", { at: [2000, 0], time: Date.now() - 60000 });
+    expect(readRobot(hass("cleaning"), robot)).toMatchObject({ at: [2, 0], live: false, unsure: true });
+    // back home, an old answer is fine (it doesn't move there)
+    expect(readRobot(hass("docked"), robot)).toMatchObject({ at: [2, 0], live: true, unsure: false });
+  });
+  it("is at its dock, unsure, when it never said where it is", () => {
+    polledPositions.delete("vacuum.q10");
+    expect(readRobot(hass("cleaning"), robot)).toMatchObject({ at: [1, 1], unsure: true });
+    expect(readRobot(hass("docked"), robot)).toMatchObject({ at: [1, 1], unsure: false });
   });
 });

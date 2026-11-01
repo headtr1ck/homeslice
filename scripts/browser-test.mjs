@@ -799,6 +799,18 @@ console.log("demo house, roof");
     // it moves: the next answer
     await page.evaluate(() => (window.card.hass.robotPositions["vacuum.robo"] = [25500, 25500]));
     await page.waitForFunction(() => Math.abs(window.card.renderer.robotState()[0].at[0] - 1.5) < 1e-6, null, { timeout: 6000 });
+    // a robot that never says where it is while cleaning: faded at its dock, the label says so
+    await act(page, async () => {
+      await page.evaluate(() => {
+        const m = structuredClone(window.__demoModel);
+        m.robots[0].position = { entity: "vacuum.silent", service: "roborock.get_vacuum_current_position", points: m.robots[0].position.points };
+        window.card.hass.pushModel(m);
+      });
+    });
+    await page.waitForFunction(() => window.card.renderer.robotState()[0]?.unsure, null, { timeout: 5000 });
+    const unsure = await page.evaluate(() => window.card.renderer.robotState()[0]);
+    assert(Math.abs(unsure.at[0] - 0.8) < 1e-6 && Math.abs(unsure.at[1] - 3.3) < 1e-6, `unsure robot: ${JSON.stringify(unsure)}`);
+    assert((await page.locator("homeslice-card .robot-label").getAttribute("aria-label")).includes("position not reported") || (await page.locator("homeslice-card .robot-label").textContent()).includes("position not reported"), "the label doesn't say the position is missing");
     await act(page, () => page.evaluate(() => window.card.hass.pushModel(structuredClone(window.__demoModel))));
   });
 

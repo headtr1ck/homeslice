@@ -607,7 +607,7 @@ export class HomesliceCard extends LitElement {
       const name = r.name ?? (s?.attributes.friendly_name as string | undefined) ?? r.entity;
       const format = (this.hass as unknown as { formatEntityState?: (s: unknown) => string }).formatEntityState;
       const state = s ? (format ? format(s) : s.state) : "";
-      return [{ key: `robot-${r.index}`, entity: r.entity, ...p, name, battery: reading.battery, text: `${state}${reading.battery !== null ? ` · ${Math.round(reading.battery)} %` : ""}`, color: ROBOT_COLORS[reading.status], icon: r.kind === "lawn_mower" ? "mdi:robot-mower" : "mdi:robot-vacuum" }];
+      return [{ key: `robot-${r.index}`, entity: r.entity, ...p, name, battery: reading.battery, text: `${state}${reading.battery !== null ? ` · ${Math.round(reading.battery)} %` : ""}${reading.unsure ? ` · ${this.t("card.robot_unsure")}` : ""}`, color: ROBOT_COLORS[reading.status], icon: r.kind === "lawn_mower" ? "mdi:robot-mower" : "mdi:robot-vacuum" }];
     });
   }
 
@@ -691,7 +691,7 @@ export class HomesliceCard extends LitElement {
     for (const [entity, moving] of cameras) this.renderer.setCameraMotion(entity, moving);
     this.renderer.setLook(look, this.config.accent || undefined);
     this.renderer.setSun(sunAt?.[0] ?? null, sunAt?.[1] ?? null);
-    this.house.robots.forEach((r, i) => this.renderer!.setRobotState(`robot-${r.index}`, this.robotReadings[i].at, ROBOT_COLORS[this.robotReadings[i].status]));
+    this.house.robots.forEach((r, i) => this.renderer!.setRobotState(`robot-${r.index}`, this.robotReadings[i].at, ROBOT_COLORS[this.robotReadings[i].status], this.robotReadings[i].unsure));
     if (this.config.energy) this.renderer.setFlows(Object.fromEntries(this.house.energy.map((e, i) => [`energy-${e.index}`, this.energyReadings[i]?.flow ?? null])));
     this.rooms.forEach((r, i) => {
       this.renderer!.setRoomLight(r.levelId, r.room.id, lights[i]);

@@ -2565,7 +2565,8 @@ export class HomeslicePanel extends LitElement {
               }}>${this.t("editor.robot_record")}</button>
               <button ?disabled=${!points} @click=${() => this.commit(clearRobotPoints(m, index))}>${this.t("editor.robot_clear")}</button>
             </div>
-            <p class="muted">${this.t("editor.robot_calib_hint")}</p>`
+            <p class="muted">${this.t("editor.robot_calib_hint")}</p>
+            ${r.position?.service ? html`<p class="muted">${this.t("editor.robot_app_hint")}</p>` : nothing}`
         : nothing}
       <button class="danger" @click=${() => {
         this.commit(deleteRobot(m, index));

@@ -393,7 +393,7 @@
   "editor.robot_attribute": "Attribut",
   "editor.robot_gps": "GPS (Breiten- und Längengrad)",
   "editor.robot_reading": "Aktuell: {at}",
-  "editor.robot_no_reading": "Dort gibt es gerade keine Position.",
+  "editor.robot_no_reading": "Gerade keine Position. Manche Roboter melden sie nur beim Reinigen oder erst, nachdem ihre App geöffnet wurde (Roborock Q10): kurz reinigen lassen oder die App öffnen, dann aufnehmen.",
   "editor.robot_points": "Kalibrierung: {count} von 2 Punkten.",
   "editor.robot_calibrated": "✓ Kalibriert: Die Karte zeigt ihn live.",
   "editor.robot_record": "Punkt erfassen",
@@ -1490,5 +1490,7 @@
   "alias.game_console": "Spielkonsole, Konsole, Gaming",
   "editor.robot_roborock": "Roborock (fragt den Roboter nach seiner Position)",
   "editor.underlay_robot_map": "Karte verwenden: {map}",
-  "editor.underlay_robot_hint": "Die Karte eines Saugroboters ist maßstabsgetreu: über das Haus ziehen, dann die Räume darauf nachzeichnen."
+  "editor.underlay_robot_hint": "Die Karte eines Saugroboters ist maßstabsgetreu: über das Haus ziehen, dann die Räume darauf nachzeichnen.",
+  "card.robot_unsure": "Position nicht gemeldet",
+  "editor.robot_app_hint": "Roborock: manche Modelle (z. B. Q10) schicken Karte und Position erst, nachdem die Roborock-App geöffnet wurde, oder beim Reinigen. Wenn nichts erscheint, einmal die App öffnen."
 }

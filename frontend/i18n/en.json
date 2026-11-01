@@ -393,7 +393,7 @@
   "editor.robot_attribute": "Attribute",
   "editor.robot_gps": "GPS (latitude and longitude)",
   "editor.robot_reading": "Now: {at}",
-  "editor.robot_no_reading": "No position there right now.",
+  "editor.robot_no_reading": "No position right now. Some robots report it only while cleaning, or only after their own app has been opened (Roborock Q10): start a short clean, or open the app, then record.",
   "editor.robot_points": "Calibration: {count} of 2 spots.",
   "editor.robot_calibrated": "✓ Calibrated: the card shows it live.",
   "editor.robot_record": "Record a spot",
@@ -1490,5 +1490,7 @@
   "alias.game_console": "game console, playstation, xbox, gaming",
   "editor.robot_roborock": "Roborock (asks the robot for its position)",
   "editor.underlay_robot_map": "Use the map: {map}",
-  "editor.underlay_robot_hint": "A robot vacuum's map is true to scale: drag it into place over the house, then trace the rooms on it."
+  "editor.underlay_robot_hint": "A robot vacuum's map is true to scale: drag it into place over the house, then trace the rooms on it.",
+  "card.robot_unsure": "position not reported",
+  "editor.robot_app_hint": "Roborock: some models (e.g. Q10) send their map and position only after the Roborock app was opened or while cleaning. Open the app once if nothing shows."
 }
