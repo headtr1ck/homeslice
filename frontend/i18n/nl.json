@@ -1525,5 +1525,19 @@
   "modern.radiator_cast_iron": "Gietijzeren radiator",
   "alias.radiator_cast_iron": "radiator, gietijzer, oud, vintage",
   "modern.radiator_convector": "Convector",
-  "alias.radiator_convector": "radiator, convector, oud, verwarming"
+  "alias.radiator_convector": "radiator, convector, oud, verwarming",
+  "card.badge_pickup_today": "Vandaag ophaling",
+  "card.badge_pickup_tomorrow": "Morgen ophaling",
+  "card.badge_plant": "{what}",
+  "card.badge_post": "Post",
+  "card.badge_time_left": "nog {time}",
+  "cardeditor.badges": "Notities boven objecten (containers, planten, post, resterende tijd)",
+  "modern.wheelie_bin": "Kliko",
+  "alias.wheelie_bin": "container, afvalbak, vuilnisbak, kliko, GFT",
+  "modern.mailbox": "Brievenbus",
+  "alias.mailbox": "brievenbus, post",
+  "modern.mailbox_post": "Brievenbus op paal",
+  "alias.mailbox_post": "brievenbus, paal, post",
+  "finish.yellow": "Geel",
+  "finish.brown": "Bruin"
 }

@@ -1525,5 +1525,19 @@
   "modern.radiator_cast_iron": "Gussheizkörper",
   "alias.radiator_cast_iron": "Heizkörper, Gussheizkörper, alt, Rippenheizkörper, Altbau",
   "modern.radiator_convector": "Konvektor",
-  "alias.radiator_convector": "Heizkörper, Konvektor, alt, 70er"
+  "alias.radiator_convector": "Heizkörper, Konvektor, alt, 70er",
+  "card.badge_pickup_today": "Abholung heute",
+  "card.badge_pickup_tomorrow": "Abholung morgen",
+  "card.badge_plant": "{what}",
+  "card.badge_post": "Post",
+  "card.badge_time_left": "noch {time}",
+  "cardeditor.badges": "Hinweise über Objekten (Tonnen, Pflanzen, Post, Restzeit)",
+  "modern.wheelie_bin": "Mülltonne",
+  "alias.wheelie_bin": "Mülltonne, Tonne, Restmüll, Biotonne, Papiertonne, Gelbe Tonne",
+  "modern.mailbox": "Briefkasten",
+  "alias.mailbox": "Briefkasten, Post",
+  "modern.mailbox_post": "Standbriefkasten",
+  "alias.mailbox_post": "Briefkasten, Standbriefkasten, Post",
+  "finish.yellow": "Gelb",
+  "finish.brown": "Braun"
 }

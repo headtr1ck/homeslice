@@ -771,6 +771,40 @@ console.log("demo house, roof");
     });
     await page.waitForFunction(() => !window.card.shadowRoot.querySelector(".outage"));
   });
+  await test("underfloor heating glows while it heats, only on cards that show heating", async () => {
+    await act(page, async () => {
+      await page.evaluate(() => {
+        const m = structuredClone(window.__demoModel);
+        m.levels[0].rooms.find((r) => r.id === "living").underfloor = "climate.living_room";
+        window.card.hass.pushModel(m);
+      });
+    });
+    const loops = () => page.evaluate(() => window.card.renderer.underfloorState("climate.living_room"));
+    assert((await loops()).length === 1 && !(await loops())[0], `hidden without heating: ${await loops()}`);
+    await act(page, () =>
+      page.evaluate(() => {
+        // the thermostat heats right now
+        const h = window.card.hass;
+        const c = h.states["climate.living_room"];
+        h.states = { ...h.states, "climate.living_room": { ...c, state: "heat", attributes: { ...c.attributes, hvac_action: "heating" } } };
+        window.card.setConfig({ ...window.card.config, heating: true });
+        window.card.hass = h;
+      }),
+    );
+    assert((await loops())[0], "no loops while heating");
+    await shot(page, "demo-underfloor");
+    await act(page, () => page.evaluate(() => window.card.hass.callService("climate", "turn_off", {}, { entity_id: "climate.living_room" })));
+    assert(!(await loops())[0], "loops while off");
+    await act(page, () =>
+      page.evaluate(async () => {
+        await window.card.hass.callService("climate", "turn_on", {}, { entity_id: "climate.living_room" });
+        const { heating, ...config } = window.card.config;
+        window.card.setConfig(config);
+        window.card.hass.pushModel(window.__demoModel);
+      }),
+    );
+  });
+
   await test("lamp gestures: drag to dim, hold for the room, tap toggles", async () => {
     const lamp = page.locator("homeslice-card .label", { has: page.locator("button.name", { hasText: "Living Room" }) }).locator("button.lamp");
     const box = await lamp.boundingBox();

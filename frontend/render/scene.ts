@@ -2332,7 +2332,12 @@ export class HouseRenderer {
     if (!l) return;
     const below = this.levels[index - 1];
     const belowSeen = !!below && !this.view.sideBySide && below.group.visible && below.opacity * below.hoverOpacity > 0.5;
-    for (const child of l.group.children) if (child.userData.well) child.visible = !belowSeen;
+    for (const child of l.group.children) {
+      if (!child.userData.well || child.visible === !belowSeen) continue;
+      child.visible = !belowSeen;
+      // first shown after the level faded: its shader may be stale, have it built again
+      if (child.visible) child.traverse((o) => o instanceof THREE.Mesh && ((o.material as THREE.Material).needsUpdate = true));
+    }
   }
 
   private applyLevel(l: LevelState) {

@@ -193,6 +193,7 @@ buttons:                       # shortcuts in the bottom right: scenes/scripts r
 rain: binary_sensor.rain       # warn about open windows while it rains (default: the weather entity)
 power_outage: binary_sensor.grid_down   # a warning on the card while it is on
 heating: true                  # underfloor heating loops glow while they heat (rooms with underfloor:)
+badges: true                   # notes above linked pieces: bin pickup today/tomorrow, thirsty plants, post, time left
 actions:                       # optional: own tap/hold actions for linked pieces and lamps (Lovelace actions)
   light.hall:
     tap_action: { action: more-info }

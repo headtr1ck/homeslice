@@ -1525,5 +1525,19 @@
   "modern.radiator_cast_iron": "Grzejnik żeliwny",
   "alias.radiator_cast_iron": "grzejnik, kaloryfer, żeliwny, stary, żeberkowy",
   "modern.radiator_convector": "Konwektor",
-  "alias.radiator_convector": "grzejnik, konwektor, stary, kaloryfer"
+  "alias.radiator_convector": "grzejnik, konwektor, stary, kaloryfer",
+  "card.badge_pickup_today": "Odbiór dziś",
+  "card.badge_pickup_tomorrow": "Odbiór jutro",
+  "card.badge_plant": "{what}",
+  "card.badge_post": "Poczta",
+  "card.badge_time_left": "jeszcze {time}",
+  "cardeditor.badges": "Notatki nad obiektami (kosze, rośliny, poczta, pozostały czas)",
+  "modern.wheelie_bin": "Kosz na kółkach",
+  "alias.wheelie_bin": "kosz, pojemnik, śmieci, odpady",
+  "modern.mailbox": "Skrzynka na listy",
+  "alias.mailbox": "skrzynka pocztowa, poczta, listy",
+  "modern.mailbox_post": "Skrzynka na słupku",
+  "alias.mailbox_post": "skrzynka pocztowa, słupek, poczta",
+  "finish.yellow": "Żółty",
+  "finish.brown": "Brązowy"
 }

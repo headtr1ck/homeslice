@@ -306,6 +306,16 @@ function part<M extends THREE.Material>(m: M, role: "screen" | "fire" | "led" | 
   m.userData.part = role;
   return m;
 }
+/** A 240 l wheelie bin at x: a tapering body, the lid in its own colour, wheels at the back. */
+function wheelieBin(b: Builder, x: number, bw: number, d: number, h: number, body: THREE.Material, lid: THREE.Material) {
+  const geo = new THREE.CylinderGeometry(Math.SQRT1_2, Math.SQRT1_2 * 0.88, 1, 4, 1, false, Math.PI / 4);
+  geo.scale(bw, h - 0.12, d - 0.05);
+  b.add(geo, body, x, (h - 0.12) / 2 + 0.04, 0);
+  b.box(bw + 0.03, 0.04, d, x, h - 0.08, 0.01, lid, 0.01);
+  for (const sx of [-1, 1]) b.add(new THREE.CylinderGeometry(0.1, 0.1, 0.04, 14), mat(C.black), x + sx * (bw / 2 - 0.02), 0.1, -d / 2 + 0.1).rotation.z = Math.PI / 2;
+  b.rod(v(x - bw * 0.4, h - 0.05, -d / 2 + 0.01), v(x + bw * 0.4, h - 0.05, -d / 2 + 0.01), 0.015, body, 6);
+}
+
 /** A radiator's thermostatic valve: the pipe and a white head with ribs. */
 function radiatorValve(b: Builder, x: number, y: number, z: number) {
   b.cyl(0.01, 0.01, 0.06, x - 0.03, y, z, mat(C.chrome), 10).rotation.z = Math.PI / 2;
@@ -1335,6 +1345,24 @@ const BUILDERS: Record<string, Build> = {
       const rr = r * (0.5 + (i % 3) * 0.15);
       b.box(0.35, 0.45, 0.01, Math.cos(a) * rr * 0.7, h - 0.62, Math.sin(a) * rr * 0.7, mat(C.clothes[Math.floor(rand() * C.clothes.length)], { side: THREE.DoubleSide }))!.rotation.y = -a;
     }
+  },
+  wheelie_bin: (b, w, d, h, f, _c, a) => wheelieBin(b, 0, w - 0.03, d, h, f, a),
+  mailbox: (b, w, d, h, f) => {
+    // a wall letterbox: a rounded body, a slanted lid with the slot, a name plate, a lock
+    b.box(w, h - 0.05, d, 0, 0, 0, f, 0.015);
+    b.box(w + 0.01, 0.06, d + 0.02, 0, h - 0.06, 0.008, f, 0.012)?.rotation.set(-0.15, 0, 0);
+    b.box(w * 0.7, 0.012, 0.006, 0, h - 0.04, d / 2 + 0.02, mat(C.black));
+    b.box(w * 0.4, 0.04, 0.004, 0, h * 0.45, d / 2 + 0.001, mat(C.ceramic));
+    b.cyl(0.012, 0.012, 0.008, w * 0.32, h * 0.25, d / 2 + 0.002, mat(C.chrome), 12).rotation.x = Math.PI / 2;
+  },
+  mailbox_post: (b, w, d, h, f) => {
+    // a free-standing letterbox on a post
+    const box = Math.min(0.42, h * 0.3);
+    b.box(0.07, h - box, 0.07, 0, 0, 0, f, 0.01);
+    b.box(0.3, 0.02, 0.25, 0, 0, 0, f, 0.005);
+    b.box(w, box, d, 0, h - box, 0, f, 0.03);
+    b.box(w * 0.7, 0.012, 0.006, 0, h - 0.05, d / 2 + 0.001, mat(C.black));
+    b.box(w * 0.4, 0.04, 0.004, 0, h - box * 0.6, d / 2 + 0.001, mat(C.ceramic));
   },
   wheelie_bins: (b, w, d, h) => {
     const colors = ["#3a3d41", "#2f5fa8", "#6b4a35", "#e2c33a"];

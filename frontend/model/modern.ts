@@ -31,6 +31,8 @@ export const FINISHES: Record<string, string> = {
   blue: "#4d6a88",
   terracotta: "#b5683f",
   pink: "#d4a19b",
+  yellow: "#e2c33a",
+  brown: "#6b4a35",
   concrete: "#a8a59f",
   marble: "#e6e3dd",
   red: "#a8322d",
@@ -546,6 +548,9 @@ export const MODERN_GROUPS: { id: string; kinds: ModernKind[] }[] = [
       k("robot_mower", "item", [0.55, 0.65, 0.27], ["white", "anthracite", "green"]),
       k("rotary_dryer", "item", [2.6, 2.6, 1.9], ["silver", "white", "anthracite"]),
       k("wheelie_bins", "item", [2.4, 0.75, 1.07], ["anthracite"]),
+      k("wheelie_bin", "item", [0.58, 0.74, 1.07], ["anthracite", "green", "grey", "black"], { accents: ["anthracite", "blue", "brown", "yellow", "green", "red"] }),
+      k("mailbox", "item", [0.38, 0.12, 0.34], ["anthracite", "black", "white", "silver", "red"], { mount: "wall", elevation: 1.1 }),
+      k("mailbox_post", "item", [0.42, 0.35, 1.25], ["anthracite", "black", "white", "silver"]),
     ],
   },
   {

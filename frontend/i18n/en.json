@@ -1525,5 +1525,19 @@
   "modern.radiator_cast_iron": "Cast-iron radiator",
   "alias.radiator_cast_iron": "radiator, cast iron, old, vintage, column, heater",
   "modern.radiator_convector": "Convector heater",
-  "alias.radiator_convector": "radiator, convector, old, 70s, heater"
+  "alias.radiator_convector": "radiator, convector, old, 70s, heater",
+  "card.badge_pickup_today": "Pickup today",
+  "card.badge_pickup_tomorrow": "Pickup tomorrow",
+  "card.badge_plant": "{what}",
+  "card.badge_post": "Post",
+  "card.badge_time_left": "{time} left",
+  "cardeditor.badges": "Notes above pieces (bins, plants, post, time left)",
+  "modern.wheelie_bin": "Wheelie bin",
+  "alias.wheelie_bin": "bin, waste bin, trash can, garbage, recycling, wheelie bin",
+  "modern.mailbox": "Letterbox",
+  "alias.mailbox": "mailbox, letterbox, post box, mail",
+  "modern.mailbox_post": "Letterbox on a post",
+  "alias.mailbox_post": "mailbox, letterbox, post box, standing",
+  "finish.yellow": "Yellow",
+  "finish.brown": "Brown"
 }

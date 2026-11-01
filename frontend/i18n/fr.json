@@ -1525,5 +1525,19 @@
   "modern.radiator_cast_iron": "Radiateur en fonte",
   "alias.radiator_cast_iron": "radiateur, fonte, ancien, vintage, chauffage",
   "modern.radiator_convector": "Convecteur",
-  "alias.radiator_convector": "radiateur, convecteur, ancien, chauffage"
+  "alias.radiator_convector": "radiateur, convecteur, ancien, chauffage",
+  "card.badge_pickup_today": "Collecte aujourd'hui",
+  "card.badge_pickup_tomorrow": "Collecte demain",
+  "card.badge_plant": "{what}",
+  "card.badge_post": "Courrier",
+  "card.badge_time_left": "encore {time}",
+  "cardeditor.badges": "Notes au-dessus des objets (poubelles, plantes, courrier, temps restant)",
+  "modern.wheelie_bin": "Poubelle à roulettes",
+  "alias.wheelie_bin": "poubelle, conteneur, déchets, recyclage",
+  "modern.mailbox": "Boîte aux lettres",
+  "alias.mailbox": "boîte aux lettres, courrier",
+  "modern.mailbox_post": "Boîte aux lettres sur pied",
+  "alias.mailbox_post": "boîte aux lettres, pied, courrier",
+  "finish.yellow": "Jaune",
+  "finish.brown": "Marron"
 }

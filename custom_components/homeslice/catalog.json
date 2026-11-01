@@ -8504,6 +8504,68 @@
    ]
   },
   {
+   "model": "modern:wheelie_bin",
+   "name": "Wheelie bin",
+   "group": "garden",
+   "type": "item",
+   "size": [
+    0.58,
+    0.74,
+    1.07
+   ],
+   "finishes": [
+    "anthracite",
+    "green",
+    "grey",
+    "black"
+   ],
+   "accents": [
+    "anthracite",
+    "blue",
+    "brown",
+    "yellow",
+    "green",
+    "red"
+   ]
+  },
+  {
+   "model": "modern:mailbox",
+   "name": "Letterbox",
+   "group": "garden",
+   "type": "item",
+   "size": [
+    0.38,
+    0.12,
+    0.34
+   ],
+   "finishes": [
+    "anthracite",
+    "black",
+    "white",
+    "silver",
+    "red"
+   ],
+   "mount": "wall",
+   "elevation": 1.1
+  },
+  {
+   "model": "modern:mailbox_post",
+   "name": "Letterbox on a post",
+   "group": "garden",
+   "type": "item",
+   "size": [
+    0.42,
+    0.35,
+    1.25
+   ],
+   "finishes": [
+    "anthracite",
+    "black",
+    "white",
+    "silver"
+   ]
+  },
+  {
    "model": "modern:motorcycle",
    "name": "Motorcycle",
    "group": "vehicles",
@@ -8705,6 +8767,8 @@
   "blue",
   "terracotta",
   "pink",
+  "yellow",
+  "brown",
   "concrete",
   "marble",
   "red",

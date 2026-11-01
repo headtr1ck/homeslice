@@ -11,6 +11,7 @@ import { pollPosition, polledPositions, readRobot, robotAlerts, robotStatus, typ
 import { deviceLook } from "../ha/devices";
 import { activation, whereIs } from "../ha/follow";
 import { clockText, isNight } from "../ha/kiosk";
+import { pieceBadge } from "../ha/household";
 import { ENERGY_COLORS, HouseRenderer, viewOptions, type Look, type ViewOptions } from "../render/scene";
 
 export interface PopupOverride {
@@ -119,6 +120,8 @@ export interface HomesliceCardConfig {
   rain?: string;
   /** A binary sensor that is on during a power outage: the card shows a warning. */
   power_outage?: string;
+  /** Notes above linked pieces: bins on pickup day, thirsty plants, post, time left (default true). */
+  badges?: boolean;
   /** Show underfloor heating loops glowing in the floor while they heat (default false). */
   heating?: boolean;
 }
@@ -282,6 +285,7 @@ export class HomesliceCard extends LitElement {
     _energyLabels: { state: true },
     _robotLabels: { state: true },
     _dockAlerts: { state: true },
+    _badges: { state: true },
     _level: { state: true },
     _popup: { state: true },
     _hover: { state: true },
@@ -739,6 +743,24 @@ export class HomesliceCard extends LitElement {
     this.dispatchEvent(new CustomEvent("hass-more-info", { detail: { entityId }, bubbles: true, composed: true }));
   }
 
+  private _badges: { entity: string; x: number; y: number; icon: string; text: string; urgent: boolean }[] = [];
+
+  /** Notes above the linked pieces that need attention, on the floors shown. */
+  private pieceBadges() {
+    if (!this.house || !this.renderer || !this.hass || this.config.badges === false) return [];
+    return this.house.levels.flatMap((level) => {
+      if ((this._level && level.id !== this._level) || !this.renderer!.isLevelVisible(level.id)) return [];
+      return level.rooms.flatMap((room) =>
+        room.furniture.flatMap((f) => {
+          const badge = f.entity ? pieceBadge(this.hass!, f.entity, f.model ?? f.type) : null;
+          const p = badge ? this.renderer!.project(level.id, f.at, (f.elevation ?? 0) + f.height + 0.1) : null;
+          if (!badge || !p) return [];
+          return [{ entity: f.entity!, ...p, icon: badge.icon, text: badge.key ? this.t(`card.badge_${badge.key}`, badge.vars) : "", urgent: badge.urgent }];
+        }),
+      );
+    });
+  }
+
   /** A warning sign at each robot's dock that needs something, listing what. */
   private dockAlerts() {
     if (!this.house || !this.renderer) return [];
@@ -821,6 +843,7 @@ export class HomesliceCard extends LitElement {
     });
     const awnings = this.rooms.map((r) => (r.room.awning ? coverOpen(hass, r.room.awning, inverted.has(r.room.awning)) : null));
     const devices = this.devices.map((entity) => deviceLook(hass, entity, inverted.has(entity)));
+    const badges = this.config.badges === false ? [] : this.house.levels.flatMap((l) => l.rooms.flatMap((r) => r.furniture.map((f) => (f.entity ? JSON.stringify(pieceBadge(hass, f.entity, f.model ?? f.type)) : null))));
     // underfloor heating: a climate entity heating, or a valve/switch/sensor on
     const underfloor = [...new Set(this.rooms.map((r) => r.room.underfloor).filter((e): e is string => !!e))].map((entity) => {
       const look = deviceLook(hass, entity);
@@ -846,7 +869,7 @@ export class HomesliceCard extends LitElement {
       const v = kind && r.room.areaId && r.room.kind === "room" ? areaReading(hass, r.room.areaId, kind) : null;
       return v === null || !kind ? null : stepColor(v, this.steps[kind] ?? []);
     });
-    const signature = JSON.stringify([look, this.config.accent, lux, heat, lights, lamps, covers, contacts, values, sensors, awnings, devices, underfloor, cameras, this.energyReadings, this.robotReadings, this.robotNeeds, sunAt]);
+    const signature = JSON.stringify([look, this.config.accent, lux, heat, lights, lamps, covers, contacts, values, sensors, awnings, devices, underfloor, badges, cameras, this.energyReadings, this.robotReadings, this.robotNeeds, sunAt]);
     if (signature === this.stateSignature) return;
     this.stateSignature = signature;
     this.lamps.forEach((l, i) => this.renderer!.setLamp(l.entity, lamps[i]));
@@ -1487,6 +1510,7 @@ export class HomesliceCard extends LitElement {
     this._energyLabels = this.energyLabels();
     this._robotLabels = this.robotLabels();
     this._dockAlerts = this.dockAlerts();
+    this._badges = this.pieceBadges();
   }
 
   protected override render() {
@@ -1576,6 +1600,11 @@ export class HomesliceCard extends LitElement {
             (r) => html`<button class="robot-label" style="left:${r.x}px;top:${r.y}px;--robot:${r.color}" title=${`${r.name}: ${r.text}`} aria-label=${`${r.name}: ${r.text}`}
               @click=${() => this.moreInfo(r.entity)}>
               <ha-icon icon=${r.icon}></ha-icon>${r.battery !== null ? html`<span class="value">${Math.round(r.battery)} %</span>` : nothing}
+            </button>`,
+          )}
+          ${this._badges.map(
+            (b) => html`<button class="piece-badge ${b.urgent ? "urgent" : ""}" style="left:${b.x}px;top:${b.y}px" title=${b.text} @click=${() => this.moreInfo(b.entity)}>
+              <ha-icon icon=${b.icon}></ha-icon><span>${b.text}</span>
             </button>`,
           )}
           ${this._dockAlerts.map(
@@ -1976,6 +2005,27 @@ export class HomesliceCard extends LitElement {
       --mdc-icon-size: 18px;
     }
     /* compact (icon and battery) so it doesn't cover room names; the rest is in its title */
+    .piece-badge {
+      position: absolute;
+      transform: translate(-50%, -100%);
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 8px 2px 5px;
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.6);
+      background: rgba(20, 24, 28, 0.85);
+      color: #fff;
+      font: inherit;
+      font-size: 11px;
+      white-space: nowrap;
+      cursor: pointer;
+      pointer-events: auto;
+      --mdc-icon-size: 14px;
+    }
+    .piece-badge.urgent {
+      background: #f0a020;
+    }
     .dock-alert {
       position: absolute;
       transform: translate(-50%, -50%);

@@ -1525,5 +1525,19 @@
   "modern.radiator_cast_iron": "Radiatore in ghisa",
   "alias.radiator_cast_iron": "radiatore, termosifone, ghisa, antico, vintage",
   "modern.radiator_convector": "Convettore",
-  "alias.radiator_convector": "radiatore, termosifone, convettore, anni 70"
+  "alias.radiator_convector": "radiatore, termosifone, convettore, anni 70",
+  "card.badge_pickup_today": "Ritiro oggi",
+  "card.badge_pickup_tomorrow": "Ritiro domani",
+  "card.badge_plant": "{what}",
+  "card.badge_post": "Posta",
+  "card.badge_time_left": "ancora {time}",
+  "cardeditor.badges": "Note sopra gli oggetti (bidoni, piante, posta, tempo rimanente)",
+  "modern.wheelie_bin": "Bidone carrellato",
+  "alias.wheelie_bin": "bidone, pattumiera, rifiuti, raccolta differenziata",
+  "modern.mailbox": "Cassetta postale",
+  "alias.mailbox": "cassetta postale, posta, lettere",
+  "modern.mailbox_post": "Cassetta postale su palo",
+  "alias.mailbox_post": "cassetta postale, palo, posta",
+  "finish.yellow": "Giallo",
+  "finish.brown": "Marrone"
 }

@@ -1525,5 +1525,19 @@
   "modern.radiator_cast_iron": "Radiador de hierro fundido",
   "alias.radiator_cast_iron": "radiador, hierro fundido, antiguo, vintage",
   "modern.radiator_convector": "Convector",
-  "alias.radiator_convector": "radiador, convector, antiguo, calefacción"
+  "alias.radiator_convector": "radiador, convector, antiguo, calefacción",
+  "card.badge_pickup_today": "Recogida hoy",
+  "card.badge_pickup_tomorrow": "Recogida mañana",
+  "card.badge_plant": "{what}",
+  "card.badge_post": "Correo",
+  "card.badge_time_left": "quedan {time}",
+  "cardeditor.badges": "Notas sobre los objetos (cubos, plantas, correo, tiempo restante)",
+  "modern.wheelie_bin": "Contenedor de basura",
+  "alias.wheelie_bin": "cubo, contenedor, basura, reciclaje",
+  "modern.mailbox": "Buzón",
+  "alias.mailbox": "buzón, correo, cartas",
+  "modern.mailbox_post": "Buzón con pie",
+  "alias.mailbox_post": "buzón, pie, correo",
+  "finish.yellow": "Amarillo",
+  "finish.brown": "Marrón"
 }
