@@ -1562,9 +1562,19 @@ export class HomeslicePanel extends LitElement {
       this._rectPreview = null;
       if (Math.abs(x1 - x0) >= 0.3 && Math.abs(y1 - y0) >= 0.3) {
         const pending = this._pendingArea;
-        const props = pending ? { id: uniqueId(this.levelInput!.rooms.map((r) => r.id), slug(pending, "room")), area_id: pending } : {};
+        const props: Partial<RoomInput> = pending ? { id: uniqueId(this.levelInput!.rooms.map((r) => r.id), slug(pending, "room")), area_id: pending } : {};
         this._pendingArea = null;
-        const { model, id } = addRoom(this._model, this._level, [[Math.min(x0, x1), Math.min(y0, y1)], [Math.max(x0, x1), Math.min(y0, y1)], [Math.max(x0, x1), Math.max(y0, y1)], [Math.min(x0, x1), Math.max(y0, y1)]], props);
+        const rect: Vec2[] = [[Math.min(x0, x1), Math.min(y0, y1)], [Math.max(x0, x1), Math.min(y0, y1)], [Math.max(x0, x1), Math.max(y0, y1)], [Math.min(x0, x1), Math.max(y0, y1)]];
+        // drawn outside the house on an upper floor: a balcony, with a railing on its free edges
+        const outline = outlineScope(this._model, this._level).poly;
+        const upper = this._model.levels.findIndex((l) => l.id === this._level) > 0;
+        const middle: Vec2 = [(rect[0][0] + rect[2][0]) / 2, (rect[0][1] + rect[2][1]) / 2];
+        if (upper && outline.length && !pointInPolygon(middle, outline)) {
+          Object.assign(props, { kind: "outdoor", railing: "metal" });
+          if (!props.id) props.id = uniqueId(this.levelInput!.rooms.map((r) => r.id), "balcony");
+          if (!props.area_id) props.name = this.t("editor.balcony");
+        }
+        const { model, id } = addRoom(this._model, this._level, rect, props);
         this.commit(model);
         this._room = id;
         this._tool = "select";

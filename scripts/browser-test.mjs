@@ -1001,6 +1001,15 @@ if (selected()) {
       return { eave: r.ceilingAt("first", [4, 0.4]), middle: r.ceilingAt("first", [4, 5]), ground: r.ceilingAt("ground", [4, 0.4]) };
     });
     assert(c.eave < 1.5 && c.middle > c.eave + 0.8 && c.ground > 2.4, JSON.stringify(c));
+    // the roof level picked on its own (it has no rooms): the roof is framed, and the floors after it
+    for (const level of ["attic", "ground"]) {
+      await act(page, () => page.evaluate((level) => window.card.selectLevel(level), level));
+      await page.waitForFunction(() => !window.card.transitioning);
+      const cam = await page.evaluate(() => window.card.renderer.camera.position.toArray());
+      assert(cam.every(Number.isFinite), `camera after ${level}: ${JSON.stringify(cam)}`);
+    }
+    await act(page, () => page.evaluate(() => window.card.selectLevel(null)));
+    await page.waitForFunction(() => !window.card.transitioning);
     await act(page, () => page.evaluate(() => window.card.hass.pushModel(window.__demoModel)));
   });
 
@@ -2400,6 +2409,31 @@ if (selected()) {
     assert(JSON.stringify(added?.rect) === "[0.5,5,2,2]", `new room: ${JSON.stringify(added)}`);
     await page.locator("homeslice-panel .inspector select").first().selectOption("garden");
     assert((await room("room")).area_id === "garden", "area not linked");
+  });
+
+  await test("a room drawn outside the house on an upper floor is a balcony with a railing", async () => {
+    await page.keyboard.press("Escape");
+    const level = await page.evaluate(() => window.panel._level);
+    await page.evaluate(() => (window.panel._level = window.panel._model.levels[1].id));
+    await page.keyboard.press("r");
+    const toScreen = (p) => page.evaluate((p) => {
+      const v = window.panel._view;
+      const r = window.panel.shadowRoot.querySelector("svg.plan").getBoundingClientRect();
+      return [r.left + p[0] * v.scale + v.ox, r.top + p[1] * v.scale + v.oy];
+    }, p);
+    // south of the house (its outline ends at 10 m): zoomed out so it shows, clear of the wall
+    await page.evaluate(() => (window.panel._view = { ...window.panel._view, scale: window.panel._view.scale * 0.6 }));
+    const [x0, y0] = await toScreen([1, 10.4]);
+    const [x1, y1] = await toScreen([4, 11.8]);
+    await page.mouse.move(x0, y0);
+    await page.mouse.down();
+    await page.mouse.move(x1, y1, { steps: 8 });
+    await page.mouse.up();
+    const added = await page.evaluate(() => window.panel._model.levels[1].rooms.find((r) => r.id.startsWith("balcony")));
+    assert(added?.kind === "outdoor" && added.railing === "metal", `balcony: ${JSON.stringify(added)}`);
+    await page.evaluate(() => window.panel.shadowRoot.activeElement?.blur());
+    await page.keyboard.press("Control+z");
+    await page.evaluate((id) => (window.panel._level = id), level);
   });
 
   await test("saving stores the model in HA", async () => {
