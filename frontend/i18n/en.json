@@ -1876,7 +1876,7 @@
   "editor.start_over_hint": "Start this house again from what Home Assistant knows (AI, robot maps, a file…). The current version stays restorable.",
   "editor.start_robot_floors": "Each floor takes its rooms from a robot map. Floors without one: let a robot map them first.",
   "editor.start_map_none": "No map yet",
-  "editor.start_floor_carry": "Carry {robot} to {floor} and let it map it: a mapping run or a full clean in its app. Then reload its integration in Home Assistant so the new map shows up here.",
+  "editor.start_floor_carry": "Recommended: {robot} keeps a map per floor. Carry it to {floor}, start a mapping run in its app, name the new map “{floor}”, then reload its integration in Home Assistant: the map shows up here by itself.",
   "editor.start_capture_start": "Map it live with {robot}",
   "editor.start_capture_title": "Map {floor} live with {robot}",
   "editor.start_capture_1": "Put the robot on {floor}.",
@@ -1893,5 +1893,6 @@
   "editor.start_capture_latest": "Last picture: {time}",
   "editor.start_capture_stop": "Stop",
   "editor.start_capture_hide": "Close",
-  "editor.header_mapping": "{robot} is mapping {floor}…"
+  "editor.header_mapping": "{robot} is mapping {floor}…",
+  "editor.start_floor_or": "or, with a robot that shows its map only while it works:"
 }

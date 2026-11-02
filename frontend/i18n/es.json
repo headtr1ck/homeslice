@@ -1876,7 +1876,7 @@
   "editor.start_over_hint": "Empieza esta casa de nuevo a partir de lo que sabe Home Assistant (IA, mapas del robot, un archivo…). La versión actual se puede seguir restaurando.",
   "editor.start_robot_floors": "Cada planta toma sus habitaciones de un mapa de robot. Plantas sin mapa: haz que un robot las mapee primero.",
   "editor.start_map_none": "Aún no hay mapa",
-  "editor.start_floor_carry": "Lleva {robot} a {floor} y deja que la mapee: una pasada de mapeo o una limpieza completa desde su app. Después recarga su integración en Home Assistant para que el nuevo mapa aparezca aquí.",
+  "editor.start_floor_carry": "Recomendado: {robot} guarda un mapa por planta. Llévalo a {floor}, inicia una pasada de mapeo en su app, llama al nuevo mapa «{floor}» y recarga su integración en Home Assistant: el mapa aparece aquí solo.",
   "editor.start_capture_start": "Mapear en directo con {robot}",
   "editor.start_capture_title": "Mapear {floor} en directo con {robot}",
   "editor.start_capture_1": "Pon el robot en {floor}.",
@@ -1893,5 +1893,6 @@
   "editor.start_capture_latest": "Última imagen: {time}",
   "editor.start_capture_stop": "Detener",
   "editor.start_capture_hide": "Cerrar",
-  "editor.header_mapping": "{robot} está mapeando {floor}…"
+  "editor.header_mapping": "{robot} está mapeando {floor}…",
+  "editor.start_floor_or": "o, con un robot que solo muestra su mapa mientras trabaja:"
 }

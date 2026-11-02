@@ -48,7 +48,7 @@ test.describe.serial("editor, the start screen", () => {
     assert((await robot.locator('select[data-start-map="ground_floor"]').inputValue()) === "image.robo_ground_floor", "ground floor's map");
     const first = robot.locator('[data-start-floor="first_floor"]');
     assert((await first.locator("select").inputValue()) === "", "first floor has a map");
-    assert((await first.locator(".start-floor-help").textContent()).includes("Carry"), "no carrying hint");
+    assert((await first.locator("[data-start-recommend]").textContent()).includes("Recommended:"), "the robot keeping maps is not recommended");
     // mapped live: Home Assistant watches the robot's map from now on
     await first.locator("button[data-start-capture]").click();
     let panel = robot.locator("[data-start-capture-panel]");

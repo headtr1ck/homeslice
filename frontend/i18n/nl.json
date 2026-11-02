@@ -1876,7 +1876,7 @@
   "editor.start_over_hint": "Begin dit huis opnieuw vanuit wat Home Assistant weet (AI, robotkaarten, een bestand…). De huidige versie blijft herstelbaar.",
   "editor.start_robot_floors": "Elke verdieping krijgt haar kamers uit een robotkaart. Verdiepingen zonder kaart: laat ze eerst door een robot in kaart brengen.",
   "editor.start_map_none": "Nog geen kaart",
-  "editor.start_floor_carry": "Breng {robot} naar {floor} en laat hem die in kaart brengen: een karteerrit of een volledige schoonmaakbeurt in zijn app. Herlaad daarna zijn integratie in Home Assistant, zodat de nieuwe kaart hier verschijnt.",
+  "editor.start_floor_carry": "Aanbevolen: {robot} bewaart een kaart per verdieping. Breng hem naar {floor}, start een karteerrit in zijn app, noem de nieuwe kaart “{floor}” en herlaad daarna zijn integratie in Home Assistant: de kaart verschijnt hier vanzelf.",
   "editor.start_capture_start": "Live in kaart brengen met {robot}",
   "editor.start_capture_title": "{floor} live in kaart brengen met {robot}",
   "editor.start_capture_1": "Zet de robot op {floor}.",
@@ -1893,5 +1893,6 @@
   "editor.start_capture_latest": "Laatste afbeelding: {time}",
   "editor.start_capture_stop": "Stoppen",
   "editor.start_capture_hide": "Sluiten",
-  "editor.header_mapping": "{robot} brengt {floor} in kaart…"
+  "editor.header_mapping": "{robot} brengt {floor} in kaart…",
+  "editor.start_floor_or": "of, met een robot die zijn kaart alleen toont terwijl hij werkt:"
 }

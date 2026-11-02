@@ -1876,7 +1876,7 @@
   "editor.start_over_hint": "Ricomincia questa casa da ciò che sa Home Assistant (IA, mappe del robot, un file…). La versione attuale resta ripristinabile.",
   "editor.start_robot_floors": "Ogni piano prende le sue stanze da una mappa del robot. Piani senza mappa: falli prima mappare da un robot.",
   "editor.start_map_none": "Ancora nessuna mappa",
-  "editor.start_floor_carry": "Porta {robot} su {floor} e lascia che lo mappi: un giro di mappatura o una pulizia completa dalla sua app. Poi ricarica la sua integrazione in Home Assistant, così la nuova mappa compare qui.",
+  "editor.start_floor_carry": "Consigliato: {robot} salva una mappa per piano. Portalo su {floor}, avvia un giro di mappatura nella sua app, chiama la nuova mappa «{floor}», poi ricarica la sua integrazione in Home Assistant: la mappa compare qui da sola.",
   "editor.start_capture_start": "Mappa dal vivo con {robot}",
   "editor.start_capture_title": "Mappa {floor} dal vivo con {robot}",
   "editor.start_capture_1": "Metti il robot su {floor}.",
@@ -1893,5 +1893,6 @@
   "editor.start_capture_latest": "Ultima immagine: {time}",
   "editor.start_capture_stop": "Interrompi",
   "editor.start_capture_hide": "Chiudi",
-  "editor.header_mapping": "{robot} sta mappando {floor}…"
+  "editor.header_mapping": "{robot} sta mappando {floor}…",
+  "editor.start_floor_or": "oppure, con un robot che mostra la mappa solo mentre lavora:"
 }

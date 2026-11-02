@@ -1876,7 +1876,7 @@
   "editor.start_over_hint": "Zacznij ten dom od nowa na podstawie tego, co wie Home Assistant (AI, mapy robota, plik…). Obecną wersję nadal można przywrócić.",
   "editor.start_robot_floors": "Każde piętro bierze pokoje z mapy robota. Piętra bez mapy: najpierw niech robot je zmapuje.",
   "editor.start_map_none": "Brak mapy",
-  "editor.start_floor_carry": "Zanieś {robot} na piętro {floor} i pozwól mu je zmapować: przejazd mapujący lub pełne sprzątanie w jego aplikacji. Potem przeładuj jego integrację w Home Assistancie, aby nowa mapa pojawiła się tutaj.",
+  "editor.start_floor_carry": "Zalecane: {robot} zapisuje mapę dla każdego piętra. Zanieś go na piętro {floor}, uruchom w jego aplikacji przejazd mapujący, nazwij nową mapę „{floor}”, a potem przeładuj jego integrację w Home Assistant: mapa pojawi się tu sama.",
   "editor.start_capture_start": "Mapuj na żywo z {robot}",
   "editor.start_capture_title": "Mapuj {floor} na żywo z {robot}",
   "editor.start_capture_1": "Postaw robota na piętrze {floor}.",
@@ -1893,5 +1893,6 @@
   "editor.start_capture_latest": "Ostatni obraz: {time}",
   "editor.start_capture_stop": "Zatrzymaj",
   "editor.start_capture_hide": "Zamknij",
-  "editor.header_mapping": "{robot} mapuje: {floor}…"
+  "editor.header_mapping": "{robot} mapuje: {floor}…",
+  "editor.start_floor_or": "albo, z robotem, który pokazuje mapę tylko podczas pracy:"
 }

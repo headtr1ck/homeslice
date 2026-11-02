@@ -1876,7 +1876,7 @@
   "editor.start_over_hint": "Recommencer cette maison à partir de ce que sait Home Assistant (IA, cartes du robot, un fichier…). La version actuelle reste restaurable.",
   "editor.start_robot_floors": "Chaque étage prend ses pièces d'une carte de robot. Étages sans carte : faites-les d'abord cartographier par un robot.",
   "editor.start_map_none": "Pas encore de carte",
-  "editor.start_floor_carry": "Portez {robot} sur l'étage « {floor} » et laissez-le le cartographier : une passe de cartographie ou un nettoyage complet dans son appli. Rechargez ensuite son intégration dans Home Assistant pour que la nouvelle carte apparaisse ici.",
+  "editor.start_floor_carry": "Recommandé : {robot} garde une carte par étage. Portez-le sur l'étage « {floor} », lancez une passe de cartographie dans son appli, nommez la nouvelle carte « {floor} », puis rechargez son intégration dans Home Assistant : la carte apparaît ici d'elle-même.",
   "editor.start_capture_start": "Cartographier en direct avec {robot}",
   "editor.start_capture_title": "Cartographier {floor} en direct avec {robot}",
   "editor.start_capture_1": "Placez le robot sur l'étage « {floor} ».",
@@ -1893,5 +1893,6 @@
   "editor.start_capture_latest": "Dernière image : {time}",
   "editor.start_capture_stop": "Arrêter",
   "editor.start_capture_hide": "Fermer",
-  "editor.header_mapping": "{robot} cartographie {floor}…"
+  "editor.header_mapping": "{robot} cartographie {floor}…",
+  "editor.start_floor_or": "ou, avec un robot qui ne montre sa carte que pendant qu'il travaille :"
 }

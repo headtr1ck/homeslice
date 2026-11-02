@@ -1184,8 +1184,12 @@ export class HomeslicePanel extends LitElement {
               </select>`}
           ${chosen(f.floor_id)
             ? nothing
-            : html`<div class="start-floor-help muted">
-                ${ready.length ? html`<span>${this.t("editor.start_floor_carry", { robot: robotName(ready[0]), floor: f.name })}</span>` : nothing}
+            : html`<div class="start-floor-help">
+                ${ready.length
+                  ? html`<div class="start-recommend" data-start-recommend=${f.floor_id}><ha-icon icon="mdi:star-outline"></ha-icon>
+                      <span>${this.t("editor.start_floor_carry", { robot: robotName(ready[0]), floor: f.name })}</span></div>`
+                  : nothing}
+                ${ready.length && liveOnly.length ? html`<span class="muted">${this.t("editor.start_floor_or")}</span>` : nothing}
                 ${liveOnly.map(
                   (m) => html`<button data-start-capture=${f.floor_id} @click=${async () => {
                     // Home Assistant watches the map from now on (with the editor closed too)
@@ -8238,6 +8242,16 @@ export class HomeslicePanel extends LitElement {
       align-items: center;
       gap: 8px;
       font-size: 13px;
+    }
+    .start-recommend {
+      display: flex;
+      align-items: flex-start;
+      gap: 6px;
+      flex: 1 1 100%;
+      padding: 6px 8px;
+      border-radius: 8px;
+      background: color-mix(in srgb, var(--primary-color, #03a9f4) 12%, transparent);
+      --mdc-icon-size: 16px;
     }
     .start-capture {
       border: 1px solid var(--primary-color, #03a9f4);

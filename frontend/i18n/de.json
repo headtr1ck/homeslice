@@ -1876,7 +1876,7 @@
   "editor.start_over_hint": "Dieses Haus neu beginnen aus dem, was Home Assistant weiß (KI, Roboterkarten, eine Datei…). Die aktuelle Version bleibt wiederherstellbar.",
   "editor.start_robot_floors": "Jede Etage bekommt ihre Räume aus einer Roboterkarte. Etagen ohne Karte: zuerst von einem Roboter kartieren lassen.",
   "editor.start_map_none": "Noch keine Karte",
-  "editor.start_floor_carry": "Trage {robot} auf {floor} und lass ihn die Etage kartieren: eine Kartierungsfahrt oder eine komplette Reinigung in seiner App. Danach seine Integration in Home Assistant neu laden, damit die neue Karte hier erscheint.",
+  "editor.start_floor_carry": "Empfohlen: {robot} speichert eine Karte je Etage. Trag ihn auf {floor}, starte in seiner App eine Kartierungsfahrt, nenne die neue Karte „{floor}“ und lade dann seine Integration in Home Assistant neu: die Karte erscheint hier von selbst.",
   "editor.start_capture_start": "Live mit {robot} kartieren",
   "editor.start_capture_title": "{floor} live mit {robot} kartieren",
   "editor.start_capture_1": "Den Roboter auf {floor} stellen.",
@@ -1893,5 +1893,6 @@
   "editor.start_capture_latest": "Letztes Bild: {time}",
   "editor.start_capture_stop": "Abbrechen",
   "editor.start_capture_hide": "Schließen",
-  "editor.header_mapping": "{robot} kartiert {floor}…"
+  "editor.header_mapping": "{robot} kartiert {floor}…",
+  "editor.start_floor_or": "oder, mit einem Roboter, der seine Karte nur beim Arbeiten zeigt:"
 }
