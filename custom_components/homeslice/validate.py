@@ -494,6 +494,24 @@ def validate(house: Any) -> list[dict[str, str]]:
                 elif motion is not MISSING and not (isinstance(motion, str) and "." in motion):
                     err(f"{cp}.motion", "motion must be an entity id, e.g. binary_sensor.….")
             check_furniture(get(ri, "furniture"), rp)
+            for j, w in enumerate(items(get(ri, "roof_windows"))):
+                wp = f"{rp}.roof_windows.{j}"
+                at = get(w, "at")
+                if not (isinstance(at, list) and len(at) == 2 and all(is_num(v) for v in at)):
+                    err(wp, "A roof window needs at: [metres east, metres south] of the room's north-west corner.")
+                    break
+                bad = next((k for k in ("width", "height") if (v := get(w, k)) is not MISSING and not (is_num(v) and 0.3 <= v <= 3)), None)
+                if bad:
+                    err(f"{wp}.{bad}", f"{bad} must be in metres (0.3–3).")
+                    break
+                cover = get(w, "cover")
+                if cover is not MISSING and not (isinstance(cover, str) and cover.startswith("cover.")):
+                    err(f"{wp}.cover", "cover must be a cover entity, e.g. cover.….")
+                    break
+                contact = get(w, "contact")
+                if contact is not MISSING and not (isinstance(contact, str) and "." in contact):
+                    err(f"{wp}.contact", "contact must be an entity id, e.g. binary_sensor.….")
+                    break
 
         for i, oi in enumerate(items(get(li, "openings"))):
             op = f"{lp}.openings[{i}]"

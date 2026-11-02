@@ -1088,6 +1088,25 @@ if (selected()) {
     await act(page, () => page.evaluate(() => window.card.hass.pushModel(window.__demoModel)));
   });
 
+  await test("a roof window of a room: in the slope above it, its shutter and contact, in the room's panel", async () => {
+    await act(page, () =>
+      page.evaluate(() => {
+        const h = window.card.hass;
+        h.setState("cover.skylight", "open", { current_position: 100, friendly_name: "Skylight blind" });
+        h.setState("binary_sensor.skylight", "off", { device_class: "window", friendly_name: "Skylight" });
+        const m = structuredClone(window.__demoModel);
+        m.levels[1].rooms.find((r) => r.id === "kids").roof_windows = [{ at: [6, 2], cover: "cover.skylight", contact: "binary_sensor.skylight" }];
+        h.pushModel(m);
+      }),
+    );
+    const key = 10000;
+    assert(await page.evaluate((key) => !!window.card.renderer.roofWindowState(key), key), "no roof window drawn");
+    await act(page, () => page.evaluate(() => window.card.hass.setState("binary_sensor.skylight", "on")));
+    const state = await page.evaluate((key) => window.card.renderer.roofWindowState(key), key);
+    assert(state.open, `open: ${JSON.stringify(state)}`);
+    await act(page, () => page.evaluate(() => window.card.hass.pushModel(window.__demoModel)));
+  });
+
   await test("roof: a roof button for the viewer, remembered on this device", async () => {
     await page.evaluate(() => localStorage.removeItem("homeslice-roof:" + (window.card.config.house ?? "home")));
     await act(page, () => page.evaluate(() => window.card.setConfig({ ...window.card.baseConfig, roof: "toggle_hidden" })).then(() => page.evaluate(() => (window.card.hass = window.card.hass))));
@@ -3751,6 +3770,19 @@ if (selected()) {
     assert(scale === 0.0125, `scale ${scale}`);
     await page.locator("homeslice-panel .inspector button", { hasText: "Remove image" }).click();
     await page.keyboard.press("Escape");
+  });
+
+  await test("a roof window added to a room, with its place on the plan", async () => {
+    await page.keyboard.press("Escape");
+    const room = await page.evaluate(() => window.panel._model.levels.find((l) => l.id === window.panel._level).rooms[0].id);
+    await page.evaluate((room) => (window.panel._room = room), room);
+    await page.locator("homeslice-panel details.roof-windows summary").click();
+    await page.locator("homeslice-panel button[data-room-roof-window-add]").click();
+    const w = await page.evaluate((room) => window.panel._model.levels.find((l) => l.id === window.panel._level).rooms.find((r) => r.id === room).roof_windows, room);
+    assert(w?.length === 1 && w[0].at.length === 2, `roof windows: ${JSON.stringify(w)}`);
+    await page.evaluate(() => window.panel.shadowRoot.activeElement?.blur());
+    await page.keyboard.press("Control+z");
+    await page.evaluate(() => (window.panel._room = null));
   });
 
   await test("curved walls: bow the outside wall, the room along it follows; undo", async () => {

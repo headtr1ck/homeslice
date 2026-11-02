@@ -3313,6 +3313,7 @@ export class HomeslicePanel extends LitElement {
         ${(["north", "east", "south", "west"] as Side[]).map((sd) => html`<button data-wall-view=${sd} @click=${() => (this._wallView = { room: r.id, side: sd })}>${this.t(`editor.side_${sd}` as StringKey)}</button>`)}
       </div>
       ${this.renderCurves(r, { room: r.id })}
+      ${this.renderRoomRoofWindows(r)}
       ${this.renderRoomObjects(r)}
       ${this.moveToFloor((to) => {
         const moved = moveRoomToLevel(m, this._level, r.id, to);
@@ -4122,6 +4123,39 @@ export class HomeslicePanel extends LitElement {
           this.commit(setPiece(m, p.id, null));
         }}>${this.t("editor.piece_delete")}</button>
       </div>
+    </details>`;
+  }
+
+  /** A room's own roof windows (in the slope above it): where on the plan, their shutter and contact. */
+  private renderRoomRoofWindows(r: RoomInput) {
+    const m = this._model!;
+    const list = r.roof_windows ?? [];
+    const save = (next: NonNullable<RoomInput["roof_windows"]>) => this.commit(updateRoom(this._model!, this._level, r.id, { roof_windows: next.length ? next : undefined }));
+    const { min, max } = bbox(roomPolygon(m, r));
+    const areaId = r.area_id;
+    return html`<details class="roof-windows" ?open=${list.length > 0}>
+      <summary>${this.t("editor.room_roof_windows")}${list.length ? html` <span class="muted">(${list.length})</span>` : nothing}</summary>
+      <p class="muted">${this.t("editor.room_roof_windows_hint")}</p>
+      ${list.map(
+        (w, i) => html`<div class="room-roof-window" data-roof-window=${i}>
+          <div class="row">
+            ${(["x", "y"] as const).map(
+              (axis, k) => html`<label>${this.t(`editor.room_roof_window_${axis}`)}
+                <input type="number" step="0.05" .value=${String(w.at[k])} @change=${(e: Event) => {
+                  const v = parseFloat((e.target as HTMLInputElement).value.replace(",", "."));
+                  if (!Number.isFinite(v)) return;
+                  const at: [number, number] = [...w.at];
+                  at[k] = Math.round(v * 100) / 100;
+                  save(list.map((x, j) => (j === i ? { ...x, at } : x)));
+                }} /></label>`,
+            )}
+          </div>
+          ${this.entitySelect(this.t("editor.roof_window_shutter"), "cover", areaId, w.cover, (cover) => save(list.map((x, j) => (j === i ? { ...x, cover } : x))))}
+          ${this.entitySelect(this.t("editor.opening_contact"), "binary_sensor", areaId, w.contact, (contact) => save(list.map((x, j) => (j === i ? { ...x, contact } : x))))}
+          <button class="danger" @click=${() => save(list.filter((_, j) => j !== i))}>${this.t("editor.room_roof_window_delete")}</button>
+        </div>`,
+      )}
+      <button data-room-roof-window-add @click=${() => save([...list, { at: [Math.round(((max[0] - min[0]) / 2) * 100) / 100, Math.round(((max[1] - min[1]) / 2) * 100) / 100] }])}>${this.t("editor.roof_window_add")}</button>
     </details>`;
   }
 

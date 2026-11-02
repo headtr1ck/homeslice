@@ -336,7 +336,30 @@ export function expandHouse(input: unknown): ExpandResult {
         if (ci.motion !== undefined && !(typeof ci.motion === "string" && ci.motion.includes("."))) return err(`${cp}.motion`, "motion must be an entity id, e.g. binary_sensor.….");
         cameras.push({ entity: ci.entity, at: [min[0] + ci.at[0], min[1] + ci.at[1]], direction: ci.direction ?? 180, fov: ci.fov ?? 90, range: ci.range ?? 5, height: ci.height ?? 2.3, ...(ci.motion ? { motion: ci.motion } : {}) });
       });
+      const roofWindows: NonNullable<Room["roofWindows"]> = [];
+      for (const [j, w] of (ri.roof_windows ?? []).entries()) {
+        const wp = `${rp}.roof_windows.${j}`;
+        if (!(Array.isArray(w?.at) && w.at.length === 2 && w.at.every((v) => typeof v === "number"))) {
+          err(wp, "A roof window needs at: [metres east, metres south] of the room's north-west corner.");
+          break;
+        }
+        const bad = (["width", "height"] as const).find((k) => w[k] !== undefined && !(typeof w[k] === "number" && w[k]! >= 0.3 && w[k]! <= 3));
+        if (bad) {
+          err(`${wp}.${bad}`, `${bad} must be in metres (0.3–3).`);
+          break;
+        }
+        if (w.cover !== undefined && !(typeof w.cover === "string" && w.cover.startsWith("cover."))) {
+          err(`${wp}.cover`, "cover must be a cover entity, e.g. cover.….");
+          break;
+        }
+        if (w.contact !== undefined && !(typeof w.contact === "string" && w.contact.includes("."))) {
+          err(`${wp}.contact`, "contact must be an entity id, e.g. binary_sensor.….");
+          break;
+        }
+        roofWindows.push({ at: [min[0] + w.at[0], min[1] + w.at[1]], width: w.width ?? 0.78, height: w.height ?? 1.18, ...(w.cover ? { cover: w.cover } : {}), ...(w.contact ? { contact: w.contact } : {}) });
+      }
       const room: Room = { id: ri.id, areaId: ri.area_id, name: ri.name, kind, floor: ri.floor ?? DEFAULTS.floor[kind], polygon, lights, furniture, cameras };
+      if (roofWindows.length) room.roofWindows = roofWindows;
       if (ri.awning) room.awning = ri.awning;
       if (ri.railing && ["glass", "metal", "wood"].includes(ri.railing)) room.railing = ri.railing;
       if (typeof ri.underfloor === "string" && ri.underfloor.includes(".")) room.underfloor = ri.underfloor;

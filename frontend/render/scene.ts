@@ -600,6 +600,7 @@ export class HouseRenderer {
     this.sideX = 0;
     this.facade = house.facade;
     this.roofLevel = house.levels.find((l) => l.kind === "roof") ?? null;
+    this.model = house;
     this.housePieces = house.pieces ?? [];
     this.clipSets = [];
     for (const level of house.levels) {
@@ -607,6 +608,7 @@ export class HouseRenderer {
       this.building = materials;
       const below = house.levels[level.index - 1];
       this.terracesBelow = level.kind === "roof" && below ? this.terracesOf(below) : [];
+      this.windowsBelow = level.kind === "roof" && below ? this.roomRoofWindows(house, below) : [];
       const group = this.buildLevel(level, walls.get(level.id) ?? [], house.vertical);
       this.building = null;
       const baseY = this.view.sideBySide ? 0 : level.elevation + level.index * this.view.explode;
@@ -718,7 +720,7 @@ export class HouseRenderer {
     // a roof level: only its roof parts, sitting on the floor below
     if (level.kind === "roof") {
       // (its terraces are outdoor rooms of the floor below, under its slopes)
-      if (this.view.roof) level.roofs.forEach((part, i) => g.add(this.buildRoofPart(part, 0, i + 1, this.terracesBelow)));
+      if (this.view.roof) level.roofs.forEach((part, i) => g.add(this.buildRoofPart(part, 0, i + 1, this.terracesBelow, this.windowsBelow)));
       g.userData.roofLevel = true;
       return g;
     }
@@ -2137,7 +2139,7 @@ export class HouseRenderer {
       windows: roof.windows,
       furniture: [],
     };
-    return this.buildRoofPart(part, level.height, 0, this.terracesOf(level));
+    return this.buildRoofPart(part, level.height, 0, this.terracesOf(level), (this.model ? this.roomRoofWindows(this.model, level) : []));
   }
 
   /**
@@ -2164,8 +2166,27 @@ export class HouseRenderer {
   }
   /** The floor under a roof level's terraces, while it is built. */
   private terracesBelow: Level["rooms"] = [];
+  /** The house being drawn. */
+  private model: House | null = null;
+  private windowsBelow: { key: number; w: NonNullable<Room["roofWindows"]>[number] }[] = [];
 
-  private buildRoofPart(part: RoofPart, levelBase: number, partIndex: number, terraces: Level["rooms"] = []): THREE.Group {
+  /**
+   * A floor's rooms' roof windows, keyed after the roofs' own (10000 on, in the house's
+   * order: the card uses the same keys).
+   */
+  private roomRoofWindows(house: House, level: Level) {
+    let key = 10000;
+    const out: { key: number; w: NonNullable<Room["roofWindows"]>[number] }[] = [];
+    for (const l of house.levels)
+      for (const r of l.rooms)
+        for (const w of r.roofWindows ?? []) {
+          if (l === level) out.push({ key, w });
+          key++;
+        }
+    return out;
+  }
+
+  private buildRoofPart(part: RoofPart, levelBase: number, partIndex: number, terraces: Level["rooms"] = [], roomWindows: { key: number; w: NonNullable<Room["roofWindows"]>[number] }[] = []): THREE.Group {
     const g = new THREE.Group();
     const base = levelBase + part.offset;
     const f = this.roofFrame(part, base);
@@ -2262,6 +2283,18 @@ export class HouseRenderer {
     if (walls.length) g.add(this.mesh(roofGeometry(walls.map((pts) => ({ pts, along: pts[1].clone().sub(pts[0]).normalize() }))), ends));
     if (part.shape === "gable" || part.shape === "hip") for (const d of part.dormers) this.dormer(g, d, f, mat);
     if (part.shape !== "flat") part.windows.forEach((w, i) => this.roofWindow(g, w, partIndex * 100 + i, part, f));
+    // the rooms' roof windows under this part: in the slope above where they are on the plan
+    if (part.shape !== "flat")
+      for (const { key, w } of roomWindows) {
+        const h = this.roofHeight(part, f, w.at);
+        if (!h) continue;
+        const a = w.at[0] * f.d[0] + w.at[1] * f.d[1];
+        const c = w.at[0] * f.n[0] + w.at[1] * f.n[1];
+        const side = (["north", "east", "south", "west"] as Side[]).find((s) => (h.far ? f.facing(s) >= 0.5 : f.facing(s) <= -0.5));
+        if (!side) continue;
+        const run = h.far ? f.u1 - c : c - f.u0;
+        this.roofWindow(g, { side, at: a - f.r0, up: Math.max(0.3, run / Math.cos(Math.atan(f.t))), width: w.width, height: w.height, ...(w.cover ? { cover: w.cover } : {}), ...(w.contact ? { contact: w.contact } : {}) }, key, part, f);
+      }
     for (const piece of part.furniture) g.add(this.roofPiece(piece, part, f));
     g.userData.outdoor = true;
     g.traverse((x) => (x.userData.outdoor = true));

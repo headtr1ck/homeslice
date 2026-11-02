@@ -89,6 +89,9 @@ vertical:
   own buttons go). Several pieces linked to one light (an HA light group) share one button.
 - `awning: cover.…` on an outdoor room: an awning on the house wall over it.
 - `railing: glass` (or `metal`, `wood`) on an outdoor room: a balcony or roof terrace, a solid floor with a railing on its free edges.
+- `roof_windows: [{at: [x, y], width, height, cover: cover.…, contact: binary_sensor.…}]` on a
+  room of the floor under the roof: windows in the slope above that spot (`at` like lights). The
+  roof's own `windows:` (by slope side) still work; a room's are easier to link to its area.
 - A roof terrace is an outdoor room inside the outline on the top floor (or the floor under a
   roof level), reaching the eave: no outside wall along it, the railing on its open edges, decking,
   and the roof above it cut away. Give the room next to it a door onto it.

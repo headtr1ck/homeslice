@@ -1618,7 +1618,11 @@ export class HomesliceCard extends LitElement {
     // roof windows: how far their shutters are down, whether they are open
     // (keys: the house's roof 0…, a roof level's part n: n × 100 + index)
     const roofLevel = this.house.levels.find((l) => l.kind === "roof");
-    const roofWindowList = roofLevel ? roofLevel.roofs.flatMap((p, n) => p.windows.map((w, i) => [(n + 1) * 100 + i, w] as const)) : this.house.roof.windows.map((w, i) => [i, w] as const);
+    const roofWindowList = [
+      ...(roofLevel ? roofLevel.roofs.flatMap((p, n) => p.windows.map((w, i) => [(n + 1) * 100 + i, w] as const)) : this.house.roof.windows.map((w, i) => [i, w] as const)),
+      // the rooms' own roof windows (10000 on, in the house's order, as the renderer counts them)
+      ...this.house.levels.flatMap((l) => l.rooms.flatMap((r) => r.roofWindows ?? [])).map((w, i) => [10000 + i, w] as const),
+    ];
     const roofWindows = roofWindowList.map(([key, w]) => [key, w.cover ? 1 - (coverOpen(hass, w.cover, inverted.has(w.cover)) ?? 1) : 0, w.contact ? contactOpen(hass, w.contact) : false] as const);
     const energyDetails = this.config.energy ? this.house.energy.flatMap((e) => e.details.map((d) => hass.states[d.entity]?.state)) : [];
     // rain, snow or fog around the house, from the card's weather entity
@@ -1904,7 +1908,7 @@ export class HomesliceCard extends LitElement {
     // outside, "moisture" is rain, not a leak
     const alerts = room.kind === "outdoor" ? [] : [...s.alerts];
     // a window or door of the room open while it rains
-    if (room.kind === "room" && this.raining && this.openings.some((o) => o.levelId === levelId && o.room === room.id && o.contact && contactOpen(this.hass!, o.contact))) alerts.push("rain");
+    if (room.kind === "room" && this.raining && (this.openings.some((o) => o.levelId === levelId && o.room === room.id && o.contact && contactOpen(this.hass!, o.contact)) || (room.roofWindows ?? []).some((w) => w.contact && contactOpen(this.hass!, w.contact)))) alerts.push("rain");
     // an alarm going off: the rooms where something moves
     if (room.kind === "room" && s.presence && alarmTriggered(this.hass)) alerts.unshift("alarm");
     // humid: air the room (when the air outside is drier), or a mould risk
@@ -2079,6 +2083,7 @@ export class HomesliceCard extends LitElement {
     const placed = [
       ...r.room.cameras.map((c) => c.entity),
       ...this.openings.filter((o) => o.levelId === r.levelId && o.room === r.room.id).flatMap((o) => [o.cover, o.contact]),
+      ...(r.room.roofWindows ?? []).flatMap((w) => [w.cover, w.contact]),
       ...this.roomLights(key),
       r.room.awning,
       // what its furniture is linked to (a TV, a washing machine, …)

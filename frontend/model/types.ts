@@ -39,6 +39,11 @@ export interface RoomInput extends ShapeInput {
   wall?: string;
   /** One side's wall in another finish (an accent wall), e.g. {north: acoustic_oak}. */
   wall_sides?: Partial<Record<Side, string>>;
+  /**
+   * Windows in the roof over this room (on the floor under the roof): `at` where they are on
+   * the plan, like lights; they sit in the slope above, with a shutter (`cover`) and a contact.
+   */
+  roof_windows?: { at: [number, number]; width?: number; height?: number; cover?: string; contact?: string }[];
   /** Cover entity of an awning over this (outdoor) area, mounted on the house wall. */
   awning?: string;
   /** An outdoor area as a balcony or roof terrace: a solid floor and a railing on its free edges (`glass`, `metal` or `wood`). */
@@ -559,6 +564,8 @@ export interface Room {
   polygon: Vec2[];
   awning?: string;
   railing?: "glass" | "metal" | "wood";
+  /** Windows in the roof above it, `at` in plan coordinates. */
+  roofWindows?: { at: Vec2; width: number; height: number; cover?: string; contact?: string }[];
   underfloor?: string;
   wall?: string;
   wallSides?: Partial<Record<Side, string>>;
