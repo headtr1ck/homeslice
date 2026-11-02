@@ -36,7 +36,7 @@ jobs:
           name: library
           path: test-results/
 
-  # the browser tests in five groups, each its own job side by side (scripts/browser-tests.mjs)
+  # the browser tests (Playwright, tests/browser) in five groups of spec files, each its own job
   browser:
     name: Browser – ${{ matrix.name }}
     runs-on: ubuntu-latest
@@ -44,11 +44,11 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { shard: 0, name: roofs }
-          - { shard: 1, name: editor }
-          - { shard: 2, name: "card: camera, energy, looks" }
-          - { shard: 3, name: "card: views and modes" }
-          - { shard: 4, name: "editor: phone, drafts, new house" }
+          - { shard: 0, name: roofs, files: "demo-house-roof" }
+          - { shard: 1, name: editor, files: "tests/browser/editor.spec" }
+          - { shard: 2, name: "card: camera, energy, looks", files: "tests/browser/demo-house.spec demo-house-camera demo-house-energy demo-house-looks demo-house-white" }
+          - { shard: 3, name: "card: views and modes", files: "demo-house-following demo-house-low demo-house-heatmap demo-house-all demo-house-lux demo-house-tilted demo-house-floor demo-house-german demo-house-phone demo-house-outdoor demo-house-per-level demo-house-narrow" }
+          - { shard: 4, name: "editor: phone, drafts, new house", files: "editor-phone editor-unsaved editor-starting" }
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -58,12 +58,15 @@ jobs:
       - run: npm ci
       - run: npx playwright-core install --with-deps chromium
       - run: npx vite build
-      - run: node scripts/browser-tests.mjs --shard ${{ matrix.shard }}
+      - run: npx playwright test ${{ matrix.files }}
+      # screenshots, and a report with traces of what failed
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: screenshots-${{ matrix.shard }}
-          path: test-results/
+          name: browser-${{ matrix.shard }}
+          path: |
+            test-results/
+            playwright-report/
 
   integration:
     name: Integration – Python tests

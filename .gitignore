@@ -8,6 +8,7 @@ coverage/
 /houses/
 .deploy.env
 test-results/
+playwright-report/
 dev/fixtures/private/
 .venv-install.log
 dist-site/

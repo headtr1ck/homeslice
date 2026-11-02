@@ -27,8 +27,8 @@ before changing code; `CONTRIBUTING.md` has the setup.
 npm run check            # everything CI runs (below), before every pull request
 npm run typecheck
 npm test                 # vitest: model, editor ops, i18n, assets, validation cases
-npm run test:browser     # build, then the card and editor in headless Chromium (fake hass), sections side by side
-node scripts/browser-tests.mjs "editor"   # only some sections (after a build); test:browser:serial runs them one by one
+npm run test:browser     # build, then the card and editor in headless Chromium (fake hass), files side by side
+npx playwright test editor -g "stairs"   # after a build: some files (by name), some tests (-g); --workers, --shard i/n
 .venv/bin/python -m pytest
 node scripts/thumbnails.mjs   # after changing furniture: library pictures
 node scripts/catalog.mjs      # after changing types, kinds, models: custom_components/homeslice/catalog.json
@@ -45,8 +45,9 @@ npm run showcase         # the README's pictures (docs/images/): after changing 
   `custom_components/homeslice/translations/` for the integration); `npm test` checks keys
   and placeholders.
 - **Tests with every change**: a unit test for logic (`*.test.ts`, `tests/*.py`), a browser
-  test for UI behaviour (`scripts/browser-test.mjs`). Look at the screenshots in
-  `test-results/` when you change what is drawn.
+  test for UI behaviour (Playwright, `tests/browser/*.spec.mjs`: tests in a file build on each
+  other and share one page; a new area gets its own file). Look at the screenshots in
+  `test-results/` when you change what is drawn; a failed run keeps a trace there too.
 - **Comments say why**, in plain sentences; code reads like its neighbours (lit
   templates, pure functions in `ops.ts`, `this.t()` for texts, `this.n()` for numbers).
 - **Never commit a real home**: `houses/`, `test-results/`, `dev/fixtures/private/` are

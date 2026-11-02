@@ -434,7 +434,7 @@ installs and offers as an update.
 Private house files go into `houses/` (ignored by git); `npm test` validates them too.
 
 ```sh
-npm run test:browser   # build, then click through the card in headless Chromium (fake hass)
+npm run test:browser   # build, then click through the card in headless Chromium (fake hass, Playwright)
 HOMESLICE_HA_URL=ws://host:8123/api/websocket node scripts/snapshot-hass.mjs houses/home.yaml
                        # private fixture from a real HA, used by test:browser
 HOMESLICE_HA_HTTP=http://host:8123 HOMESLICE_DASHBOARD=/dashboard-x/house node scripts/e2e-ha.mjs
