@@ -160,6 +160,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     entry.async_on_unload(async_track_time_interval(hass, sweep, timedelta(days=1)))
     entry.async_on_unload(async_at_started(hass, sweep))
+
+    # models kept before their pictures were scaled down on download: done once, in the background
+    async def shrink(*_: object) -> None:
+        hass.async_create_background_task(assets.async_shrink_all(), "homeslice shrink models")
+
+    entry.async_on_unload(async_at_started(hass, shrink))
     # the tools for AI assistants (conversation agents, and MCP clients through MCP Server)
     entry.async_on_unload(async_register_llm_api(hass))
     for event_type in (

@@ -24,6 +24,7 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.storage import Store
 
 from .const import MODEL_DIR
+from .glbshrink import MAX_PX, shrink_glb
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -344,14 +345,45 @@ class Assets:
         name = (name or "Model").strip()[:80] or "Model"
 
         def write() -> dict[str, Any]:
-            (self.root / "custom" / f"{asset_id}.glb").write_bytes(blob)
+            # its pictures scaled down first (a 4K texture on a chair is never seen)
+            small = _shrunk(blob)
+            (self.root / "custom" / f"{asset_id}.glb").write_bytes(small)
             index = self._custom_index()
-            index[asset_id] = {"name": name, "bytes": len(blob), **(meta or {})}
+            index[asset_id] = {"name": name, "bytes": len(small), **(meta or {}), "shrunk": MAX_PX}
+            if len(small) < len(blob):
+                index[asset_id]["original_bytes"] = len(blob)
             self._index_path.write_text(json.dumps(index, indent=1))
             return index[asset_id]
 
         stored = await self.hass.async_add_executor_job(write)
         return {"id": asset_id, "url": f"{ASSETS_URL}/custom/{asset_id}.glb", **stored}
+
+    async def async_shrink_all(self) -> int:
+        """Scales down the pictures of models kept before that was done on download; the bytes saved."""
+
+        def shrink() -> int:
+            index = self._custom_index()
+            saved = 0
+            for asset_id, meta in index.items():
+                if meta.get("shrunk") == MAX_PX:
+                    continue
+                path = self.root / "custom" / f"{asset_id}.glb"
+                if path.exists():
+                    blob = path.read_bytes()
+                    small = _shrunk(blob)
+                    if len(small) < len(blob):
+                        path.write_bytes(small)
+                        meta.update(bytes=len(small), original_bytes=len(blob))
+                        saved += len(blob) - len(small)
+                meta["shrunk"] = MAX_PX
+                # (written after each, so a restart halfway keeps what is done)
+                self._index_path.write_text(json.dumps(index, indent=1))
+            return saved
+
+        saved = await self.hass.async_add_executor_job(shrink)
+        if saved:
+            _LOGGER.info("Scaled down the pictures in downloaded models: %.1f MB saved", saved / 1e6)
+        return saved
 
     async def async_custom_delete(self, asset_id: str) -> None:
         if not ID.match(asset_id):
@@ -447,3 +479,14 @@ def polyhaven_refs(model: dict[str, Any]) -> set[str]:
 def texture_refs(model: dict[str, Any]) -> set[str]:
     """The Poly Haven textures a house model uses (any finish)."""
     return asset_refs(model)["textures"]
+
+
+def _shrunk(blob: bytes) -> bytes:
+    """The .glb with its pictures scaled down, still a valid model; else as it was."""
+    try:
+        small = shrink_glb(blob, MAX_PX)
+        check_links(glb_json(small))
+    except Exception as err:  # noqa: BLE001 - a model that can't be shrunk is kept as it is
+        _LOGGER.debug("Model kept as it is: %s", err)
+        return blob
+    return small
