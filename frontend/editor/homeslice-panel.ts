@@ -17,10 +17,10 @@ import de from "../i18n/de.json";
 import { DEFAULTS, LIGHT_TYPES, expandHouse } from "../model/expand";
 import { bbox, bendEdges, edgeDistance, labelPoint, normalizeOrientation, pointInPolygon, project, signedArea, within } from "../model/geometry";
 import { closedFaces, faceAt } from "../model/faces";
-import type { DormerInput, EnergyInput, LevelInput, RoofInput, RoofPartInput, RoofWindowInput, FurnitureInput, FurnitureMount, FurnitureType, HouseInput, Issue, LightType, OpeningInput, OpeningSource, OpeningType, PieceInput, RoomInput, ShapeInput, Side, Vec2, Vertical } from "../model/types";
+import type { DormerInput, EnergyInput, LevelInput, RoofInput, RoofPartInput, RoofWindowInput, FurnitureInput, FurnitureMount, FurnitureType, HouseInput, Issue, LightType, OpeningInput, OpeningSource, OpeningType, PieceInput, RoomInput, ShapeInput, Side, StairShape, Vec2, VerticalInput } from "../model/types";
 import { deriveWalls, innerPolygon, sideOfRoom, type Wall, type WallOpening } from "../model/walls";
 import { HouseRenderer } from "../render/scene";
-import { stairFrame, stairHole } from "../model/stairs";
+import { stairHole, stairPath, stairTreads } from "../model/stairs";
 import { misalignedWalls } from "../model/checks";
 import { migrateHouse } from "../model/migrate";
 import { FURNITURE, FURNITURE_TYPES, mountOf } from "../model/furniture";
@@ -3684,7 +3684,8 @@ export class HomeslicePanel extends LitElement {
           return svg`<g data-stair=${v.id} class="stair ${sel ? "selected" : ""}">
             ${idx > v.from ? svg`<polygon class="stairwell" points=${pts(stairHole(v))}></polygon>` : nothing}
             <polygon class="stair-hit" points=${pts(v.polygon)}></polygon>
-            ${flight ? svg`<polyline class="stair-path" marker-end="url(#arrow)" points=${pts(this.stairPath(v))}></polyline>` : nothing}
+            ${flight ? stairTreads(v, house!.levels[idx].height).map((t) => svg`<polygon class="stair-step" points=${pts(t.poly)}></polygon>`) : nothing}
+            ${flight ? svg`<polyline class="stair-path" marker-end="url(#arrow)" points=${pts(stairPath(v))}></polyline>` : nothing}
           </g>`;
         })}
       ${this._show.dims && l ? this.renderRoomDims(l.rooms, walls) : nothing}
@@ -4287,15 +4288,6 @@ export class HomeslicePanel extends LitElement {
       ${this.entitySelect(this.t("editor.energy_other"), "sensor", undefined, undefined, (power) => power && place({ kind: "device", power }), (id) =>
         this._hass?.states[id]?.attributes.device_class === "power" && !placed.some((p) => p.power === id),
       )}`;
-  }
-
-  /** The walking line of a stair, from its first step up (for the arrow on the plan). */
-  private stairPath(v: Vertical): Vec2[] {
-    const { L, W, plan } = stairFrame(v);
-    const E = Math.min(v.entry, L - 0.3);
-    if (v.shape !== "u_turn") return [[E + 0.1, W / 2], [L - 0.1, W / 2]].map((p) => plan(p as Vec2));
-    const q = W / 4;
-    return ([[E + 0.1, q], [L - q, q], [L - q, W - q], [0.15, W - q]] as Vec2[]).map(plan);
   }
 
   private renderStairHandles() {
@@ -7013,9 +7005,8 @@ export class HomeslicePanel extends LitElement {
         ? nothing
         : html`<div class="row">
               <label>${this.t("editor.stairs_shape")}
-                <select @change=${(e: Event) => set({ shape: (e.target as HTMLSelectElement).value as "straight" | "u_turn" })}>
-                  <option value="straight" ?selected=${(v.shape ?? "straight") === "straight"}>${this.t("editor.stairs_straight")}</option>
-                  <option value="u_turn" ?selected=${v.shape === "u_turn"}>${this.t("editor.stairs_u_turn")}</option>
+                <select data-stair-shape @change=${(e: Event) => set({ shape: (e.target as HTMLSelectElement).value as StairShape })}>
+                  ${(["straight", "l_turn", "u_turn", "spiral"] as StairShape[]).map((sh) => html`<option value=${sh} ?selected=${(v.shape ?? "straight") === sh}>${this.t(`editor.stairs_${sh}` as StringKey)}</option>`)}
                 </select>
               </label>
               <label>${this.t("editor.stairs_up")}
@@ -7024,7 +7015,13 @@ export class HomeslicePanel extends LitElement {
                 </select>
               </label>
             </div>
-            ${v.shape === "u_turn"
+            <label>${this.t("editor.stairs_railing")}
+              <select data-stair-railing @change=${(e: Event) => set({ railing: ((e.target as HTMLSelectElement).value || undefined) as VerticalInput["railing"] })}>
+                <option value="" ?selected=${!v.railing}>${this.t("editor.stairs_railing_none")}</option>
+                ${(["metal", "wood", "glass"] as const).map((r) => html`<option value=${r} ?selected=${v.railing === r}>${this.t(`editor.railing_${r}`)}</option>`)}
+              </select>
+            </label>
+            ${v.shape === "u_turn" || v.shape === "l_turn" || v.shape === "spiral"
               ? html`<label>${this.t("editor.stairs_start")}
                   <select @change=${(e: Event) => set({ start: (e.target as HTMLSelectElement).value as Side })}>
                     ${across.map((sd) => html`<option value=${sd} ?selected=${(v.start ?? across[1]) === sd}>${this.t(`editor.side_${sd}` as StringKey)}</option>`)}
@@ -8474,6 +8471,13 @@ export class HomeslicePanel extends LitElement {
     .stair.selected .stair-hit {
       stroke: var(--accent);
       stroke-width: 2;
+    }
+    .stair-step {
+      fill: none;
+      stroke: #b8bdc2;
+      stroke-width: 0.75;
+      opacity: 0.6;
+      pointer-events: none;
     }
     .stair-path {
       fill: none;

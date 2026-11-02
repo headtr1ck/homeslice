@@ -330,18 +330,23 @@ export interface FacadeOpeningInput {
   blind_style?: BlindStyle;
 }
 
-export type StairShape = "straight" | "u_turn";
+export type StairShape = "straight" | "u_turn" | "l_turn" | "spiral";
 
 export interface VerticalInput extends ShapeInput {
   id: string;
   kind?: "stairs" | "shaft";
   from: string;
   to: string;
-  /** `straight` (default) or `u_turn`: two flights side by side, joined by winders. */
+  /**
+   * `straight` (default); `u_turn`: two flights side by side, joined by winders; `l_turn`:
+   * two flights at a right angle with a landing; `spiral`: round a post.
+   */
   shape?: StairShape;
+  /** A handrail on the open side (none by default). */
+  railing?: "glass" | "metal" | "wood";
   /** Compass direction the first flight climbs towards (default: along the longer side). */
   up?: Side;
-  /** u_turn: the side of the stairwell the first flight runs along. */
+  /** u_turn, l_turn: the side of the stairwell the first flight runs along (spiral: turns away from it). */
   start?: Side;
   /**
    * Metres of floor at the start of the stairwell before the first step, e.g. where the
@@ -679,6 +684,7 @@ export interface Vertical {
   up: Side;
   start: Side;
   entry: number;
+  railing?: "glass" | "metal" | "wood";
 }
 
 export interface House {

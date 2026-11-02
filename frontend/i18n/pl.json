@@ -1915,5 +1915,9 @@
   "editor.tip_wall": "Wskazówka: narzędzie ściany działa dalej: zacznij następną ścianę na końcu tej. Ściany zamykające kształt tworzą tam pokój. Esc lub V, aby zakończyć.",
   "editor.tip_opening": "Wskazówka: połącz w panelu roletę i kontaktron, aby widzieć je na żywo. Przeciągnij wzdłuż ściany lub na inną ścianę.",
   "editor.tip_stairs": "Wskazówka: schody otwierają piętro wyżej. Przeciągnij narożnik, aby zmienić rozmiar; w panelu obrócisz je i wybierzesz styl.",
-  "editor.robot_map_card": "Pokaż tę mapę na karcie, gdy {robot} pracuje (sprzątany obszar rośnie)"
+  "editor.robot_map_card": "Pokaż tę mapę na karcie, gdy {robot} pracuje (sprzątany obszar rośnie)",
+  "editor.stairs_l_turn": "Zabiegowe w L, ze spocznikiem",
+  "editor.stairs_spiral": "Kręcone",
+  "editor.stairs_railing": "Poręcz",
+  "editor.stairs_railing_none": "Brak (przy ścianie)"
 }

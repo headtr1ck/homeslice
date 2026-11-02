@@ -279,6 +279,28 @@ test.describe.serial("demo house, roof (1)", () => {
     await act(page, () => page.evaluate(() => window.card.hass.pushModel(window.__demoModel)));
   });
 
+  test("stairs: a spiral with a glass railing, an L-shaped one with a metal handrail", async () => {
+    for (const [shape, railing, rect] of [["spiral", "glass", [6, 4, 2, 2]], ["l_turn", "metal", [5, 4, 3, 2]]]) {
+      await act(page, () =>
+        page.evaluate(
+          ([shape, railing, rect]) => {
+            const m = structuredClone(window.__demoModel);
+            Object.assign(m.vertical[0], { shape, railing, rect });
+            window.card.hass.pushModel(m);
+          },
+          [shape, railing, rect],
+        ),
+      );
+      const problems = await page.evaluate(() => window.card._issues.map((i) => i.message));
+      assert(!problems.length, `${shape}: ${JSON.stringify(problems)}`);
+      await act(page, () => page.locator("homeslice-card button", { hasText: "Ground Floor" }).click());
+      await page.waitForTimeout(800);
+      await shot(page, `demo-stairs-${shape}`);
+      await act(page, () => page.locator("homeslice-card button", { hasText: "All floors" }).click());
+    }
+    await act(page, () => page.evaluate(() => window.card.hass.pushModel(window.__demoModel)));
+  });
+
   test("a shed in the garden: a building of its own, with outside walls and a roof", async () => {
     const before = await triangles(page);
     await act(page, () =>

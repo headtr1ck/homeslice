@@ -18,7 +18,7 @@ import { LineSegmentsGeometry } from "three/examples/jsm/lines/LineSegmentsGeome
 import type { RoofPart, Room, House, Level, LightType, PieceInput, Side, Vec2, Vertical } from "../model/types";
 import { innerPolygon, type Wall, type WallOpening } from "../model/walls";
 import { bbox, innermost, labelPoint, nestedIn, overlap, pointInPolygon } from "../model/geometry";
-import { stairFrame, stairHole } from "../model/stairs";
+import { stairFrame, stairHole, stairRail, stairTreads } from "../model/stairs";
 
 /** `isometric`: parallel lines stay parallel; `perspective`: walls lean, like a photo. */
 export type Projection = "isometric" | "perspective";
@@ -1559,60 +1559,17 @@ export class HouseRenderer {
    */
   private stairs(v: Vertical, level: Level): THREE.Group {
     const g = new THREE.Group();
-    // local frame: u along the climb, w across the stairwell from the start side
     const { L, W, plan } = stairFrame(v);
-
     const rise = level.height; // up to the ceiling: the real rise would poke out above the walls
-    const n = Math.max(3, Math.round(rise / 0.19));
-    const step = rise / n;
-    const treads: { poly: Vec2[]; top: number }[] = [];
-    const rect = (u0: number, u1: number, w0: number, w1: number): Vec2[] => [[u0, w0], [u1, w0], [u1, w1], [u0, w1]];
-
-    if (v.shape === "u_turn") {
-      const fw = W / 2; // flight width
-      const S = Math.max(0.5, L - fw); // straight part; the turn takes a square at the far end
-      const k = Math.min(6, Math.max(3, Math.round(n / 3))); // winders over 180°
-      // the first flight starts `entry` in; the straight steps are shared by length
-      const E = Math.min(v.entry, S - 0.25);
-      const a = Math.max(1, Math.round(((n - k) * (S - E)) / (2 * S - E)));
-      const b = n - k - a;
-      for (let i = 0; i < a; i++) treads.push({ poly: rect(E + (i * (S - E)) / a, E + ((i + 1) * (S - E)) / a, 0, fw), top: (i + 1) * step });
-      // winders: wedges around the turn's pivot, clipped to the stairwell's far end
-      const pivot: Vec2 = [S, W / 2];
-      const hit = (deg: number): Vec2 => {
-        const r = THREE.MathUtils.degToRad(deg);
-        const du = Math.cos(r);
-        const dw = Math.sin(r);
-        const t = Math.min(du > 1e-6 ? (L - S) / du : Infinity, dw > 1e-6 ? (W - pivot[1]) / dw : dw < -1e-6 ? -pivot[1] / dw : Infinity);
-        return [pivot[0] + du * t, pivot[1] + dw * t];
-      };
-      const corners: [number, Vec2][] = [
-        [-Math.atan2(W / 2, L - S) * (180 / Math.PI), [L, 0]],
-        [Math.atan2(W / 2, L - S) * (180 / Math.PI), [L, W]],
-      ];
-      for (let j = 0; j < k; j++) {
-        const a0 = -90 + (180 * j) / k;
-        const a1 = -90 + (180 * (j + 1)) / k;
-        const poly: Vec2[] = [pivot, hit(a0), ...corners.filter(([deg]) => deg > a0 && deg < a1).map(([, p]) => p), hit(a1)];
-        treads.push({ poly, top: (a + j + 1) * step });
-      }
-      for (let m = 0; m < b; m++) treads.push({ poly: rect(S - ((m + 1) * S) / b, S - (m * S) / b, W - fw, W), top: (a + k + m + 1) * step });
-    } else {
-      const width = W * 0.9;
-      const E = Math.min(v.entry, L - 0.5);
-      for (let i = 0; i < n; i++) treads.push({ poly: rect(E + (i * (L - E)) / n, E + ((i + 1) * (L - E)) / n, (W - width) / 2, (W + width) / 2), top: (i + 1) * step });
-    }
-
     const wood = this.lambert(COLORS.tread);
     const steel = this.lambert(COLORS.steel);
-    for (const t of treads) {
-      const poly = t.poly.map(plan);
-      const tread = new THREE.ExtrudeGeometry(shapeOf(normalize(poly)), { depth: 0.05, bevelEnabled: false });
+    for (const t of stairTreads(v, rise)) {
+      const tread = new THREE.ExtrudeGeometry(shapeOf(normalize(t.poly)), { depth: 0.05, bevelEnabled: false });
       tread.rotateX(-Math.PI / 2);
       tread.translate(0, t.top - 0.05, 0);
       g.add(this.mesh(tread, wood));
       // dark steel carrier under the tread
-      const carrier = new THREE.ExtrudeGeometry(shapeOf(normalize(shrink(poly, 0.06))), { depth: 0.04, bevelEnabled: false });
+      const carrier = new THREE.ExtrudeGeometry(shapeOf(normalize(shrink(t.poly, 0.06))), { depth: 0.04, bevelEnabled: false });
       carrier.rotateX(-Math.PI / 2);
       carrier.translate(0, t.top - 0.09, 0);
       g.add(this.mesh(carrier, steel));
@@ -1627,6 +1584,52 @@ export class HouseRenderer {
         g.add(bar);
       }
     }
+    if (v.shape === "spiral") {
+      // the post the steps turn round
+      const [x, y] = plan([L / 2, W / 2]);
+      const post = this.mesh(new THREE.CylinderGeometry(0.07, 0.07, rise + 0.9, 16), steel);
+      post.position.set(x, (rise + 0.9) / 2, y);
+      g.add(post);
+    }
+    const rail = v.railing ? stairRail(v, rise) : null;
+    if (rail) g.add(this.stairRailing(rail, v.railing!));
+    return g;
+  }
+
+  /** A handrail along the points (plan, height), with bars down to the steps or glass panes. */
+  private stairRailing(rail: { at: Vec2; z: number; foot: number }[], style: "glass" | "metal" | "wood"): THREE.Group {
+    const g = new THREE.Group();
+    const material = style === "wood" ? this.lambert(COLORS.tread) : this.lambert(COLORS.steel);
+    const thick = style === "wood" ? 0.05 : 0.035;
+    const glass = style === "glass" ? new THREE.MeshLambertMaterial({ color: "#bcd8e6", transparent: true, opacity: 0.35, depthWrite: false, side: THREE.DoubleSide }) : null;
+    if (glass) this.building?.add(glass);
+    for (let i = 0; i + 1 < rail.length; i++) {
+      const p = rail[i];
+      const q = rail[i + 1];
+      const a = new THREE.Vector3(p.at[0], p.z, p.at[1]);
+      const b = new THREE.Vector3(q.at[0], q.z, q.at[1]);
+      const len = a.distanceTo(b);
+      if (len < 1e-3) continue;
+      const bar = this.mesh(new THREE.BoxGeometry(thick, thick, len), material);
+      bar.position.copy(a).add(b).multiplyScalar(0.5);
+      bar.lookAt(b);
+      g.add(bar);
+      if (glass) {
+        // a pane from the steps up to the rail
+        const pane = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(p.at[0], p.foot + 0.05, p.at[1]), new THREE.Vector3(q.at[0], q.foot + 0.05, q.at[1]), b.clone().setY(q.z - 0.05), a.clone().setY(p.z - 0.05)]);
+        pane.setIndex([0, 1, 2, 0, 2, 3]);
+        pane.computeVertexNormals();
+        g.add(this.mesh(pane, glass));
+      }
+    }
+    // posts (metal and wood: a bar on every step; glass: at the ends)
+    rail.forEach((p, i) => {
+      if (glass && i !== 0 && i !== rail.length - 1) return;
+      const h = p.z - p.foot;
+      const post = this.mesh(new THREE.BoxGeometry(glass ? thick : 0.02, h, glass ? thick : 0.02), material);
+      post.position.set(p.at[0], p.foot + h / 2, p.at[1]);
+      g.add(post);
+    });
     return g;
   }
 

@@ -1915,5 +1915,9 @@
   "editor.tip_wall": "Suggerimento: lo strumento parete resta attivo: inizia la parete successiva alla fine di questa. Le pareti che chiudono una forma creano lì una stanza. Esc o V per fermarti.",
   "editor.tip_opening": "Suggerimento: collega tapparella e contatto nel pannello per vederli dal vivo. Trascinala lungo la parete o su un'altra parete.",
   "editor.tip_stairs": "Suggerimento: la scala apre il piano di sopra. Trascina un angolo per ridimensionarla; il pannello la ruota e ne imposta lo stile.",
-  "editor.robot_map_card": "Mostra questa mappa sulla scheda mentre {robot} è in giro (l'area pulita cresce)"
+  "editor.robot_map_card": "Mostra questa mappa sulla scheda mentre {robot} è in giro (l'area pulita cresce)",
+  "editor.stairs_l_turn": "A L, con pianerottolo",
+  "editor.stairs_spiral": "A chiocciola",
+  "editor.stairs_railing": "Corrimano",
+  "editor.stairs_railing_none": "Nessuno (contro una parete)"
 }

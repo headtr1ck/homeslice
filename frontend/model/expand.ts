@@ -606,7 +606,8 @@ export function expandHouse(input: unknown): ExpandResult {
     if (!polygon || from === undefined || to === undefined) return;
     if (to <= from) return err(vp, "to must be a level above from.");
     const stairShape = vi.shape ?? "straight";
-    if (stairShape !== "straight" && stairShape !== "u_turn") return err(vp, `shape must be straight or u_turn, got "${stairShape}".`);
+    if (!["straight", "u_turn", "l_turn", "spiral"].includes(stairShape)) return err(vp, `shape must be straight, u_turn, l_turn or spiral, got "${stairShape}".`);
+    if (vi.railing !== undefined && !["glass", "metal", "wood"].includes(vi.railing)) return err(vp, `railing must be glass, metal or wood, got "${vi.railing}".`);
     const { min, max } = bbox(polygon);
     const up = vi.up ?? (max[0] - min[0] >= max[1] - min[1] ? "east" : "south");
     if (!SIDES.includes(up)) return err(vp, `up must be one of ${SIDES.join(", ")}, got "${up}".`);
@@ -616,7 +617,7 @@ export function expandHouse(input: unknown): ExpandResult {
     const length = up === "east" || up === "west" ? max[0] - min[0] : max[1] - min[1];
     const entry = vi.entry ?? 0;
     if (typeof entry !== "number" || entry < 0 || entry > length - 0.5) return err(vp, `entry must be between 0 and ${(length - 0.5).toFixed(2)} m (the stairwell is ${length.toFixed(2)} m long), got ${entry}.`);
-    vertical.push({ id: vi.id, kind: vi.kind ?? "stairs", polygon, from, to, shape: stairShape, up, start, entry });
+    vertical.push({ id: vi.id, kind: vi.kind ?? "stairs", polygon, from, to, shape: stairShape, up, start, entry, ...(vi.railing ? { railing: vi.railing } : {}) });
   });
 
   // every house has a roof (defaults unless set); cards decide whether it is drawn

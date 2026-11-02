@@ -1321,8 +1321,9 @@ export function updateStairs(model: HouseInput, id: string, patch: Partial<Verti
     for (const [k, val] of Object.entries(patch)) if (val === undefined || val === "" || (k === "entry" && val === 0)) delete (next as Record<string, unknown>)[k];
     // a turn needs a start side across the climb
     const across: Side[] = next.up === "north" || next.up === "south" ? ["east", "west"] : ["north", "south"];
-    if (next.shape === "u_turn" && (!next.start || !across.includes(next.start))) next.start = across[1];
-    if (next.shape !== "u_turn" && next.start && !across.includes(next.start)) delete next.start;
+    const turns = next.shape === "u_turn" || next.shape === "l_turn" || next.shape === "spiral";
+    if (turns && (!next.start || !across.includes(next.start))) next.start = across[1];
+    if (!turns && next.start && !across.includes(next.start)) delete next.start;
     return next;
   });
   return m;

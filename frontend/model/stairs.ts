@@ -31,3 +31,148 @@ export function stairHole(v: Vertical): Vec2[] {
   const local: Vec2[] = v.shape === "u_turn" ? [[E, 0], [L, 0], [L, W], [0, W], [0, W / 2], [E, W / 2]] : [[E, 0], [L, 0], [L, W], [E, W]];
   return normalizeOrientation(local.map(plan));
 }
+
+/** A step's tread in plan coordinates, and the height of its top above the floor. */
+export interface Tread {
+  poly: Vec2[];
+  top: number;
+}
+
+/**
+ * An L-shaped stair's flights: their width (the landing is a square of it), where the first
+ * starts, and how many steps each has (the landing counting as one).
+ */
+function lFlights(v: Vertical, L: number, W: number, n: number) {
+  const fw = Math.min(1, W / 2, L / 2);
+  const E = Math.max(0, Math.min(v.entry, L - fw - 0.25));
+  const run1 = L - fw - E;
+  const run2 = W - fw;
+  const a = Math.max(1, Math.min(n - 2, Math.round(((n - 1) * run1) / (run1 + run2))));
+  return { fw, E, run1, run2, a, b: n - 1 - a };
+}
+
+/** A point of a spiral stair: `r` from its centre, `t` radians round from its start end, away from the start side. */
+function spiralPoint(c: Vec2, r: number, t: number): Vec2 {
+  return [c[0] - r * Math.cos(t), c[1] + r * Math.sin(t)];
+}
+
+/** The radii of a spiral stair: its post and its steps' outer end. */
+export function spiralRadii(v: Vertical): { r0: number; R: number } {
+  const { L, W } = stairFrame(v);
+  return { r0: 0.07, R: Math.min(L, W) / 2 - 0.02 };
+}
+
+/**
+ * The steps of a stair climbing `rise` metres, in plan coordinates: a straight flight, two
+ * flights joined by winders (u_turn), two at a right angle with a landing (l_turn), or
+ * round a post (spiral). A turning stair's second flight goes away from its `start` side.
+ */
+export function stairTreads(v: Vertical, rise: number): Tread[] {
+  const { L, W, plan } = stairFrame(v);
+  const n = Math.max(3, Math.round(rise / 0.19));
+  const step = rise / n;
+  const out: { poly: Vec2[]; top: number }[] = [];
+  const rect = (u0: number, u1: number, w0: number, w1: number): Vec2[] => [[u0, w0], [u1, w0], [u1, w1], [u0, w1]];
+  if (v.shape === "u_turn") {
+    const fw = W / 2; // flight width
+    const S = Math.max(0.5, L - fw); // straight part; the turn takes a square at the far end
+    const k = Math.min(6, Math.max(3, Math.round(n / 3))); // winders over 180°
+    // the first flight starts `entry` in; the straight steps are shared by length
+    const E = Math.min(v.entry, S - 0.25);
+    const a = Math.max(1, Math.round(((n - k) * (S - E)) / (2 * S - E)));
+    const b = n - k - a;
+    for (let i = 0; i < a; i++) out.push({ poly: rect(E + (i * (S - E)) / a, E + ((i + 1) * (S - E)) / a, 0, fw), top: (i + 1) * step });
+    // winders: wedges around the turn's pivot, clipped to the stairwell's far end
+    const pivot: Vec2 = [S, W / 2];
+    const hit = (deg: number): Vec2 => {
+      const r = (deg * Math.PI) / 180;
+      const du = Math.cos(r);
+      const dw = Math.sin(r);
+      const t = Math.min(du > 1e-6 ? (L - S) / du : Infinity, dw > 1e-6 ? (W - pivot[1]) / dw : dw < -1e-6 ? -pivot[1] / dw : Infinity);
+      return [pivot[0] + du * t, pivot[1] + dw * t];
+    };
+    const corners: [number, Vec2][] = [
+      [-Math.atan2(W / 2, L - S) * (180 / Math.PI), [L, 0]],
+      [Math.atan2(W / 2, L - S) * (180 / Math.PI), [L, W]],
+    ];
+    for (let j = 0; j < k; j++) {
+      const a0 = -90 + (180 * j) / k;
+      const a1 = -90 + (180 * (j + 1)) / k;
+      const poly: Vec2[] = [pivot, hit(a0), ...corners.filter(([deg]) => deg > a0 && deg < a1).map(([, p]) => p), hit(a1)];
+      out.push({ poly, top: (a + j + 1) * step });
+    }
+    for (let m = 0; m < b; m++) out.push({ poly: rect(S - ((m + 1) * S) / b, S - (m * S) / b, W - fw, W), top: (a + k + m + 1) * step });
+  } else if (v.shape === "l_turn") {
+    const { fw, E, run1, run2, a, b } = lFlights(v, L, W, n);
+    for (let i = 0; i < a; i++) out.push({ poly: rect(E + (i * run1) / a, E + ((i + 1) * run1) / a, 0, fw), top: (i + 1) * step });
+    out.push({ poly: rect(L - fw, L, 0, fw), top: (a + 1) * step });
+    for (let m = 0; m < b; m++) out.push({ poly: rect(L - fw, L, fw + (m * run2) / b, fw + ((m + 1) * run2) / b), top: (a + 2 + m) * step });
+  } else if (v.shape === "spiral") {
+    const { r0, R } = spiralRadii(v);
+    const c: Vec2 = [L / 2, W / 2];
+    // from the start end round, away from the start side; the last step ends over the first
+    const sweep = 2 * Math.PI * (1 - 1 / n);
+    const at = (r: number, t: number): Vec2 => spiralPoint(c, r, t);
+    for (let i = 0; i < n; i++) {
+      const t0 = (i * sweep) / n;
+      const t1 = ((i + 1) * sweep) / n;
+      const arc = [0, 1, 2, 3, 4].map((k) => at(R, t0 + ((t1 - t0) * k) / 4));
+      out.push({ poly: [at(r0, t0), ...arc, at(r0, t1)], top: (i + 1) * step });
+    }
+  } else {
+    const width = W * 0.9;
+    const E = Math.min(v.entry, L - 0.5);
+    for (let i = 0; i < n; i++) out.push({ poly: rect(E + (i * (L - E)) / n, E + ((i + 1) * (L - E)) / n, (W - width) / 2, (W + width) / 2), top: (i + 1) * step });
+  }
+  return out.map((t) => ({ poly: t.poly.map(plan), top: t.top }));
+}
+
+/** The walking line of a stair, from its first step up (the arrow on the plan). */
+export function stairPath(v: Vertical): Vec2[] {
+  const { L, W, plan } = stairFrame(v);
+  const E = Math.min(v.entry, L - 0.3);
+  if (v.shape === "u_turn") {
+    const q = W / 4;
+    return ([[E + 0.1, q], [L - q, q], [L - q, W - q], [0.15, W - q]] as Vec2[]).map(plan);
+  }
+  if (v.shape === "l_turn") {
+    const { fw, E: start } = lFlights(v, L, W, 3);
+    return ([[start + 0.1, fw / 2], [L - fw / 2, fw / 2], [L - fw / 2, W - 0.1]] as Vec2[]).map(plan);
+  }
+  if (v.shape === "spiral") {
+    const { r0, R } = spiralRadii(v);
+    const r = (r0 + R) / 2 + (R - r0) * 0.1;
+    const c: Vec2 = [L / 2, W / 2];
+    return Array.from({ length: 17 }, (_, k) => spiralPoint(c, r, 0.2 + (k / 16) * 2 * Math.PI * 0.85)).map(plan);
+  }
+  return ([[E + 0.1, W / 2], [L - 0.1, W / 2]] as Vec2[]).map(plan);
+}
+
+/**
+ * Where a stair's handrail runs, on its open side: plan points with the rail's height over
+ * the floor (0.9 m over the steps). Null for a u_turn (its screen is between the flights).
+ */
+export function stairRail(v: Vertical, rise: number): { at: Vec2; z: number; foot: number }[] | null {
+  if (v.shape === "u_turn") return null;
+  const { L, W, plan } = stairFrame(v);
+  const treads = stairTreads(v, rise);
+  const H = 0.9;
+  if (v.shape === "spiral") {
+    const { R } = spiralRadii(v);
+    const c: Vec2 = [L / 2, W / 2];
+    const n = treads.length;
+    const sweep = 2 * Math.PI * (1 - 1 / n);
+    return treads.map((t, i) => ({ at: plan(spiralPoint(c, R - 0.03, ((i + 0.5) * sweep) / n)), z: t.top + H, foot: t.top }));
+  }
+  if (v.shape === "l_turn") {
+    // the open edges: the first flight's (w = fw), then the second's (u = L − fw)
+    const { fw, E, run1, run2, a, b } = lFlights(v, L, W, treads.length);
+    const pts = [{ at: plan([E, fw - 0.03]), z: H, foot: 0 }];
+    for (let i = 1; i <= a; i++) pts.push({ at: plan([E + (run1 * i) / a, fw - 0.03]), z: treads[i - 1].top + H, foot: treads[i - 1].top });
+    for (let m = 1; m <= b; m++) pts.push({ at: plan([L - fw + 0.03, fw + (run2 * m) / b]), z: treads[a + m].top + H, foot: treads[a + m].top });
+    return pts;
+  }
+  const E = Math.min(v.entry, L - 0.5);
+  const w = W * 0.95 - 0.02;
+  return [{ at: plan([E, w]), z: H, foot: 0 }, ...treads.map((t, i) => ({ at: plan([E + ((L - E) * (i + 1)) / treads.length, w]), z: t.top + H, foot: t.top }))];
+}

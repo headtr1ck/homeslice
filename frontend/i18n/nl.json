@@ -1915,5 +1915,9 @@
   "editor.tip_wall": "Tip: het muurgereedschap blijft actief: begin de volgende muur aan het eind van deze. Muren die een vorm sluiten maken daar een kamer. Esc of V om te stoppen.",
   "editor.tip_opening": "Tip: koppel in het paneel het rolluik en het contact om ze live te zien. Sleep het langs de muur of naar een andere muur.",
   "editor.tip_stairs": "Tip: de trap opent de verdieping erboven. Sleep een hoek om de maat te wijzigen; het paneel draait hem en kiest de stijl.",
-  "editor.robot_map_card": "Deze kaart op het dashboard tonen zolang {robot} onderweg is (het gereinigde gebied groeit mee)"
+  "editor.robot_map_card": "Deze kaart op het dashboard tonen zolang {robot} onderweg is (het gereinigde gebied groeit mee)",
+  "editor.stairs_l_turn": "L-vormig, met overloop",
+  "editor.stairs_spiral": "Wenteltrap",
+  "editor.stairs_railing": "Leuning",
+  "editor.stairs_railing_none": "Geen (tegen een muur)"
 }

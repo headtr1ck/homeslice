@@ -686,8 +686,12 @@ def validate(house: Any) -> list[dict[str, str]]:
             err(vp, "to must be a level above from.")
             continue
         stair_shape = nullish(get(vi, "shape"), "straight")
-        if stair_shape not in ("straight", "u_turn"):
-            err(vp, f'shape must be straight or u_turn, got "{text(stair_shape)}".')
+        if stair_shape not in ("straight", "u_turn", "l_turn", "spiral"):
+            err(vp, f'shape must be straight, u_turn, l_turn or spiral, got "{text(stair_shape)}".')
+            continue
+        rail = get(vi, "railing")
+        if rail is not MISSING and rail not in ("glass", "metal", "wood"):
+            err(vp, f'railing must be glass, metal or wood, got "{text(rail)}".')
             continue
         (minx, miny), (maxx, maxy) = bbox(polygon)
         up = nullish(get(vi, "up"), "east" if maxx - minx >= maxy - miny else "south")

@@ -1915,5 +1915,9 @@
   "editor.tip_wall": "Consejo: la herramienta de pared sigue activa: empieza la siguiente pared en el extremo de esta. Las paredes que cierran una forma crean ahí una habitación. Esc o V para parar.",
   "editor.tip_opening": "Consejo: enlaza su persiana y su contacto en el panel para verlos en directo. Arrástrala a lo largo de la pared o a otra pared.",
   "editor.tip_stairs": "Consejo: la escalera abre la planta de arriba. Arrastra una esquina para cambiar su tamaño; en el panel se gira y se elige el estilo.",
-  "editor.robot_map_card": "Mostrar este mapa en la tarjeta mientras {robot} está fuera (el área limpiada crece)"
+  "editor.robot_map_card": "Mostrar este mapa en la tarjeta mientras {robot} está fuera (el área limpiada crece)",
+  "editor.stairs_l_turn": "En L, con rellano",
+  "editor.stairs_spiral": "De caracol",
+  "editor.stairs_railing": "Barandilla",
+  "editor.stairs_railing_none": "Ninguna (contra la pared)"
 }

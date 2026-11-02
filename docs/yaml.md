@@ -71,7 +71,9 @@ vertical:
     rect: [6, 3, 3, 1.2]
     from: ground
     to: first
-    shape: straight                     # or u_turn (two flights joined by winders)
+    shape: straight                     # u_turn (two flights joined by winders), l_turn (a right
+                                        # angle with a landing) or spiral (round a post)
+    railing: metal                      # optional handrail on the open side: glass, metal, wood
     up: east                            # direction the first flight climbs
     entry: 0                            # floor before the first step (stairs that start further in)
 facade: brick_red                       # optional: the outside of the exterior walls

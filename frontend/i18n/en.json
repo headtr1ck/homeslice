@@ -1915,5 +1915,9 @@
   "editor.tip_wall": "Tip: the wall tool keeps going: start the next wall on this one's end. Walls closing a shape make a room there. Esc or V to stop.",
   "editor.tip_opening": "Tip: link its blind and contact in the panel to see them live. Drag it along its wall, or onto another wall.",
   "editor.tip_stairs": "Tip: the stairs open the floor above. Drag a corner to resize them; the panel turns them and sets their style.",
-  "editor.robot_map_card": "Show this map on the card while {robot} is out (the cleaned area growing)"
+  "editor.robot_map_card": "Show this map on the card while {robot} is out (the cleaned area growing)",
+  "editor.stairs_l_turn": "L-shaped, with a landing",
+  "editor.stairs_spiral": "Spiral",
+  "editor.stairs_railing": "Handrail",
+  "editor.stairs_railing_none": "None (against a wall)"
 }

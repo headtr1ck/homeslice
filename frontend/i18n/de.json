@@ -1915,5 +1915,9 @@
   "editor.tip_wall": "Tipp: Das Wandwerkzeug bleibt aktiv: Beginne die nächste Wand am Ende dieser. Wände, die eine Form schließen, ergeben dort einen Raum. Esc oder V zum Beenden.",
   "editor.tip_opening": "Tipp: Verknüpfe im Panel Rollladen und Kontakt, um sie live zu sehen. Ziehe es entlang der Wand oder auf eine andere Wand.",
   "editor.tip_stairs": "Tipp: Die Treppe öffnet das Stockwerk darüber. Ziehe eine Ecke, um die Größe zu ändern; im Panel drehst du sie und wählst den Stil.",
-  "editor.robot_map_card": "Diese Karte im Dashboard zeigen, solange {robot} unterwegs ist (die gereinigte Fläche wächst mit)"
+  "editor.robot_map_card": "Diese Karte im Dashboard zeigen, solange {robot} unterwegs ist (die gereinigte Fläche wächst mit)",
+  "editor.stairs_l_turn": "Viertelgewendelt, mit Podest",
+  "editor.stairs_spiral": "Wendeltreppe",
+  "editor.stairs_railing": "Geländer",
+  "editor.stairs_railing_none": "Keins (an der Wand)"
 }

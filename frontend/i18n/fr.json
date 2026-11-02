@@ -1915,5 +1915,9 @@
   "editor.tip_wall": "Astuce : l'outil mur reste actif : commencez le mur suivant à l'extrémité de celui-ci. Des murs qui ferment une forme y créent une pièce. Échap ou V pour arrêter.",
   "editor.tip_opening": "Astuce : liez son volet et son contact dans le panneau pour les voir en direct. Faites-la glisser le long du mur ou sur un autre mur.",
   "editor.tip_stairs": "Astuce : l'escalier ouvre l'étage du dessus. Faites glisser un coin pour le redimensionner ; le panneau le tourne et règle son style.",
-  "editor.robot_map_card": "Afficher cette carte dans le tableau de bord pendant que {robot} est sorti (la zone nettoyée s'agrandit)"
+  "editor.robot_map_card": "Afficher cette carte dans le tableau de bord pendant que {robot} est sorti (la zone nettoyée s'agrandit)",
+  "editor.stairs_l_turn": "En L, avec palier",
+  "editor.stairs_spiral": "Colimaçon",
+  "editor.stairs_railing": "Rampe",
+  "editor.stairs_railing_none": "Aucune (contre un mur)"
 }
