@@ -4243,11 +4243,13 @@ export class HomeslicePanel extends LitElement {
         })}`;
     }
     const sel = this._wall;
-    const room = sel && w.rooms.includes(sel.a) && w.rooms.includes(sel.b) ? this.levelInputRoomPolygon(sel.a) : null;
+    // (a wall of one room only: the other side is empty)
+    const room = sel && w.rooms.includes(sel.a) && (sel.b ? w.rooms.includes(sel.b) : w.rooms.length === 1) ? this.levelInputRoomPolygon(sel.a) : null;
     const selected = !!sel && !!room && sideOfRoom(room, w.line[0], w.line[1]) === sel.side;
     let hit: unknown = nothing;
-    if ((w.type === "interior" || w.type === "open") && w.rooms.length === 2) {
-      const [a, b] = w.rooms;
+    // every inside wall can be selected: between two rooms, or one room's with nothing beside it
+    if ((w.type === "interior" || w.type === "open") && w.rooms.length >= 1) {
+      const [a, b = ""] = w.rooms;
       const own = this.levelInputRoomPolygon(a);
       const side = own ? sideOfRoom(own, w.line[0], w.line[1]) : null;
       if (side) hit = svg`<line class="wall-hit" data-wall=${JSON.stringify({ a, b, side, line: w.line, thickness: w.thickness })} x1=${ax} y1=${ay} x2=${bx} y2=${by} stroke-width="14"></line>`;
@@ -5079,6 +5081,19 @@ export class HomeslicePanel extends LitElement {
       const r = l.rooms.find((x) => x.id === id);
       return r ? this.roomName(r) : id;
     };
+    // one room's wall, nothing on its other side (a gap to the outside wall, an empty space)
+    if (!sel.b)
+      return html`<h2>${this.t("editor.wall")}</h2>
+        <p class="muted">${this.t("editor.wall_of", { room: name(sel.a), side: this.t(`editor.side_${sel.side}` as StringKey) })}</p>
+        <p class="muted">${this.t("editor.wall_alone_hint")}</p>
+        <div class="row wall-views">
+          <span class="muted">${this.t("editor.wall_view")}</span>
+          <button @click=${() => (this._wallView = { room: sel.a, side: sel.side })}>${name(sel.a)}</button>
+          <button @click=${() => {
+            this._wall = null;
+            this._room = sel.a;
+          }}>${this.t("editor.wall_select_room", { room: name(sel.a) })}</button>
+        </div>`;
     const all = [...new Set(this.boundary(sel.a, sel.b).map((x) => x.side))];
     const open = openSides(m, this._level, sel.a, sel.b, all).includes(sel.side);
     const set = (o: boolean) => this.commit(setBoundaryOpen(m, this._level, sel.a, sel.b, sel.side, o, all));

@@ -158,6 +158,22 @@ test.describe.serial("editor", () => {
     await page.keyboard.press("Escape");
   });
 
+  test("an inside wall with nothing on its other side can be selected too", async () => {
+    await page.keyboard.press("Escape");
+    await page.keyboard.press("Escape");
+    // the living room's wall along the empty space where the stairs are (x 5, y 4–6)
+    const at = await page.evaluate(() => {
+      const v = window.panel._view;
+      const r = window.panel.shadowRoot.querySelector("svg.plan").getBoundingClientRect();
+      return [r.left + 4.95 * v.scale + v.ox, r.top + 5 * v.scale + v.oy];
+    });
+    await page.mouse.click(at[0], at[1]);
+    const sel = await page.evaluate(() => window.panel._wall);
+    assert(sel && sel.a === "living" && sel.b === "", `wall: ${JSON.stringify(sel)}`);
+    assert((await page.locator("homeslice-panel .inspector").textContent()).includes("with nothing beside it"), "wall panel");
+    await page.keyboard.press("Escape");
+  });
+
   test("drawing a room and linking it to an area", async () => {
     await page.keyboard.press("Escape");
     await page.keyboard.press("r");

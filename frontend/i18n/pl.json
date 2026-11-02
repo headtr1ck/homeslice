@@ -1900,5 +1900,8 @@
   "editor.floor_turn_left": "Obróć o 90° w lewo",
   "editor.floor_turn_right": "Obróć o 90° w prawo",
   "editor.floor_move": "Przesuń to piętro",
-  "editor.floor_move_hint": "Przeciągnij w dowolnym miejscu planu: przesuwa się całe piętro (co 5 cm; Alt: dowolnie). Piętro poniżej prześwituje, aby je wyrównać. Escape lub ponownie przycisk: gotowe."
+  "editor.floor_move_hint": "Przeciągnij w dowolnym miejscu planu: przesuwa się całe piętro (co 5 cm; Alt: dowolnie). Piętro poniżej prześwituje, aby je wyrównać. Escape lub ponownie przycisk: gotowe.",
+  "editor.wall_of": "Ściana {room} po stronie {side}, bez niczego obok.",
+  "editor.wall_alone_hint": "Po drugiej stronie nic nie ma: przeciągnij ją na miejsce (na ścianę zewnętrzną lub ścianę sąsiedniego pomieszczenia), a obie staną się jedną ścianą.",
+  "editor.wall_select_room": "Zaznacz {room}"
 }

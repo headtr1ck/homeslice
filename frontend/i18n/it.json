@@ -1900,5 +1900,8 @@
   "editor.floor_turn_left": "Ruota di 90° a sinistra",
   "editor.floor_turn_right": "Ruota di 90° a destra",
   "editor.floor_move": "Sposta questo piano",
-  "editor.floor_move_hint": "Trascina ovunque sulla pianta: si sposta tutto il piano (a passi di 5 cm; Alt: liberamente). Il piano sottostante traspare per allinearlo. Esc o di nuovo il pulsante: fatto."
+  "editor.floor_move_hint": "Trascina ovunque sulla pianta: si sposta tutto il piano (a passi di 5 cm; Alt: liberamente). Il piano sottostante traspare per allinearlo. Esc o di nuovo il pulsante: fatto.",
+  "editor.wall_of": "La parete di {room} sul lato {side}, senza nulla accanto.",
+  "editor.wall_alone_hint": "Dall'altro lato non c'è niente: trascinala al suo posto (sulla parete esterna o su quella della stanza vicina) e le due diventano una parete.",
+  "editor.wall_select_room": "Seleziona {room}"
 }

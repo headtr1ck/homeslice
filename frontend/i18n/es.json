@@ -1900,5 +1900,8 @@
   "editor.floor_turn_left": "Girar 90° a la izquierda",
   "editor.floor_turn_right": "Girar 90° a la derecha",
   "editor.floor_move": "Mover esta planta",
-  "editor.floor_move_hint": "Arrastra en cualquier parte del plano: toda la planta se mueve (en pasos de 5 cm; Alt: libremente). La planta de abajo se ve en transparencia para alinearla. Esc o el botón otra vez: listo."
+  "editor.floor_move_hint": "Arrastra en cualquier parte del plano: toda la planta se mueve (en pasos de 5 cm; Alt: libremente). La planta de abajo se ve en transparencia para alinearla. Esc o el botón otra vez: listo.",
+  "editor.wall_of": "La pared de {room} en su lado {side}, sin nada al lado.",
+  "editor.wall_alone_hint": "No hay nada al otro lado: arrástrala a su sitio (sobre la pared exterior o la de la habitación vecina) y las dos serán una sola pared.",
+  "editor.wall_select_room": "Seleccionar {room}"
 }

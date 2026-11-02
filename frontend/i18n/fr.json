@@ -1900,5 +1900,8 @@
   "editor.floor_turn_left": "Tourner de 90° à gauche",
   "editor.floor_turn_right": "Tourner de 90° à droite",
   "editor.floor_move": "Déplacer cet étage",
-  "editor.floor_move_hint": "Glissez n'importe où sur le plan : tout l'étage se déplace (par pas de 5 cm ; Alt : librement). L'étage du dessous apparaît en transparence pour l'aligner. Échap ou le bouton à nouveau : terminé."
+  "editor.floor_move_hint": "Glissez n'importe où sur le plan : tout l'étage se déplace (par pas de 5 cm ; Alt : librement). L'étage du dessous apparaît en transparence pour l'aligner. Échap ou le bouton à nouveau : terminé.",
+  "editor.wall_of": "Le mur de {room} côté {side}, sans rien à côté.",
+  "editor.wall_alone_hint": "Rien de l'autre côté : faites-le glisser à sa place (sur le mur extérieur ou sur le mur de la pièce voisine) et les deux ne font plus qu'un.",
+  "editor.wall_select_room": "Sélectionner {room}"
 }

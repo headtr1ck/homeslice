@@ -1900,5 +1900,8 @@
   "editor.floor_turn_left": "90° nach links drehen",
   "editor.floor_turn_right": "90° nach rechts drehen",
   "editor.floor_move": "Diese Etage verschieben",
-  "editor.floor_move_hint": "Irgendwo auf dem Plan ziehen: die ganze Etage verschiebt sich (in 5-cm-Schritten; Alt: frei). Die Etage darunter scheint zum Ausrichten durch. Escape oder nochmal der Knopf: fertig."
+  "editor.floor_move_hint": "Irgendwo auf dem Plan ziehen: die ganze Etage verschiebt sich (in 5-cm-Schritten; Alt: frei). Die Etage darunter scheint zum Ausrichten durch. Escape oder nochmal der Knopf: fertig.",
+  "editor.wall_of": "Die Wand von {room} auf ihrer {side}-Seite, ohne etwas daneben.",
+  "editor.wall_alone_hint": "Auf der anderen Seite ist nichts: an ihren Platz ziehen (auf die Außenwand oder die Wand des nächsten Raums), dann werden beide eine Wand.",
+  "editor.wall_select_room": "{room} auswählen"
 }
