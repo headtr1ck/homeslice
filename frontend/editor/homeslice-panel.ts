@@ -45,7 +45,7 @@ import {
 import { areaLightRooms, listedLights, placeLights, type PlacedLight } from "../model/lights";
 import { prefsSensors, type EnergyPrefs } from "../ha/energy";
 import { applyAll, checklist, type CheckItem } from "./checklist";
-import { extractYaml, mapFloor, mapNotes, mapScale, type MapNote } from "./start";
+import { extractYaml, mapFloor, mapNotes, mapOwnName, mapScale, type MapNote } from "./start";
 import { pollPosition, rawPosition, readRobot } from "../ha/robots";
 import { ENERGY_COLORS } from "../render/scene";
 import {
@@ -795,7 +795,11 @@ export class HomeslicePanel extends LitElement {
       const name = this.entityName(id);
       // some robots show their map only while they work (it is "unknown" in between)
       const live = !["unknown", "unavailable"].includes(states[id]?.state ?? "unknown");
-      return { id, name, scale: mapScale(this._hass?.entities?.[id]?.platform), floor: mapFloor(`${name} ${id.replace(/_/g, " ")}`, floors), live };
+      // the robot's own name taken off: a robot named after a floor doesn't match every map to it
+      const device = this._hass?.entities?.[id]?.device_id;
+      const d = device ? this._hass?.devices?.[device] : undefined;
+      const robot = d?.name_by_user ?? d?.name ?? undefined;
+      return { id, name, scale: mapScale(this._hass?.entities?.[id]?.platform), floor: mapFloor(mapOwnName(name, id, robot), floors), live };
     });
   }
 

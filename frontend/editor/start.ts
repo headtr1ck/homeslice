@@ -45,6 +45,21 @@ export function mapFloor(mapName: string, floors: { floor_id: string; name: stri
     )?.floor_id;
 }
 
+/**
+ * A robot map picture's own name, without the robot's in front of it ("Saros 10 Ground Floor"
+ * of the robot "Saros 10" is "Ground Floor"; `image.saros_10_ground_floor` likewise): only that
+ * is compared with floors, so a robot named after a floor doesn't match every floor's map.
+ */
+export function mapOwnName(name: string, entityId: string, robot: string | undefined): string {
+  if (!robot) return `${name} ${entityId.replace(/^image\./, "").replace(/_/g, " ")}`;
+  const r = words(robot);
+  const strip = (t: string) => {
+    const w = words(t);
+    return w.startsWith(`${r} `) ? w.slice(r.length + 1) : w === r ? "" : w;
+  };
+  return `${strip(name)} ${strip(entityId.replace(/^image\./, "").replace(/_/g, " "))}`.trim();
+}
+
 /** The house YAML in an assistant's answer: inside a code block if there is one, else all of it. */
 export function extractYaml(text: string): string {
   const fenced = text.match(/```(?:ya?ml)?\s*\n([\s\S]*?)```/i);

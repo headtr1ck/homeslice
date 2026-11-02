@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { extractYaml, mapFloor, mapNotes, mapScale } from "./start";
+import { extractYaml, mapFloor, mapNotes, mapOwnName, mapScale } from "./start";
 
 describe("the start screen's helpers", () => {
   const floors = [
@@ -18,6 +18,13 @@ describe("the start screen's helpers", () => {
     expect(mapFloor("Q10 1st floor", [...floors, { floor_id: "first_floor", name: "First floor" }])).toBe("first_floor");
     expect(mapFloor("Robo Erdgeschoß", [{ floor_id: "eg", name: "Erdgeschoss" }, { floor_id: "og", name: "Obergeschoß" }])).toBe("eg");
     expect(mapFloor("Robo Obergeschoss", [{ floor_id: "og", name: "Obergeschoss" }])).toBe("og");
+  });
+  it("compares only the map's own name, not its robot's", () => {
+    const keller = [{ floor_id: "keller", name: "Keller" }, { floor_id: "eg", name: "Erdgeschoss" }];
+    // a robot named after a floor: its ground floor map is not the cellar's
+    expect(mapFloor(mapOwnName("Kellerbot Erdgeschoss", "image.kellerbot_erdgeschoss", "Kellerbot"), keller)).toBe("eg");
+    expect(mapOwnName("Saros 10 Ground Floor", "image.saros_10_ground_floor", "Saros 10")).toBe("ground floor ground floor");
+    expect(mapOwnName("Q10 Map", "image.q10_map", undefined)).toBe("Q10 Map q10 map");
   });
   it("knows Roborock's map scale, not others'", () => {
     expect(mapScale("roborock")).toBe(0.0125);
