@@ -361,6 +361,7 @@ export class HomeslicePanel extends LitElement {
     _rectPreview: { state: true },
     _arriving: { state: true },
     _toolMiss: { state: true },
+    _flyout: { state: true },
     _levelDrag: { state: true },
     _wall: { state: true },
     _opening: { state: true },
@@ -432,6 +433,9 @@ export class HomeslicePanel extends LitElement {
   private _saved = "";
   private _error = "";
   private _rectPreview: Vec2[] | null = null;
+  /** The toolbar button whose choices are open beside it, and where. */
+  private _flyout: string | null = null;
+  private _flyoutAt: { x: number; y: number } | null = null;
   /** Why the last stroke of a tool did nothing (until the next press). */
   private _toolMiss = "";
   /** The sub-tool last used in each toolbar group. */
@@ -912,7 +916,29 @@ export class HomeslicePanel extends LitElement {
     </div>`;
   }
 
+  /** Opens a toolbar button's choices beside it (below it when the toolbar is a row, on phones). */
+  private openFlyout(key: string, button: HTMLElement) {
+    const main = this.renderRoot.querySelector("main") as HTMLElement;
+    const r = button.getBoundingClientRect();
+    const m = main.getBoundingClientRect();
+    const row = getComputedStyle(button.parentElement!).flexDirection === "row";
+    this._flyout = key;
+    this._flyoutAt = row ? { x: Math.max(0, Math.min(r.left - m.left, m.width - 320)), y: r.bottom - m.top + 6 } : { x: r.right - m.left + 6, y: r.top - m.top };
+  }
+
+  private renderFlyout() {
+    if (!this._flyout || !this._flyoutAt) return nothing;
+    const content = this.renderSubTools();
+    if (content === nothing) return nothing;
+    return html`<div class="flyout" style="left:${this._flyoutAt.x}px;top:${this._flyoutAt.y}px"
+      @click=${(e: Event) => {
+        // a choice made: the flyout goes
+        if ((e.target as Element).closest("button")) this._flyout = null;
+      }}>${content}</div>`;
+  }
+
   private setTool(tool: Tool) {
+    this._flyout = null;
     const group = TOOLS.find((t) => t.tool === tool)?.group;
     if (group) this._lastInGroup = { ...this._lastInGroup, [group]: tool };
     // adding furniture or devices shows them
@@ -964,6 +990,8 @@ export class HomeslicePanel extends LitElement {
     } else if ((e.key === "Delete" || e.key === "Backspace") && this._room && this._room !== OUTLINE && this._model) {
       this.commit(deleteRoom(this._model, this._level, this._room));
       this._room = null;
+    } else if (e.key === "Escape" && this._flyout) {
+      this._flyout = null;
     } else if (e.key === "Escape") {
       // first Escape: let go of the selection and anything half done; the next: back to Select
       const busy =
@@ -1126,6 +1154,7 @@ export class HomeslicePanel extends LitElement {
     }
     const world = this.eventWorld(e);
     this._toolMiss = "";
+    this._flyout = null;
     const u = this._underlay?.level === this._level ? this._underlay : null;
     if (u && this._straighten) {
       if (!this._straighten.a) this._straighten = { a: world };
@@ -2213,7 +2242,6 @@ export class HomeslicePanel extends LitElement {
             }}>✓${open ? html`<span class="badge">${open}</span>` : nothing}</button>`;
         })()}
         <span class="spacer"></span>
-        ${this.renderSubTools()}
         <span class="spacer"></span>
         <button class="icon" title=${this.t("editor.undo")} aria-label=${this.t("editor.undo")} ?disabled=${!this.history.canUndo} @click=${() => this.undo()}>↶</button>
         <button class="icon" title=${this.t("editor.redo")} aria-label=${this.t("editor.redo")} ?disabled=${!this.history.canRedo} @click=${() => this.redo()}>↷</button>
@@ -2241,9 +2269,15 @@ export class HomeslicePanel extends LitElement {
           ${TOOLS.filter((t) => !t.group || t.tool === this.groupTool(t.group)).map(({ tool, icon, group }) => {
             const active = group ? TOOLS.some((t) => t.group === group && t.tool === this._tool) : this._tool === tool;
             const label = this.t((group ? `editor.group_${group}` : `editor.tool_${tool}`) as StringKey);
-            return html`<button class="tool ${active ? "active" : ""} ${group ? "group" : ""}" data-tool=${tool} data-group=${group ?? nothing} title=${label}
-              aria-label=${label} aria-pressed=${active}
-              @click=${() => this.setTool(tool)}>
+            const menu = !!group || tool === "furniture";
+            return html`<button class="tool ${active ? "active" : ""} ${menu ? "group" : ""}" data-tool=${tool} data-group=${group ?? nothing} title=${label}
+              aria-label=${label} aria-pressed=${active} aria-haspopup=${menu ? "true" : nothing} aria-expanded=${menu ? this._flyout === (group ?? tool) : nothing}
+              @click=${(e: Event) => {
+                const open = this._flyout === (group ?? tool);
+                this.setTool(tool);
+                // a group, or the furniture's sources: its choices beside the button (a second click closes them)
+                if (menu && !open) this.openFlyout(group ?? tool, e.currentTarget as HTMLElement);
+              }}>
               <ha-icon icon=${icon}></ha-icon>
             </button>`;
           })}
@@ -2297,6 +2331,7 @@ export class HomeslicePanel extends LitElement {
             : nothing}
           <div class="plan-top">${this.renderHint()}</div>
         </section>
+        ${this.renderFlyout()}
         <div class="side-handle" role="separator" aria-orientation="vertical" aria-label=${this.t("editor.side_resize")} title=${this.t("editor.side_resize")}
           @pointerdown=${this.onSideDown} @pointermove=${this.onSideMove} @pointerup=${this.onSideUp} @pointercancel=${this.onSideUp}
           @dblclick=${() => {
@@ -4655,7 +4690,12 @@ export class HomeslicePanel extends LitElement {
             )}
           </ul>`
         : nothing}
-      <button @click=${() => this.setTool("furniture")}>${this.t("editor.furniture_add")}</button>`;
+      <button @click=${() => {
+        this.setTool("furniture");
+        // where the pieces come from, beside the furniture tool
+        const b = this.renderRoot.querySelector('aside.tools button[data-tool="furniture"]') as HTMLElement | null;
+        if (b) this.openFlyout("furniture", b);
+      }}>${this.t("editor.furniture_add")}</button>`;
   }
 
   /**
@@ -6985,14 +7025,31 @@ export class HomeslicePanel extends LitElement {
     .plan-top > * {
       pointer-events: auto;
     }
-    /* the sub-tools of the tool in use, in the header: never over the plan */
+    main {
+      position: relative;
+    }
+    /* a toolbar button's choices, beside it */
+    .flyout {
+      position: absolute;
+      z-index: 20;
+      max-width: min(480px, calc(100% - 12px));
+      padding: 6px;
+      border-radius: 12px;
+      background: var(--card-background-color, #1c1c1c);
+      border: 1px solid var(--divider-color, #444);
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+      animation: flyout-in 0.12s ease-out;
+    }
+    @keyframes flyout-in {
+      from {
+        opacity: 0;
+        transform: translateX(-6px);
+      }
+    }
     .sub-tools {
       display: flex;
       flex-wrap: wrap;
       gap: 4px;
-      padding: 3px;
-      border-radius: 10px;
-      border: 1px solid var(--divider-color, #444);
     }
     .sub-tools button {
       display: flex;

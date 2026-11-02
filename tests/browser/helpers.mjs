@@ -61,3 +61,9 @@ export async function act(page, action) {
   await page.waitForFunction(() => !window.card?.transitioning, null, { timeout: 10000 });
 }
 export const lamp = (page, label) => page.locator(`homeslice-card button.lamp[aria-label$="lights in ${label}"]`);
+
+/** Picks where the editor's furniture comes from: in the furniture tool's flyout (opened if it isn't). */
+export async function librarySource(page, source) {
+  if (!(await page.locator("homeslice-panel .flyout").count())) await page.locator('homeslice-panel aside.tools button[data-tool="furniture"]').click();
+  await page.locator(`homeslice-panel .flyout button[data-source="${source}"]`).click();
+}

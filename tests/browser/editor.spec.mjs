@@ -3,7 +3,7 @@ import { test } from "@playwright/test";
 import { parse } from "yaml";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { assert, base, browser, lamp, loadFixture, open, out, root, setBrowser, shot, state, triangles } from "./helpers.mjs";
+import { assert, base, browser, lamp, loadFixture, open, out, root, setBrowser, librarySource, shot, state, triangles } from "./helpers.mjs";
 
 test.describe.serial("editor", () => {
   let page, errors, model, room;
@@ -824,7 +824,7 @@ test.describe.serial("editor", () => {
     await page.mouse.click(kb.x + kb.width * 0.8, kb.y + kb.height * 0.85);
     // the room's inspector offers furniture: the furniture tool's library, for this room
     await page.locator("homeslice-panel .inspector button", { hasText: "Add furniture" }).click();
-    await page.locator('homeslice-panel .sub-tools button[data-source="builtin"]').click();
+    await librarySource(page, "builtin");
     await page.locator('homeslice-panel .inspector .library button[data-key="modern:dining_table"]').click();
     assert((await room("kitchen")).furniture?.[0]?.type === "table", `kitchen: ${JSON.stringify((await room("kitchen")).furniture)}`);
     assert((await page.locator("homeslice-panel .inspector h2").textContent()) === "Table", "new table not selected");
@@ -855,7 +855,7 @@ test.describe.serial("editor", () => {
   test("furniture library: grouped with pictures; drag pieces onto rooms, wall pieces go against a wall", async () => {
     await page.keyboard.press("Escape");
     await page.locator('homeslice-panel aside.tools button.tool[data-tool="furniture"]').click();
-    await page.locator('homeslice-panel .sub-tools button[data-source="builtin"]').click();
+    await librarySource(page, "builtin");
     const groups = await page.locator("homeslice-panel .inspector h4").allTextContents();
     assert(groups[0] === "Living" && groups.includes("Bathroom") && groups.includes("Lighting") && groups.includes("Cars & bikes"), `groups: ${groups.join(", ")}`);
     // searching narrows the library down
@@ -964,7 +964,7 @@ test.describe.serial("editor", () => {
     const spot = [living.x + living.width * 0.5, living.y + living.height * 0.4];
     const count = async () => (await room("living")).furniture?.length ?? 0;
     const last = async () => (await room("living")).furniture.at(-1);
-    const source = (s) => page.locator(`homeslice-panel .sub-tools button[data-source="${s}"]`).click();
+    const source = (s) => librarySource(page, s);
     const start = await count();
 
     await source("builtin");
@@ -1021,7 +1021,7 @@ test.describe.serial("editor", () => {
     await page.route("**/homeslice_assets/**", (route) => route.fulfill({ contentType: "model/gltf-binary", body: readFileSync(join(root, "dev/fixtures/chair.glb")) }));
     await page.keyboard.press("Escape");
     await page.keyboard.press("f");
-    await page.locator("homeslice-panel .sub-tools button[data-source=sketchfab]").click();
+    await librarySource(page, "sketchfab");
     const token = page.locator("homeslice-panel input[data-sketchfab-token]");
     await token.fill("wrong");
     await token.locator("xpath=..").locator("xpath=following-sibling::button").click();
@@ -1090,7 +1090,7 @@ test.describe.serial("editor", () => {
     const lb = await page.locator('homeslice-panel svg.plan g[data-room="living"] polygon').boundingBox();
     await page.mouse.click(lb.x + lb.width * 0.85, lb.y + lb.height * 0.9);
     await page.locator("homeslice-panel .inspector button", { hasText: "Add furniture" }).click();
-    await page.locator('homeslice-panel .sub-tools button[data-source="builtin"]').click();
+    await librarySource(page, "builtin");
     await page.locator('homeslice-panel .inspector .library button[data-key="modern:floor_lamp_tripod"]').click();
     const lampMarkers = () => page.locator('homeslice-panel svg.plan [data-light*="light.reading_lamp"]').count();
     assert((await lampMarkers()) === 1, "the reading lamp should have its marker before linking");
