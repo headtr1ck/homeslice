@@ -2,7 +2,7 @@
 // defaults and elevations. Problems are collected as issues instead of thrown, so a
 // partly broken file still renders and the user sees every problem at once.
 
-import { bbox, edges, normalizeOrientation, outwardNormal, rectPolygon, sideOf, signedArea } from "./geometry";
+import { bbox, bendEdges, edges, normalizeOrientation, outwardNormal, rectPolygon, sideOf, signedArea } from "./geometry";
 import { FURNITURE } from "./furniture";
 import { FLOOR_FINISHES, ROOF_FINISHES, WALL_FINISHES } from "./finishes";
 
@@ -120,7 +120,7 @@ export function expandHouse(input: unknown): ExpandResult {
         err(`${path}.polygon`, "The polygon has no area (points on one line?).");
         return null;
       }
-      return normalizeOrientation(pts);
+      return curved(s, pts, path);
     }
     if (s.rect) {
       const [x, y, w, d] = s.rect;
@@ -128,9 +128,31 @@ export function expandHouse(input: unknown): ExpandResult {
         err(`${path}.rect`, `Width and depth must be positive, got ${w} × ${d}.`);
         return null;
       }
-      return rectPolygon(coord(x, "x", `${path}.rect`), coord(y, "y", `${path}.rect`), w, d);
+      return curved(s, rectPolygon(coord(x, "x", `${path}.rect`), coord(y, "y", `${path}.rect`), w, d), path);
     }
     return null;
+  };
+  /** A shape's curved edges bent (see ShapeInput.curves); null on a broken curve. */
+  const curved = (s: ShapeInput, pts: Vec2[], path: string): Vec2[] | null => {
+    if (s.curves === undefined) return normalizeOrientation(pts);
+    if (!Array.isArray(s.curves)) {
+      err(`${path}.curves`, "curves must be a list of {edge, bulge}.");
+      return null;
+    }
+    for (const [i, c] of s.curves.entries()) {
+      if (!(Number.isInteger(c?.edge) && c.edge >= 0 && c.edge < pts.length)) {
+        err(`${path}.curves[${i}]`, `edge must be a corner number from 0 to ${pts.length - 1}.`);
+        return null;
+      }
+      const a = pts[c.edge];
+      const b = pts[(c.edge + 1) % pts.length];
+      const half = Math.hypot(b[0] - a[0], b[1] - a[1]) / 2;
+      if (!(typeof c.bulge === "number" && Math.abs(c.bulge) <= half + 1e-9)) {
+        err(`${path}.curves[${i}]`, `bulge must be metres, at most half the edge (${Math.round(half * 100) / 100}).`);
+        return null;
+      }
+    }
+    return normalizeOrientation(bendEdges(pts, s.curves));
   };
 
   const walls: WallThickness = { ...DEFAULTS.walls, ...(h.walls ?? {}) };

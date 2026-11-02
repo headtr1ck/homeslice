@@ -13,8 +13,8 @@ import { formatNumber, loadLanguage, localize, texts, type StringKey } from "../
 import en from "../i18n/en.json";
 import de from "../i18n/de.json";
 import { DEFAULTS, LIGHT_TYPES, expandHouse } from "../model/expand";
-import { bbox, labelPoint, pointInPolygon } from "../model/geometry";
-import type { DormerInput, EnergyInput, LevelInput, RoofInput, RoofPartInput, RoofWindowInput, FurnitureInput, FurnitureMount, FurnitureType, HouseInput, Issue, LightType, OpeningInput, OpeningSource, OpeningType, PieceInput, RoomInput, Side, Vec2, Vertical } from "../model/types";
+import { bbox, bendEdges, labelPoint, normalizeOrientation, pointInPolygon } from "../model/geometry";
+import type { DormerInput, EnergyInput, LevelInput, RoofInput, RoofPartInput, RoofWindowInput, FurnitureInput, FurnitureMount, FurnitureType, HouseInput, Issue, LightType, OpeningInput, OpeningSource, OpeningType, PieceInput, RoomInput, ShapeInput, Side, Vec2, Vertical } from "../model/types";
 import { deriveWalls, innerPolygon, sideOfRoom, type Wall, type WallOpening } from "../model/walls";
 import { HouseRenderer } from "../render/scene";
 import { stairFrame, stairHole } from "../model/stairs";
@@ -83,6 +83,8 @@ import {
   movePieceToLevel,
   mergePieces,
   setPiece,
+  bendEdge,
+  shapeCorners,
   addEnergy,
   deleteEnergy,
   updateEnergy,
@@ -387,6 +389,7 @@ export class HomeslicePanel extends LitElement {
     _entityFilter: { state: true },
     _customModels: { state: true },
     _placing: { state: true },
+    _curveEdge: { state: true },
     _libraryError: { state: true },
     _checklist: { state: true },
     _openingPreset: { state: true },
@@ -498,6 +501,8 @@ export class HomeslicePanel extends LitElement {
   private _customModels: CustomAsset[] | null = null;
   /** A library item being downloaded or measured before it is placed. */
   private _placing: string | null = null;
+  /** The wall picked in a curves control (by its room or the outline). */
+  private _curveEdge: { target: string; edge: number } | null = null;
   private _libraryError = "";
   /** Selected piece of furniture (objects mode). */
   private _furn: { room: string; index: number } | null = null;
@@ -1652,7 +1657,8 @@ export class HomeslicePanel extends LitElement {
 
   /** A room as it really is: to the inside of its walls (outdoor areas as drawn). */
   private inner(r: RoomInput, walls = this.levelWalls()): Vec2[] {
-    const poly = roomPolygon(this._model!, r);
+    // (curved walls: the room as bent; its corners stay what editing moves)
+    const poly = r.curves?.length ? normalizeOrientation(bendEdges(shapeCorners(this._model!, r), r.curves)) : roomPolygon(this._model!, r);
     return (r.kind ?? "room") === "room" ? innerPolygon(poly, walls) : poly;
   }
 
@@ -3306,6 +3312,7 @@ export class HomeslicePanel extends LitElement {
         <span class="muted">${this.t("editor.wall_view")}</span>
         ${(["north", "east", "south", "west"] as Side[]).map((sd) => html`<button data-wall-view=${sd} @click=${() => (this._wallView = { room: r.id, side: sd })}>${this.t(`editor.side_${sd}` as StringKey)}</button>`)}
       </div>
+      ${this.renderCurves(r, { room: r.id })}
       ${this.renderRoomObjects(r)}
       ${this.moveToFloor((to) => {
         const moved = moveRoomToLevel(m, this._level, r.id, to);
@@ -4114,6 +4121,34 @@ export class HomeslicePanel extends LitElement {
           if (used && !confirm(this.t("editor.piece_delete_used"))) return;
           this.commit(setPiece(m, p.id, null));
         }}>${this.t("editor.piece_delete")}</button>
+      </div>
+    </details>`;
+  }
+
+  /** Curved walls of a room or the outline: pick a wall, say how far it bows (0: straight). */
+  private renderCurves(shape: ShapeInput | undefined, target: { room: string } | "outline") {
+    if (!shape || !this._model) return nothing;
+    const corners = shapeCorners(this._model, shape);
+    if (corners.length < 3) return nothing;
+    const sides = ["north", "east", "south", "west"] as const;
+    const name = (i: number) => (shape.rect ? this.t(`editor.side_${sides[i]}` as StringKey) : this.t("editor.curve_wall", { n: i + 1 }));
+    const pick = this._curveEdge?.target === JSON.stringify(target) ? this._curveEdge.edge : (shape.curves?.[0]?.edge ?? (shape.rect ? 2 : 0));
+    const bulge = shape.curves?.find((c) => c.edge === pick)?.bulge ?? 0;
+    return html`<details class="curves" ?open=${!!shape.curves?.length}>
+      <summary>${this.t("editor.curves")}${shape.curves?.length ? html` <span class="muted">(${shape.curves.length})</span>` : nothing}</summary>
+      <p class="muted">${this.t(target === "outline" ? "editor.curves_outline_hint" : "editor.curves_hint")}</p>
+      <div class="row">
+        <label>${this.t("editor.curve_which")}
+          <select data-curve-edge @change=${(e: Event) => (this._curveEdge = { target: JSON.stringify(target), edge: Number((e.target as HTMLSelectElement).value) })}>
+            ${corners.map((_, i) => html`<option value=${i} ?selected=${i === pick}>${name(i)}${shape.curves?.some((c) => c.edge === i) ? " ◠" : ""}</option>`)}
+          </select>
+        </label>
+        <label>${this.t("editor.curve_bulge")}
+          <input type="number" step="0.05" data-curve-bulge .value=${String(bulge)} @change=${(e: Event) => {
+            const v = parseFloat((e.target as HTMLInputElement).value.replace(",", "."));
+            this.commit(bendEdge(this._model!, this._level, target, pick, Number.isFinite(v) ? v : 0));
+          }} />
+        </label>
       </div>
     </details>`;
   }
@@ -5061,6 +5096,7 @@ export class HomeslicePanel extends LitElement {
       <button @click=${() => this.commit(setOwnOutline(m, this._level, scope.owner === "house"))}>
         ${scope.owner === "house" ? this.t("editor.outline_make_own") : this.t("editor.outline_use_house")}
       </button>
+      ${this.renderCurves(scope.owner === "house" ? m.outline : this.levelInput?.outline, "outline")}
       <h3>${this.t("editor.surface_facade")}</h3>
       <p class="muted">${this.t("editor.surface_facade_hint")}</p>
       ${this.renderFinishPicker("wall", m.facade, (facade) => {

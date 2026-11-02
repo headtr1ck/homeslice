@@ -356,17 +356,27 @@ function placeOpening(o: Opening, level: Level, walls: Wall[], issues: Issue[], 
     const hi = Math.max(a[along], b[along]);
     return mid > lo - SNAP && mid < hi + SNAP;
   });
-  if (!edge) return warn(`Room "${o.room}" has no ${o.side} side at ${o.at} m.`);
+  const onEdge = ([a, b]: [Vec2, Vec2], v: number): Vec2 => add(a, scale(sub(b, a), (v - a[along]) / (b[along] - a[along])));
+  if (edge) return placeOnWall(o, o.id, onEdge(edge, from), onEdge(edge, to), onEdge(edge, mid), walls, warn);
 
-  const onEdge = (v: number): Vec2 => {
-    const [a, b] = edge;
-    const k = (v - a[along]) / (b[along] - a[along]);
-    return add(a, scale(sub(b, a), k));
-  };
-  const p = onEdge(from);
-  const q = onEdge(to);
-  const m = onEdge(mid);
+  // a curved side (an arc of short pieces facing roughly that way): a part on each piece it spans
+  const facing: Record<Side, Vec2> = { north: [0, -1], south: [0, 1], east: [1, 0], west: [-1, 0] };
+  const pieces = edges(room.polygon).filter(([a, b]) => {
+    const n = outwardNormal(a, b);
+    const f = facing[o.side];
+    if (n[0] * f[0] + n[1] * f[1] < 0.35 || Math.abs(b[along] - a[along]) < 1e-6) return false;
+    return Math.max(a[along], b[along]) > from + 1e-6 && Math.min(a[along], b[along]) < to - 1e-6;
+  });
+  if (!pieces.length) return warn(`Room "${o.room}" has no ${o.side} side at ${o.at} m.`);
+  pieces.forEach((e, k) => {
+    const lo = Math.max(from, Math.min(e[0][along], e[1][along]));
+    const hi = Math.min(to, Math.max(e[0][along], e[1][along]));
+    placeOnWall(o, k ? `${o.id}~${k}` : o.id, onEdge(e, lo), onEdge(e, hi), onEdge(e, (lo + hi) / 2), walls, warn);
+  });
+}
 
+/** Puts (a part of) an opening from p to q on the wall under its middle m. */
+function placeOnWall(o: Opening, id: string, p: Vec2, q: Vec2, m: Vec2, walls: Wall[], warn: (message: string) => void) {
   const wall = walls.find((w) => {
     if (w.type === "open") return false;
     const pr = project(m, w.line[0], w.line[1]);
@@ -378,11 +388,10 @@ function placeOpening(o: Opening, level: Level, walls: Wall[], issues: Issue[], 
   let start = project(p, wall.line[0], wall.line[1]).t;
   let end = project(q, wall.line[0], wall.line[1]).t;
   if (start > end) [start, end] = [end, start];
-  if (start < 0 || end > length) {
-    warn(`Opening runs past the end of its wall; shortened to fit.`);
-    start = Math.max(0, start);
-    end = Math.min(length, end);
-  }
+  // (a hair past the end is rounding: the parts of an opening along an arc end on the corners)
+  if (start < -SNAP || end > length + SNAP) warn(`Opening runs past the end of its wall; shortened to fit.`);
+  start = Math.max(0, start);
+  end = Math.min(length, end);
   let height = o.height;
   if (o.sill + height > wall.height - 0.05) {
     height = Math.max(0.1, wall.height - 0.05 - o.sill);
@@ -390,6 +399,6 @@ function placeOpening(o: Opening, level: Level, walls: Wall[], issues: Issue[], 
   }
   const overlap = wall.openings.find((x) => start < x.end && end > x.start);
   if (overlap) warn(`Overlaps opening "${overlap.id}".`);
-  wall.openings.push({ id: o.id, source: o.source, room: o.room, type: o.type, style: o.style, hinge: o.hinge, swing: o.swing, split: o.split, start, end, sill: o.sill, height, cover: o.cover, contact: o.contact, ...(o.lock ? { lock: o.lock } : {}), ...(o.blind ? { blind: o.blind, blindStyle: o.blindStyle } : {}) });
+  wall.openings.push({ id, source: o.source, room: o.room, type: o.type, style: o.style, hinge: o.hinge, swing: o.swing, split: o.split, start, end, sill: o.sill, height, cover: o.cover, contact: o.contact, ...(o.lock ? { lock: o.lock } : {}), ...(o.blind ? { blind: o.blind, blindStyle: o.blindStyle } : {}) });
   wall.openings.sort((x, y) => x.start - y.start);
 }

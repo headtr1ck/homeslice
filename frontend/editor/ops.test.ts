@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { HouseInput, Vec2 } from "../model/types";
 import {
+  bendEdge,
   mergePieces,
   setPiece,
   duplicateLevel,
@@ -378,6 +379,18 @@ describe("houses and levels", () => {
     m = setPiece(m, "unit", null);
     expect(m.pieces).toBeUndefined();
     expect(m.levels[0].rooms[0].furniture).toEqual([{ type: "shelf", at: [1, 1] }]);
+  });
+
+  it("bending an outside wall bends the rooms that run its whole length", () => {
+    let m = house();
+    m.levels[0].rooms = [{ id: "front", rect: [0, 4, 10, 4] }, { id: "back", rect: [0, 0, 10, 4] }, { id: "garden", kind: "outdoor", rect: [0, 8, 10, 4] }];
+    m.levels[0].openings = [];
+    m = bendEdge(m, "g", "outline", 2, 1.2);
+    expect(m.outline!.curves).toEqual([{ edge: 2, bulge: 1.2 }]);
+    // the garden outside the wall bends the other way, along the same arc
+    expect(m.levels[0].rooms.map((r) => r.curves)).toEqual([[{ edge: 2, bulge: 1.2 }], undefined, [{ edge: 0, bulge: -1.2 }]]);
+    m = bendEdge(m, "g", { room: "front" }, 2, 0);
+    expect(m.levels[0].rooms[0].curves).toBeUndefined();
   });
 
   it("makes ids from names", () => {

@@ -126,6 +126,14 @@ vertical:
   `facade_openings` on the house: `{side, at, width, levels: [ground, first], covers:
   {ground: cover.a, first: cover.b}}` with `at` from the outline's west or north end.
 
+### Curved walls
+
+Any shape (a room, the outline) can bow some of its edges: `curves: [{edge: 2, bulge: 1.5}]`.
+Edges count from the first corner; a rect's are 0 north, 1 east, 2 south, 3 west. `bulge` is how
+far the middle of the edge stands out, in metres (negative: in), at most half the edge. A room
+on a curved outside wall needs the same curve (and a room outside it, like a garden, the opposite
+bulge on its edge). Doors and windows on a curved side follow the arc in parts.
+
 ### Walls
 
 Generated from the rooms. Entries under a level's `walls` only change them:

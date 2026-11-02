@@ -20,6 +20,12 @@ export interface ShapeInput {
   /** [x, y, width, depth]; x/y may be grid names. */
   rect?: [Coord, Coord, number, number];
   polygon?: [Coord, Coord][];
+  /**
+   * Curved walls: edges bent into arcs, `bulge` metres off the straight line at their middle
+   * (positive outwards, at most half the edge). Edges count from the first corner; a rect's
+   * are 0 north, 1 east, 2 south, 3 west. A room's curve on the outside needs the same on the outline.
+   */
+  curves?: { edge: number; bulge: number }[];
 }
 
 export interface RoomInput extends ShapeInput {

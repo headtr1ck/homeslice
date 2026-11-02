@@ -1600,3 +1600,60 @@ export function setPiece(model: HouseInput, id: string, piece: PieceInput | null
   else delete m.pieces;
   return m;
 }
+
+/** A shape's corners in the order its curves count them (a rect's: north-west first, clockwise). */
+export function shapeCorners(model: HouseInput, s: ShapeInput | undefined): Vec2[] {
+  if (s?.polygon) return s.polygon.map(([x, y]) => [coord(model, x, "x"), coord(model, y, "y")] as Vec2);
+  if (s?.rect) {
+    const [x, y, w, d] = s.rect;
+    const x0 = coord(model, x, "x");
+    const y0 = coord(model, y, "y");
+    return [[x0, y0], [x0 + w, y0], [x0 + w, y0 + d], [x0, y0 + d]];
+  }
+  return [];
+}
+
+const withCurve = <S extends ShapeInput>(s: S, edge: number, bulge: number): S => {
+  const curves = (s.curves ?? []).filter((c) => c.edge !== edge);
+  if (Math.abs(bulge) > 1e-3) curves.push({ edge, bulge: round(bulge) });
+  const out: S = { ...s, curves: curves.sort((a, b) => a.edge - b.edge) };
+  if (!curves.length) delete out.curves;
+  return out;
+};
+
+/**
+ * Bends one wall of a room, or of the outline (then rooms running the whole length of that
+ * outside wall, on every floor sharing the outline, bend with it; a room along only a part
+ * of it would need a slice of the arc: drawn straight): `bulge` metres off the straight line.
+ */
+export function bendEdge(model: HouseInput, levelId: string, target: { room: string } | "outline", edge: number, bulge: number): HouseInput {
+  const m = clone(model);
+  if (target !== "outline") {
+    const l = level(m, levelId);
+    l.rooms = l.rooms.map((r) => (r.id === target.room ? withCurve(r, edge, bulge) : r));
+    return m;
+  }
+  const scope = outlineScope(m, levelId);
+  const shape = scope.owner === "house" ? m.outline! : level(m, levelId).outline!;
+  const corners = shapeCorners(m, shape);
+  const [a, b] = [corners[edge], corners[(edge + 1) % corners.length]];
+  const same = (p: Vec2, q: Vec2) => Math.hypot(p[0] - q[0], p[1] - q[1]) < SAME_POINT;
+  if (scope.owner === "house") m.outline = withCurve(shape, edge, bulge);
+  else level(m, levelId).outline = withCurve(shape, edge, bulge);
+  for (const id of scope.levels) {
+    const l = level(m, id);
+    l.rooms = l.rooms.map((r) => {
+      const pts = shapeCorners(m, r);
+      const i = pts.findIndex((p, k) => {
+        const q = pts[(k + 1) % pts.length];
+        return (same(p, a) && same(q, b)) || (same(p, b) && same(q, a));
+      });
+      if (i < 0) return r;
+      // a room outside that wall (a garden) bends the other way: its edge follows the same arc
+      const { min, max } = bbox(pts);
+      const inside = pointInPolygon([(min[0] + max[0]) / 2, (min[1] + max[1]) / 2], corners);
+      return withCurve(r, i, inside ? bulge : -bulge);
+    });
+  }
+  return m;
+}

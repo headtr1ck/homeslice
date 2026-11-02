@@ -163,3 +163,39 @@ export function overlap(hole: Vec2[], poly: Vec2[]): Vec2[] | null {
   }
   return part.length >= 3 && Math.abs(signedArea(part)) > 1e-4 ? part : null;
 }
+
+/**
+ * A polygon with some of its edges bent into arcs: `bulge` is how far the arc's middle
+ * stands off the straight edge, in metres (positive outwards, negative inwards, at most
+ * half the edge: a half circle). Edges count from the polygon's (or rect's) first corner;
+ * a rect's are north, east, south, west. The arcs become short straight pieces.
+ */
+export function bendEdges(pts: Vec2[], curves: { edge: number; bulge: number }[]): Vec2[] {
+  if (!curves.length) return pts;
+  const out: Vec2[] = [];
+  pts.forEach((a, i) => {
+    out.push(a);
+    const c = curves.find((x) => x.edge === i);
+    if (!c || Math.abs(c.bulge) < 1e-4) return;
+    const b = pts[(i + 1) % pts.length];
+    const chord = Math.hypot(b[0] - a[0], b[1] - a[1]);
+    if (chord < 1e-6) return;
+    const u: Vec2 = [(b[0] - a[0]) / chord, (b[1] - a[1]) / chord];
+    // outwards: the side of the edge away from the shape
+    let n: Vec2 = [u[1], -u[0]];
+    const mid: Vec2 = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+    if (pointInPolygon([mid[0] + n[0] * 1e-3, mid[1] + n[1] * 1e-3], pts)) n = [-n[0], -n[1]];
+    const s = Math.min(Math.abs(c.bulge), chord / 2);
+    const dir: Vec2 = c.bulge > 0 ? n : [-n[0], -n[1]];
+    const r = (chord * chord) / 4 / (2 * s) + s / 2;
+    const centre: Vec2 = [mid[0] + dir[0] * (s - r), mid[1] + dir[1] * (s - r)];
+    const theta = Math.asin(Math.min(1, chord / 2 / r));
+    const steps = Math.max(4, Math.min(32, Math.ceil((2 * theta * r) / 0.3)));
+    for (let k = 1; k < steps; k++) {
+      const phi = -theta + (2 * theta * k) / steps;
+      const p: Vec2 = [centre[0] + r * (u[0] * Math.sin(phi) + dir[0] * Math.cos(phi)), centre[1] + r * (u[1] * Math.sin(phi) + dir[1] * Math.cos(phi))];
+      out.push([Math.round(p[0] * 1000) / 1000, Math.round(p[1] * 1000) / 1000]);
+    }
+  });
+  return out;
+}

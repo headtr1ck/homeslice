@@ -1036,6 +1036,28 @@ if (selected()) {
     await act(page, () => page.evaluate(() => window.card.hass.pushModel(window.__demoModel)));
   });
 
+  await test("curved walls: a bowed front, its rooms and walls following the arc", async () => {
+    await act(page, () =>
+      page.evaluate(() => {
+        const m = structuredClone(window.__demoModel);
+        m.outline.curves = [{ edge: 2, bulge: 1.5 }];
+        m.levels[0].rooms.find((r) => r.id === "living").curves = [{ edge: 4, bulge: 1.5 }];
+        m.levels[1].rooms.find((r) => r.id === "kids").curves = [{ edge: 2, bulge: 1.5 }];
+        window.card.hass.pushModel(m);
+      }),
+    );
+    const living = await page.evaluate(() => window.card.house.levels[0].rooms.find((r) => r.id === "living").polygon);
+    // the arc's middle 1.5 m south of the old front
+    assert(living.length > 8 && Math.max(...living.map((p) => p[1])) > 11.4, `living: ${JSON.stringify(living)}`);
+    // the front windows and the terrace door follow the arc, in parts
+    const parts = await page.evaluate(() => [...window.card.walls.get("ground")].flatMap((w) => w.openings.map((o) => o.id)).filter((id) => id.includes("~")).length);
+    assert(parts > 2, `arc parts: ${parts}`);
+    const problems = await page.evaluate(() => window.card._issues.map((i) => i.message));
+    assert(!problems.length, `problems: ${JSON.stringify(problems)}`);
+    await shot(page, "demo-curved");
+    await act(page, () => page.evaluate(() => window.card.hass.pushModel(window.__demoModel)));
+  });
+
   await test("a gallery railing drawn along its line", async () => {
     await act(page, () =>
       page.evaluate(() => {
@@ -3677,6 +3699,27 @@ if (selected()) {
     assert(scale === 0.0125, `scale ${scale}`);
     await page.locator("homeslice-panel .inspector button", { hasText: "Remove image" }).click();
     await page.keyboard.press("Escape");
+  });
+
+  await test("curved walls: bow the outside wall, the room along it follows; undo", async () => {
+    await page.keyboard.press("Escape");
+    await page.evaluate(() => {
+      window.panel._settings = null;
+      window.panel._tool = "select";
+      window.panel._room = "__outline__";
+    });
+    const curves = page.locator("homeslice-panel details.curves");
+    await curves.locator("summary").click();
+    await curves.locator("select[data-curve-edge]").selectOption("2");
+    await curves.locator("input[data-curve-bulge]").fill("1.5");
+    await curves.locator("input[data-curve-bulge]").press("Enter");
+    const m = await page.evaluate(() => ({ outline: window.panel._model.outline.curves, rooms: window.panel._model.levels[0].rooms.filter((r) => r.curves).map((r) => r.id) }));
+    assert(JSON.stringify(m.outline) === JSON.stringify([{ edge: 2, bulge: 1.5 }]) && m.rooms.length, `curved: ${JSON.stringify(m)}`);
+    await shot(page, "editor-curved");
+    await page.evaluate(() => window.panel.shadowRoot.activeElement?.blur());
+    await page.keyboard.press("Control+z");
+    assert(!(await page.evaluate(() => window.panel._model.outline.curves)), "undo kept the curve");
+    await page.evaluate(() => (window.panel._room = null));
   });
 
   await test("floors: duplicate one, move a room to another floor, undo both", async () => {

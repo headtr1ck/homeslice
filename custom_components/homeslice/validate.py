@@ -213,15 +213,36 @@ def validate(house: Any) -> list[dict[str, str]]:
             if abs(area) < 1e-6:
                 err(f"{path}.polygon", "The polygon has no area (points on one line?).")
                 return None
-            return pts
+            return curved(s, pts, path)
         if truthy(rect):
             x, y, w, d = (get(rect, i) for i in range(4))
             if not (num(w) > 0 and num(d) > 0):
                 err(f"{path}.rect", f"Width and depth must be positive, got {text(w)} × {text(d)}.")
                 return None
             x0, y0 = coord(x, "x", f"{path}.rect"), coord(y, "y", f"{path}.rect")
-            return [(x0, y0), (x0 + num(w), y0), (x0 + num(w), y0 + num(d)), (x0, y0 + num(d))]
+            return curved(s, [(x0, y0), (x0 + num(w), y0), (x0 + num(w), y0 + num(d)), (x0, y0 + num(d))], path)
         return None
+
+    def curved(s: Any, pts: list[tuple[float, float]], path: str) -> list[tuple[float, float]] | None:
+        """Checks a shape's curved edges (the editor bends them; corners stay the same here)."""
+        curves = get(s, "curves")
+        if curves is MISSING:
+            return pts
+        if not isinstance(curves, list):
+            err(f"{path}.curves", "curves must be a list of {edge, bulge}.")
+            return None
+        for i, c in enumerate(curves):
+            edge = get(c, "edge")
+            if not (isinstance(edge, int) and not isinstance(edge, bool) and 0 <= edge < len(pts)):
+                err(f"{path}.curves[{i}]", f"edge must be a corner number from 0 to {len(pts) - 1}.")
+                return None
+            a, b = pts[edge], pts[(edge + 1) % len(pts)]
+            half = math.hypot(b[0] - a[0], b[1] - a[1]) / 2
+            bulge = get(c, "bulge")
+            if not (is_num(bulge) and abs(bulge) <= half + 1e-9):
+                err(f"{path}.curves[{i}]", f"bulge must be metres, at most half the edge ({text(round(half * 100) / 100)}).")
+                return None
+        return pts
 
     def bbox(pts: list[tuple[float, float]]) -> tuple[tuple[float, float], tuple[float, float]]:
         xs = [p[0] for p in pts] or [0.0]
