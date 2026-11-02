@@ -1794,7 +1794,13 @@
   "editor.assign_missed": "Niet in een ruimte of gesloten vorm: sluit die eerst af met wanden.",
   "editor.assign_new_room": "nieuwe ruimte",
   "editor.assign_replaces": "in plaats van {area}",
-  "editor.assign_here": "hier",
   "editor.assign_unplaced": "nog niet geplaatst",
-  "editor.assign_no_areas": "Nog geen ruimtes in Home Assistant: voeg ze toe onder Instellingen → Ruimtes."
+  "editor.assign_no_areas": "Nog geen ruimtes in Home Assistant: voeg ze toe onder Instellingen → Ruimtes.",
+  "editor.assign_group_here": "Op deze verdieping",
+  "editor.assign_group_none": "Zonder verdieping",
+  "editor.assign_group_other": "Op andere verdiepingen",
+  "editor.assign_here_in": "hier: {room}",
+  "editor.assign_placed_title": "Al geplaatst: ergens anders neerzetten verplaatst hem",
+  "editor.assign_unlinked": "“{level}” is niet gekoppeld aan een Home Assistant-verdieping, dus de ruimtes ervan kunnen niet bovenaan staan.",
+  "editor.assign_link_floor": "Koppelen aan een verdieping"
 }

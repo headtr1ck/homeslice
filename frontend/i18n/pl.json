@@ -1794,7 +1794,13 @@
   "editor.assign_missed": "Nie w pomieszczeniu ani w zamkniętym kształcie: najpierw zamknij go ścianami.",
   "editor.assign_new_room": "nowe pomieszczenie",
   "editor.assign_replaces": "zamiast {area}",
-  "editor.assign_here": "tutaj",
   "editor.assign_unplaced": "jeszcze nie umieszczony",
-  "editor.assign_no_areas": "Brak obszarów w Home Assistant: dodaj je w Ustawienia → Obszary."
+  "editor.assign_no_areas": "Brak obszarów w Home Assistant: dodaj je w Ustawienia → Obszary.",
+  "editor.assign_group_here": "Na tym piętrze",
+  "editor.assign_group_none": "Bez piętra",
+  "editor.assign_group_other": "Na innych piętrach",
+  "editor.assign_here_in": "tutaj: {room}",
+  "editor.assign_placed_title": "Już umieszczony: upuszczenie gdzie indziej go przenosi",
+  "editor.assign_unlinked": "„{level}” nie jest połączone z piętrem Home Assistant, więc jego obszary nie mogą być na początku.",
+  "editor.assign_link_floor": "Połącz z piętrem"
 }

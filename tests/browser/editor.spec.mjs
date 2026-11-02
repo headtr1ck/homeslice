@@ -261,6 +261,34 @@ test.describe.serial("editor", () => {
     await page.keyboard.press("a");
     const areas = await page.locator("homeslice-panel .assign-areas button[data-area]").evaluateAll((els) => els.map((e) => [e.dataset.area, e.querySelector(".where").textContent]));
     assert(areas.length > 2, `areas: ${JSON.stringify(areas)}`);
+    // this floor's areas first; the ones already placed greyed out, after the others
+    const groups = await page.locator("homeslice-panel h4[data-assign-group]").evaluateAll((els) => els.map((e) => e.dataset.assignGroup));
+    assert(groups[0] === "here", `groups: ${JSON.stringify(groups)}`);
+    const here = await page.evaluate(() => {
+      const floor = window.panel._model.levels.find((l) => l.id === window.panel._level).floor_id;
+      return Object.values(window.panel._hass.areas).filter((a) => a.floor_id === floor).map((a) => a.area_id);
+    });
+    const firstBlock = await page.locator("homeslice-panel .assign-areas").first().locator("button[data-area]").evaluateAll((els) => els.map((e) => [e.dataset.area, e.classList.contains("placed")]));
+    assert(firstBlock.every(([a]) => here.includes(a)), `first block: ${JSON.stringify(firstBlock)} vs ${JSON.stringify(here)}`);
+    assert(JSON.stringify(firstBlock.map(([, p]) => p)) === JSON.stringify([...firstBlock.map(([, p]) => p)].sort()), `placed ones not last: ${JSON.stringify(firstBlock)}`);
+    assert(!(await page.locator("homeslice-panel [data-assign-unlinked]").count()), "warned about a linked floor");
+    // a level not linked to a Home Assistant floor: a warning, and the way to link it
+    const linked = await page.evaluate(() => {
+      const l = window.panel._model.levels.find((x) => x.id === window.panel._level);
+      const id = l.floor_id;
+      delete l.floor_id;
+      l.name = "Annex";
+      window.panel.requestUpdate();
+      return id;
+    });
+    await page.locator("homeslice-panel [data-assign-unlinked]").waitFor({ timeout: 2000 });
+    assert((await page.locator("homeslice-panel [data-assign-unlinked]").textContent()).includes("“Annex” isn't linked"), "warning text");
+    await page.evaluate((id) => {
+      const l = window.panel._model.levels.find((x) => x.id === window.panel._level);
+      l.floor_id = id;
+      delete l.name;
+      window.panel.requestUpdate();
+    }, linked);
     const unplaced = areas.filter(([, w]) => w === "not placed yet").map(([a]) => a);
     // dragged onto the hall: it lights up with the area's name, then the hall is that area
     const area = unplaced[0] ?? areas.at(-1)[0];

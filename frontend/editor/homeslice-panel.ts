@@ -983,34 +983,55 @@ export class HomeslicePanel extends LitElement {
     const placed = new Map<string, { room: RoomInput; level: string }>();
     for (const l of m.levels) for (const r of l.rooms) if (r.area_id && !placed.has(r.area_id)) placed.set(r.area_id, { room: r, level: l.id });
     const floor = m.levels.find((l) => l.id === this._level)?.floor_id;
-    const order = (a: (typeof areas)[number]) => (placed.has(a.area_id) ? 2 : a.floor_id && a.floor_id !== floor ? 1 : 0);
-    const sorted = [...areas].sort((a, b) => order(a) - order(b) || a.name.localeCompare(b.name));
     const levelName = (id: string) => {
       const l = m.levels.find((x) => x.id === id);
       return l ? this.levelName(l) : id;
     };
+    // this floor's areas first, then those on no floor, then the other floors'; in each, the ones still to place first
+    const groups: { key: string; title: string; items: typeof areas }[] = [
+      { key: "here", title: this.t("editor.assign_group_here"), items: floor ? areas.filter((a) => a.floor_id === floor) : [] },
+      { key: "none", title: this.t("editor.assign_group_none"), items: areas.filter((a) => !a.floor_id) },
+      { key: "other", title: this.t("editor.assign_group_other"), items: areas.filter((a) => a.floor_id && a.floor_id !== floor) },
+    ];
+    const sort = (list: typeof areas) => [...list].sort((a, b) => Number(placed.has(a.area_id)) - Number(placed.has(b.area_id)) || a.name.localeCompare(b.name));
+    const floorName = (id?: string | null) => (id && this._hass?.floors?.[id]?.name) || "";
+    const chip = (a: (typeof areas)[number], showFloor: boolean) => {
+      const at = placed.get(a.area_id);
+      const where = at ? (at.level === this._level ? this.t("editor.assign_here_in", { room: this.roomName(at.room) }) : levelName(at.level)) : showFloor && floorName(a.floor_id) ? floorName(a.floor_id) : this.t("editor.assign_unplaced");
+      return html`<button class="area-chip ${this._assignArea === a.area_id ? "active" : ""} ${at ? "placed" : ""} ${this._assignedLast && at?.room.id === this._assignedLast && at.level === this._level ? "just" : ""}"
+        draggable="true" data-area=${a.area_id} aria-pressed=${this._assignArea === a.area_id}
+        title=${at ? this.t("editor.assign_placed_title") : ""}
+        @dragstart=${(e: DragEvent) => {
+          this.assignDrag = a.area_id;
+          e.dataTransfer?.setData("text/plain", a.area_id);
+          if (e.dataTransfer) e.dataTransfer.effectAllowed = "link";
+        }}
+        @dragend=${() => {
+          this.assignDrag = null;
+          this._assignHover = null;
+        }}
+        @click=${() => (this._assignArea = this._assignArea === a.area_id ? null : a.area_id)}>
+        <ha-icon icon=${a.icon || "mdi:texture-box"}></ha-icon><span class="name">${a.name}</span><span class="where">${where}</span>
+      </button>`;
+    };
     return html`<h2>${this.t("editor.tool_assign").replace(/\s*\([^)]*\)$/, "")}</h2>
       <p class="muted">${this.t("editor.assign_hint")}</p>
-      <div class="assign-areas">
-        ${sorted.map((a) => {
-          const at = placed.get(a.area_id);
-          const where = at ? (at.level === this._level ? this.t("editor.assign_here") : levelName(at.level)) : this.t("editor.assign_unplaced");
-          return html`<button class="area-chip ${this._assignArea === a.area_id ? "active" : ""} ${at ? "placed" : ""} ${this._assignedLast && at?.room.id === this._assignedLast && at.level === this._level ? "just" : ""}"
-            draggable="true" data-area=${a.area_id} aria-pressed=${this._assignArea === a.area_id}
-            @dragstart=${(e: DragEvent) => {
-              this.assignDrag = a.area_id;
-              e.dataTransfer?.setData("text/plain", a.area_id);
-              if (e.dataTransfer) e.dataTransfer.effectAllowed = "link";
-            }}
-            @dragend=${() => {
-              this.assignDrag = null;
-              this._assignHover = null;
-            }}
-            @click=${() => (this._assignArea = this._assignArea === a.area_id ? null : a.area_id)}>
-            <ha-icon icon=${a.icon || "mdi:texture-box"}></ha-icon><span class="name">${a.name}</span><span class="where">${where}</span>
-          </button>`;
-        })}
-      </div>
+      ${floor
+        ? nothing
+        : html`<p class="warning" data-assign-unlinked>
+            ${this.t("editor.assign_unlinked", { level: levelName(this._level) })}
+            <button class="link" @click=${() => {
+              // the level's own panel: where it is linked
+              this.setTool("select");
+              this.clearSelection();
+            }}>${this.t("editor.assign_link_floor")}</button>
+          </p>`}
+      ${groups.map((g) =>
+        g.items.length
+          ? html`<h4 data-assign-group=${g.key}>${g.title}</h4>
+              <div class="assign-areas">${sort(g.items).map((a) => chip(a, g.key === "other"))}</div>`
+          : nothing,
+      )}
       ${areas.length ? nothing : html`<p class="muted">${this.t("editor.assign_no_areas")}</p>`}`;
   }
 
@@ -7059,6 +7080,17 @@ export class HomeslicePanel extends LitElement {
       font-size: 12px;
       font-weight: 400;
     }
+    p.warning {
+      padding: 8px 10px;
+      border-radius: 8px;
+      border: 1px solid var(--warning-color, #ffa600);
+      background: color-mix(in srgb, var(--warning-color, #ffa600) 14%, transparent);
+    }
+    p.warning button.link {
+      display: inline;
+      padding: 0;
+      margin-left: 4px;
+    }
     .assign-areas {
       display: flex;
       flex-direction: column;
@@ -7077,8 +7109,14 @@ export class HomeslicePanel extends LitElement {
       font-size: 12px;
       opacity: 0.7;
     }
+    /* already somewhere: still draggable (to move it), but out of the way */
     .area-chip.placed {
-      opacity: 0.75;
+      opacity: 0.45;
+      filter: grayscale(1);
+    }
+    .area-chip.placed:hover,
+    .area-chip.placed.active {
+      opacity: 0.8;
     }
     .area-chip.active {
       border-color: var(--primary-color, #03a9f4);

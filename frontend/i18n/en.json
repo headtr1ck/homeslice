@@ -1794,7 +1794,13 @@
   "editor.assign_missed": "Not inside a room or a closed shape: close it with walls first.",
   "editor.assign_new_room": "new room",
   "editor.assign_replaces": "instead of {area}",
-  "editor.assign_here": "here",
   "editor.assign_unplaced": "not placed yet",
-  "editor.assign_no_areas": "No areas in Home Assistant yet: add them under Settings → Areas."
+  "editor.assign_no_areas": "No areas in Home Assistant yet: add them under Settings → Areas.",
+  "editor.assign_group_here": "On this floor",
+  "editor.assign_group_none": "On no floor",
+  "editor.assign_group_other": "On other floors",
+  "editor.assign_here_in": "here: {room}",
+  "editor.assign_placed_title": "Already placed: dropping it elsewhere moves it",
+  "editor.assign_unlinked": "“{level}” isn't linked to a Home Assistant floor, so its areas can't be listed first.",
+  "editor.assign_link_floor": "Link it to a floor"
 }

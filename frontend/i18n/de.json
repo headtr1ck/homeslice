@@ -1794,7 +1794,13 @@
   "editor.assign_missed": "Nicht in einem Raum oder einer geschlossenen Form: zuerst mit Wänden schließen.",
   "editor.assign_new_room": "neuer Raum",
   "editor.assign_replaces": "statt {area}",
-  "editor.assign_here": "hier",
   "editor.assign_unplaced": "noch nicht platziert",
-  "editor.assign_no_areas": "Noch keine Bereiche in Home Assistant: unter Einstellungen → Bereiche anlegen."
+  "editor.assign_no_areas": "Noch keine Bereiche in Home Assistant: unter Einstellungen → Bereiche anlegen.",
+  "editor.assign_group_here": "Auf dieser Etage",
+  "editor.assign_group_none": "Ohne Etage",
+  "editor.assign_group_other": "Auf anderen Etagen",
+  "editor.assign_here_in": "hier: {room}",
+  "editor.assign_placed_title": "Schon platziert: woanders ablegen verschiebt ihn",
+  "editor.assign_unlinked": "„{level}“ ist mit keiner Home-Assistant-Etage verknüpft, daher können ihre Bereiche nicht zuerst stehen.",
+  "editor.assign_link_floor": "Mit einer Etage verknüpfen"
 }

@@ -1794,7 +1794,13 @@
   "editor.assign_missed": "Non è dentro una stanza né una forma chiusa: chiudila prima con le pareti.",
   "editor.assign_new_room": "nuova stanza",
   "editor.assign_replaces": "al posto di {area}",
-  "editor.assign_here": "qui",
   "editor.assign_unplaced": "non ancora collocata",
-  "editor.assign_no_areas": "Nessuna area in Home Assistant: aggiungile in Impostazioni → Aree."
+  "editor.assign_no_areas": "Nessuna area in Home Assistant: aggiungile in Impostazioni → Aree.",
+  "editor.assign_group_here": "Su questo piano",
+  "editor.assign_group_none": "Senza piano",
+  "editor.assign_group_other": "Su altri piani",
+  "editor.assign_here_in": "qui: {room}",
+  "editor.assign_placed_title": "Già collocata: rilasciarla altrove la sposta",
+  "editor.assign_unlinked": "“{level}” non è collegato a un piano di Home Assistant, quindi le sue aree non possono stare in cima.",
+  "editor.assign_link_floor": "Collegalo a un piano"
 }

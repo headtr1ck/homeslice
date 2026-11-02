@@ -1794,7 +1794,13 @@
   "editor.assign_missed": "No está dentro de una habitación ni de una forma cerrada: ciérrala antes con paredes.",
   "editor.assign_new_room": "habitación nueva",
   "editor.assign_replaces": "en lugar de {area}",
-  "editor.assign_here": "aquí",
   "editor.assign_unplaced": "sin colocar",
-  "editor.assign_no_areas": "Aún no hay áreas en Home Assistant: añádelas en Ajustes → Áreas."
+  "editor.assign_no_areas": "Aún no hay áreas en Home Assistant: añádelas en Ajustes → Áreas.",
+  "editor.assign_group_here": "En esta planta",
+  "editor.assign_group_none": "Sin planta",
+  "editor.assign_group_other": "En otras plantas",
+  "editor.assign_here_in": "aquí: {room}",
+  "editor.assign_placed_title": "Ya colocada: soltarla en otro sitio la mueve",
+  "editor.assign_unlinked": "«{level}» no está vinculada a una planta de Home Assistant, así que sus áreas no pueden ir primero.",
+  "editor.assign_link_floor": "Vincularla a una planta"
 }

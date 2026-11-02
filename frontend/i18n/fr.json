@@ -1794,7 +1794,13 @@
   "editor.assign_missed": "Ni dans une pièce ni dans une forme fermée : fermez-la d'abord avec des murs.",
   "editor.assign_new_room": "nouvelle pièce",
   "editor.assign_replaces": "à la place de {area}",
-  "editor.assign_here": "ici",
   "editor.assign_unplaced": "pas encore placée",
-  "editor.assign_no_areas": "Pas encore de zones dans Home Assistant : ajoutez-les sous Paramètres → Zones."
+  "editor.assign_no_areas": "Pas encore de zones dans Home Assistant : ajoutez-les sous Paramètres → Zones.",
+  "editor.assign_group_here": "À cet étage",
+  "editor.assign_group_none": "Sans étage",
+  "editor.assign_group_other": "Aux autres étages",
+  "editor.assign_here_in": "ici : {room}",
+  "editor.assign_placed_title": "Déjà placée : la déposer ailleurs la déplace",
+  "editor.assign_unlinked": "« {level} » n'est lié à aucun étage de Home Assistant : ses zones ne peuvent pas être listées en premier.",
+  "editor.assign_link_floor": "Le lier à un étage"
 }
