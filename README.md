@@ -5,82 +5,52 @@
 [![CI](https://github.com/headtr1ck/homeslice/actions/workflows/ci.yml/badge.svg)](https://github.com/headtr1ck/homeslice/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-> [!WARNING]
-> **Early alpha.** Homeslice is young and changes quickly: the house format, the card's
-> options and the editor may change between versions without migration, and there will be
-> bugs. Keep a copy of your house (editor → ⚙ → *Download* YAML) and expect to adjust it
-> after updates. Feedback and issues are very welcome.
-
-**A 3D floor plan (floorplan) for Home Assistant.** Draw your home in the built-in floor plan editor —
-floors, rooms, walls, doors, windows, furniture, garden — linked to Home Assistant's own
-floors, areas and entities, and see it live on your dashboards as an interactive,
-exploded isometric 3D house or a 2D floor plan: a Lovelace card that turns your home into a
-digital twin, with lights, blinds, shutters, garage doors, climate, media players and
-energy flows. Free and open source (MIT), installed with HACS, made for wall tablets.
-**No paywall, no premium features: everything is free.** In English, German, French, Dutch,
-Spanish, Italian and Polish (help with more languages is welcome).
+**Your home as a live, interactive 3D house in Home Assistant.** Homeslice is a 3D floor
+plan for Home Assistant: draw your floors and rooms in the built-in editor, and a Lovelace
+card shows them as an exploded isometric house, a tilted plan or a 2D floor plan, with
+lights, blinds, doors, climate, energy flows and people live on it. Free and open source
+(MIT), installed with HACS, made for wall tablets.
 
 ▶️ **[Try the live demo](https://headtr1ck.github.io/homeslice/)** — the card and the editor in your browser, on a demo house (nothing to install, nothing is saved).
 
 ![Homeslice in motion: 3D by day, lights coming on, shutters and a door, night, the white model and the blueprint, one floor, the tilted and the flat plan, all floors, rain and the sun's path](docs/images/showreel.webp)
 
-![The editor: the plan of the ground floor, the 3D preview and the living room's finishes](docs/images/editor.jpg)
-
-*The demo house (`npm run dev`); pictures made by `node scripts/showcase.mjs`.*
+> [!WARNING]
+> **Early alpha.** Homeslice changes quickly: the house format, the card's options and the
+> editor may change between versions without migration, and there will be bugs. Keep a copy
+> of your house (editor → ⚙ → *Download* YAML). Feedback and issues are very welcome.
 
 ## Why Homeslice
 
-- **Everything is free, for good.** No paid add-ons, no furniture packs to buy, no licence
-  keys, no shop the integration talks to. Every feature and every piece of furniture is in
-  this repository under MIT.
-- **Home Assistant is the source of truth.** Levels are your HA floors, rooms are your HA
-  areas, and their lights, blinds, sensors and devices are found by themselves. Rename an
-  area in HA and the house follows; nothing to keep in sync by hand.
-- **No drawing program needed.** No SVG to draw in another tool, no 3D model to export
-  from Blender: the editor is in Home Assistant, with snapping walls, a plan image to trace
-  over, a wall view for exact placing, and imports (Sweet Home 3D, SVG floor plans, other 3D floor-plan cards' plans).
-- **3D, 2.5D and 2D from one house.** The same house is an exploded 3D model, a tilted
-  plan, a flat floor plan or all floors side by side — switch per card, not per drawing.
-- **Your AI assistant can draw it.** The house is short, readable YAML with clear errors;
-  Homeslice offers it to HA's conversation agents (LLM API), to MCP clients and over HTTP,
-  with a guide that lists your real floors, areas and entities.
-- **400+ pieces drawn to their size, with nothing to download.** Sofas get more seats as
-  they get wider, kitchens more units, wardrobes more doors — in your finishes, and they
-  react: screens show what plays, fans turn, radiators glow, cars come and go. Poly Haven
-  models, Sketchfab models (with your own account) and your own glTF files on top, checked
-  before they load.
-- **Real roofs.** Roof parts at any angle, roofs that start a floor lower (walls cut along
-  them), coverings, dormers, roof terraces (an outdoor room under the slope, the roof cut away above it), roof windows with shutters, solar panels on the slope.
-- **Private.** Nothing leaves your Home Assistant: no cloud, no telemetry, no account.
-- **Made for wall tablets.** Draws only when something changes, a low-quality mode for old
-  tablets, kiosk options (back to the start view, dim at night, a clock), and HA's own
-  cards and actions everywhere you tap.
+- **Built from your Home Assistant.** Levels are your HA floors, rooms are your HA areas,
+  and their lights, blinds, sensors and devices are found by themselves. Rename an area and
+  the house follows.
+- **A full editor inside Home Assistant.** No drawing program, no SVG, no Blender: trace
+  rooms over your floor plan image, walls appear by themselves, drag Home Assistant areas
+  onto rooms, add doors, windows, stairs, roofs and furniture, with a live 3D preview.
+  Imports from Sweet Home 3D, SVG floor plans and other 3D floor-plan cards.
+- **Made for AI assistants.** The house is short, readable YAML with clear errors and a
+  guide listing your real floors, areas and entities. Paste it into any chatbot with a
+  photo of your floor plan, or let Home Assistant's own assistants, MCP clients and scripts
+  read, check and save the house through Homeslice's LLM API.
+- **Live state everywhere.** Lights glow in their colours, blinds and garage doors move,
+  doors swing, a temperature/humidity/CO₂ heatmap, presence and alarms, animated solar,
+  battery and grid flows, people and pets in their rooms, weather and the real sun.
+- **Robots on the plan.** Robot vacuums and lawn mowers drive around with their live
+  position and show what their dock needs; their map can be the floor plan you trace.
+  Importing rooms straight from a robot's map is in progress.
+- **3D, 2.5D and 2D from one house.** Exploded 3D, tilted plan, flat plan, all floors side
+  by side; day, night, white model or blueprint look — switch per card, not per drawing.
+- **400+ furniture pieces, plus whole libraries.** Built-in pieces resize sensibly and
+  react (screens show what plays, fans turn); add Poly Haven models, Sketchfab models with
+  your own account, or your own glTF files.
+- **Made for wall tablets.** Draws only when something changes, a low-quality mode, kiosk
+  options, time travel through the last day, a walk-through at eye level.
+- **Private and free, for good.** Runs locally: no cloud, no telemetry, no account. No paid
+  add-ons, no furniture packs to buy, no premium tier.
+- **In seven languages:** English, German, French, Dutch, Spanish, Italian and Polish.
 
-## What it does
-
-Alpha: card and editor work and are used daily on one house, but nothing is stable yet.
-
-- **Live house:** lights glow in their colours (spots, strips, indirect light, light
-  through the windows at night), blinds, shutters, awnings, curtains and garage doors move
-  with their covers, doors swing and windows tilt with their contacts, devices show their
-  state, people stand in their rooms, robot vacuums drive around with their dock's warnings.
-- **On the plan:** readings on the room labels, a heatmap (temperature, humidity, CO₂,
-  PM2.5), presence, leak/smoke/gas alarms, a window open in the rain, notes for bin day,
-  thirsty plants, post and an appliance's time left, cameras with what they see.
-- **Energy:** solar, battery, grid and devices with animated power flows and their readings.
-- **Around the house:** the real sun and its path today, weather (rain, snow, fog), a
-  garden with trees and hedges, balconies and roof terraces.
-- **Using it:** tap to switch, drag to dim, long press for details; a TV or speaker opens a media panel
-  (play, volume, sources); room panels with HA's
-  own cards; shortcut buttons; layers viewers switch; time travel through the last day;
-  walk through the house at eye level; the card flies to what happens (a doorbell) or to
-  what you ask Assist for ("Show the kitchen").
-- **Editor** (admin sidebar page *Homeslice*): start a house from Home Assistant's floors
-  and areas, trace rooms over a floor plan image (straightened and scaled with a ruler), drag walls and corners with snapping,
-  doors and windows with their blinds, stairs, furniture, lights, cameras, energy devices,
-  robots, roof levels, curved walls; your own pieces from simple shapes (`pieces:`); duplicate floors, move rooms and pieces between floors, pieces only
-  there while a helper is on; undo/redo; the whole house as YAML in and out; backup and restore.
-- **In seven languages**, with number formats as your HA settings say.
+![The editor: the plan of the ground floor, the 3D preview and the living room's finishes](docs/images/editor.jpg)
 
 ## Installation
 
@@ -95,405 +65,72 @@ Alpha: card and editor work and are used daily on one house, but nothing is stab
 
    [![Open your Home Assistant instance and start setting up Homeslice.](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start/?domain=homeslice)
 
-New versions show up under *Settings → Updates* like any other update; after updating,
-restart Home Assistant and reload the browser. The card needs no extra dashboard resource:
-the integration serves it.
+New versions show up under *Settings → Updates*; after updating, restart Home Assistant and
+reload the browser. The card needs no extra dashboard resource.
 
 ### Manually
 
 Download `homeslice.zip` from the [latest release](https://github.com/headtr1ck/homeslice/releases/latest),
-unpack it into `<config>/custom_components/homeslice/` and restart Home Assistant. (The
-repository itself doesn't contain the built frontend; build it with `npm run build`.)
+unpack it into `<config>/custom_components/homeslice/` and restart Home Assistant.
 
-## Getting started
+## Quick start
 
-1. Install Homeslice (above).
-2. Add the **Homeslice** integration under *Settings → Devices & services*.
-3. Open **Homeslice** in the sidebar and create a house: pick its floors, give rough outside
-   dimensions, and each floor starts with a placeholder room per area.
-   - **1. Rooms & walls:** drag rooms into shape, or upload the floor plan (level
-     inspector), set its scale with two points of a known length, and draw rooms over
-     it (`R`). Walls appear by themselves; a wall between two rooms can be dragged on its
-     own or switched to *open* (e.g. an open kitchen). Stairs: `S`. The rooms button holds
-     more: room (`R`), free-standing wall (`W`), railing (`G`, galleries and stair edges),
-     balcony or terrace (`B`), divider (`X`: a line across a room makes two rooms with no
-     wall between, e.g. kitchen and dining area) and assign (`A`: drag a Home Assistant area
-     onto a room, or into a shape your walls close off, which becomes a room; it lights up
-     before you let go). Walls that close a shape make it a room at once (cut
-     out of the room they stand in, or a hole in it when wholly inside, like a closet; its
-     panel offers *Same room as …* when Home Assistant counts it as part of that room); rooms without an area say **Unassigned room!**,
-     with a button that opens the assign tool. The roof is a level
-     of its own: **+ Roof** under the floors, then presets, more parts and solar panels.
-     A room drawn over others takes its space from them (the walls along its sides are the
-     ones already there, cut at its corners), and a wall drawn along an existing one adds
-     only what is new, so tracing a plan room by room over the starting rooms just works.
-     Select a room to give its floor and walls a finish (wood, tiles, stone, paint,
-     acoustic panels, brick…), one wall a different one, and the outline for the facade.
-     Besides the built-in finishes, the picker offers Poly Haven's photo textures (CC0),
-     which Home Assistant downloads once when you pick one.
-   - **2. Doors & windows:** click a wall to add a window, link its blind and contact.
-   - **3. Objects & entities:** lights are placed automatically and can be dragged;
-     drag furniture from the library (wall pieces go against a wall; `R` to turn); place solar, battery, grid and power-measured
-     devices for the energy overlay. The library has four sources: **Built-in** (pieces
-     drawn by Homeslice to their size, with a finish and often a second colour: sofas,
-     wardrobes, kitchens, bathroom, lamps, plants, garden, play, cars and bikes…), **Poly Haven** (realistic
-     models, downloaded into Home Assistant once when placed), **Sketchfab** (see below) and
-     **Custom** (upload your own `.glb`; it has to be self-contained: models that load textures
-     or data from other websites are refused, so no screen showing your house contacts a stranger).
-   - Save (`Ctrl+S`). Cards update at once.
-4. Add a **Homeslice** card to a dashboard. Its visual editor shows a small preview: turn
-   it into the angle you want, then pick the look.
+1. Install Homeslice and add the integration under *Settings → Devices & services*.
+2. Open **Homeslice** in the sidebar and create a house: pick its floors and give rough
+   outside dimensions. Each floor starts with a room per area.
+3. Shape the rooms (or trace them over your floor plan), add doors, windows and furniture,
+   and save (`Ctrl+S`). Or let an [AI assistant](docs/llm.md) write the house for you.
+4. Add a **Homeslice** card to a dashboard, turn the preview to the angle you like and pick
+   a look.
 
-Alternatively, write the house as YAML (format below): paste it in the editor's
-*House settings*, or put it in `<config>/homeslice/<house>.yaml` and call the action
-`homeslice.import_files` (files never overwrite a house edited in the editor unless
-`force: true`). Broken links (deleted areas, floors, entities) show up under
-*Settings → Repairs*.
+## House format at a glance
 
-## Setting up your home with an AI assistant
-
-An assistant can draw the house from a photo or sketch of your floor plan. It needs the
-format and your Home Assistant's floors, areas and devices; Homeslice provides both,
-checks what the assistant wrote with the editor's rules, and keeps the previous version
-so any save can be undone (editor → ⚙ → *Restore the version from …*).
-
-- **Any chat assistant (ChatGPT, Claude, Gemini…):** editor → ⚙ → *Copy prompt for an AI
-  assistant*. Paste it into the chat with your floor plan, paste the answer into
-  *Replace the house with this YAML*, and if it has mistakes, *Copy errors for the
-  assistant* gives them back to it.
-- **Home Assistant's own assistant:** in a conversation agent's settings (OpenAI,
-  Anthropic, Google, Ollama…), add the API **Homeslice** next to *Assist*. It gets four
-  tools: `homeslice_get_guide`, `homeslice_get_house`, `homeslice_validate_house` and
-  `homeslice_save_house` (saving needs an administrator).
-- **External assistants (Claude Code, Claude Desktop, Cursor…):** add Home Assistant's
-  **MCP Server** integration and pick the *Homeslice* API there; the assistant connects
-  with a long-lived access token and gets the same tools.
-- **Scripts and assistants without MCP:** the HTTP API, with a long-lived access token
-  (`Authorization: Bearer …`):
-
-  ```sh
-  curl -H "Authorization: Bearer $TOKEN" http://homeassistant:8123/api/homeslice/guide            # the guide with your floors, areas, entities
-  curl -H "Authorization: Bearer $TOKEN" http://homeassistant:8123/api/homeslice/houses/home      # the house as YAML
-  curl -X POST --data-binary @home.yaml -H "Authorization: Bearer $TOKEN" http://homeassistant:8123/api/homeslice/validate
-  curl -X PUT  --data-binary @home.yaml -H "Authorization: Bearer $TOKEN" http://homeassistant:8123/api/homeslice/houses/home   # admins
-  curl -X POST -H "Authorization: Bearer $TOKEN" http://homeassistant:8123/api/homeslice/houses/home/restore                     # admins
-  ```
-
-The guide itself is [`custom_components/homeslice/guide.md`](custom_components/homeslice/guide.md).
-
-**Coming from Sweet Home 3D?** Editor → ⚙ → *Import* → *From Sweet Home 3D (.sh3d)*: rooms, doors, windows and
-furniture come in as YAML to check before using it.
-
-**Coming from another 3D floor-plan card?** Editor → ⚙ → *Import* → *Plan from another 3D
-floor-plan card (.json)*: its plan export or backup (or its `.storage` file, or its simple
-hand-written plan format) comes in with floors, rooms and their areas, open-plan walls, doors
-and windows with their blinds, contacts and locks, furniture, lamps, cameras and stairs; what
-has no place yet is listed.
-
-**Coming from an SVG floor-plan card?** Editor → ⚙ → *Import* → *Floor plan drawing (.svg)*:
-closed shapes become rooms (named by their label or id), and elements whose id or class names
-an entity (`light.kitchen`) become that light or device in the room under them. You say how
-wide the drawing is in reality.
-
-## Card
-
-```yaml
-type: custom:homeslice-card
-house: home                    # the house id
-roof: toggle                   # the roof: show, hide, or a roof button for the viewer: toggle (shown at first) or
-                               #   toggle_hidden (hidden at first); the choice stays on that device
-interactive: false             # true: drag to turn, scroll/pinch to zoom, two fingers move, double-click to reset;
-                               #   buttons turn, show from above or tilted, and keep a start view on this device
-energy: false                  # true: energy overlay (shows the roof unless view.roof: false)
-mode: 3d                       # or plan: a drawn floor plan from above (dark walls, door swings),
-                               #   or tilted: a plan at an angle with low walls; both one floor at a time
-floors: one                    # plan only: all shows every floor at once, side by side
-sun: true                      # light from the real sun (sun.sun), darker at night
-look: day                      # or night (dark, glowing outlines), auto (night after sunset),
-                               #   white (a white model) or blueprint (dark blue, glowing edges)
-accent: "#4fc3f7"              # the night look's outline colour
-presence: true                 # mark rooms with motion/occupancy/presence; leak, smoke and gas alarms always show
-lux: false                     # true: rooms as bright as their lux sensor reads (dark rooms look dark), with the reading
-quality: auto                  # low: for weak wall tablets (no shadows, plain colours, simple furniture); high; auto picks
-heatmap: temperature           # optional: tint rooms by temperature (blue cold … red hot), humidity, carbon_dioxide or pm25
-heatmap_style: smooth          # rooms (default): one colour per room; smooth: blended across the floor between the
-                               #   readings (room middles and placed sensor pieces)
-values: [temperature, humidity, carbon_dioxide]   # readings on the room labels (default: temperature), a dot when out of range
-thresholds:                    # optional: own colour steps (labels and heatmap)
-  carbon_dioxide: [{ value: 800, color: orange }, { value: 1200, color: red }]
-follow: [event.doorbell, binary_sensor.front_door]   # turn to where these go active (a note says what), then back
-follow_alarms: false           # true: also turn to leak, smoke and gas alarms
-follow_seconds: 30             # how long to stay; nothing moves while someone uses the card
-level: ground                  # optional: the floor shown first (plan: default the entrance floor)
-view:                          # all optional
-  azimuth: 250                 # overview camera: 0 north, 90 east, 180 south, 270 west
-  elevation: 38                # degrees above the horizon
-  projection: isometric        # or perspective
-  explode: 2.6                 # gap between floors in metres
-  roof: false                  # draw the roof in the overview
-  furniture: detailed          # or simple: boxes instead of models
-  cut_height: 0.4              # outer walls facing a low camera are cut to this height…
-  cut_below: 60                # …while the camera is lower than this (degrees)
-  show_outdoor: true           # garden, terrace etc. (drawn see-through)
-  focus:                       # camera when a floor is picked
-    azimuth: 180
-    elevation: 65
-    projection: perspective
-  levels:                      # per-floor cameras, by level id
-    ground: { elevation: 90, projection: isometric }
-room_panel: true               # a tap on a room opens its panel (false: rooms do nothing)
-lamp_style: icon               # lamp buttons: a glowing bulb (icon) or a bulb in a dark disc (circle)
-tooltips: true                 # desktop: hovering a linked piece shows its name, state and when that changed
-feedback: true                 # a short note of what a tap or a drag did ("Kitchen: lights off"); false hides it
-sensor_timeout: 24             # hours: a door or window contact that sent nothing that long is marked silent
-                               #   (default: only when unavailable)
-idle_return: 120               # wall tablets: back to the start view after 2 minutes without a touch
-night: "22:00-06:00"           # dim the card at night (or: sun), night_brightness: 0.4
-idle_orbit: true               # turn the house slowly while nobody uses it
-clock: true                    # a clock in the corner
-buttons:                       # shortcuts in the bottom right: scenes/scripts run, lights and switches toggle
-  - entity: scene.movie_night
-  - entity: script.good_night
-    name: Good night
-  - entity: light.terrace
-    level: ground              # only while this floor is picked
-rain: binary_sensor.rain       # warn about open windows while it rains (default: the weather entity)
-power_outage: binary_sensor.grid_down   # a warning on the card while it is on
-heating: true                  # underfloor heating loops glow while they heat (rooms with underfloor:)
-warnings: true                 # a strip of what needs attention (alarms, leaks, jammed locks, silent sensors, robots);
-                               #   a tap shows where
-climate_hints: true            # humid rooms: "air the room" (when the air outside is drier, from weather:), mould risk from 70 %
-badges: true                   # notes above linked pieces: bin pickup today/tomorrow, thirsty plants, post, time left
-weather: weather.home          # its condition and temperature in a corner (tap: forecast); rain, snow and fog
-weather_effects: true          #   around the house (false: only the badge)
-sun_path: true                 # today's sun path as an arc around the house, sunrise and sunset times
-time_travel: true              # a button to replay the last day from HA's history (lights, doors, blinds, devices)
-walk: true                     # a button to walk through the house at eye level (keys, touch stick, drag to look)
-layers: [energy, heating, heatmap, values, presence, climate]   # a layers button: viewers switch these (kept per device)
-rules:                         # looks by state, no code: while it matches, a pulsing ring, the piece's colour,
-  - entity: binary_sensor.doorbell   # an icon and a text where the entity is (its piece, door, lamp or room)
-    state: "on"                #   or above: / below: (numbers), attribute: (read that instead)
-    ring: "#ff3b30"
-  - entity: sensor.office_co2
-    above: 1000
-    icon: mdi:molecule-co2
-    text: "{state:0} {unit}"   #   {state}, {state:1} (decimals), {unit}, {name}, {attr:brightness}
-  - entity: climate.bedroom
-    state: heat
-    color: "#ff8a3a"           #   tints its linked piece (an AC, a radiator)
-overlays:                      # other cards on the house card, to use its empty corners
-  - card: { type: weather-forecast, entity: weather.home }
-    top: 8px
-    right: 8px
-    width: 300px
-    layer: front               # or behind: under the house, just to look at
-    levels: [overview]         # optional: only on these floors (overview: the whole house)
-people:                        # people in the room they are in (Bermuda, ESPresense: a sensor naming the area)
-  - { person: person.alex, room: sensor.alex_phone_area }
-  - { person: device_tracker.bello_tag, room: sensor.bello_area, pet: true }   # a pet: small, with a paw
-actions:                       # optional: own tap/hold actions for linked pieces and lamps (Lovelace actions)
-  light.hall:
-    tap_action: { action: more-info }
-    hold_action: { action: perform-action, perform_action: script.night_light }
-popups:                        # optional, by room id or area id
-  living_room:
-    mode: extend               # or replace
-    cards:
-      - type: weather-forecast
-        entity: weather.home
-```
-
-**Show a room on request.** The action `homeslice.show` (area, floor or entity, by id or
-name; optional `seconds`) makes open cards fly there for a while, e.g. from an automation
-(the doorbell rings: show the front door) or by voice. For Assist, import the blueprint
-[`show_by_voice.yaml`](blueprints/automation/homeslice/show_by_voice.yaml) ("Show the
-kitchen", "Zeig die Küche"):
-
-[![Import the blueprint](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2Fheadtr1ck%2Fhomeslice%2Fblob%2Fmain%2Fblueprints%2Fautomation%2Fhomeslice%2Fshow_by_voice.yaml)
-
-**Announce something.** `homeslice.announce` shows a message on every open card, at a room
-if you name one, and speaks it on that room's speakers (text-to-speech; or the
-`media_player`s you list):
-
-```yaml
-action: homeslice.announce
-data:
-  message: Dinner is ready
-  area: kitchen        # optional: without it every card shows it where it is, nobody speaks
-```
-
-Tap a room's lamp to switch its lights (on a picked floor, rooms with several lamps get
-one toggle per lamp), tap a room for a popup with its devices (including the blinds and
-contacts of its windows), pick a floor to lift the floors above away. Hovering a floor
-highlights it and makes the floors above see-through.
-
-## House format (short form)
-
-Metres; `x` points east, `y` points south (north is up, as on a printed plan). Levels are
-listed bottom to top. Walls are generated from the rooms: you never draw them. Rooms are
-stored on wall centre lines; outside walls grow inwards from the outline.
+A whole house can be this short; the editor writes the same format.
 
 ```yaml
 schema: 1
 id: home
 name: Home
-outline: { rect: [0, 0, 10, 8] }       # outer face of the exterior walls, shared by all levels
-                                        # (or outline: auto: the outer edge of each level's rooms)
-party_walls: [west]                     # walls shared with a neighbour
-# the roof as a level of its own (instead of roof:): parts at any angle, a roof starting lower,
-# pieces on it such as solar panels; in the editor: + Roof under the floors, then presets
-#  - id: roof
-#    kind: roof
-#    roofs:
-#      - { id: main, rect: [0, 0, 10, 8], shape: gable, ridge: left_right, pitch: 40, offset: -1.2,
-#          finish: roof_slate, furniture: [{ type: item, model: modern:solar_panel, at: [3, 6] }] }
-#      - { id: wing, rect: [10, 0, 3, 4], shape: shed, ridge: 30, pitch: 12 }   # ridge: up_down or degrees
-roof:                                   # optional; drawn by cards with view.roof
-  ridge: east_west
-  pitch: 35
-  shape: gable                  # or hip, shed (one slope, high: north) or flat
-  finish: roof_clay             # roof_concrete, roof_slate, roof_shingles, roof_metal, roof_green…
-  dormers: [{ side: south, at: 4, width: 1.6, shape: gable }]   # or shape: shed
-  windows:                      # roof windows, with an outside shutter and a contact
-    - { side: south, at: 2, up: 1.5, cover: cover.roof_window, contact: binary_sensor.roof_window }
-north: 0                                # optional: degrees the plan's north side is turned east of true north
-inverted_covers: [cover.awning]         # optional: covers that report open/closed the other way round
-robots:                                 # optional: robot vacuums and lawn mowers
-  - { entity: vacuum.robo, level: ground, dock: [0.8, 3.3] }   # live position: see the editor
-opening_defaults:                       # optional, house-wide per opening type
-  window: { sill: 0, height: 2.2 }      # e.g. floor-to-ceiling windows
-facade_openings:                        # windows stacked on several floors, defined once
-  - side: south
-    at: 1                               # metres from the outline's west (or north) end
-    width: 2.4
-    levels: [ground, first]             # each lands in the room behind it on that floor
-    covers: { ground: cover.living_room, first: cover.bedroom }
-vertical:
-  - id: stairs
-    rect: [6, 3, 3, 1.2]
-    from: ground
-    to: first
-    shape: straight                     # or u_turn (two flights joined by winders)
-    up: east                            # direction the first flight climbs
-    entry: 0                            # floor before the first step (stairs that start further in)
-facade: brick_red                       # optional: the outside of the exterior walls
-energy:                                 # optional, for the card's energy overlay
-  - { kind: solar, roof: south }        # sensors default to HA's energy settings
-  - { kind: battery, level: ground, at: [8.5, 1] }
-  - { kind: grid, level: ground, at: [9, 1] }
-  - kind: device
-    power: sensor.heat_pump_power
-    level: ground
-    at: [9.5, 7.5]
-    details: [sensor.heat_pump_cop, { entity: sensor.hot_water_temperature, name: Hot water }]   # more readings in its callout
+outline: { rect: [0, 0, 10, 8] }
 levels:
   - id: ground
-    floor_id: ground_floor              # Home Assistant floor
-    # include_floors: [outside]        # optional: areas of more HA floors on this level
-    height: 2.6                         # optional storey height
+    floor_id: ground_floor          # a Home Assistant floor
     rooms:
-      - id: living
-        area_id: living_room            # Home Assistant area
-        rect: [0, 0, 6, 8]              # x, y, width, depth (or polygon: [[x, y], …])
-        floor: oak_herringbone          # optional finishes: floor, inside walls, one side
-        wall: paint_sage
-        wall_sides: { north: acoustic_oak }
-        lights:                         # optional: the area's lights are placed automatically
-          - { entity: light.reading_lamp, at: [1, 2] }   # metres from the room's north-west corner
-          - { entity: light.downlights, type: spot, at: [1, 1], spots: [[2, 1], [3, 1]] }  # a row on one light
-          - { entity: light.cove, type: strip, at: [0.2, 0.2], to: [4, 0.2], height: 2.4 }  # also: indirect
-        cameras:                        # optional: what it sees, red while motion is on; a tap shows it
-          - { entity: camera.hall, at: [0.3, 0.3], direction: 135, fov: 90, motion: binary_sensor.hall_motion }
-        furniture:                      # optional; the editor's library shows every type
-          - { type: sofa, at: [3, 6.5] }
-          - { type: table, at: [3, 2], rotation: 90 }
-          - { type: tv, at: [3, 7.8], rotation: 180, mount: wall, elevation: 1 }  # wall, ceiling
-          - { type: sofa_corner, at: [2, 3], mirror: true }                    # flipped left to right
-          - { type: sofa, at: [3, 4], model: polyhaven:Sofa_01, size: [1.57, 0.66], height: 0.8 }
-          - { type: wardrobe, at: [5, 0.4], model: modern:wardrobe_sliding, finish: walnut, accent: black, size: [2, 0.65], height: 2.2 }
-          - { type: car, at: [2, 3], model: modern:car_estate, entity: device_tracker.car, readings: [sensor.car_battery, sensor.car_range] }  # only while home
-          # model: modern:<kind> | polyhaven:<id> | custom:<id> | builtin (default: the card's style)
-      - { id: kitchen, area_id: kitchen, rect: [6, 0, 4, 8], floor: terrazzo, wall: tile_subway }
-      - { id: garden, area_id: garden, kind: outdoor, rect: [0, 8, 10, 6], awning: cover.awning }
-    walls:
-      - { between: [living, kitchen] }  # no wall here (open plan); side: north opens one side only
+      - { id: living, area_id: living_room, rect: [0, 0, 6, 8] }   # a Home Assistant area
+      - { id: kitchen, area_id: kitchen, rect: [6, 0, 4, 8] }
     openings:
-      # at = metres from the room's west end (north/south sides) or north end (east/west sides)
-      - { room: living, side: south, at: 1, width: 2.4, cover: cover.living_room, blind: cover.living_blind, blind_style: venetian }
-      - { room: living, side: south, at: 5, width: 0.9, type: door, hinge: right, swing: out }  # style: double, sliding, lift_slide, fixed, arch
-      - { room: kitchen, side: north, at: 1.5, width: 1, type: door, lock: lock.back_door }  # a smart lock: a tap locks
+      - { room: living, side: south, at: 1, width: 2.4, cover: cover.living_room }
   - id: first
     floor_id: first_floor
     rooms:
       - { id: bedroom, area_id: bedroom, rect: [0, 0, 10, 8] }
 ```
 
-## Development
+## Documentation
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) and [AGENTS.md](AGENTS.md) (the code, its rules and
-step-by-step recipes; coding assistants read it on their own).
+- [**The card**](docs/card.md): looks, views and modes, every option, layers, rules,
+  popups, overlays, energy, and the `show`/`announce` actions.
+- [**The editor**](docs/editor.md): tools and shortcuts, drawing rooms and walls, assigning
+  areas, roofs, finishes, the furniture library (Poly Haven, Sketchfab, uploads), backup and
+  imports.
+- [**The house format**](docs/yaml.md): the YAML reference with a full example.
+- [**AI assistants**](docs/llm.md): a prompt for any chatbot, the LLM API for Home
+  Assistant's assistants, MCP and the HTTP API.
+- [**Robots**](docs/robots.md): robot vacuums and lawn mowers, live position and
+  calibration, their maps.
+- [**Development**](docs/development.md): building, tests, adding furniture, releases.
 
-```sh
-npm install
-npm test             # unit tests (vitest)
-npm run typecheck
-npm run build        # bundles → custom_components/homeslice/frontend/ (card and editor)
-npm run deploy       # build and copy to Home Assistant over SSH (settings in .deploy.env)
-```
+## Contributing
 
-Releasing: publish a GitHub release with a tag like `v0.1.0`. The *Release* workflow builds
-the frontend, sets that version in `manifest.json` and attaches `homeslice.zip`, which HACS
-installs and offers as an update.
+Issues with ideas, bugs and screenshots are as welcome as pull requests; see
+[CONTRIBUTING.md](CONTRIBUTING.md). Help with more languages is welcome too: a new language
+is two JSON files to translate.
 
-Private house files go into `houses/` (ignored by git); `npm test` validates them too.
+## License and credits
 
-```sh
-npm run test:browser   # build, then click through the card in headless Chromium (fake hass, Playwright)
-HOMESLICE_HA_URL=ws://host:8123/api/websocket node scripts/snapshot-hass.mjs houses/home.yaml
-                       # private fixture from a real HA, used by test:browser
-HOMESLICE_HA_HTTP=http://host:8123 HOMESLICE_DASHBOARD=/dashboard-x/house node scripts/e2e-ha.mjs
-                       # read-only check against a real HA dashboard
-```
+MIT. Every feature and every built-in piece of furniture is in this repository.
 
-Screenshots land in `test-results/`.
-
-Integration tests (Python, Home Assistant's own test framework):
-
-```sh
-uv venv .venv --python 3.14
-uv pip install --python .venv/bin/python pytest-homeassistant-custom-component home-assistant-frontend
-.venv/bin/python -m pytest
-```
-
-## Adding furniture
-
-Library pieces are checked automatically (`npm test`, `frontend/assets.test.ts`): each
-built-in piece builds at several sizes, fits its box, stays under a triangle budget and
-has its names, aliases and pictures; every type has a default piece.
-After adding or changing a piece, run `node scripts/thumbnails.mjs` (pictures) and `node scripts/library-sheet.mjs` for an overview page
-(`test-results/library.html`).
-
-## License
-
-MIT. Every built-in piece is drawn in code by Homeslice; a card loads that code only
-when its house shows detailed furniture.
-
-The editor's Poly Haven library uses the [Poly Haven](https://polyhaven.com) API; its
-models are CC0. Home Assistant downloads a model (1k textures) into
-`<config>/homeslice/assets/` the first time a house uses it, and every device loads it
-from there. Homeslice is not made or endorsed by Poly Haven.
-
-**Sketchfab** works with your own account: paste your API token
-([sketchfab.com/settings/password](https://sketchfab.com/settings/password)) into the
-editor's Sketchfab tab. Home Assistant keeps it (like any integration's credentials, in its
-`.storage` folder, in its own encrypted backups, never in Homeslice's export) and sends it
-only to Sketchfab's API; browsers never see it. Search finds what your account may download:
-free models of any licence (a home is personal use, so non-commercial ones are fine too) and
-the ones you bought. A model is downloaded once into Home Assistant, checked like an upload,
-and keeps its author and licence, shown with the piece. Exports are never held back, but a
-backup or 3D export says which models in it are for your own use only (bought ones) and which
-need their author's credit when shared. Homeslice is not made or endorsed by Sketchfab.
-
-Downloads clean up after themselves: Poly Haven models and textures and Sketchfab models
-that no house has used for a week are removed (Poly Haven ones come back by themselves if
-used again). Your own uploads stay until you delete them in the library.
+Optional models and textures come from [Poly Haven](https://polyhaven.com) (CC0) and
+[Sketchfab](https://sketchfab.com) (with your own account, keeping each model's author and
+licence). Homeslice is not made or endorsed by Poly Haven or Sketchfab; see
+[the editor docs](docs/editor.md#furniture-library) for details.

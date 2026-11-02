@@ -62,7 +62,7 @@ npm run showcase         # the README's pictures (docs/images/): after changing 
   `library-preview-comment.yml`).
 - The house format is for people and language models: short, slug ids, defaults,
   room-relative positions. New fields get a default, a doc comment in `types.ts`, a line
-  in `guide.md` and the README's format section.
+  in `guide.md` and `docs/yaml.md`.
 
 ## Recipes
 
@@ -87,7 +87,7 @@ names in `i18n`, a line in `guide.md`.
 in `frontend/model/validation.test.ts`, `UPDATE_CASES=1 …`, both test suites.
 
 **A card option.** `HomesliceCardConfig` in `homeslice-card.ts` (doc comment), its control
-in `homeslice-card-editor.ts`, `cardeditor.*` texts, the README's card section.
+in `homeslice-card-editor.ts`, `cardeditor.*` texts, `docs/card.md`.
 
 **A release.** Bump `version` in `package.json` and `custom_components/homeslice/manifest.json`,
 let CI pass, then publish a GitHub release with tag `vX.Y.Z` and title `Homeslice X.Y.Z`
