@@ -742,13 +742,15 @@ test.describe.serial("editor", () => {
     // the tool stays: the next wall starts on this one's end (pressed a little off it, snapped onto it)
     assert(await page.evaluate(() => window.panel._tool === "wall"), "the wall tool did not stay");
     const end = await toPage(drawn.line[1]);
-    const c = await toPage([drawn.line[1][0], 10]);
+    // ending 4 cm short of the outside wall: it lands on the wall (the grid alone would give 9.95)
+    const c = await toPage([drawn.line[1][0], 9.96]);
     await page.mouse.move(end.x + 4, end.y + 3);
     await page.mouse.down();
     await page.mouse.move(c.x, c.y, { steps: 6 });
     await page.mouse.up();
     const second = (await walls()).filter((w) => w.line)[1];
     assert(second && JSON.stringify(second.line[0]) === JSON.stringify(drawn.line[1]), `second wall: ${JSON.stringify(await walls())}`);
+    assert(second.line[1][1] === 10, `second wall's end not on the outside wall: ${JSON.stringify(second.line)}`);
     assert(JSON.stringify((await walls()).find((w) => w.line).line) === JSON.stringify(drawn.line), "the first wall moved");
     await page.evaluate(() => window.panel.shadowRoot.activeElement?.blur());
     await page.keyboard.press("Control+z");

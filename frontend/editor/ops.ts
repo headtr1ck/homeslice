@@ -743,12 +743,14 @@ export interface SnapContext {
   tolerance: number;
   /** Corners the snapped point is joined to by a wall: it keeps that wall at 0°, 45°, 90°… */
   anchors?: Vec2[];
+  /** Walls (centre lines) to snap onto: a wall ending on another's middle meets it exactly. */
+  segments?: [Vec2, Vec2][];
 }
 
 export interface Snapped {
   p: Vec2;
   /** What it snapped to, for the hint next to the cursor. */
-  kind: "point" | "angle" | "align" | "grid" | "free";
+  kind: "point" | "wall" | "angle" | "align" | "grid" | "free";
   /** The corner snapped to (kind "point"). */
   target?: Vec2;
   /** Coordinates it lined up with (kind "align"), for guide lines. */
@@ -777,11 +779,58 @@ export function snap(p: Vec2, ctx: SnapContext): Snapped {
   const ay = snapValue(p[1], ctx.align.y, ctx.tolerance);
   const g = (v: number) => (ctx.grid > 0 ? Math.round(v / ctx.grid) * ctx.grid : v);
   const angled = snapAngle(p, ctx, ax, ay, g);
+  const onWall = snapOnWall(p, ctx, angled, ax, ay, g);
+  if (onWall) return onWall;
   if (angled) return angled;
   if (ax !== null || ay !== null)
     return { p: [round(ax ?? g(p[0])), round(ay ?? g(p[1]))], kind: "align", ...(ax !== null ? { alignX: ax } : {}), ...(ay !== null ? { alignY: ay } : {}) };
   if (ctx.grid > 0) return { p: [round(g(p[0])), round(g(p[1]))], kind: "grid" };
   return { p, kind: "free" };
+}
+
+/**
+ * Onto the nearest wall within reach: where the straight (or 45°) line from the anchor
+ * crosses it, else at an aligned coordinate along it, else on the grid along it, else the
+ * nearest point of it.
+ */
+function snapOnWall(p: Vec2, ctx: SnapContext, angled: Snapped | null, ax: number | null, ay: number | null, g: (v: number) => number): Snapped | null {
+  let best: { a: Vec2; b: Vec2; q: Vec2; d: number } | null = null;
+  for (const [a, b] of ctx.segments ?? []) {
+    const { distance, t, length } = project(p, a, b);
+    if (length < 1e-9 || t < -1e-6 || t > length + 1e-6 || distance >= ctx.tolerance || (best && distance >= best.d)) continue;
+    const u: Vec2 = [(b[0] - a[0]) / length, (b[1] - a[1]) / length];
+    best = { a, b, q: [a[0] + u[0] * t, a[1] + u[1] * t], d: distance };
+  }
+  if (!best) return null;
+  const { a, b } = best;
+  const on = (q: Vec2) => {
+    const { distance, t, length } = project(q, a, b);
+    return distance < 1e-6 && t > -1e-6 && t < length + 1e-6;
+  };
+  const result = (q: Vec2, extra: Partial<Snapped> = {}): Snapped => ({ p: [round(q[0]), round(q[1])], kind: "wall", target: [round(q[0]), round(q[1])], ...extra });
+  // the line drawn from its anchor: where it meets the wall
+  if (angled && ctx.anchors?.length) {
+    const from = ctx.anchors[0];
+    const d: Vec2 = [angled.p[0] - from[0], angled.p[1] - from[1]];
+    const w: Vec2 = [b[0] - a[0], b[1] - a[1]];
+    const den = d[0] * w[1] - d[1] * w[0];
+    if (Math.abs(den) > 1e-9) {
+      const t = ((a[0] - from[0]) * w[1] - (a[1] - from[1]) * w[0]) / den;
+      const q: Vec2 = [from[0] + d[0] * t, from[1] + d[1] * t];
+      if (on(q) && dist(q, p) < ctx.tolerance * 1.5) return result(q, { rays: angled.rays, alignX: angled.alignX, alignY: angled.alignY });
+    }
+  }
+  const vertical = Math.abs(a[0] - b[0]) < 1e-9;
+  const horizontal = Math.abs(a[1] - b[1]) < 1e-9;
+  if (vertical) {
+    const y = ay ?? g(best.q[1]);
+    if (on([a[0], y])) return result([a[0], y], ay !== null ? { alignY: ay } : {});
+  }
+  if (horizontal) {
+    const x = ax ?? g(best.q[0]);
+    if (on([x, a[1]])) return result([x, a[1]], ax !== null ? { alignX: ax } : {});
+  }
+  return result(best.q);
 }
 
 /**

@@ -912,3 +912,20 @@ describe("outline: auto", () => {
     expect(back.levels.every((l) => !l.outline)).toBe(true);
   });
 });
+
+describe("snapping onto walls", () => {
+  const ctx = (extra = {}) => ({ grid: 0.05, points: [] as Vec2[], align: { x: [] as number[], y: [] as number[] }, tolerance: 0.2, segments: [[[0, 0], [0, 6]], [[2, 3], [6, 7]]] as [Vec2, Vec2][], ...extra });
+  it("a point near a wall lands on it, on the grid along it", () => {
+    expect(snap([0.12, 2.33], ctx())).toMatchObject({ p: [0, 2.35], kind: "wall" });
+  });
+  it("a wall drawn straight from its start meets the other where the straight line crosses it", () => {
+    // drawn west from (3, 2.02): straight, so it lands on the vertical wall at y 2.02
+    expect(snap([0.1, 2.05], ctx({ anchors: [[3, 2.02]] }))).toMatchObject({ p: [0, 2.02], kind: "wall" });
+  });
+  it("onto a slanted wall: its nearest point; far from every wall: as before", () => {
+    const s = snap([4.1, 4.9], ctx());
+    expect(s.kind).toBe("wall");
+    expect(Math.abs(s.p[1] - s.p[0] - 1)).toBeLessThan(0.002);
+    expect(snap([3, 1], ctx()).kind).toBe("grid");
+  });
+});

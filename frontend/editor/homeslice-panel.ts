@@ -88,6 +88,7 @@ import {
   setPiece,
   assignArea,
   bendEdge,
+  snapValue,
   hostRoom,
   roomAt,
   divideRoom,
@@ -277,7 +278,7 @@ type Drag =
   | { kind: "pan"; start: Vec2; offset: Vec2 }
   | { kind: "underlay"; start: Vec2; origin: Vec2 }
   | { kind: "vertex"; origin: HouseInput; from: Vec2; ctx: SnapContext }
-  | { kind: "edge"; origin: HouseInput; a: Vec2; b: Vec2; startWorld: Vec2; normal: Vec2; ctx: SnapContext }
+  | { kind: "edge"; origin: HouseInput; a: Vec2; b: Vec2; startWorld: Vec2; normal: Vec2; ctx: SnapContext; faces: number[] }
   | { kind: "rect"; start: Vec2; ctx: SnapContext }
   | { kind: "stair-move"; origin: HouseInput; id: string; rect: [number, number, number, number]; startWorld: Vec2; ctx: SnapContext; moved: boolean }
   | { kind: "stair-resize"; origin: HouseInput; id: string; fixed: Vec2; ctx: SnapContext }
@@ -290,7 +291,7 @@ type Drag =
   | { kind: "measure"; ctx: SnapContext }
   | { kind: "freewall"; ctx: SnapContext }
   | { kind: "freewall-end"; origin: HouseInput; index: number; end: 0 | 1; ctx: SnapContext }
-  | { kind: "freewall-move"; origin: HouseInput; index: number; line: [Vec2, Vec2]; startWorld: Vec2; ctx: SnapContext }
+  | { kind: "freewall-move"; origin: HouseInput; index: number; line: [Vec2, Vec2]; startWorld: Vec2; ctx: SnapContext; faces: number[]; normal: Vec2 }
   | { kind: "energy-link"; from: number }
   | { kind: "robot"; origin: HouseInput; index: number; startWorld: Vec2; dock: Vec2; moved: boolean };
 
@@ -1361,11 +1362,20 @@ export class HomeslicePanel extends LitElement {
     // the ends of free-standing walls and railings: a new one starts where another ends
     for (const w of m.levels[idx]?.walls ?? [])
       for (const p of w.line ?? []) if (typeof p[0] === "number" && typeof p[1] === "number" && (!except || Math.hypot(p[0] - except[0], p[1] - except[1]) > 0.01)) points.push([p[0], p[1]]);
+    // the walls of this level: room edges, the outline, free-standing walls (not those at the corner dragged)
+    const segments: [Vec2, Vec2][] = [];
+    const away = (a: Vec2, b: Vec2) => !except || (Math.hypot(a[0] - except[0], a[1] - except[1]) > 0.01 && Math.hypot(b[0] - except[0], b[1] - except[1]) > 0.01);
+    const ring = (poly: Vec2[]) => poly.forEach((a, i) => away(a, poly[(i + 1) % poly.length]) && segments.push([a, poly[(i + 1) % poly.length]]));
+    for (const r of m.levels[idx]?.rooms ?? []) ring(roomPolygon(m, r));
+    ring(outlineScope(m, this._level).poly);
+    for (const w of m.levels[idx]?.walls ?? [])
+      if (w.line && w.line.every((q) => typeof q[0] === "number" && typeof q[1] === "number") && away(w.line[0] as Vec2, w.line[1] as Vec2)) segments.push([w.line[0] as Vec2, w.line[1] as Vec2]);
     return {
       grid: 0.05,
       points,
       align: { x: points.map((p) => p[0]), y: points.map((p) => p[1]) },
       tolerance: 10 / this._view.scale,
+      segments,
     };
   }
 
@@ -1574,7 +1584,9 @@ export class HomeslicePanel extends LitElement {
     this._opening = null;
     const freeEnd = target.closest("[data-freeend]") as SVGElement | null;
     if (freeEnd && this._freeWall !== null) {
-      this._drag = { kind: "freewall-end", origin: clone(this._model), index: this._freeWall, end: Number(freeEnd.dataset.freeend) as 0 | 1, ctx: this.snapContext() };
+      const endNo = Number(freeEnd.dataset.freeend) as 0 | 1;
+      const fw = this.levelInput?.walls?.[this._freeWall]?.line;
+      this._drag = { kind: "freewall-end", origin: clone(this._model), index: this._freeWall, end: endNo, ctx: this.snapContext(fw ? (fw[endNo] as Vec2) : undefined) };
       return;
     }
     const freeHit = target.closest("[data-freewall]") as SVGElement | null;
@@ -1592,7 +1604,10 @@ export class HomeslicePanel extends LitElement {
         const away = (p: Vec2) => line.every((q) => Math.hypot(p[0] - q[0], p[1] - q[1]) > 0.01);
         ctx.points = ctx.points.filter(away);
         ctx.align = { x: ctx.points.map((p) => p[0]), y: ctx.points.map((p) => p[1]) };
-        this._drag = { kind: "freewall-move", origin: clone(this._model), index, line, startWorld: world, ctx };
+        const len = Math.hypot(line[1][0] - line[0][0], line[1][1] - line[0][1]) || 1;
+        const normal: Vec2 = [-(line[1][1] - line[0][1]) / len, (line[1][0] - line[0][0]) / len];
+        ctx.segments = (ctx.segments ?? []).filter(([a, b]) => !(line.some((q) => Math.hypot(a[0] - q[0], a[1] - q[1]) < 0.01) && line.some((q) => Math.hypot(b[0] - q[0], b[1] - q[1]) < 0.01)));
+        this._drag = { kind: "freewall-move", origin: clone(this._model), index, line, startWorld: world, ctx, faces: this.parallelFaces(line, normal), normal };
       }
       return;
     }
@@ -1607,7 +1622,7 @@ export class HomeslicePanel extends LitElement {
       const [a, b]: [Vec2, Vec2] = JSON.parse(handle.dataset.at!);
       const len = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1;
       const normal: Vec2 = [-(b[1] - a[1]) / len, (b[0] - a[0]) / len];
-      this._drag = { kind: "edge", origin: clone(this._model), a, b, startWorld: world, normal, ctx: this.snapContext() };
+      this._drag = { kind: "edge", origin: clone(this._model), a, b, startWorld: world, normal, ctx: this.snapContext(), faces: this.parallelFaces([a, b], normal) };
       return;
     }
     const stairHandle = target.closest("[data-stairhandle]") as SVGElement | null;
@@ -1687,9 +1702,18 @@ export class HomeslicePanel extends LitElement {
       // walls move along their normal only, so right angles stay right
       const along = (world[0] - drag.startWorld[0]) * drag.normal[0] + (world[1] - drag.startWorld[1]) * drag.normal[1];
       const moved: Vec2 = [drag.a[0] + drag.normal[0] * along, drag.a[1] + drag.normal[1] * along];
-      const s = snapped(moved, { ...drag.ctx, points: [] });
+      const s = snapped(moved, { ...drag.ctx, points: [], segments: [] });
       this._guides = { x: s.alignX, y: s.alignY };
-      const snappedAlong = (s.p[0] - drag.a[0]) * drag.normal[0] + (s.p[1] - drag.a[1]) * drag.normal[1];
+      let snappedAlong = (s.p[0] - drag.a[0]) * drag.normal[0] + (s.p[1] - drag.a[1]) * drag.normal[1];
+      // in line with another wall: its centre line or either face
+      const base = drag.a[0] * drag.normal[0] + drag.a[1] * drag.normal[1];
+      const wall = free ? null : snapValue(base + along, drag.faces, 10 / this._view.scale);
+      if (wall !== null) {
+        snappedAlong = Math.round((wall - base) * 1000) / 1000;
+        const vertical = Math.abs(drag.normal[0]) > 0.999;
+        const horizontal = Math.abs(drag.normal[1]) > 0.999;
+        this._guides = vertical ? { x: wall * Math.sign(drag.normal[0]) } : horizontal ? { y: wall * Math.sign(drag.normal[1]) } : null;
+      }
       const delta: Vec2 = [drag.normal[0] * snappedAlong, drag.normal[1] * snappedAlong];
       this._model = moveEdge(drag.origin, this._level, drag.a, drag.b, delta);
       this._hint = { x: screen[0], y: screen[1], lines: [this.moveReadout(delta), ...this.roomReadout()] };
@@ -1886,7 +1910,18 @@ export class HomeslicePanel extends LitElement {
       const pulls = free ? [] : moved.map((p) => ({ p, s: snap(p, drag.ctx) })).filter((x) => x.s.kind === "point");
       const pull = pulls.sort((u, v) => Math.hypot(u.s.p[0] - u.p[0], u.s.p[1] - u.p[1]) - Math.hypot(v.s.p[0] - v.p[0], v.s.p[1] - v.p[1]))[0];
       const step = (v: number) => (free ? v : Math.round(v / 0.05) * 0.05);
-      const by: Vec2 = pull ? [d[0] + pull.s.p[0] - pull.p[0], d[1] + pull.s.p[1] - pull.p[1]] : [step(d[0]), step(d[1])];
+      let by: Vec2 = pull ? [d[0] + pull.s.p[0] - pull.p[0], d[1] + pull.s.p[1] - pull.p[1]] : [step(d[0]), step(d[1])];
+      // no corner to land on: across, in line with a parallel wall (its centre line or a face)
+      if (!pull && !free) {
+        const n = drag.normal;
+        const base = drag.line[0][0] * n[0] + drag.line[0][1] * n[1];
+        const across = d[0] * n[0] + d[1] * n[1];
+        const wall = snapValue(base + across, drag.faces, 10 / this._view.scale);
+        if (wall !== null) {
+          const shift = wall - base - (by[0] * n[0] + by[1] * n[1]);
+          by = [by[0] + n[0] * shift, by[1] + n[1] * shift];
+        }
+      }
       const line = drag.line.map((p) => [Math.round((p[0] + by[0]) * 1000) / 1000, Math.round((p[1] + by[1]) * 1000) / 1000]) as [Vec2, Vec2];
       this._guides = pull ? { ring: pull.s.p } : null;
       this._model = updateFreeWall(drag.origin, this._level, drag.index, { line });
