@@ -96,6 +96,30 @@ test.describe.serial("editor", () => {
     assert(JSON.stringify((await room("kitchen")).rect) === "[3.5,0,4.5,4]", "redo did not reapply the move");
   });
 
+  test("double-click a wall: a corner where it was clicked; double-click the corner: gone again", async () => {
+    const toScreen = (p) => page.evaluate((p) => {
+      const v = window.panel._view;
+      const r = window.panel.shadowRoot.querySelector("svg.plan").getBoundingClientRect();
+      return [r.left + p[0] * v.scale + v.ox, r.top + p[1] * v.scale + v.oy];
+    }, p);
+    const before = JSON.stringify(await room("kitchen"));
+    // the kitchen selected, then its south wall (y 4) double-clicked at x 6
+    const [cx, cy] = await toScreen([6, 2]);
+    await page.mouse.click(cx, cy);
+    const [x, y] = await toScreen([6, 4]);
+    await page.mouse.dblclick(x, y);
+    const points = (await room("kitchen")).polygon ?? [];
+    assert(points.some(([px, py]) => Math.abs(px - 6) < 0.06 && Math.abs(py - 4) < 0.01), `kitchen: ${JSON.stringify(await room("kitchen"))}`);
+    const [vx, vy] = await toScreen(points.find(([px, py]) => Math.abs(px - 6) < 0.06 && Math.abs(py - 4) < 0.01));
+    await page.mouse.dblclick(vx, vy);
+    const after = await room("kitchen");
+    assert(!(after.polygon ?? []).some(([px, py]) => Math.abs(px - 6) < 0.06 && Math.abs(py - 4) < 0.01), `corner not removed: ${JSON.stringify(after)}`);
+    await page.evaluate(() => window.panel.shadowRoot.activeElement?.blur());
+    await page.keyboard.press("Control+z");
+    await page.keyboard.press("Control+z");
+    assert(JSON.stringify(await room("kitchen")) === before, `undo: ${JSON.stringify(await room("kitchen"))}`);
+  });
+
   test("drawing a room and linking it to an area", async () => {
     await page.keyboard.press("Escape");
     await page.keyboard.press("r");
@@ -169,6 +193,9 @@ test.describe.serial("editor", () => {
     assert(railing?.type === "railing" && railing.thickness === undefined, `railing: ${JSON.stringify(railing)}`);
     await page.evaluate(() => window.panel.shadowRoot.activeElement?.blur());
     await page.keyboard.press("Control+z");
+    // the railing tool stays until Esc
+    assert(await page.evaluate(() => window.panel._tool === "railing"), "the railing tool did not stay");
+    await page.keyboard.press("Escape");
     await page.evaluate((id) => (window.panel._level = id), level);
   });
 
@@ -451,6 +478,35 @@ test.describe.serial("editor", () => {
     // nearly horizontal becomes horizontal
     assert(drawn && drawn.line[0][1] === drawn.line[1][1] && Math.abs(drawn.line[1][0] - drawn.line[0][0] - 2.5) < 0.06, `wall: ${JSON.stringify(drawn)}`);
     assert((await page.locator("homeslice-panel .inspector h2").textContent()) === "Free-standing wall", "free wall not selected");
+    // the tool stays: the next wall starts on this one's end (pressed a little off it, snapped onto it)
+    assert(await page.evaluate(() => window.panel._tool === "wall"), "the wall tool did not stay");
+    const end = await toPage(drawn.line[1]);
+    const c = await toPage([drawn.line[1][0], 10]);
+    await page.mouse.move(end.x + 4, end.y + 3);
+    await page.mouse.down();
+    await page.mouse.move(c.x, c.y, { steps: 6 });
+    await page.mouse.up();
+    const second = (await walls()).filter((w) => w.line)[1];
+    assert(second && JSON.stringify(second.line[0]) === JSON.stringify(drawn.line[1]), `second wall: ${JSON.stringify(await walls())}`);
+    assert(JSON.stringify((await walls()).find((w) => w.line).line) === JSON.stringify(drawn.line), "the first wall moved");
+    await page.evaluate(() => window.panel.shadowRoot.activeElement?.blur());
+    await page.keyboard.press("Control+z");
+    await page.keyboard.press("Escape");
+    assert(await page.evaluate(() => window.panel._tool === "select"), "Esc did not leave the wall tool");
+    // with Select: dragged by its middle, the whole wall moves (in 5 cm steps), same length
+    const mid = await toPage([(drawn.line[0][0] + drawn.line[1][0]) / 2, drawn.line[0][1]]);
+    const to = await toPage([(drawn.line[0][0] + drawn.line[1][0]) / 2 + 0.52, drawn.line[0][1] + 1.01]);
+    await page.mouse.move(mid.x, mid.y);
+    await page.mouse.down();
+    await page.mouse.move(to.x, to.y, { steps: 6 });
+    await page.mouse.up();
+    const movedLine = (await walls()).find((w) => w.line).line;
+    const off = (i, k) => Math.round((movedLine[i][k] - drawn.line[i][k]) * 100) / 100;
+    assert(off(0, 0) === 0.5 && off(1, 0) === 0.5 && off(0, 1) === 1 && off(1, 1) === 1, `moved: ${JSON.stringify(movedLine)} from ${JSON.stringify(drawn.line)}`);
+    await page.evaluate(() => window.panel.shadowRoot.activeElement?.blur());
+    await page.keyboard.press("Control+z");
+    assert(JSON.stringify((await walls()).find((w) => w.line).line) === JSON.stringify(drawn.line), "undo did not put the wall back");
+    await page.evaluate(() => (window.panel._freeWall = window.panel._model.levels[0].walls.findIndex((w) => w.line)));
     await typeInto("Thickness (cm)", 8);
     assert((await walls()).find((w) => w.line)?.thickness === 0.08, `thickness: ${JSON.stringify(await walls())}`);
     await shot(page, "editor-free-wall");

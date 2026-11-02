@@ -352,7 +352,7 @@
   "editor.wall_thickness": "Grubość (cm)",
   "editor.wall_thickness_hint": "Puste: tak jak inne ściany wewnętrzne domu ({cm} cm).",
   "editor.free_wall": "Ściana wolnostojąca",
-  "editor.free_wall_hint": "Ściana, która nie leży między dwoma pokojami. Przeciągnij jej końce, aby je przesunąć.",
+  "editor.free_wall_hint": "Ściana, która nie stoi między dwoma pomieszczeniami. Przeciągnij ją, aby ją przesunąć, a jej końce, aby je zmienić.",
   "editor.free_wall_length": "Długość (m)",
   "editor.free_wall_delete": "Usuń ścianę",
   "editor.curves": "Łukowe ściany",

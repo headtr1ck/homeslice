@@ -352,7 +352,7 @@
   "editor.wall_thickness": "Spessore (cm)",
   "editor.wall_thickness_hint": "Vuoto: come le altre pareti interne della casa ({cm} cm).",
   "editor.free_wall": "Parete isolata",
-  "editor.free_wall_hint": "Una parete che non sta tra due stanze. Trascina le estremità per spostarle.",
+  "editor.free_wall_hint": "Una parete che non sta tra due stanze. Trascinala per spostarla, le estremità per cambiarle.",
   "editor.free_wall_length": "Lunghezza (m)",
   "editor.free_wall_delete": "Elimina parete",
   "editor.curves": "Muri curvi",

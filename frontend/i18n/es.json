@@ -352,7 +352,7 @@
   "editor.wall_thickness": "Grosor (cm)",
   "editor.wall_thickness_hint": "Vacío: como las demás paredes interiores de la casa ({cm} cm).",
   "editor.free_wall": "Pared independiente",
-  "editor.free_wall_hint": "Una pared que no está entre dos habitaciones. Arrastra sus extremos para moverlos.",
+  "editor.free_wall_hint": "Una pared que no está entre dos habitaciones. Arrástrala para moverla, sus extremos para cambiarlos.",
   "editor.free_wall_length": "Longitud (m)",
   "editor.free_wall_delete": "Eliminar pared",
   "editor.curves": "Paredes curvas",

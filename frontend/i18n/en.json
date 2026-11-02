@@ -352,7 +352,7 @@
   "editor.wall_thickness": "Thickness (cm)",
   "editor.wall_thickness_hint": "Empty: like the house's other inside walls ({cm} cm).",
   "editor.free_wall": "Free-standing wall",
-  "editor.free_wall_hint": "A wall that is not between two rooms. Drag its ends to move them.",
+  "editor.free_wall_hint": "A wall that is not between two rooms. Drag it to move it, its ends to change them.",
   "editor.free_wall_length": "Length (m)",
   "editor.free_wall_delete": "Delete wall",
   "editor.curves": "Curved walls",

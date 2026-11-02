@@ -352,7 +352,7 @@
   "editor.wall_thickness": "Dicke (cm)",
   "editor.wall_thickness_hint": "Leer: wie die anderen Innenwände des Hauses ({cm} cm).",
   "editor.free_wall": "Freistehende Wand",
-  "editor.free_wall_hint": "Eine Wand, die nicht zwischen zwei Räumen liegt. Ihre Enden ziehen, um sie zu verschieben.",
+  "editor.free_wall_hint": "Eine Wand, die nicht zwischen zwei Räumen steht. Ziehen verschiebt sie, ihre Enden ändern sie.",
   "editor.free_wall_length": "Länge (m)",
   "editor.free_wall_delete": "Wand löschen",
   "editor.curves": "Gebogene Wände",

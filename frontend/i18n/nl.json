@@ -352,7 +352,7 @@
   "editor.wall_thickness": "Dikte (cm)",
   "editor.wall_thickness_hint": "Leeg: zoals de andere binnenmuren van het huis ({cm} cm).",
   "editor.free_wall": "Vrijstaande muur",
-  "editor.free_wall_hint": "Een muur die niet tussen twee kamers staat. Sleep de uiteinden om ze te verplaatsen.",
+  "editor.free_wall_hint": "Een wand die niet tussen twee ruimtes staat. Sleep hem om hem te verplaatsen, zijn uiteinden om ze te wijzigen.",
   "editor.free_wall_length": "Lengte (m)",
   "editor.free_wall_delete": "Muur verwijderen",
   "editor.curves": "Gebogen muren",

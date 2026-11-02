@@ -275,6 +275,7 @@ type Drag =
   | { kind: "measure"; ctx: SnapContext }
   | { kind: "freewall"; ctx: SnapContext }
   | { kind: "freewall-end"; origin: HouseInput; index: number; end: 0 | 1; ctx: SnapContext }
+  | { kind: "freewall-move"; origin: HouseInput; index: number; line: [Vec2, Vec2]; startWorld: Vec2; ctx: SnapContext }
   | { kind: "energy-link"; from: number }
   | { kind: "robot"; origin: HouseInput; index: number; startWorld: Vec2; dock: Vec2; moved: boolean };
 
@@ -946,7 +947,8 @@ export class HomeslicePanel extends LitElement {
       const busy =
         !!(this._room || this._wall || this._opening || this._stair || this._furn || this._energyPlace || this._robotPlace || this._robotCalib || this._settings || this._checklist) ||
         this._freeWall !== null || this._energySel !== null || this._robotSel !== null || !!this._measure || !!this._dimEdit || !!this._calib || !!this._straighten || this._underlayMove;
-      if (!busy) this._tool = "select";
+      // drawing walls or railings: one Escape is enough (the last one drawn stays selected meanwhile)
+      if (!busy || this._tool === "wall" || this._tool === "railing") this._tool = "select";
       this.clearSelection();
       this._checklist = false;
       this._pendingArea = null;
@@ -1052,6 +1054,9 @@ export class HomeslicePanel extends LitElement {
     const levels = [m.levels[idx], m.levels[idx - 1]].filter(Boolean);
     const points: Vec2[] = [];
     for (const l of levels) for (const r of l.rooms) for (const p of roomPolygon(m, r)) if (!except || Math.hypot(p[0] - except[0], p[1] - except[1]) > 0.01) points.push(p);
+    // the ends of free-standing walls and railings: a new one starts where another ends
+    for (const w of m.levels[idx]?.walls ?? [])
+      for (const p of w.line ?? []) if (typeof p[0] === "number" && typeof p[1] === "number" && (!except || Math.hypot(p[0] - except[0], p[1] - except[1]) > 0.01)) points.push([p[0], p[1]]);
     return {
       grid: 0.05,
       points,
@@ -1242,11 +1247,7 @@ export class HomeslicePanel extends LitElement {
     this._energySel = null;
     this._robotSel = null;
     this._opening = null;
-    const freeEnd = target.closest("[data-freeend]") as SVGElement | null;
-    if (freeEnd && this._freeWall !== null) {
-      this._drag = { kind: "freewall-end", origin: clone(this._model), index: this._freeWall, end: Number(freeEnd.dataset.freeend) as 0 | 1, ctx: this.snapContext() };
-      return;
-    }
+    // drawing walls: a press anywhere starts the next one (on another's end too)
     if (this._tool === "wall" || this._tool === "railing") {
       const ctx = this.snapContext();
       const p = snap(world, ctx).p;
@@ -1254,12 +1255,28 @@ export class HomeslicePanel extends LitElement {
       this._drag = { kind: "freewall", ctx };
       return;
     }
+    const freeEnd = target.closest("[data-freeend]") as SVGElement | null;
+    if (freeEnd && this._freeWall !== null) {
+      this._drag = { kind: "freewall-end", origin: clone(this._model), index: this._freeWall, end: Number(freeEnd.dataset.freeend) as 0 | 1, ctx: this.snapContext() };
+      return;
+    }
     const freeHit = target.closest("[data-freewall]") as SVGElement | null;
     if (freeHit) {
-      this._freeWall = Number(freeHit.dataset.freewall);
+      const index = Number(freeHit.dataset.freewall);
+      this._freeWall = index;
       this._room = null;
       this._wall = null;
       this._stair = null;
+      // dragged by its body: the whole wall moves (its ends snap to corners and other walls' ends)
+      const w = this.levelInput?.walls?.[index];
+      if (w?.line && w.line.every((p) => typeof p[0] === "number" && typeof p[1] === "number")) {
+        const line = (w.line as [Vec2, Vec2]).map((p) => [...p]) as [Vec2, Vec2];
+        const ctx = this.snapContext();
+        const away = (p: Vec2) => line.every((q) => Math.hypot(p[0] - q[0], p[1] - q[1]) > 0.01);
+        ctx.points = ctx.points.filter(away);
+        ctx.align = { x: ctx.points.map((p) => p[0]), y: ctx.points.map((p) => p[1]) };
+        this._drag = { kind: "freewall-move", origin: clone(this._model), index, line, startWorld: world, ctx };
+      }
       return;
     }
     this._freeWall = null;
@@ -1539,6 +1556,20 @@ export class HomeslicePanel extends LitElement {
       this._hint = { x: screen[0], y: screen[1], lines: [this.fmtM(Math.hypot(b[0] - a[0], b[1] - a[1]))] };
       return;
     }
+    if (drag.kind === "freewall-move") {
+      const d: Vec2 = [world[0] - drag.startWorld[0], world[1] - drag.startWorld[1]];
+      const moved = drag.line.map((p) => [p[0] + d[0], p[1] + d[1]] as Vec2);
+      // an end landing on a corner pulls the wall onto it; otherwise it moves in 5 cm steps
+      const pulls = free ? [] : moved.map((p) => ({ p, s: snap(p, drag.ctx) })).filter((x) => x.s.kind === "point");
+      const pull = pulls.sort((u, v) => Math.hypot(u.s.p[0] - u.p[0], u.s.p[1] - u.p[1]) - Math.hypot(v.s.p[0] - v.p[0], v.s.p[1] - v.p[1]))[0];
+      const step = (v: number) => (free ? v : Math.round(v / 0.05) * 0.05);
+      const by: Vec2 = pull ? [d[0] + pull.s.p[0] - pull.p[0], d[1] + pull.s.p[1] - pull.p[1]] : [step(d[0]), step(d[1])];
+      const line = drag.line.map((p) => [Math.round((p[0] + by[0]) * 1000) / 1000, Math.round((p[1] + by[1]) * 1000) / 1000]) as [Vec2, Vec2];
+      this._guides = pull ? { ring: pull.s.p } : null;
+      this._model = updateFreeWall(drag.origin, this._level, drag.index, { line });
+      this._hint = { x: screen[0], y: screen[1], lines: [this.moveReadout(by)] };
+      return;
+    }
     if (drag.kind === "freewall-end") {
       const w = drag.origin.levels.find((l) => l.id === this._level)?.walls?.[drag.index];
       if (!w?.line) return;
@@ -1591,11 +1622,11 @@ export class HomeslicePanel extends LitElement {
         this.commit(model);
         this._freeWall = index;
         this._room = null;
-        this._tool = "select";
+        // the tool stays: the next wall can start where this one ended (Esc or V to stop)
       }
       return;
     }
-    if (drag.kind === "vertex" || drag.kind === "edge" || drag.kind === "opening" || drag.kind === "wall" || drag.kind === "stair-move" || drag.kind === "stair-resize" || drag.kind === "light" || drag.kind === "energy" || drag.kind === "furniture" || drag.kind === "freewall-end" || drag.kind === "robot" || drag.kind === "camera") {
+    if (drag.kind === "vertex" || drag.kind === "edge" || drag.kind === "opening" || drag.kind === "wall" || drag.kind === "stair-move" || drag.kind === "stair-resize" || drag.kind === "light" || drag.kind === "energy" || drag.kind === "furniture" || drag.kind === "freewall-end" || drag.kind === "freewall-move" || drag.kind === "robot" || drag.kind === "camera") {
       if (JSON.stringify(drag.origin) !== JSON.stringify(this._model)) this.commit(this._model, drag.origin);
     } else if (drag.kind === "rect" && this._rectPreview && this._tool === "stairs") {
       const [[x0, y0], , [x1, y1]] = this._rectPreview;
@@ -1642,12 +1673,20 @@ export class HomeslicePanel extends LitElement {
 
   private onPlanDoubleClick(e: MouseEvent) {
     if (!this._model) return;
-    const handle = (e.target as Element).closest("[data-handle]") as SVGElement | null;
+    // the plan holds the pointer while pressed, so the event names the plan: ask what is under it
+    const under = (this.renderRoot as ShadowRoot).elementsFromPoint(e.clientX, e.clientY);
+    const handle = under.map((el) => el.closest("[data-handle]") as SVGElement | null).find((h) => h?.dataset.handle === "vertex") ?? under.map((el) => el.closest("[data-handle]") as SVGElement | null).find(Boolean);
     if (handle?.dataset.handle === "vertex") {
       this.commit(removeVertex(this._model, this._level, JSON.parse(handle.dataset.at!)));
     } else if (handle?.dataset.handle === "edge") {
       const [a, b]: [Vec2, Vec2] = JSON.parse(handle.dataset.at!);
-      this.commit(splitEdge(this._model, this._level, a, b, [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2]));
+      // the new corner where the wall was clicked (to the centimetre), clear of its ends
+      const r = (this.renderRoot.querySelector("svg.plan") as SVGSVGElement).getBoundingClientRect();
+      const w = this.toWorld([e.clientX - r.left, e.clientY - r.top]);
+      const len2 = (b[0] - a[0]) ** 2 + (b[1] - a[1]) ** 2 || 1;
+      const t = Math.min(0.9, Math.max(0.1, ((w[0] - a[0]) * (b[0] - a[0]) + (w[1] - a[1]) * (b[1] - a[1])) / len2));
+      const at: Vec2 = [Math.round((a[0] + t * (b[0] - a[0])) * 100) / 100, Math.round((a[1] + t * (b[1] - a[1])) * 100) / 100];
+      this.commit(splitEdge(this._model, this._level, a, b, at));
     }
   }
 

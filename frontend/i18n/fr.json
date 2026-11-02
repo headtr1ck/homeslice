@@ -352,7 +352,7 @@
   "editor.wall_thickness": "Épaisseur (cm)",
   "editor.wall_thickness_hint": "Vide : comme les autres murs intérieurs de la maison ({cm} cm).",
   "editor.free_wall": "Mur isolé",
-  "editor.free_wall_hint": "Un mur qui n'est pas entre deux pièces. Glissez ses extrémités pour les déplacer.",
+  "editor.free_wall_hint": "Un mur qui n'est pas entre deux pièces. Glissez-le pour le déplacer, ses extrémités pour les modifier.",
   "editor.free_wall_length": "Longueur (m)",
   "editor.free_wall_delete": "Supprimer le mur",
   "editor.curves": "Murs courbes",
