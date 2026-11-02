@@ -1769,8 +1769,15 @@
   "editor.roof_preset_shed": "Lessenaarsdak",
   "editor.roof_preset_flat": "Plat dak",
   "editor.tool_balcony": "Balkon of terras tekenen (B)",
-  "editor.tool_railing": "Balustrade tekenen (G)",
   "editor.terrace": "Terras",
   "editor.add_roof": "Dak",
-  "editor.arriving": "{name} komt eraan: wordt in Home Assistant gedownload"
+  "editor.arriving": "{name} komt eraan: wordt in Home Assistant gedownload",
+  "editor.help_balcony": "Sleep een rechthoek voor een balkon (bovenverdiepingen, met een balustrade aan de open zijden) of een terras (begane grond). Esc: annuleren.",
+  "editor.group_build": "Ruimtes, wanden, balustrades, balkons (R, W, G, B)",
+  "editor.tool_railing": "Balustrade tekenen (G)",
+  "editor.sub_rect": "Ruimte",
+  "editor.sub_wall": "Wand",
+  "editor.sub_railing": "Balustrade",
+  "editor.sub_balcony": "Balkon",
+  "editor.help_railing": "Sleep van het ene eind van de balustrade naar het andere: langs een vide, een traprand of een dakterras; lijnt recht of op 45° uit. Alt: niet uitlijnen. Esc: annuleren."
 }

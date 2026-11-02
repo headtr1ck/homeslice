@@ -1769,8 +1769,15 @@
   "editor.roof_preset_shed": "Single slope",
   "editor.roof_preset_flat": "Flat",
   "editor.tool_balcony": "Draw a balcony or terrace (B)",
-  "editor.tool_railing": "Draw a railing (G)",
   "editor.terrace": "Terrace",
   "editor.add_roof": "Roof",
-  "editor.arriving": "{name} is on its way: downloading into Home Assistant"
+  "editor.arriving": "{name} is on its way: downloading into Home Assistant",
+  "editor.help_balcony": "Drag a rectangle for a balcony (upper floors, with a railing on its open sides) or a terrace (ground floor). Esc: cancel.",
+  "editor.group_build": "Rooms, walls, railings, balconies (R, W, G, B)",
+  "editor.tool_railing": "Draw a railing (G)",
+  "editor.sub_rect": "Room",
+  "editor.sub_wall": "Wall",
+  "editor.sub_railing": "Railing",
+  "editor.sub_balcony": "Balcony",
+  "editor.help_railing": "Drag from one end of the railing to the other: along a gallery, a stair edge or a roof terrace; it snaps straight or to 45°. Alt: no snapping. Esc: cancel."
 }

@@ -1769,8 +1769,15 @@
   "editor.roof_preset_shed": "Monopente",
   "editor.roof_preset_flat": "Plat",
   "editor.tool_balcony": "Dessiner un balcon ou une terrasse (B)",
-  "editor.tool_railing": "Dessiner un garde-corps (G)",
   "editor.terrace": "Terrasse",
   "editor.add_roof": "Toit",
-  "editor.arriving": "{name} arrive : téléchargement dans Home Assistant"
+  "editor.arriving": "{name} arrive : téléchargement dans Home Assistant",
+  "editor.help_balcony": "Tracez un rectangle pour un balcon (étages, avec un garde-corps sur les côtés ouverts) ou une terrasse (rez-de-chaussée). Échap : annuler.",
+  "editor.group_build": "Pièces, murs, garde-corps, balcons (R, W, G, B)",
+  "editor.tool_railing": "Dessiner un garde-corps (G)",
+  "editor.sub_rect": "Pièce",
+  "editor.sub_wall": "Mur",
+  "editor.sub_railing": "Garde-corps",
+  "editor.sub_balcony": "Balcon",
+  "editor.help_railing": "Glissez d'un bout du garde-corps à l'autre : le long d'une mezzanine, d'un bord d'escalier ou d'un toit-terrasse ; aimanté droit ou à 45°. Alt : sans aimantation. Échap : annuler."
 }

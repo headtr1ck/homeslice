@@ -14,6 +14,13 @@ describe("translations", () => {
       for (const key of Object.keys(en)) expect([key, placeholders(t[key])]).toEqual([key, placeholders(en[key])]);
     });
   }
+  it("every editor tool has its name and its hint", () => {
+    // keys built from a tool's name (`editor.help_${tool}`) are not checked by the compiler
+    const panel = readFileSync("frontend/editor/homeslice-panel.ts", "utf8");
+    const tools = [...panel.matchAll(/\{ tool: "(\w+)", icon:/g)].map((m) => m[1]);
+    expect(tools).toContain("balcony");
+    for (const tool of tools) expect([tool, `editor.tool_${tool}` in en, `editor.help_${tool}` in en]).toEqual([tool, true, true]);
+  });
   it("picks the language, falls back to English", () => {
     expect(localize("de", "card.all_floors")).not.toBe(localize("en", "card.all_floors"));
     expect(localize("de-AT", "card.all_floors")).toBe(localize("de", "card.all_floors"));

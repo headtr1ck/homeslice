@@ -114,8 +114,9 @@ repository itself doesn't contain the built frontend; build it with `npm run bui
    - **1. Rooms & walls:** drag rooms into shape, or upload the floor plan (level
      inspector), set its scale with two points of a known length, and draw rooms over
      it (`R`). Walls appear by themselves; a wall between two rooms can be dragged on its
-     own or switched to *open* (e.g. an open kitchen). Stairs: `S`; balconies and terraces:
-     `B`; railings (galleries, stair edges): `G`; free-standing walls: `W`. The roof is a level
+     own or switched to *open* (e.g. an open kitchen). Stairs: `S`. The rooms button holds
+     more: room (`R`), free-standing wall (`W`), railing (`G`, galleries and stair edges) and
+     balcony or terrace (`B`). The roof is a level
      of its own: **+ Roof** under the floors, then presets, more parts and solar panels.
      Select a room to give its floor and walls a finish (wood, tiles, stone, paint,
      acoustic panels, brick…), one wall a different one, and the outline for the facade.

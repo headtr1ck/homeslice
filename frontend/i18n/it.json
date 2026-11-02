@@ -1769,8 +1769,15 @@
   "editor.roof_preset_shed": "Una falda",
   "editor.roof_preset_flat": "Piano",
   "editor.tool_balcony": "Disegna un balcone o una terrazza (B)",
-  "editor.tool_railing": "Disegna una ringhiera (G)",
   "editor.terrace": "Terrazza",
   "editor.add_roof": "Tetto",
-  "editor.arriving": "{name} sta arrivando: download in Home Assistant"
+  "editor.arriving": "{name} sta arrivando: download in Home Assistant",
+  "editor.help_balcony": "Trascina un rettangolo per un balcone (piani superiori, con ringhiera sui lati aperti) o una terrazza (piano terra). Esc: annulla.",
+  "editor.group_build": "Stanze, pareti, ringhiere, balconi (R, W, G, B)",
+  "editor.tool_railing": "Disegna una ringhiera (G)",
+  "editor.sub_rect": "Stanza",
+  "editor.sub_wall": "Parete",
+  "editor.sub_railing": "Ringhiera",
+  "editor.sub_balcony": "Balcone",
+  "editor.help_railing": "Trascina da un'estremità della ringhiera all'altra: lungo un soppalco, il bordo di una scala o una terrazza sul tetto; si aggancia dritta o a 45°. Alt: senza aggancio. Esc: annulla."
 }

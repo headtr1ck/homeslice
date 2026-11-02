@@ -1769,8 +1769,15 @@
   "editor.roof_preset_shed": "Pultdach",
   "editor.roof_preset_flat": "Flachdach",
   "editor.tool_balcony": "Balkon oder Terrasse zeichnen (B)",
-  "editor.tool_railing": "Geländer zeichnen (G)",
   "editor.terrace": "Terrasse",
   "editor.add_roof": "Dach",
-  "editor.arriving": "{name} kommt: wird in Home Assistant heruntergeladen"
+  "editor.arriving": "{name} kommt: wird in Home Assistant heruntergeladen",
+  "editor.help_balcony": "Rechteck ziehen für einen Balkon (obere Etagen, mit Geländer an den offenen Seiten) oder eine Terrasse (Erdgeschoss). Esc: abbrechen.",
+  "editor.group_build": "Räume, Wände, Geländer, Balkone (R, W, G, B)",
+  "editor.tool_railing": "Geländer zeichnen (G)",
+  "editor.sub_rect": "Raum",
+  "editor.sub_wall": "Wand",
+  "editor.sub_railing": "Geländer",
+  "editor.sub_balcony": "Balkon",
+  "editor.help_railing": "Von einem Ende des Geländers zum anderen ziehen: an einer Galerie, einer Treppenkante oder einer Dachterrasse; rastet gerade oder auf 45° ein. Alt: ohne Einrasten. Esc: abbrechen."
 }

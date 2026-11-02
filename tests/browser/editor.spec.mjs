@@ -139,7 +139,16 @@ test.describe.serial("editor", () => {
     await page.evaluate(() => window.panel.shadowRoot.activeElement?.blur());
     await page.keyboard.press("Control+z");
     // the balcony tool: a balcony wherever it is drawn (here inside the outline, as on a loggia)
-    await page.locator('homeslice-panel button.tool[data-tool="balcony"]').click();
+    // one toolbar button for rooms, walls, railings and balconies: its sub-tools named over the plan
+    await page.locator('homeslice-panel aside.tools button[data-group="build"]').click();
+    const subs = await page.locator("homeslice-panel .sub-tools button").evaluateAll((els) => els.map((e) => `${e.querySelector("span").textContent} ${e.querySelector("kbd").textContent}`));
+    assert(JSON.stringify(subs) === JSON.stringify(["Room R", "Wall W", "Railing G", "Balcony B"]), `sub-tools: ${JSON.stringify(subs)}`);
+    await page.locator('homeslice-panel .sub-tools button[data-sub-tool="balcony"]').click();
+    const hint = await page.locator("homeslice-panel .hint-bar").textContent();
+    assert(hint.includes("Drag a rectangle for a balcony") && !hint.includes("editor."), `hint: ${hint}`);
+    await shot(page, "editor-sub-tools");
+    // the toolbar button now stands for the balcony
+    assert((await page.locator('homeslice-panel aside.tools button[data-group="build"]').getAttribute("data-tool")) === "balcony", "group button");
     const drag = async (a, b) => {
       const [ax, ay] = await toScreen(a);
       const [bx, by] = await toScreen(b);
@@ -153,7 +162,7 @@ test.describe.serial("editor", () => {
     assert(loggia?.kind === "outdoor" && loggia.railing === "metal" && loggia.id.startsWith("balcony"), `loggia: ${JSON.stringify(loggia)}`);
     await page.evaluate(() => window.panel.shadowRoot.activeElement?.blur());
     await page.keyboard.press("Control+z");
-    // the railing tool (G): a railing, not a wall
+    // the railing sub-tool (G): a railing, not a wall
     await page.keyboard.press("g");
     await drag([1, 3], [3, 3]);
     const railing = await page.evaluate(() => window.panel._model.levels[1].walls?.at(-1));

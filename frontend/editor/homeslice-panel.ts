@@ -162,13 +162,13 @@ function readLayers(): Record<Layer, boolean> {
   }
 }
 
-/** The toolbar: tool, icon, shortcut. */
-const TOOLS: { tool: Tool; icon: string; key: string }[] = [
+/** The tools: tool, icon, shortcut, and the toolbar button they share (its sub-tools, shown in a bar over the plan). */
+const TOOLS: { tool: Tool; icon: string; key: string; group?: "build" }[] = [
   { tool: "select", icon: "mdi:cursor-default-outline", key: "V" },
-  { tool: "rect", icon: "mdi:vector-square-plus", key: "R" },
-  { tool: "wall", icon: "mdi:wall", key: "W" },
-  { tool: "balcony", icon: "mdi:balcony", key: "B" },
-  { tool: "railing", icon: "mdi:fence", key: "G" },
+  { tool: "rect", icon: "mdi:vector-square-plus", key: "R", group: "build" },
+  { tool: "wall", icon: "mdi:wall", key: "W", group: "build" },
+  { tool: "railing", icon: "mdi:fence", key: "G", group: "build" },
+  { tool: "balcony", icon: "mdi:balcony", key: "B", group: "build" },
   { tool: "stairs", icon: "mdi:stairs", key: "S" },
   { tool: "opening", icon: "mdi:window-closed-variant", key: "D" },
   { tool: "furniture", icon: "mdi:sofa-outline", key: "F" },
@@ -425,6 +425,8 @@ export class HomeslicePanel extends LitElement {
   private _saved = "";
   private _error = "";
   private _rectPreview: Vec2[] | null = null;
+  /** The sub-tool last used in each toolbar group. */
+  private _lastInGroup: Record<string, Tool> = {};
   /** A piece on its way (downloading into Home Assistant, then loading): where it will land, and what it is. */
   private _arriving: { at: Vec2; size: Vec2; name: string; bytes?: number } | null = null;
   /** Level being dragged in the level list (display indexes, top first). */
@@ -866,7 +868,30 @@ export class HomeslicePanel extends LitElement {
     writePref("homeslice-layers", JSON.stringify(this._show));
   }
 
+  /** The sub-tool a group's toolbar button stands for: the one in use, else the last one used. */
+  private groupTool(group: string): Tool {
+    const members = TOOLS.filter((t) => t.group === group);
+    const current = members.find((t) => t.tool === this._tool) ?? members.find((t) => t.tool === this._lastInGroup[group]) ?? members[0];
+    return current.tool;
+  }
+
+  /** While a sub-tool is in use: its siblings, named, over the plan. */
+  private renderSubTools() {
+    const group = TOOLS.find((t) => t.tool === this._tool)?.group;
+    if (!group) return nothing;
+    return html`<div class="sub-tools" role="toolbar" aria-label=${this.t(`editor.group_${group}` as StringKey)}>
+      ${TOOLS.filter((t) => t.group === group).map(
+        ({ tool, icon, key }) => html`<button class=${this._tool === tool ? "active" : ""} data-sub-tool=${tool} aria-pressed=${this._tool === tool}
+          title=${this.t(`editor.tool_${tool}` as StringKey)} @click=${() => this.setTool(tool)}>
+          <ha-icon icon=${icon}></ha-icon><span>${this.t(`editor.sub_${tool}` as StringKey)}</span><kbd>${key}</kbd>
+        </button>`,
+      )}
+    </div>`;
+  }
+
   private setTool(tool: Tool) {
+    const group = TOOLS.find((t) => t.tool === tool)?.group;
+    if (group) this._lastInGroup = { ...this._lastInGroup, [group]: tool };
     // adding furniture or devices shows them
     if (tool === "furniture" && !this._show.furniture) this.toggleLayer("furniture", true);
     if (tool === "devices" && !this._show.devices) this.toggleLayer("devices", true);
@@ -1561,8 +1586,8 @@ export class HomeslicePanel extends LitElement {
       this._linePreview = null;
       if (Math.hypot(b[0] - a[0], b[1] - a[1]) >= 0.2) {
         let { model, index } = addFreeWall(this._model, this._level, a, b);
-        // the railing tool: a railing along a gallery or stair edge, or round a roof terrace
-        if (this._tool === "railing") model = updateFreeWall(model, this._level, index, { type: "railing", railing: "metal" });
+        // the railing sub-tool: a railing along a gallery or stair edge, or round a roof terrace
+        if (this._tool === "railing") model = updateFreeWall(model, this._level, index, { type: "railing" });
         this.commit(model);
         this._freeWall = index;
         this._room = null;
@@ -2136,13 +2161,15 @@ export class HomeslicePanel extends LitElement {
         : nothing}
       <main>
         <aside class="tools">
-          ${TOOLS.map(
-            ({ tool, icon }) => html`<button class="tool ${this._tool === tool ? "active" : ""}" data-tool=${tool} title=${this.t(`editor.tool_${tool}` as StringKey)}
-              aria-label=${this.t(`editor.tool_${tool}` as StringKey)} aria-pressed=${this._tool === tool}
+          ${TOOLS.filter((t) => !t.group || t.tool === this.groupTool(t.group)).map(({ tool, icon, group }) => {
+            const active = group ? TOOLS.some((t) => t.group === group && t.tool === this._tool) : this._tool === tool;
+            const label = this.t((group ? `editor.group_${group}` : `editor.tool_${tool}`) as StringKey);
+            return html`<button class="tool ${active ? "active" : ""} ${group ? "group" : ""}" data-tool=${tool} data-group=${group ?? nothing} title=${label}
+              aria-label=${label} aria-pressed=${active}
               @click=${() => this.setTool(tool)}>
               <ha-icon icon=${icon}></ha-icon>
-            </button>`,
-          )}
+            </button>`;
+          })}
           <span class="divider" role="separator"></span>
           ${LAYERS.map(
             ({ layer, icon }) => html`<button class="layer ${this._show[layer] ? "active" : ""}" data-layer=${layer} title=${this.t(`editor.show_${layer}` as StringKey)}
@@ -2191,7 +2218,7 @@ export class HomeslicePanel extends LitElement {
           ${this._hint
             ? html`<div class="hint" style="left:${this._hint.x + 16}px;top:${this._hint.y + 16}px">${this._hint.lines.map((l) => html`<div>${l}</div>`)}</div>`
             : nothing}
-          ${this.renderHint()}
+          <div class="plan-top">${this.renderSubTools()} ${this.renderHint()}</div>
         </section>
         <div class="side-handle" role="separator" aria-orientation="vertical" aria-label=${this.t("editor.side_resize")} title=${this.t("editor.side_resize")}
           @pointerdown=${this.onSideDown} @pointermove=${this.onSideMove} @pointerup=${this.onSideUp} @pointercancel=${this.onSideUp}
@@ -5944,8 +5971,7 @@ export class HomeslicePanel extends LitElement {
     }
     svg.plan.tool-rect,
     svg.plan.tool-balcony,
-    svg.plan.tool-wall,
-    svg.plan.tool-railing {
+    svg.plan.tool-wall {
       cursor: crosshair;
     }
     .gridline {
@@ -6872,11 +6898,63 @@ export class HomeslicePanel extends LitElement {
       font-variant-numeric: tabular-nums;
       white-space: nowrap;
     }
-    .hint-bar {
+    .plan-top {
       position: absolute;
       left: 10px;
       top: 10px;
-      max-width: min(60ch, calc(100% - 20px));
+      right: 10px;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 8px;
+      pointer-events: none;
+    }
+    .plan-top > * {
+      pointer-events: auto;
+    }
+    .sub-tools {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      padding: 4px;
+      border-radius: 10px;
+      background: color-mix(in srgb, var(--card-background-color, #1c1c1c) 92%, transparent);
+      border: 1px solid var(--divider-color, #444);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+    }
+    .sub-tools button {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      min-height: 36px;
+      padding: 0 10px;
+      border-radius: 8px;
+    }
+    .sub-tools button.active {
+      background: var(--primary-color, #03a9f4);
+      color: var(--text-primary-color, #fff);
+    }
+    .sub-tools kbd {
+      font: inherit;
+      font-size: 11px;
+      opacity: 0.65;
+    }
+    .tools button.group {
+      position: relative;
+    }
+    /* a corner mark: there is more under this button */
+    .tools button.group::after {
+      content: "";
+      position: absolute;
+      right: 4px;
+      bottom: 4px;
+      border: 4px solid transparent;
+      border-right-color: currentColor;
+      border-bottom-color: currentColor;
+      opacity: 0.6;
+    }
+    .hint-bar {
+      max-width: min(60ch, 100%);
       display: flex;
       align-items: flex-start;
       gap: 8px;
