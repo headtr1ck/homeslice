@@ -321,7 +321,7 @@ type Drag =
   | { kind: "camera"; origin: HouseInput; room: string; index: number; startWorld: Vec2; moved: boolean }
   | { kind: "light"; origin: HouseInput; entity: string; room: string; startWorld: Vec2; ctx: SnapContext; moved: boolean; part?: number | "to" }
   | { kind: "wall"; origin: HouseInput; a: Vec2; b: Vec2; startWorld: Vec2; normal: Vec2; thickness: number; faces: number[] }
-  | { kind: "opening"; origin: HouseInput; src: OpeningSource; axis: 0 | 1; startWorld: Vec2; at: number; snaps: OpeningSnaps }
+  | { kind: "opening"; origin: HouseInput; base?: HouseInput; src: OpeningSource; axis: 0 | 1; startWorld: Vec2; at: number; snaps: OpeningSnaps; room: string }
   | { kind: "measure"; ctx: SnapContext }
   | { kind: "freewall"; ctx: SnapContext }
   | { kind: "freewall-end"; origin: HouseInput; index: number; end: 0 | 1; ctx: SnapContext }
@@ -2243,7 +2243,7 @@ export class HomeslicePanel extends LitElement {
         this.clearSelection();
         this._opening = sel;
         const axis = o.side === "north" || o.side === "south" ? 0 : 1;
-        this._drag = { kind: "opening", origin: clone(this._model), src: sel.src, axis, startWorld: world, at: o.at, snaps: this.openingSnaps(sel, o, axis) };
+        this._drag = { kind: "opening", origin: clone(this._model), src: sel.src, axis, startWorld: world, at: o.at, snaps: this.openingSnaps(sel, o, axis), room: sel.room };
         return;
       }
     }
@@ -2562,6 +2562,8 @@ export class HomeslicePanel extends LitElement {
       return;
     }
     if (drag.kind === "opening") {
+      // dragged off its wall onto another one: it moves there
+      if (drag.src.kind === "level" && this.rehomeOpening(drag, world)) return;
       const delta = world[drag.axis] - drag.startWorld[drag.axis];
       const { origin, width, edges, centres } = drag.snaps;
       const start = origin + drag.at + delta;
@@ -2577,7 +2579,7 @@ export class HomeslicePanel extends LitElement {
       const raw = best ? start + best.d - origin : Math.round((start - origin) / 0.05) * 0.05;
       const at = Math.max(0, raw);
       this._guides = best ? (drag.axis === 0 ? { x: best.guide } : { y: best.guide }) : null;
-      this._model = updateOpening(drag.origin, this._level, drag.src, { at: Math.round(at * 100) / 100 });
+      this._model = updateOpening(drag.base ?? drag.origin, this._level, drag.src, { at: Math.round(at * 100) / 100 });
       const o = readOpening(this._model, this._level, drag.src);
       this._hint = { x: screen[0], y: screen[1], lines: [this.t("editor.opening_at", { at: this.n(o?.at ?? 0), width: this.n(o?.width ?? 0) })] };
       return;
@@ -4844,6 +4846,52 @@ export class HomeslicePanel extends LitElement {
   }
 
   /** Room edges and centre, and the doors and windows stacked above and below, along the wall. */
+  /**
+   * A door or window dragged well off its wall, over another wall: moved onto it (its own
+   * settings kept), the drag going on along the new wall. True if it moved.
+   */
+  private rehomeOpening(drag: Extract<Drag, { kind: "opening" }>, world: Vec2): boolean {
+    const base = drag.base ?? drag.origin;
+    const o = readOpening(base, this._level, drag.src);
+    const poly = o ? this.levelInputRoomPolygonOf(base, o.room) : null;
+    if (!o || !poly) return false;
+    // how far from its own wall the pointer is
+    const { min, max } = bbox(poly);
+    const across = o.side === "north" ? min[1] : o.side === "south" ? max[1] : o.side === "west" ? min[0] : max[0];
+    const off = Math.abs(world[drag.axis === 0 ? 1 : 0] - across);
+    if (off < 0.4) return false;
+    // the wall under the pointer (whatever the tool): the nearest one, within its thickness or a few pixels
+    let wall: { line: [Vec2, Vec2]; rooms: string[] } | null = null;
+    let best = Infinity;
+    for (const w of this.levelWalls()) {
+      if (!w.rooms.length || w.type === "open") continue;
+      const { distance, t, length } = project(world, w.line[0], w.line[1]);
+      if (t < 0 || t > length) continue;
+      const reach = Math.max(w.thickness / 2, 8 / this._view.scale);
+      if (distance <= reach && distance < best) [wall, best] = [{ line: w.line, rooms: w.rooms }, distance];
+    }
+    if (!wall) return false;
+    // its room if the wall is one of its room's, else the room on the side it came from
+    const room = wall.rooms.includes(o.room) ? o.room : (wall.rooms.find((r) => r === drag.room) ?? wall.rooms[0]);
+    const target = room ? this.levelInputRoomPolygonOf(base, room) : null;
+    const side = target ? sideOfRoom(target, wall.line[0], wall.line[1]) : null;
+    if (!target || !side || (room === o.room && side === o.side)) return false;
+    const axis = side === "north" || side === "south" ? 0 : 1;
+    const from = Math.min(...target.map((p) => p[axis]));
+    const at = Math.max(0, Math.round((world[axis] - from - o.width / 2) / 0.05) * 0.05);
+    const { model, source } = addOpening(deleteOpening(base, this._level, drag.src), this._level, { ...o, room, side, at: Math.round(at * 100) / 100 });
+    this._model = model;
+    const moved = readOpening(model, this._level, source)!;
+    this._opening = { src: source, room };
+    this._drag = { ...drag, base: model, src: source, axis, startWorld: world, at: moved.at, snaps: this.openingSnaps({ src: source, room }, moved, axis), room };
+    return true;
+  }
+
+  private levelInputRoomPolygonOf(m: HouseInput, roomId: string): Vec2[] | null {
+    const r = m.levels.find((l) => l.id === this._level)?.rooms.find((x) => x.id === roomId);
+    return r ? roomPolygon(m, r) : null;
+  }
+
   private openingSnaps(sel: { src: OpeningSource; room: string }, o: OpeningInput, axis: 0 | 1): OpeningSnaps {
     const poly = this.levelInputRoomPolygon(sel.room) ?? [];
     const along = poly.map((p) => p[axis]);

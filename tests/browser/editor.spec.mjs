@@ -158,6 +158,43 @@ test.describe.serial("editor", () => {
     await page.keyboard.press("Escape");
   });
 
+  test("a door dragged off its wall onto another one moves there, with its settings", async () => {
+    await page.keyboard.press("Escape");
+    await page.keyboard.press("Escape");
+    const before = JSON.stringify(await model());
+    // clear of the hint bar at the plan's top
+    await page.evaluate(() => (window.panel._view = { ...window.panel._view, oy: window.panel._view.oy + 160 }));
+    const toScreen = (p) => page.evaluate((p) => {
+      const v = window.panel._view;
+      const r = window.panel.shadowRoot.querySelector("svg.plan").getBoundingClientRect();
+      return [r.left + p[0] * v.scale + v.ox, r.top + p[1] * v.scale + v.oy];
+    }, p);
+    const door = await page.evaluate(() => {
+      const l = [...window.panel.shadowRoot.querySelectorAll("svg.plan [data-opening]")].find((x) => JSON.parse(x.dataset.opening).room === "hall");
+      const r = l.getBoundingClientRect();
+      return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+    });
+    const hallDoor = (m) => m.levels[0].openings.find((o) => o.room === "hall" && o.type === "door");
+    const was = hallDoor(await model());
+    assert(was?.side === "north", `the hall's door: ${JSON.stringify(was)}`);
+    // down onto the hall's south wall (to the living room), 1.5 m along
+    const [tx, ty] = await toScreen([1.5, 4]);
+    await page.mouse.move(door.x, door.y);
+    await page.mouse.down();
+    await page.mouse.move(door.x, (door.y + ty) / 2, { steps: 4 });
+    await page.mouse.move(tx, ty, { steps: 6 });
+    await page.mouse.up();
+    const moved = (await model()).levels[0].openings.find((o) => o.type === "door" && (o.room === "hall" ? o.side === "south" : o.room === "living" && o.side === "north"));
+    assert(moved && moved.width === was.width && Math.abs(moved.at + moved.width / 2 - 1.5) < 0.1, `moved: ${JSON.stringify((await model()).levels[0].openings)}`);
+    assert(!(await model()).levels[0].openings.some((o) => o.room === "hall" && o.side === "north" && o.type === "door"), "the door is still on the north wall");
+    // one step to undo
+    await page.evaluate(() => window.panel.shadowRoot.activeElement?.blur());
+    await page.keyboard.press("Control+z");
+    assert(JSON.stringify(await model()) === before, "undo did not put the door back");
+    await page.keyboard.press("Escape");
+    await page.evaluate(() => window.panel.fitView());
+  });
+
   test("an inside wall with nothing on its other side can be selected too", async () => {
     await page.keyboard.press("Escape");
     await page.keyboard.press("Escape");
