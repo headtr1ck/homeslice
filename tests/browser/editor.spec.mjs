@@ -912,6 +912,31 @@ test.describe.serial("editor", () => {
     await page.evaluate((room) => (window.panel._room = room), room);
     await page.locator('homeslice-panel button[data-sketchfab="bought1"]').click();
     await page.waitForFunction(() => window.panel._model.levels.some((l) => l.rooms.some((r) => (r.furniture ?? []).some((f) => f.model === "custom:" + window.panel._customModels.find((m) => m.uid === "bought1")?.id))), null, { timeout: 10000 });
+    // dragged from the results onto a room: downloaded, then placed where it was dropped
+    // (the placed piece is selected: back to the library first)
+    await page.evaluate(() => {
+      window.panel._furn = null;
+      window.panel._room = null;
+    });
+    await page.locator('homeslice-panel button[data-sketchfab="free1"]').waitFor();
+    const target = await page.locator("homeslice-panel svg.plan g[data-room] polygon").first().boundingBox();
+    const dropped = await page.evaluate(({ x, y }) => {
+      const root = window.panel.shadowRoot;
+      const dt = new DataTransfer();
+      root.querySelector('button[data-sketchfab="free1"]').dispatchEvent(new DragEvent("dragstart", { bubbles: true, composed: true, dataTransfer: dt }));
+      const plan = root.querySelector("svg.plan");
+      const at = { bubbles: true, composed: true, cancelable: true, dataTransfer: dt, clientX: x, clientY: y };
+      const over = new DragEvent("dragover", at);
+      plan.dispatchEvent(over);
+      if (!over.defaultPrevented) return "refused";
+      plan.dispatchEvent(new DragEvent("drop", at));
+      return "ok";
+    }, { x: target.x + target.width / 2, y: target.y + target.height / 2 });
+    assert(dropped === "ok", "the plan refused the drop");
+    await page.waitForFunction(() => {
+      const id = window.panel._customModels?.find((m) => m.uid === "free1")?.id;
+      return id && window.panel._model.levels.some((l) => l.rooms.some((r) => (r.furniture ?? []).some((f) => f.model === "custom:" + id)));
+    }, null, { timeout: 10000 });
     // the backup still downloads, and says the bought model is for this home only
     await page.evaluate(() => (window.panel._room = null));
     await page.locator("homeslice-panel header button[aria-label='House settings']").click();
@@ -922,6 +947,8 @@ test.describe.serial("editor", () => {
     assert(notice.includes("For your own backup only") && notice.includes("Bought sofa"), `notice: ${notice}`);
     await page.locator("homeslice-panel header button[aria-label='House settings']").click();
     await page.evaluate(() => window.panel.shadowRoot.activeElement?.blur());
+    // the two pieces placed
+    await page.keyboard.press("Control+z");
     await page.keyboard.press("Control+z");
   });
 

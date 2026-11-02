@@ -4678,22 +4678,34 @@ export class HomeslicePanel extends LitElement {
     }
   }
 
-  /** Downloads a model into Home Assistant (once) and places it in the room, if one is picked. */
-  private async sketchfabFetch(hit: SketchfabHit, room: RoomInput | null) {
-    if (this._sfBusy) return;
-    this._sfBusy = hit.uid;
+  /** A Sketchfab model in Home Assistant: downloaded once (null when that fails: the reason is shown). */
+  private async sketchfabModel(uid: string): Promise<CustomAsset | null> {
+    const known = this._customModels?.find((m) => m.source === "sketchfab" && (m as { uid?: string }).uid === uid);
+    if (known) return known;
+    if (this._sfBusy) return null;
+    this._sfBusy = uid;
     this._sfError = "";
     try {
-      const known = this._customModels?.find((m) => m.source === "sketchfab" && (m as { uid?: string }).uid === hit.uid);
-      const stored = known ?? (await this._hass!.callWS<CustomAsset>({ type: "homeslice/sketchfab/fetch", uid: hit.uid }));
-      if (!known) this._customModels = [...(this._customModels ?? []), stored];
-      const item: LibraryItem = { key: `custom:${stored.id}`, type: "item", model: `custom:${stored.id}`, name: stored.name, thumb: hit.thumbnail ?? "" };
-      if (room) await this.addFurnitureAt(item, labelPoint(this.inner(room)), room.id);
-      else this._sfError = this.t("editor.sketchfab_added", { name: stored.name });
+      const stored = await this._hass!.callWS<CustomAsset>({ type: "homeslice/sketchfab/fetch", uid });
+      this._customModels = [...(this._customModels ?? []), stored];
+      return stored;
     } catch (err) {
       this._sfError = String((err as { message?: string }).message ?? err);
+      return null;
     } finally {
       this._sfBusy = null;
+    }
+  }
+
+  /** The library item of a Sketchfab result (placing it downloads it first). */
+  private sketchfabItem = (hit: SketchfabHit): LibraryItem => ({ key: `sketchfab:${hit.uid}`, type: "item", model: `sketchfab:${hit.uid}`, name: hit.name, thumb: hit.thumbnail ?? "" });
+
+  /** A click on a result: placed in the picked room, else just downloaded (then in Custom). */
+  private async sketchfabFetch(hit: SketchfabHit, room: RoomInput | null) {
+    if (room) await this.addFurnitureAt(this.sketchfabItem(hit), labelPoint(this.inner(room)), room.id);
+    else {
+      const stored = await this.sketchfabModel(hit.uid);
+      if (stored) this._sfError = this.t("editor.sketchfab_added", { name: stored.name });
     }
   }
 
@@ -4735,7 +4747,14 @@ export class HomeslicePanel extends LitElement {
         ${(res?.results ?? []).map(
           (hit) => html`<div class="piece-wrap">
             <button class="piece ${this._sfBusy === hit.uid ? "placing" : ""}" data-sketchfab=${hit.uid} title=${`${hit.name} — ${[hit.author, hit.licence.label].filter(Boolean).join(" · ")}`}
-              ?disabled=${!!this._sfBusy} @click=${() => void this.sketchfabFetch(hit, room)}>
+              draggable="true" ?disabled=${!!this._sfBusy}
+              @dragstart=${(e: DragEvent) => {
+                this.libraryDrag = this.sketchfabItem(hit);
+                e.dataTransfer?.setData("text/plain", hit.uid);
+                if (e.dataTransfer) e.dataTransfer.effectAllowed = "copy";
+              }}
+              @dragend=${() => (this.libraryDrag = null)}
+              @click=${() => void this.sketchfabFetch(hit, room)}>
               ${hit.thumbnail ? html`<img src=${hit.thumbnail} alt="" loading="lazy" draggable="false" />` : html`<span class="no-thumb"><ha-icon icon="mdi:cube-outline"></ha-icon></span>`}
               <span>${hit.name}</span>
               <small class="muted">${[hit.licence.label, mb(hit.bytes)].filter(Boolean).join(" · ")}</small>
@@ -4789,6 +4808,12 @@ export class HomeslicePanel extends LitElement {
 
   /** Adds a piece where it was dropped (wall pieces go against the nearest wall) and selects it. */
   private async addFurnitureAt(item: LibraryItem, world: Vec2, roomId?: string) {
+    // a Sketchfab model: into Home Assistant first (once), then placed like an upload
+    if (item.model.startsWith("sketchfab:")) {
+      const stored = await this.sketchfabModel(item.model.slice(10));
+      if (!stored) return;
+      item = { ...item, key: `custom:${stored.id}`, model: `custom:${stored.id}`, name: stored.name };
+    }
     const type = item.type;
     let size = item.size;
     let height = item.height;
