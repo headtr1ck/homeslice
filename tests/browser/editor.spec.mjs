@@ -160,6 +160,9 @@ test.describe.serial("editor", () => {
     await page.mouse.up();
     const added = await page.evaluate(() => window.panel._model.levels[1].rooms.find((r) => r.id.startsWith("balcony")));
     assert(added?.kind === "outdoor" && added.railing === "metal", `balcony: ${JSON.stringify(added)}`);
+    // no area yet: it says so instead of a made-up name
+    assert(!added.name, `balcony named: ${JSON.stringify(added)}`);
+    assert(await page.locator(`homeslice-panel g.unassigned[data-unassigned="${added.id}"]`).count(), "the balcony is not marked unassigned");
     await page.evaluate(() => window.panel.shadowRoot.activeElement?.blur());
     await page.keyboard.press("Control+z");
     // the balcony tool: a balcony wherever it is drawn (here inside the outline, as on a loggia)

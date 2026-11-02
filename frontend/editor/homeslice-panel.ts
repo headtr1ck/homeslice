@@ -1906,11 +1906,9 @@ export class HomeslicePanel extends LitElement {
         if (balcony && !upper) {
           Object.assign(props, { kind: "outdoor" });
           if (!props.id) props.id = uniqueId(this.levelInput!.rooms.map((r) => r.id), "terrace");
-          if (!props.area_id) props.name = this.t("editor.terrace");
         } else if (balcony || (upper && outline.length && !pointInPolygon(middle, outline))) {
           Object.assign(props, { kind: "outdoor", railing: "metal" });
           if (!props.id) props.id = uniqueId(this.levelInput!.rooms.map((r) => r.id), "balcony");
-          if (!props.area_id) props.name = this.t("editor.balcony");
         }
         const { model, id } = addRoom(this._model, this._level, rect, props);
         this.commit(model);
@@ -2610,15 +2608,18 @@ export class HomeslicePanel extends LitElement {
         // the name, broken into lines that fit, and the area: centred on the room, or below
         // a lamp drawn at its centre
         const { min, max } = bbox(poly);
-        const lines = wrapWords(this.roomName(r), ((max[0] - min[0]) * this._view.scale * 0.9) / 7.2);
+        // no Home Assistant area: the badge says so, in place of the name unless one was typed
+        const unassigned = !r.area_id && r.kind !== "void";
+        const lines = unassigned && !r.name ? [] : wrapWords(this.roomName(r), ((max[0] - min[0]) * this._view.scale * 0.9) / 7.2);
         const centre = labelPoint(poly);
         const lampThere = this._show.lights && lamps.some((x) => x.roomId === r.id && Math.hypot(x.at[0] - centre[0], x.at[1] - centre[1]) * this._view.scale < 18);
-        const height = lines.length * 14 + 13;
+        const badge = unassigned ? 26 : 0;
+        const height = lines.length * 14 + 13 + badge;
         const top = lampThere ? at[1] + 16 : at[1] - height / 2;
-        if (!r.area_id && (r.kind ?? "room") === "room") unassignedAt.push([r.id, [at[0], top + lines.length * 14 + 30]]);
+        if (unassigned) unassignedAt.push([r.id, [at[0], top + lines.length * 14 + 11]]);
         return svg`<g class="room-label">
           <text class="room-name" x=${at[0]} y=${top + 11} text-anchor="middle">${lines.map((line, i) => svg`<tspan x=${at[0]} dy=${i ? 14 : 0}>${line}</tspan>`)}</text>
-          <text class="room-area" x=${at[0]} y=${top + lines.length * 14 + 10} text-anchor="middle">${this.n(area(poly), 1)} m²</text></g>
+          <text class="room-area" x=${at[0]} y=${top + lines.length * 14 + badge + 10} text-anchor="middle">${this.n(area(poly), 1)} m²</text></g>
 `;
       })}
       ${this.freeShapes().map((f) => svg`<g class="free-shape"><polygon points=${pts(f)}></polygon></g>`)}
