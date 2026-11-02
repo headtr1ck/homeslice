@@ -18,7 +18,10 @@ The card needs no extra dashboard resource: the integration serves it.
 
 - **Live house:** lights glow in their colours (spots, strips, indirect light, light
   through the windows at night), blinds, shutters, awnings, curtains and garage doors move
-  with their covers, doors swing and windows tilt with their contacts, devices show their
+  with their covers, doors swing and windows tilt with their contacts (an open one is outlined
+  in orange, seen through walls and awnings; on the plan and the tilted plan every door and
+  window is drawn and can be tapped: a cover opens or closes, a lock or contact shows its
+  details), devices show their
   state, people stand in their rooms, robot vacuums drive around with their dock's warnings
   (see [robots](robots.md)).
 - **On the plan:** readings on the room labels, a heatmap (temperature, humidity, CO₂,

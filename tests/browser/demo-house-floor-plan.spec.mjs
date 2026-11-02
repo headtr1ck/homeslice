@@ -21,7 +21,9 @@ test.describe.serial("demo house, floor plan", () => {
     assert(!floors.some((f) => f.includes("All floors")), `floor buttons: ${floors}`);
     assert((await page.locator("homeslice-card nav.levels button.active").textContent()).includes("Ground Floor"), "not on the entrance floor");
     assert(!(await page.evaluate(() => window.card.renderer.roofVisible())), "a plan has no roof");
-    assert((await page.evaluate(() => window.card.renderer.planLines.length)) === 2, "a door swing per door on the plan");
+    assert((await page.evaluate(() => window.card.renderer.swingMaterials.length)) === 2, "a door swing per door on the plan");
+    // and every window its mark on the wall
+    assert((await page.evaluate(() => [...window.card.renderer.openingLines.values()].filter((e) => e.marks.length).length)) >= 2, "window marks on the plan");
     await shot(page, "demo-plan");
     await act(page, () => page.locator("homeslice-card nav.levels button", { hasText: "First Floor" }).click());
     await page.waitForFunction(() => window.card.renderer.focusedIndex === 1, null, { timeout: 5000 });

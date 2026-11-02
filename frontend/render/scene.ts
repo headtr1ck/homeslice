@@ -701,6 +701,7 @@ export class HouseRenderer {
     this.lampObjects = [];
     this.cuttables = [];
     this.swingMaterials = [];
+    this.openingLines.clear();
   }
 
   private mesh<M extends THREE.Material | THREE.Material[]>(geometry: THREE.BufferGeometry, material: M, shadows = true) {
@@ -843,6 +844,8 @@ export class HouseRenderer {
         box(cursor, o.start, 0, H, wallMat);
         box(o.start, o.end, 0, Math.min(o.sill, H), wallMat);
         box(o.start, o.end, o.sill + o.height, H, wallMat);
+        // seen and tapped in every mode: a tap target, its outline where the wall is cut low, its plan mark
+        this.openingMarks(g, w, o, H);
         // low walls end below the top of a door or window (and a high window is gone)
         const top = Math.min(o.sill + o.height, H);
         if (top - o.sill < 0.02) {
@@ -1014,6 +1017,107 @@ export class HouseRenderer {
   /** Door swings on plans, for their look. */
   private swingMaterials: LineMaterial[] = [];
 
+  /** Doors' and windows' outlines and plan marks (open: orange), and the outline shown through everything while open. */
+  private openingLines = new Map<string, { marks: LineMaterial[]; xray: LineSegments2 | null; open: boolean }>();
+
+  /**
+   * What makes a door or window visible and tappable in every mode:
+   * - a tap target over it (its cover, else its lock, else its contact), reaching the top of
+   *   a low wall so a tap from above (2.5D, plan) finds it;
+   * - where the walls are cut low (2.5D, plan), its frame as lines at its real height, and on
+   *   the plan the window's mark on the wall top;
+   * - with a contact, an orange outline that shows through walls, awnings and floors while open.
+   */
+  private openingMarks(g: THREE.Group, w: Wall, o: WallOpening, H: number) {
+    const len = Math.hypot(w.b[0] - w.a[0], w.b[1] - w.a[1]) || 1;
+    const u: Vec2 = [(w.b[0] - w.a[0]) / len, (w.b[1] - w.a[1]) / len];
+    const n = w.normal;
+    const at = (t: number, side = 0): Vec2 => [w.a[0] + u[0] * t + n[0] * side, w.a[1] + u[1] * t + n[1] * side];
+    const low = !!this.view.lowWalls;
+    const entity = o.cover ?? o.lock ?? o.contact;
+    if (entity) {
+      const hitMat = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false, colorWrite: false });
+      this.building?.add(hitMat);
+      const z0 = low ? 0 : o.sill;
+      const z1 = low ? H + 0.03 : o.sill + o.height;
+      const hit = this.wallBox(w, o.start, o.end, z0, z1, w.thickness + 0.14, hitMat);
+      hit.userData.entity = entity;
+      hit.userData.outdoor = true;
+      hit.userData.opening = o.id;
+      g.add(hit);
+      this.linked.push(hit);
+    }
+    const entry = { marks: [] as LineMaterial[], xray: null as LineSegments2 | null, open: false };
+    const lines = (pts: number[], material: LineMaterial) => {
+      material.resolution.set(this.size.width, this.size.height);
+      this.building?.add(material);
+      const line = new LineSegments2(new LineSegmentsGeometry().setPositions(pts), material);
+      line.userData.outdoor = true;
+      line.raycast = () => {};
+      // over a faint awning
+      line.renderOrder = 5;
+      this.planLines.push(line);
+      g.add(line);
+      return line;
+    };
+    const frame = (z0: number, z1: number, side = 0): number[] => {
+      const [a, b] = [at(o.start, side), at(o.end, side)];
+      const pts = [a[0], z0, a[1], b[0], z0, b[1], b[0], z0, b[1], b[0], z1, b[1], b[0], z1, b[1], a[0], z1, a[1], a[0], z1, a[1], a[0], z0, a[1]];
+      // a window's sash: a line down its middle (two-leaf windows and doors)
+      if (o.type === "window" || o.style === "double" || o.style === "glass_double") {
+        const m = at((o.start + o.end) / 2, side);
+        pts.push(m[0], z0, m[1], m[0], z1, m[1]);
+      }
+      return pts;
+    };
+    const mark = () => {
+      const m = new LineMaterial({ color: COLORS.planWall, linewidth: 1.5, transparent: true, opacity: 0.85 });
+      entry.marks.push(m);
+      this.themeOpeningMark(m, false);
+      return m;
+    };
+    // cut low: the part above the wall as a wireframe, at both faces of the wall
+    if (low && o.sill + o.height > H + 0.02 && o.type !== "opening") {
+      const t = w.thickness / 2 + 0.004;
+      lines([...frame(o.sill, o.sill + o.height, t), ...frame(o.sill, o.sill + o.height, -t)], mark());
+    }
+    // on the plan: a window is two thin lines along the wall, closed at its ends
+    if (this.view.plan && o.type === "window") {
+      const y = H + 0.006;
+      const q = w.thickness * 0.22;
+      const pts: number[] = [];
+      for (const side of [-q, q]) {
+        const [a, b] = [at(o.start, side), at(o.end, side)];
+        pts.push(a[0], y, a[1], b[0], y, b[1]);
+      }
+      for (const t of [o.start, o.end]) {
+        const [a, b] = [at(t, -w.thickness / 2), at(t, w.thickness / 2)];
+        pts.push(a[0], y, a[1], b[0], y, b[1]);
+      }
+      lines(pts, mark());
+    }
+    // open (by its contact): an orange outline seen through everything in front of it
+    if (o.contact) {
+      const m = new LineMaterial({ color: COLORS.glassOpen, linewidth: 2.5, transparent: true, opacity: 0.95, depthTest: false });
+      const xray = lines(frame(o.sill, o.sill + o.height), m);
+      xray.renderOrder = 20;
+      xray.visible = false;
+      entry.xray = xray;
+    }
+    if (entry.marks.length || entry.xray) this.openingLines.set(o.id, entry);
+  }
+
+  private themeOpeningMark(m: LineMaterial, open: boolean) {
+    if (open) {
+      m.color.set(COLORS.glassOpen);
+      m.opacity = 1;
+      return;
+    }
+    // light: it reads on the dark tops of cut walls and against the background
+    m.color.set(this.look === "white" ? "#8a9097" : this.look === "blueprint" ? BLUEPRINT.glass : this.look === "night" ? "#9cc8ee" : "#dfe6ec");
+    m.opacity = this.look === "white" ? 0.7 : 0.9;
+  }
+
   private themeSwing(m: LineMaterial) {
     m.color.set(this.look === "white" ? "#b9bdc1" : this.look === "blueprint" ? BLUEPRINT.glass : COLORS.planWall);
     m.opacity = this.look === "white" ? 0.55 : 0.8;
@@ -1022,6 +1126,7 @@ export class HouseRenderer {
   /** Every material in the house in the look's colours (or back in its own). */
   private applyTheme() {
     for (const m of this.swingMaterials) this.themeSwing(m);
+    for (const e of this.openingLines.values()) for (const m of e.marks) this.themeOpeningMark(m, e.open);
     for (const level of this.levels) for (const m of level.materials) this.themeMaterial(m);
   }
 
@@ -1693,7 +1798,9 @@ export class HouseRenderer {
     const depth = Math.hypot(reach, drop);
     const geo = new THREE.BoxGeometry(len, 0.03, depth);
     geo.translate(0, 0, depth / 2); // pivot on the wall
-    const mesh = this.mesh(geo, this.lambert(COLORS.awning, { side: THREE.DoubleSide, transparent: true, opacity: 0.85 }));
+    // seen from above (plan, 2.5D) it would hide the doors under it: faint there
+    const faint = !!this.view.lowWalls;
+    const mesh = this.mesh(geo, this.lambert(COLORS.awning, { side: THREE.DoubleSide, transparent: true, opacity: faint ? 0.3 : 0.85, ...(faint ? { depthWrite: false } : {}) }));
     const mid: Vec2 = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
     mesh.position.set(mid[0], level.height - 0.25, mid[1]);
     // local z → n in the plan (world x/z), tilted down by the drop
@@ -1710,6 +1817,8 @@ export class HouseRenderer {
     if (room.awning) {
       for (const m of [mesh, cassette]) {
         m.userData.entity = room.awning;
+        // (a door or window under it is what a tap there means)
+        m.userData.yields = true;
         this.linked.push(m);
       }
     }
@@ -3147,6 +3256,13 @@ export class HouseRenderer {
     this.applyCuts();
   }
 
+  /** For tests: a door's or window's outlines and marks (count, colour), its see-through outline, its tap target. */
+  openingLook(openingId: string) {
+    const e = this.openingLines.get(openingId);
+    const hit = this.linked.find((o) => o.userData.opening === openingId);
+    return { marks: e?.marks.length ?? 0, color: e?.marks[0] ? `#${e.marks[0].color.getHexString()}` : null, xray: !!e?.xray?.visible, open: !!e?.open, entity: (hit?.userData.entity as string | undefined) ?? null };
+  }
+
   /** For tests and debugging: how a cover is currently drawn. */
   coverState(openingId: string) {
     const c = this.covers.get(openingId);
@@ -3162,6 +3278,12 @@ export class HouseRenderer {
   /** Window contact: open windows get orange glass. */
   setContact(openingId: string, open: boolean) {
     this.glasses.get(openingId)?.color.set(open ? COLORS.glassOpen : COLORS.glass);
+    const lines = this.openingLines.get(openingId);
+    if (lines) {
+      lines.open = open;
+      for (const m of lines.marks) this.themeOpeningMark(m, open);
+      if (lines.xray) lines.xray.visible = open;
+    }
     if (this.covers.get(openingId)?.byContact) this.setCover(openingId, open ? 1 : 0);
     for (const l of this.leaves.get(openingId) ?? []) {
       l.target = open ? 1 : 0;
@@ -3209,7 +3331,14 @@ export class HouseRenderer {
     };
     const pieces = this.linked.filter(visible);
     if (!pieces.length) return null;
-    const hit = ray.intersectObjects([...pieces, ...[...this.floors.values()].filter(visible)], true).find((h) => h.object.visible)?.object;
+    const hits = ray.intersectObjects([...pieces, ...[...this.floors.values()].filter(visible)], true).filter((h) => h.object.visible);
+    let hit = hits[0]?.object;
+    // an awning gives way to a door or window right under it
+    if (hit?.userData.yields) {
+      const floorAt = hits.findIndex((h) => h.object.userData.room);
+      const opening = hits.find((h, i) => h.object.userData.opening && (floorAt < 0 || i < floorAt));
+      if (opening) hit = opening.object;
+    }
     let o: THREE.Object3D | null = hit ?? null;
     while (o && !o.userData.entity && !o.userData.room) o = o.parent;
     return (o?.userData.entity as string | undefined) ?? null;

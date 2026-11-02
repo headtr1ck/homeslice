@@ -598,6 +598,61 @@ test.describe.serial("demo house, roof (2)", () => {
     await page.waitForFunction(() => window.card.renderer.leafState("living_south_3")[0].open === 0, null, { timeout: 10000 });
   });
 
+  test("doors and windows in every mode: a tap target, an outline where walls are cut low, a plan mark, orange while open", async () => {
+    const look = (id) => page.evaluate((id) => window.card.renderer.openingLook(id), id);
+    const toggle = () => act(page, () => page.evaluate(() => window.card.hass.callService("homeassistant", "toggle", {}, { entity_id: "binary_sensor.kids_room_leak" })));
+    const mode = (mode) =>
+      act(page, () => page.evaluate((mode) => window.card.setConfig({ ...window.card.config, mode }), mode).then(() => page.evaluate(() => (window.card.hass = window.card.hass))));
+    await act(page, async () => {
+      await page.evaluate(() => {
+        const m = structuredClone(window.__demoModel);
+        Object.assign(m.levels[0].openings[3], { contact: "binary_sensor.kids_room_leak" });
+        Object.assign(m.levels[0].openings[4], { contact: "binary_sensor.kids_room_leak" });
+        window.card.hass.pushModel(m);
+      });
+    });
+    // 3D: a tap target; open, an orange outline seen through everything
+    let win = await look("living_west_4");
+    assert(win.entity === "binary_sensor.kids_room_leak" && !win.xray, `3D, closed: ${JSON.stringify(win)}`);
+    await toggle();
+    win = await look("living_west_4");
+    assert(win.xray && win.open, `3D, open: ${JSON.stringify(win)}`);
+    // the tilted plan: walls cut low, the windows above the cut drawn as outlines (orange while open)
+    await mode("tilted");
+    win = await look("living_west_4");
+    assert(win.marks >= 1 && win.color === "#ffb05c", `2.5D, open: ${JSON.stringify(win)}`);
+    const front = await look("living_south_2");
+    assert(front.marks >= 1, `2.5D, the front window: ${JSON.stringify(front)}`);
+    await shot(page, "demo-openings-tilted");
+    // the plan: the window's mark on the wall, tapped from above
+    await mode("plan");
+    win = await look("living_west_4");
+    assert(win.marks >= 1 && win.color === "#ffb05c", `plan, open: ${JSON.stringify(win)}`);
+    const picked = await page.evaluate(() => {
+      const r = window.card.renderer;
+      const hit = r.linked.find((o) => o.userData.opening === "living_west_4");
+      hit.geometry.computeBoundingBox();
+      const p = hit.geometry.boundingBox.getCenter(hit.position.clone()).applyMatrix4(hit.matrixWorld).project(r.camera);
+      return r.pickEntity(((p.x + 1) / 2) * r.size.width, ((1 - p.y) / 2) * r.size.height);
+    });
+    assert(picked === "binary_sensor.kids_room_leak", `plan, tapped: ${picked}`);
+    // the terrace door under the awning: a tap there means the door
+    const underAwning = await page.evaluate(() => {
+      const r = window.card.renderer;
+      const hit = r.linked.find((o) => o.userData.opening === "living_south_3");
+      hit.geometry.computeBoundingBox();
+      const p = hit.geometry.boundingBox.getCenter(hit.position.clone()).applyMatrix4(hit.matrixWorld).project(r.camera);
+      const awning = r.linked.some((o) => o.userData.yields);
+      return [awning, r.pickEntity(((p.x + 1) / 2) * r.size.width, ((1 - p.y) / 2) * r.size.height)];
+    });
+    assert(underAwning[1] === "binary_sensor.kids_room_leak", `plan, the terrace door under the awning (${underAwning[0] ? "awning there" : "no awning"}): ${underAwning[1]}`);
+    await shot(page, "demo-openings-plan");
+    await toggle();
+    win = await look("living_west_4");
+    assert(win.color !== "#ffb05c" && !win.open, `plan, closed again: ${JSON.stringify(win)}`);
+    await mode(undefined);
+  });
+
   test("a window open in the rain is a note on its room; a power outage a warning", async () => {
     // (one sensor plays the rain, the window's contact and the outage)
     await page.evaluate(() => {
