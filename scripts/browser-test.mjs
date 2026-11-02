@@ -947,6 +947,23 @@ if (selected()) {
     });
   });
 
+  await test("under a roof that starts lower, the ceiling slopes: pendants hang from it", async () => {
+    await act(page, () =>
+      page.evaluate(() => {
+        const m = structuredClone(window.__demoModel);
+        delete m.roof;
+        m.levels.push({ id: "attic", kind: "roof", rooms: [], roofs: [{ rect: [0, 0, 8, 10], offset: -1.5, ridge: "left_right" }] });
+        window.card.hass.pushModel(m);
+      }),
+    );
+    const c = await page.evaluate(() => {
+      const r = window.card.renderer;
+      return { eave: r.ceilingAt("first", [4, 0.4]), middle: r.ceilingAt("first", [4, 5]), ground: r.ceilingAt("ground", [4, 0.4]) };
+    });
+    assert(c.eave < 1.5 && c.middle > c.eave + 0.8 && c.ground > 2.4, JSON.stringify(c));
+    await act(page, () => page.evaluate(() => window.card.hass.pushModel(window.__demoModel)));
+  });
+
   await test("a gallery railing drawn along its line", async () => {
     await act(page, () =>
       page.evaluate(() => {

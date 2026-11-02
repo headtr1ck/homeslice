@@ -619,6 +619,7 @@ export class HouseRenderer {
       this.levels.push({ group, baseY, materials, tintable, opacity: 1, lift: 0, hoverOpacity: 1, hoverLift: 0 });
       this.levelOutlines.push(level.outline);
       this.levelHeights.push(level.height);
+      this.levelElevations.push(level.elevation);
       this.levelRooms.push(level.rooms.filter((r) => r.kind === "room").map((r) => r.polygon));
       this.levelIds.push(level.id);
       this.updateWells(this.levels.length - 1);
@@ -688,6 +689,7 @@ export class HouseRenderer {
     this.robotObjects = [];
     this.levelOutlines = [];
     this.levelHeights = [];
+    this.levelElevations = [];
     this.levelRooms = [];
     this.lamps.clear();
     this.lampObjects = [];
@@ -757,7 +759,8 @@ export class HouseRenderer {
 
     for (const room of level.rooms)
       for (const f of room.furniture) {
-        const piece = this.furniture(f, level.height);
+        // (under a sloped roof a pendant hangs from the slope)
+        const piece = this.furniture(f, f.mount === "ceiling" ? this.ceilingUnderRoof(level, f.at) : level.height);
         g.add(piece);
         // tall things in the garden (trees, a shed) fade when they stand in front of the house
         if (room.kind === "outdoor" && f.height >= 1.8) this.occluders.push(piece);
@@ -1724,8 +1727,10 @@ export class HouseRenderer {
         // a downlight: a soft cone from the ceiling and a bright spot under it
         for (const at of [lamp.at, ...(lamp.spots ?? [])]) {
           glow(new THREE.CircleGeometry(0.6, 32).rotateX(-Math.PI / 2), 1.25).position.set(at[0], 0.02, at[1]);
-          const cone = glow(new THREE.CylinderGeometry(0.03, 0.45, height - 0.05, 24, 1, true), 0.35, this.fadeTexture!, THREE.DoubleSide);
-          cone.position.set(at[0], (height - 0.05) / 2, at[1]);
+          // (from the sloped ceiling under a roof)
+          const top = this.ceilingAt(i, at);
+          const cone = glow(new THREE.CylinderGeometry(0.03, 0.45, top - 0.05, 24, 1, true), 0.35, this.fadeTexture!, THREE.DoubleSide);
+          cone.position.set(at[0], (top - 0.05) / 2, at[1]);
           places.push(at);
         }
       } else if (type === "strip" && lamp.to) {
@@ -1733,7 +1738,7 @@ export class HouseRenderer {
         const [a, b] = [lamp.at, lamp.to];
         const len = Math.hypot(b[0] - a[0], b[1] - a[1]);
         const turn = Math.atan2(-(b[1] - a[1]), b[0] - a[0]);
-        const y = lamp.height ?? height - 0.06;
+        const y = lamp.height ?? Math.min(this.ceilingAt(i, a), this.ceilingAt(i, b)) - 0.06;
         const bar = glow(new THREE.BoxGeometry(len, 0.02, 0.03), 2.2, this.whiteTexture());
         bar.position.set((a[0] + b[0]) / 2, y, (a[1] + b[1]) / 2);
         bar.rotation.y = turn;
@@ -2297,6 +2302,35 @@ export class HouseRenderer {
   }
 
   private roofLevel: Level | null = null;
+  private levelElevations: number[] = [];
+
+  /**
+   * How high the ceiling is over a plan point of a floor (metres above its floor): the
+   * floor's height, or lower under a roof that starts below its top (a sloped ceiling).
+   */
+  ceilingAt(level: number | string, p: Vec2): number {
+    const i = typeof level === "number" ? level : this.levelIds.indexOf(level);
+    return this.ceilingOver(this.levelIds[i], this.levelElevations[i], this.levelHeights[i] ?? 2.6, p);
+  }
+
+  /** The same while a floor is being built (it is not in the lists yet). */
+  private ceilingUnderRoof(level: Level, p: Vec2) {
+    return this.ceilingOver(level.id, level.elevation, level.height, p);
+  }
+
+  private ceilingOver(id: string | undefined, elevation: number | undefined, full: number, p: Vec2) {
+    const roof = this.roofLevel;
+    if (!roof || elevation === undefined || !this.view.roof || id === roof.id) return full;
+    let ceiling = full;
+    for (const part of roof.roofs) {
+      const base = roof.elevation - elevation + part.offset;
+      if (base >= full - 0.01) continue;
+      const h = this.roofHeight(part, this.roofFrame(part, base), p);
+      // under the rafters, not on the tiles
+      if (h) ceiling = Math.min(ceiling, Math.max(0.5, h.z - 0.25));
+    }
+    return ceiling;
+  }
   /** Clipping planes kept in the levels' coordinates, put in world coordinates before each frame. */
   private clipSets: { group: THREE.Object3D; local: THREE.Plane[]; world: THREE.Plane[] }[] = [];
 
@@ -3695,7 +3729,7 @@ export class HouseRenderer {
       for (const p of places) {
         const level = this.levels[p.level];
         if (!level?.group.visible || level.opacity < 0.5) continue;
-        const pos = level.group.localToWorld(new THREE.Vector3(p.at[0], (this.levelHeights[p.level] ?? 2.6) * (p.high ? 0.92 : 0.78), p.at[1]));
+        const pos = level.group.localToWorld(new THREE.Vector3(p.at[0], this.ceilingAt(p.level, p.at) * (p.high ? 0.92 : 0.78), p.at[1]));
         // about one light per three metres of a floor
         const key = `${p.level}/${Math.floor(p.at[0] / 3)}/${Math.floor(p.at[1] / 3)}`;
         const w = look.brightness / Math.sqrt(places.length);

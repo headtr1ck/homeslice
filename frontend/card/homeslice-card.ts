@@ -1840,7 +1840,8 @@ export class HomesliceCard extends LitElement {
   /** How high a lamp is above its floor: its piece's top, a strip's height, else near the ceiling. */
   private lampHeight(l: PlacedLight): number {
     const level = this.house?.levels.find((x) => x.id === l.levelId);
-    const ceiling = level?.height ?? 2.6;
+    // under a sloped roof: the ceiling where the lamp is
+    const ceiling = this.renderer?.ceilingAt(l.levelId, l.at) ?? level?.height ?? 2.6;
     if (l.height !== undefined) return l.height;
     const piece = level?.rooms.find((r) => r.id === l.roomId)?.furniture.find((f) => f.entity === l.entity);
     if (piece) return piece.mount === "ceiling" ? Math.max(0.3, ceiling - piece.height) : (piece.elevation ?? 0) + piece.height * 0.9;
