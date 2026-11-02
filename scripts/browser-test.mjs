@@ -3714,6 +3714,8 @@ if (selected()) {
     const types = house.levels[0].openings.map((o) => `${o.type}:${o.room}:${o.side}`).sort();
     assert(JSON.stringify(types) === JSON.stringify(["door:bedroom:west", "window:living:north"].sort()) || JSON.stringify(types) === JSON.stringify(["door:living:east", "window:living:north"].sort()), `openings: ${types}`);
     assert(living.furniture[0].type === "sofa" && living.furniture[0].rotation === 180 && bedroom.furniture[0].type === "bed", `furniture: ${JSON.stringify([living.furniture, bedroom.furniture])}`);
+    // an outline around the rooms, so it can be used as it is
+    assert(house.outline?.polygon?.length === 4, `outline: ${JSON.stringify(house.outline)}`);
     await page.locator("homeslice-panel textarea.yaml").fill("");
     await page.evaluate(() => window.panel.shadowRoot.activeElement?.blur());
     await page.locator("homeslice-panel header button[aria-label='House settings']").click();
@@ -3748,7 +3750,8 @@ if (selected()) {
     assert(JSON.stringify(kitchen.lights) === JSON.stringify([{ entity: "light.kitchen", at: [3, 4] }]), `light: ${JSON.stringify(kitchen.lights)}`);
     const sensor = living.furniture?.[0];
     assert(sensor?.entity === "sensor.living_temperature" && sensor.mount === "wall", `sensor: ${JSON.stringify(sensor)}`);
-    assert(JSON.stringify(house.outline) === JSON.stringify({ rect: [0, 0, 12, 8] }), `outline: ${JSON.stringify(house.outline)}`);
+    const corners = (house.outline?.polygon ?? []).map((p) => p.join()).sort();
+    assert(JSON.stringify(corners) === JSON.stringify(["0,0", "0,8", "12,0", "12,8"]), `outline: ${JSON.stringify(house.outline)}`);
     await page.locator("homeslice-panel textarea.yaml").fill("");
     await page.evaluate(() => window.panel.shadowRoot.activeElement?.blur());
     await page.locator("homeslice-panel header button[aria-label='House settings']").click();

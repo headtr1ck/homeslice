@@ -5,6 +5,7 @@
 import { unzipSync, strFromU8 } from "three/examples/jsm/libs/fflate.module.js";
 import { bbox, normalizeOrientation } from "../model/geometry";
 import { offsetPolygon } from "../model/route";
+import { withOutlines } from "./outline";
 import type { FurnitureInput, FurnitureType, HouseInput, LevelInput, OpeningInput, RoomInput, Side, Vec2 } from "../model/types";
 
 /** Home.xml from a .sh3d file (a zip). */
@@ -160,5 +161,7 @@ export function sweetHomeToHouse(xml: string, id = "home"): HouseInput {
     const target = levels[li].rooms.find((r) => r.id === room.id)!;
     (target.furniture ??= []).push(piece);
   }
-  return { schema: 1, id, name: home.getAttribute("name") ?? "Imported house", levels: levels.filter((l) => l.rooms.length) };
+  // the outline around each floor's rooms (Sweet Home 3D has none of its own)
+  const house: HouseInput = { schema: 1, id, name: home.getAttribute("name") ?? "Imported house", levels: levels.filter((l) => l.rooms.length) };
+  return withOutlines(house, (l) => l.rooms.map((r) => (r.polygon ?? []) as Vec2[]));
 }
