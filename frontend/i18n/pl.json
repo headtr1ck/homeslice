@@ -1773,7 +1773,7 @@
   "editor.add_roof": "Dach",
   "editor.arriving": "{name} w drodze: pobieranie do Home Assistant",
   "editor.help_balcony": "Przeciągnij prostokąt, aby dodać balkon (wyższe piętra, z balustradą po otwartych stronach) lub taras (parter). Esc: anuluj.",
-  "editor.group_build": "Pomieszczenia, ściany, balustrady, balkony (R, W, G, B)",
+  "editor.group_build": "Pomieszczenia, ściany, balustrady, balkony, podziały (R, W, G, B, X)",
   "editor.tool_railing": "Narysuj balustradę (G)",
   "editor.sub_rect": "Pomieszczenie",
   "editor.sub_wall": "Ściana",
@@ -1782,5 +1782,9 @@
   "editor.help_railing": "Przeciągnij od jednego końca balustrady do drugiego: wzdłuż antresoli, krawędzi schodów lub tarasu na dachu; przyciąga prosto lub pod 45°. Alt: bez przyciągania. Esc: anuluj.",
   "editor.group_openings": "Drzwi, okna, schody (D, S)",
   "editor.sub_opening": "Drzwi i okna",
-  "editor.sub_stairs": "Schody"
+  "editor.sub_stairs": "Schody",
+  "editor.tool_divide": "Podziel pomieszczenie, bez ściany (X)",
+  "editor.sub_divide": "Podział",
+  "editor.help_divide": "Przeciągnij linię przez pomieszczenie, aby zrobić dwa pomieszczenia bez ściany między nimi, np. kuchnię i jadalnię. Każda część może mieć własny obszar Home Assistant. Esc: anuluj.",
+  "editor.divide_missed": "Przeciągnij linię przez całe pomieszczenie, od ściany do ściany."
 }

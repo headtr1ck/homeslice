@@ -1773,7 +1773,7 @@
   "editor.add_roof": "Roof",
   "editor.arriving": "{name} is on its way: downloading into Home Assistant",
   "editor.help_balcony": "Drag a rectangle for a balcony (upper floors, with a railing on its open sides) or a terrace (ground floor). Esc: cancel.",
-  "editor.group_build": "Rooms, walls, railings, balconies (R, W, G, B)",
+  "editor.group_build": "Rooms, walls, railings, balconies, dividers (R, W, G, B, X)",
   "editor.tool_railing": "Draw a railing (G)",
   "editor.sub_rect": "Room",
   "editor.sub_wall": "Wall",
@@ -1782,5 +1782,9 @@
   "editor.help_railing": "Drag from one end of the railing to the other: along a gallery, a stair edge or a roof terrace; it snaps straight or to 45°. Alt: no snapping. Esc: cancel.",
   "editor.group_openings": "Doors, windows, stairs (D, S)",
   "editor.sub_opening": "Doors & windows",
-  "editor.sub_stairs": "Stairs"
+  "editor.sub_stairs": "Stairs",
+  "editor.tool_divide": "Divide a room, no wall between (X)",
+  "editor.sub_divide": "Divider",
+  "editor.help_divide": "Drag a line across a room to make two rooms with no wall between them, e.g. kitchen and dining area. Each part can get its own Home Assistant area. Esc: cancel.",
+  "editor.divide_missed": "Drag the line right across one room, from wall to wall."
 }

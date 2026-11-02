@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { HouseInput, Vec2 } from "../model/types";
 import {
   bendEdge,
+  divideRoom,
   mergePieces,
   setPiece,
   duplicateLevel,
@@ -727,5 +728,78 @@ describe("roof levels", () => {
     expect(pieces).toHaveLength(6);
     expect(pieces.every((p) => p.model === "modern:solar_panel")).toBe(true);
     expect(expandHouse(m).issues.filter((i) => i.severity === "error")).toEqual([]);
+  });
+});
+
+describe("divideRoom", () => {
+  const house = (): HouseInput => ({
+    schema: 1,
+    id: "h",
+    outline: { rect: [0, 0, 8, 6] },
+    levels: [
+      {
+        id: "g",
+        rooms: [
+          {
+            id: "kitchen",
+            area_id: "kitchen",
+            floor: "tile",
+            rect: [0, 0, 8, 4],
+            furniture: [
+              { type: "sofa", at: [6, 2] },
+              { type: "table", at: [1, 1] },
+            ],
+            lights: [{ entity: "light.dining", at: [7, 1], spots: [[6.5, 1]] }, { entity: "light.kitchen" }],
+          },
+          { id: "hall", rect: [0, 4, 8, 2] },
+        ],
+        openings: [
+          { room: "kitchen", side: "north", at: 5.5, width: 1 },
+          { room: "kitchen", side: "east", at: 1, width: 1 },
+          { room: "kitchen", side: "west", at: 1, width: 1 },
+        ],
+        walls: [{ between: ["kitchen", "hall"], side: "south" }],
+      },
+    ],
+  });
+
+  it("splits along the line, with no wall between the parts; everything keeps its place", () => {
+    const out = divideRoom(house(), "g", "kitchen", [5, -1], [5, 5]);
+    expect(out?.ids).toEqual(["kitchen", "kitchen_2"]);
+    const l = out!.model.levels[0];
+    const k = l.rooms.find((r) => r.id === "kitchen")!;
+    const d = l.rooms.find((r) => r.id === "kitchen_2")!;
+    expect(k.rect).toEqual([0, 0, 5, 4]);
+    expect(d.rect).toEqual([5, 0, 3, 4]);
+    // the bigger part keeps the area; the new one has the finishes but no area yet
+    expect(k.area_id).toBe("kitchen");
+    expect(d.area_id).toBeUndefined();
+    expect(d.floor).toBe("tile");
+    expect(k.furniture).toEqual([{ type: "table", at: [1, 1] }]);
+    expect(d.furniture).toEqual([{ type: "sofa", at: [1, 2] }]);
+    expect(d.lights).toEqual([{ entity: "light.dining", at: [2, 1], spots: [[1.5, 1]] }]);
+    expect(k.lights).toEqual([{ entity: "light.kitchen" }]);
+    expect(l.openings).toEqual([
+      { room: "kitchen_2", side: "north", at: 0.5, width: 1 },
+      { room: "kitchen_2", side: "east", at: 1, width: 1 },
+      { room: "kitchen", side: "west", at: 1, width: 1 },
+    ]);
+    expect(l.walls).toEqual([
+      { between: ["kitchen", "hall"], side: "south" },
+      { between: ["kitchen_2", "hall"], side: "south" },
+      { between: ["kitchen", "kitchen_2"] },
+    ]);
+    // nothing moved in the house as built
+    const { house: built, issues } = expandHouse(out!.model);
+    expect(issues.filter((i) => i.severity === "error")).toEqual([]);
+    expect(built!.levels[0].rooms.map((r) => r.id)).toEqual(["kitchen", "kitchen_2", "hall"]);
+  });
+
+  it("a slanted line makes polygons; a line that misses the room does nothing", () => {
+    const out = divideRoom(house(), "g", "kitchen", [4, 0], [6, 4]);
+    const l = out!.model.levels[0];
+    expect(l.rooms.find((r) => r.id === "kitchen")!.polygon).toBeDefined();
+    expect(l.rooms.find((r) => r.id === "kitchen_2")!.polygon).toBeDefined();
+    expect(divideRoom(house(), "g", "kitchen", [10, 0], [10, 4])).toBeNull();
   });
 });

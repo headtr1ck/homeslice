@@ -1657,3 +1657,105 @@ export function bendEdge(model: HouseInput, levelId: string, target: { room: str
   }
   return m;
 }
+
+/**
+ * Divides a room along a line (it has to cross the room's outline exactly twice) into two
+ * rooms with no wall between them: an open kitchen and its dining area, say. The larger part
+ * keeps the room's id and area; the other is a new room with the same finishes and no area
+ * yet. Furniture, lights, cameras, roof windows and doors and windows go with the part they
+ * are in, still in the same place.
+ */
+export function divideRoom(model: HouseInput, levelId: string, roomId: string, a: Vec2, b: Vec2): { model: HouseInput; ids: [string, string] } | null {
+  const m = clone(model);
+  const l = level(m, levelId);
+  const room = l.rooms.find((r) => r.id === roomId);
+  if (!room) return null;
+  const poly = roomPolygon(m, room);
+  const d: Vec2 = [b[0] - a[0], b[1] - a[1]];
+  if (Math.hypot(d[0], d[1]) < 1e-9) return null;
+  // which side of the line each corner is on (0: on it)
+  const side = (p: Vec2) => {
+    const s = d[0] * (p[1] - a[1]) - d[1] * (p[0] - a[0]);
+    return Math.abs(s) < 1e-9 ? 0 : Math.sign(s);
+  };
+  const parts: [Vec2[], Vec2[]] = [[], []];
+  let crossings = 0;
+  poly.forEach((p, i) => {
+    const q = poly[(i + 1) % poly.length];
+    const sp = side(p);
+    const sq = side(q);
+    if (sp >= 0) parts[0].push(p);
+    if (sp <= 0) parts[1].push(p);
+    if (sp === 0) crossings++;
+    if (sp * sq < 0) {
+      // the line crosses this edge between its ends
+      const t = (d[0] * (a[1] - p[1]) - d[1] * (a[0] - p[0])) / (d[0] * (q[1] - p[1]) - d[1] * (q[0] - p[0]));
+      const x: Vec2 = [round(p[0] + t * (q[0] - p[0])), round(p[1] + t * (q[1] - p[1]))];
+      parts[0].push(x);
+      parts[1].push(x);
+      crossings++;
+    }
+  });
+  if (crossings !== 2 || parts.some((p) => p.length < 3 || Math.abs(signedArea(p)) < 0.05)) return null;
+  const [big, small] = Math.abs(signedArea(parts[0])) >= Math.abs(signedArea(parts[1])) ? parts : [parts[1], parts[0]];
+  const id = uniqueId(
+    l.rooms.map((r) => r.id),
+    `${roomId}_2`,
+  );
+  const oldMin = bbox(poly).min;
+  const { furniture, lights, cameras, roof_windows, area_id: _area, name: _name, rect: _rect, polygon: _polygon, id: _id, ...keep } = room;
+  const kept = setRoomPolygon({ ...room }, big);
+  const added = setRoomPolygon({ ...keep, id }, small);
+  for (const r of [kept, added]) {
+    delete r.furniture;
+    delete r.lights;
+    delete r.cameras;
+    delete r.roof_windows;
+  }
+  const mins = [bbox(big).min, bbox(small).min];
+  const pick = (rel: [number, number]): 0 | 1 => (pointInPolygon([oldMin[0] + rel[0], oldMin[1] + rel[1]], small) ? 1 : 0);
+  const rebase = (rel: [number, number], to: 0 | 1): [number, number] => [round(oldMin[0] + rel[0] - mins[to][0]), round(oldMin[1] + rel[1] - mins[to][1])];
+  const rooms = [kept, added];
+  for (const f of furniture ?? []) {
+    const to = pick(f.at);
+    (rooms[to].furniture ??= []).push({ ...f, at: rebase(f.at, to) });
+  }
+  for (const c of cameras ?? []) {
+    const to = pick(c.at);
+    (rooms[to].cameras ??= []).push({ ...c, at: rebase(c.at, to) });
+  }
+  for (const w of roof_windows ?? []) {
+    const to = pick(w.at);
+    (rooms[to].roof_windows ??= []).push({ ...w, at: rebase(w.at, to) });
+  }
+  for (const li of lights ?? []) {
+    // placed by Homeslice (no at): it stays with the room
+    const to = li.at ? pick(li.at) : 0;
+    const moved = { ...li };
+    if (li.at) moved.at = rebase(li.at, to);
+    if (li.to) moved.to = rebase(li.to, to);
+    if (li.spots) moved.spots = li.spots.map((s) => rebase(s, to));
+    (rooms[to].lights ??= []).push(moved);
+  }
+  l.rooms = l.rooms.flatMap((r) => (r.id === roomId ? [kept, added] : [r]));
+  // doors and windows: to the part whose side of that name runs past them
+  for (const o of l.openings ?? []) {
+    if (o.room !== roomId) continue;
+    const along = o.side === "north" || o.side === "south" ? 0 : 1;
+    const mid = oldMin[along] + o.at + o.width / 2;
+    const fits = [big, small].map((p) => {
+      const { min, max } = bbox(p);
+      return min[along] - 1e-6 <= mid && mid <= max[along] + 1e-6;
+    });
+    // both span it (a cut along that side's direction): the part nearer that side
+    const edge = (p: Vec2[]) => (o.side === "north" ? bbox(p).min[1] : o.side === "south" ? -bbox(p).max[1] : o.side === "west" ? bbox(p).min[0] : -bbox(p).max[0]);
+    const to: 0 | 1 = fits[0] && fits[1] ? (edge(small) < edge(big) - 1e-6 ? 1 : 0) : fits[1] ? 1 : 0;
+    if (to === 1) o.room = id;
+    o.at = round(oldMin[along] + o.at - mins[to][along]);
+  }
+  // open to the same neighbours as before, and to each other
+  const walls = l.walls ?? [];
+  const shared = walls.filter((w) => w.between?.includes(roomId)).map((w) => ({ ...w, between: w.between!.map((x) => (x === roomId ? id : x)) as [string, string] }));
+  l.walls = [...walls, ...shared, { between: [roomId, id] }];
+  return { model: m, ids: [roomId, id] };
+}

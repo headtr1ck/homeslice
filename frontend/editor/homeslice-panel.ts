@@ -86,6 +86,7 @@ import {
   mergePieces,
   setPiece,
   bendEdge,
+  divideRoom,
   shapeCorners,
   addEnergy,
   deleteEnergy,
@@ -142,7 +143,7 @@ import {
 } from "./ops";
 
 /** What a click on the plan does: select and drag, or add something. */
-type Tool = "select" | "rect" | "balcony" | "stairs" | "wall" | "railing" | "opening" | "furniture" | "devices" | "measure";
+type Tool = "select" | "rect" | "balcony" | "stairs" | "wall" | "railing" | "divide" | "opening" | "furniture" | "devices" | "measure";
 /** What the plan shows (visibility toggles below the tools). */
 type Layer = "dims" | "furniture" | "lights" | "devices" | "below";
 const LAYERS: { layer: Layer; icon: string }[] = [
@@ -172,6 +173,7 @@ const TOOLS: { tool: Tool; icon: string; key: string; group?: "build" | "opening
   { tool: "wall", icon: "mdi:wall", key: "W", group: "build" },
   { tool: "railing", icon: "mdi:fence", key: "G", group: "build" },
   { tool: "balcony", icon: "mdi:balcony", key: "B", group: "build" },
+  { tool: "divide", icon: "mdi:vector-line", key: "X", group: "build" },
   { tool: "opening", icon: "mdi:window-closed-variant", key: "D", group: "openings" },
   { tool: "stairs", icon: "mdi:stairs", key: "S", group: "openings" },
   { tool: "furniture", icon: "mdi:sofa-outline", key: "F" },
@@ -358,6 +360,7 @@ export class HomeslicePanel extends LitElement {
     _error: { state: true },
     _rectPreview: { state: true },
     _arriving: { state: true },
+    _toolMiss: { state: true },
     _levelDrag: { state: true },
     _wall: { state: true },
     _opening: { state: true },
@@ -429,6 +432,8 @@ export class HomeslicePanel extends LitElement {
   private _saved = "";
   private _error = "";
   private _rectPreview: Vec2[] | null = null;
+  /** Why the last stroke of a tool did nothing (until the next press). */
+  private _toolMiss = "";
   /** The sub-tool last used in each toolbar group. */
   private _lastInGroup: Record<string, Tool> = {};
   /** A piece on its way (downloading into Home Assistant, then loading): where it will land, and what it is. */
@@ -824,7 +829,9 @@ export class HomeslicePanel extends LitElement {
    * the current tool works; tool hints can be dismissed (remembered per tool).
    */
   private renderHint() {
-    const action = this._calib
+    const action = this._toolMiss
+      ? this._toolMiss
+      : this._calib
       ? this.t(!this._calib.a ? "editor.calib_first" : !this._calib.b ? "editor.calib_second" : "editor.calib_distance")
       : this._underlayMove
         ? this.t("editor.underlay_move_hint")
@@ -963,7 +970,7 @@ export class HomeslicePanel extends LitElement {
         !!(this._room || this._wall || this._opening || this._stair || this._furn || this._energyPlace || this._robotPlace || this._robotCalib || this._settings || this._checklist) ||
         this._freeWall !== null || this._energySel !== null || this._robotSel !== null || !!this._measure || !!this._dimEdit || !!this._calib || !!this._straighten || this._underlayMove;
       // drawing walls or railings: one Escape is enough (the last one drawn stays selected meanwhile)
-      if (!busy || this._tool === "wall" || this._tool === "railing") this._tool = "select";
+      if (!busy || this._tool === "wall" || this._tool === "railing" || this._tool === "divide") this._tool = "select";
       this.clearSelection();
       this._checklist = false;
       this._pendingArea = null;
@@ -1118,6 +1125,7 @@ export class HomeslicePanel extends LitElement {
       /* keep going without capture */
     }
     const world = this.eventWorld(e);
+    this._toolMiss = "";
     const u = this._underlay?.level === this._level ? this._underlay : null;
     if (u && this._straighten) {
       if (!this._straighten.a) this._straighten = { a: world };
@@ -1263,7 +1271,7 @@ export class HomeslicePanel extends LitElement {
     this._robotSel = null;
     this._opening = null;
     // drawing walls: a press anywhere starts the next one (on another's end too)
-    if (this._tool === "wall" || this._tool === "railing") {
+    if (this._tool === "wall" || this._tool === "railing" || this._tool === "divide") {
       const ctx = this.snapContext();
       const p = snap(world, ctx).p;
       this._linePreview = [p, p];
@@ -1630,6 +1638,19 @@ export class HomeslicePanel extends LitElement {
     if (drag.kind === "freewall" && this._linePreview) {
       const [a, b] = this._linePreview;
       this._linePreview = null;
+      if (this._tool === "divide") {
+        // a line across a room: two rooms, open to each other
+        const mid: Vec2 = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+        const room = (this.levelInput?.rooms ?? []).find((r) => pointInPolygon(mid, roomPolygon(this._model!, r)));
+        const out = room && Math.hypot(b[0] - a[0], b[1] - a[1]) >= 0.2 ? divideRoom(this._model, this._level, room.id, a, b) : null;
+        if (out) {
+          this.commit(out.model);
+          this.clearSelection();
+          // the new part: next, give it its area
+          this._room = out.ids[1];
+        } else this._toolMiss = this.t("editor.divide_missed");
+        return;
+      }
       if (Math.hypot(b[0] - a[0], b[1] - a[1]) >= 0.2) {
         let { model, index } = addFreeWall(this._model, this._level, a, b);
         // the railing sub-tool: a railing along a gallery or stair edge, or round a roof terrace
@@ -2402,7 +2423,7 @@ export class HomeslicePanel extends LitElement {
       ${selPoly.length ? this.renderHandles(selPoly, selected ? this.inner(selected, walls) : selPoly) : nothing}
       ${this._rectPreview ? svg`<polygon class="rect-preview" points=${pts(this._rectPreview)}></polygon>` : nothing}
       ${this.renderArriving()}
-      ${this._linePreview ? svg`<polyline class="line-preview" points=${pts(this._linePreview)}></polyline>` : nothing}
+      ${this._linePreview ? svg`<polyline class="line-preview ${this._tool === "divide" ? "divide" : ""}" points=${pts(this._linePreview)}></polyline>` : nothing}
       ${this._opening ? this.renderOpeningDims(walls) : nothing}
       ${this._measure ? this.renderMeasure(this._measure) : nothing}
       ${this.renderGuides()}
@@ -6017,7 +6038,8 @@ export class HomeslicePanel extends LitElement {
     }
     svg.plan.tool-rect,
     svg.plan.tool-balcony,
-    svg.plan.tool-wall {
+    svg.plan.tool-wall,
+    svg.plan.tool-divide {
       cursor: crosshair;
     }
     .gridline {
@@ -6843,6 +6865,11 @@ export class HomeslicePanel extends LitElement {
     }
     .measure {
       pointer-events: none;
+    }
+    .line-preview.divide {
+      stroke-width: 3;
+      stroke-dasharray: 8 6;
+      stroke-linecap: butt;
     }
     .line-preview {
       fill: none;

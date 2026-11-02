@@ -166,7 +166,7 @@ test.describe.serial("editor", () => {
     // one toolbar button for rooms, walls, railings and balconies: its sub-tools named over the plan
     await page.locator('homeslice-panel aside.tools button[data-group="build"]').click();
     const subs = await page.locator("homeslice-panel .sub-tools button").evaluateAll((els) => els.map((e) => `${e.querySelector("span").textContent} ${e.querySelector("kbd").textContent}`));
-    assert(JSON.stringify(subs) === JSON.stringify(["Room R", "Wall W", "Railing G", "Balcony B"]), `sub-tools: ${JSON.stringify(subs)}`);
+    assert(JSON.stringify(subs) === JSON.stringify(["Room R", "Wall W", "Railing G", "Balcony B", "Divider X"]), `sub-tools: ${JSON.stringify(subs)}`);
     await page.locator('homeslice-panel .sub-tools button[data-sub-tool="balcony"]').click();
     const hint = await page.locator("homeslice-panel .hint-bar").textContent();
     assert(hint.includes("Drag a rectangle for a balcony") && !hint.includes("editor."), `hint: ${hint}`);
@@ -197,6 +197,43 @@ test.describe.serial("editor", () => {
     assert(await page.evaluate(() => window.panel._tool === "railing"), "the railing tool did not stay");
     await page.keyboard.press("Escape");
     await page.evaluate((id) => (window.panel._level = id), level);
+  });
+
+  test("the divider: a room cut in two with no wall between, the new part selected", async () => {
+    const toScreen = (p) => page.evaluate((p) => {
+      const v = window.panel._view;
+      const r = window.panel.shadowRoot.querySelector("svg.plan").getBoundingClientRect();
+      return [r.left + p[0] * v.scale + v.ox, r.top + p[1] * v.scale + v.oy];
+    }, p);
+    const drag = async (a, b) => {
+      const [ax, ay] = await toScreen(a);
+      const [bx, by] = await toScreen(b);
+      await page.mouse.move(ax, ay);
+      await page.mouse.down();
+      await page.mouse.move(bx, by, { steps: 8 });
+      await page.mouse.up();
+    };
+    const before = JSON.stringify(await model());
+    await page.keyboard.press("Escape");
+    await page.keyboard.press("x");
+    // outside every room: nothing, and a word why
+    await drag([8.8, 1], [8.8, 3]);
+    assert((await page.locator("homeslice-panel .hint-bar").textContent()).includes("right across one room"), "no word on a missed divider");
+    assert(JSON.stringify(await model()) === before, "a missed divider changed the house");
+    await drag([6, 1], [6, 3]);
+    const l = (await model()).levels[0];
+    const parts = l.rooms.filter((r) => r.id === "kitchen" || r.id === "kitchen_2");
+    assert(parts.length === 2 && parts.every((r) => r.rect), `parts: ${JSON.stringify(parts)}`);
+    assert(l.walls.some((w) => JSON.stringify(w.between) === JSON.stringify(["kitchen", "kitchen_2"]) && !w.type), `walls: ${JSON.stringify(l.walls)}`);
+    assert(await page.evaluate(() => window.panel._room === "kitchen_2"), "the new part is not selected");
+    // no wall is built between them
+    const walls = await page.evaluate(() => window.panel.levelWalls().filter((w) => w.rooms?.includes?.("kitchen_2") && w.rooms?.includes?.("kitchen")).map((w) => w.type));
+    assert(walls.length && walls.every((t) => t === "open"), `built walls: ${JSON.stringify(walls)}`);
+    await page.evaluate(() => window.panel.shadowRoot.activeElement?.blur());
+    await page.keyboard.press("Control+z");
+    assert(JSON.stringify(await model()) === before, "undo did not join the kitchen again");
+    await page.keyboard.press("Escape");
+    assert(await page.evaluate(() => window.panel._tool === "select"), "Esc did not leave the divider");
   });
 
   test("saving stores the model in HA", async () => {

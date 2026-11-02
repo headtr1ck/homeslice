@@ -1773,7 +1773,7 @@
   "editor.add_roof": "Tejado",
   "editor.arriving": "{name} está en camino: descargando en Home Assistant",
   "editor.help_balcony": "Arrastra un rectángulo para un balcón (plantas altas, con barandilla en los lados abiertos) o una terraza (planta baja). Esc: cancelar.",
-  "editor.group_build": "Habitaciones, paredes, barandillas, balcones (R, W, G, B)",
+  "editor.group_build": "Habitaciones, paredes, barandillas, balcones, divisiones (R, W, G, B, X)",
   "editor.tool_railing": "Dibujar una barandilla (G)",
   "editor.sub_rect": "Habitación",
   "editor.sub_wall": "Pared",
@@ -1782,5 +1782,9 @@
   "editor.help_railing": "Arrastra de un extremo de la barandilla al otro: junto a una galería, el borde de una escalera o una azotea; se ajusta recta o a 45°. Alt: sin ajuste. Esc: cancelar.",
   "editor.group_openings": "Puertas, ventanas, escaleras (D, S)",
   "editor.sub_opening": "Puertas y ventanas",
-  "editor.sub_stairs": "Escalera"
+  "editor.sub_stairs": "Escalera",
+  "editor.tool_divide": "Dividir una habitación, sin pared (X)",
+  "editor.sub_divide": "División",
+  "editor.help_divide": "Arrastra una línea a través de una habitación para hacer dos sin pared entre ellas, p. ej. cocina y comedor. Cada parte puede tener su propia área de Home Assistant. Esc: cancelar.",
+  "editor.divide_missed": "Arrastra la línea a lo ancho de una habitación, de pared a pared."
 }

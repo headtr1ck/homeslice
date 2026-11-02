@@ -1773,7 +1773,7 @@
   "editor.add_roof": "Tetto",
   "editor.arriving": "{name} sta arrivando: download in Home Assistant",
   "editor.help_balcony": "Trascina un rettangolo per un balcone (piani superiori, con ringhiera sui lati aperti) o una terrazza (piano terra). Esc: annulla.",
-  "editor.group_build": "Stanze, pareti, ringhiere, balconi (R, W, G, B)",
+  "editor.group_build": "Stanze, pareti, ringhiere, balconi, divisioni (R, W, G, B, X)",
   "editor.tool_railing": "Disegna una ringhiera (G)",
   "editor.sub_rect": "Stanza",
   "editor.sub_wall": "Parete",
@@ -1782,5 +1782,9 @@
   "editor.help_railing": "Trascina da un'estremità della ringhiera all'altra: lungo un soppalco, il bordo di una scala o una terrazza sul tetto; si aggancia dritta o a 45°. Alt: senza aggancio. Esc: annulla.",
   "editor.group_openings": "Porte, finestre, scale (D, S)",
   "editor.sub_opening": "Porte e finestre",
-  "editor.sub_stairs": "Scala"
+  "editor.sub_stairs": "Scala",
+  "editor.tool_divide": "Dividi una stanza, senza parete (X)",
+  "editor.sub_divide": "Divisione",
+  "editor.help_divide": "Trascina una linea attraverso una stanza per farne due senza parete tra loro, ad es. cucina e zona pranzo. Ogni parte può avere la sua area di Home Assistant. Esc: annulla.",
+  "editor.divide_missed": "Trascina la linea attraverso tutta una stanza, da parete a parete."
 }

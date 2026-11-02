@@ -1773,7 +1773,7 @@
   "editor.add_roof": "Dak",
   "editor.arriving": "{name} komt eraan: wordt in Home Assistant gedownload",
   "editor.help_balcony": "Sleep een rechthoek voor een balkon (bovenverdiepingen, met een balustrade aan de open zijden) of een terras (begane grond). Esc: annuleren.",
-  "editor.group_build": "Ruimtes, wanden, balustrades, balkons (R, W, G, B)",
+  "editor.group_build": "Ruimtes, wanden, balustrades, balkons, scheidingen (R, W, G, B, X)",
   "editor.tool_railing": "Balustrade tekenen (G)",
   "editor.sub_rect": "Ruimte",
   "editor.sub_wall": "Wand",
@@ -1782,5 +1782,9 @@
   "editor.help_railing": "Sleep van het ene eind van de balustrade naar het andere: langs een vide, een traprand of een dakterras; lijnt recht of op 45° uit. Alt: niet uitlijnen. Esc: annuleren.",
   "editor.group_openings": "Deuren, ramen, trappen (D, S)",
   "editor.sub_opening": "Deuren & ramen",
-  "editor.sub_stairs": "Trap"
+  "editor.sub_stairs": "Trap",
+  "editor.tool_divide": "Ruimte splitsen, zonder wand (X)",
+  "editor.sub_divide": "Scheiding",
+  "editor.help_divide": "Sleep een lijn door een ruimte om er twee ruimtes zonder wand tussen te maken, bv. keuken en eethoek. Elk deel kan een eigen Home Assistant-ruimte krijgen. Esc: annuleren.",
+  "editor.divide_missed": "Sleep de lijn helemaal door één ruimte, van wand tot wand."
 }
