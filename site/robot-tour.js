@@ -2,8 +2,8 @@
 // vacuum the rooms, a mower the garden), back to the dock, a rest, and again. Their position
 // is a pretend attribute in plan metres, so the card shows them live like a real one.
 
-const STEP_MS = 600;
-const SPEED = 0.45; // metres a second
+const STEP_MS = 1000;
+const SPEED = 0.3; // metres a second, the card's own pace for a robot
 const REST_MS = 8000;
 const INSET = 0.6;
 
