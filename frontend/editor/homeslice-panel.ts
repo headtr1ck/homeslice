@@ -45,7 +45,7 @@ import {
 import { areaLightRooms, listedLights, placeLights, type PlacedLight } from "../model/lights";
 import { prefsSensors, type EnergyPrefs } from "../ha/energy";
 import { applyAll, checklist, type CheckItem } from "./checklist";
-import { extractYaml, mapFloor, mapNotes, mapOwnName, mapScale, type MapNote } from "./start";
+import { assignMaps, bestMatch, extractYaml, mapNotes, mapScale, ownNames, type MapNote } from "./start";
 import { pollPosition, rawPosition, readRobot } from "../ha/robots";
 import { ENERGY_COLORS } from "../render/scene";
 import {
@@ -279,6 +279,8 @@ interface StartState {
   withMaps: boolean;
   /** Floor → the robot map picture its rooms come from ("" none). */
   floorMaps: Record<string, string>;
+  /** The user picked maps for floors (the guess then stays out of it). */
+  mapsTouched?: boolean;
   /** The floor whose live map catching is shown. */
   capture: { floor: string; map: string } | null;
   aiEntity: string;
@@ -788,19 +790,56 @@ export class HomeslicePanel extends LitElement {
   }
 
   /** Robot map pictures: their robot, scale (if known) and the floor they seem to show. */
-  private startMaps(): { id: string; name: string; scale: number | null; floor?: string; live: boolean }[] {
-    const floors = this.haFloors();
+  private startMaps(): { id: string; name: string; scale: number | null; floor?: string; live: boolean; own: string }[] {
     const states = this._hass?.states ?? {};
-    return this.robotMaps().map((id) => {
-      const name = this.entityName(id);
+    const ids = this.robotMaps();
+    // the maps' own names: what one robot's maps share in front (its name) taken off
+    const own = ownNames(
+      ids.map((id) => {
+        const device = this._hass?.entities?.[id]?.device_id ?? undefined;
+        const d = device ? this._hass?.devices?.[device] : undefined;
+        return { id, name: this.entityName(id), robot: device, device: d?.name_by_user ?? d?.name ?? undefined };
+      }),
+    );
+    // which floor each shows: by name at first, then also by its rooms (once the robot named them)
+    const guess = this.mapGuess ?? assignMaps(ids.map((id) => ({ id, name: own[id], rooms: [] })), this.floorEvidence());
+    const floorOf = Object.fromEntries(Object.entries(guess).map(([f, m]) => [m, f]));
+    return ids.map((id) => ({
+      id,
+      name: this.entityName(id),
+      own: own[id],
+      scale: mapScale(this._hass?.entities?.[id]?.platform),
+      floor: floorOf[id],
       // some robots show their map only while they work (it is "unknown" in between)
-      const live = !["unknown", "unavailable"].includes(states[id]?.state ?? "unknown");
-      // the robot's own name taken off: a robot named after a floor doesn't match every map to it
-      const device = this._hass?.entities?.[id]?.device_id;
-      const d = device ? this._hass?.devices?.[device] : undefined;
-      const robot = d?.name_by_user ?? d?.name ?? undefined;
-      return { id, name, scale: mapScale(this._hass?.entities?.[id]?.platform), floor: mapFloor(mapOwnName(name, id, robot), floors), live };
-    });
+      live: !["unknown", "unavailable"].includes(states[id]?.state ?? "unknown"),
+    }));
+  }
+
+  /** Floors as evidence for robot maps: their names and their areas' names. */
+  private floorEvidence() {
+    return this.haFloors().map((f) => ({ floor_id: f.floor_id, name: f.name, areas: this.floorAreas(f.floor_id).map((a) => a.name) }));
+  }
+
+  /** The guess of which map shows which floor, with the robots' room names as evidence too. */
+  private mapGuess: Record<string, string> | null = null;
+  private guessing = false;
+
+  private async guessMapFloors() {
+    if (this.guessing) return;
+    this.guessing = true;
+    try {
+      const maps = this.startMaps();
+      const evidence = await Promise.all(maps.map(async (m) => ({ id: m.id, name: m.own, rooms: Object.values(await this.robotRoomNames(m.id)) })));
+      this.mapGuess = assignMaps(evidence, this.floorEvidence());
+      const st = this._start;
+      // the user's own picks stay; else the better guess
+      if (st && !st.mapsTouched) {
+        const live = new Set(maps.filter((m) => m.live && m.scale).map((m) => m.id));
+        this.setStart({ floorMaps: Object.fromEntries(this.haFloors().map((f) => [f.floor_id, live.has(this.mapGuess![f.floor_id]) ? this.mapGuess![f.floor_id] : ""])) });
+      }
+    } finally {
+      this.guessing = false;
+    }
   }
 
   /** A map picture as it is now, in its own colours (a data URL). */
@@ -986,8 +1025,8 @@ export class HomeslicePanel extends LitElement {
         for (const room of found) {
           const poly = room.polygon.map(([x, y]) => [Math.round((x * scale - off[0]) * 100) / 100, Math.round((y * scale - off[1]) * 100) / 100] as Vec2);
           const name = names[room.number];
-          const key = name?.trim().toLowerCase();
-          const area = key ? (floorAreas.find((a) => a.name.trim().toLowerCase() === key) ?? allAreas.find((a) => a.name.trim().toLowerCase() === key)) : undefined;
+          // the area most like the robot's room name: this floor's first (few to choose from: less alike will do)
+          const area = name ? (bestMatch(name, floorAreas, (a) => a.name, 0.6) ?? bestMatch(name, allAreas, (a) => a.name)) : undefined;
           const taken = (m.levels.find((l) => l.id === level.id)?.rooms ?? []).map((r) => r.id);
           const props: Partial<RoomInput> = area ? { id: uniqueId(taken, slug(area.area_id, "room")), area_id: area.area_id } : name ? { name } : {};
           m = drawRoomOver(m, level.id, poly, props).model;
@@ -1066,7 +1105,10 @@ export class HomeslicePanel extends LitElement {
         </button>
         ${open ? html`<div class="start-body">${body}</div>` : nothing}
       </section>`;
-    const toggle = (k: StartState["open"]) => () => this.setStart({ open: st.open === k ? null : k, note: "", problems: [] });
+    const toggle = (k: StartState["open"]) => () => {
+      this.setStart({ open: st.open === k ? null : k, note: "", problems: [] });
+      if (k === "robot" || k === "ai") void this.guessMapFloors();
+    };
     const problems = st.problems.length
       ? html`<ul class="problems">${st.problems.map((x) => html`<li>${x}</li>`)}</ul>
           <button @click=${async () => {
@@ -1136,7 +1178,7 @@ export class HomeslicePanel extends LitElement {
                   await this._hass!.callWS({ type: "homeslice/start/stop", floor: f.floor_id, drop: true });
                   await this.loadStart();
                 }}>${this.t("editor.light_remove")}</button></span>`
-            : html`<select data-start-map=${f.floor_id} @change=${(e: Event) => this.setStart({ floorMaps: { ...st.floorMaps, [f.floor_id]: (e.target as HTMLSelectElement).value } })}>
+            : html`<select data-start-map=${f.floor_id} @change=${(e: Event) => this.setStart({ floorMaps: { ...st.floorMaps, [f.floor_id]: (e.target as HTMLSelectElement).value }, mapsTouched: true })}>
                 <option value="">${this.t("editor.start_map_none")}</option>
                 ${ready.map((m) => html`<option value=${m.id} ?selected=${st.floorMaps[f.floor_id] === m.id}>${m.name}</option>`)}
               </select>`}
@@ -3105,7 +3147,9 @@ export class HomeslicePanel extends LitElement {
       for (const room of found) {
         const poly = room.polygon.map(([x, y]) => this.underlayToPlan(u, [x * k, y * k])).map(([x, y]) => [Math.round(x * 100) / 100, Math.round(y * 100) / 100] as Vec2);
         const name = names[room.number];
-        const area = name ? areas.find((a) => a.name.trim().toLowerCase() === name.trim().toLowerCase()) : undefined;
+        // the area most like the robot's room name: this level's floor first
+        const floorAreas = areas.filter((a) => a.floor_id && (a.floor_id === this.levelInput?.floor_id || this.levelInput?.include_floors?.includes(a.floor_id)));
+        const area = name ? (bestMatch(name, floorAreas, (a) => a.name, 0.6) ?? bestMatch(name, areas, (a) => a.name)) : undefined;
         if (area || name) named++;
         const taken = (m.levels.find((l) => l.id === this._level)?.rooms ?? []).map((r) => r.id);
         const props: Partial<RoomInput> = area ? { id: uniqueId(taken, slug(area.area_id, "room")), area_id: area.area_id } : name ? { name } : {};
@@ -3130,10 +3174,9 @@ export class HomeslicePanel extends LitElement {
     try {
       const res = (await hass.callService("roborock", "get_maps", {}, { entity_id: vacuum }, false, true)) as { response?: Record<string, { maps?: { name?: string; rooms?: Record<string, string> }[] }> };
       const maps = res?.response?.[vacuum]?.maps ?? [];
-      // the map whose name the picture carries ("…_ground_floor" ↔ "Ground Floor", "Groundfloor" too), else the only one
-      const named = maps.map((x, i) => ({ floor_id: String(i), name: x.name ?? "" })).filter((x) => x.name);
-      const match = mapFloor(`${this.entityName(image)} ${image.replace(/_/g, " ")}`, named);
-      const map = match !== undefined ? maps[Number(match)] : maps.length === 1 ? maps[0] : undefined;
+      // the robot's map whose name is most like the picture's own name, else the only one
+      const own = this.startMaps().find((m) => m.id === image)?.own ?? this.entityName(image);
+      const map = bestMatch(own, maps, (x) => x.name ?? "", 0.5) ?? (maps.length === 1 ? maps[0] : undefined);
       return Object.fromEntries(Object.entries(map?.rooms ?? {}).map(([n, name]) => [Number(n), name]));
     } catch {
       return {};

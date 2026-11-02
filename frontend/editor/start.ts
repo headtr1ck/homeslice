@@ -10,54 +10,118 @@ export function mapScale(platform: string | undefined): number | null {
   return null;
 }
 
-const ORDINALS: Record<string, string> = { "1st": "first", "2nd": "second", "3rd": "third", "4th": "fourth", "5th": "fifth" };
-
-/** A name as plain words: lower case, accents off (ß as ss), ordinals spelled out. */
-const words = (t: string) =>
-  t
+/** A name for comparing: lower case, accents off (ß as ss), letters and digits only. */
+export function normal(t: string): string {
+  return t
     .toLowerCase()
     .replace(/ß/g, "ss")
     .normalize("NFKD")
     .replace(/[\u0300-\u036f]/g, "")
     .replace(/[^a-z0-9]+/g, " ")
-    .trim()
-    .split(" ")
-    .map((w) => ORDINALS[w] ?? w)
-    .join(" ");
+    .trim();
+}
 
-/**
- * The floor a robot's map shows, by name ("Saros 10 Ground floor" ↔ floor "Ground Floor"; spaces
- * and dashes don't matter: "Groundfloor", "ground-floor"; "1st floor" is "First floor");
- * undefined when none matches.
- */
-export function mapFloor(mapName: string, floors: { floor_id: string; name: string }[]): string | undefined {
-  const m = words(mapName);
-  const joined = m.replace(/ /g, "");
-  // longest names first: "Upper ground floor" before "Ground floor"
-  return [...floors]
-    .sort((a, b) => b.name.length - a.name.length)
-    .find((f) =>
-      [f.name, f.floor_id.replace(/_/g, " ")].some((n) => {
-        const w = words(n);
-        // as whole words, or written together (short names only as words: "eg" is in "legs")
-        return ` ${m} `.includes(` ${w} `) || (w.length >= 6 && joined.includes(w.replace(/ /g, "")));
-      }),
-    )?.floor_id;
+/** Letter triples of a name, spaces left out ("Ground Floor" and "groundfloor" share them all). */
+function trigrams(t: string): Map<string, number> {
+  const s = `  ${normal(t).replace(/ /g, "")} `;
+  const out = new Map<string, number>();
+  for (let i = 0; i + 3 <= s.length; i++) out.set(s.slice(i, i + 3), (out.get(s.slice(i, i + 3)) ?? 0) + 1);
+  return out;
+}
+
+/** How alike two names are, 0..1 (shared letter triples): spelling, spaces and small typos barely matter. */
+export function similarity(a: string, b: string): number {
+  const x = trigrams(a);
+  const y = trigrams(b);
+  let shared = 0;
+  let total = 0;
+  for (const [k, n] of x) {
+    shared += Math.min(n, y.get(k) ?? 0);
+    total += n;
+  }
+  for (const n of y.values()) total += n;
+  return total ? (2 * shared) / total : 0;
+}
+
+/** How well a name is found in a longer one: its best match against any run of the other's words. */
+function within(name: string, text: string): number {
+  const w = normal(text).split(" ").filter(Boolean);
+  let best = 0;
+  for (let i = 0; i < w.length; i++) for (let j = i + 1; j <= Math.min(w.length, i + 4); j++) best = Math.max(best, similarity(name, w.slice(i, j).join(" ")));
+  return best;
+}
+
+/** The best match for `name` among `options` (by `label`), if it is alike enough. */
+export function bestMatch<T>(name: string, options: T[], label: (o: T) => string, threshold = 0.72): T | undefined {
+  let best: T | undefined;
+  let score = threshold;
+  for (const o of options) {
+    const s = similarity(name, label(o));
+    if (s >= score) [best, score] = [o, s];
+  }
+  return best;
 }
 
 /**
- * A robot map picture's own name, without the robot's in front of it ("Saros 10 Ground Floor"
- * of the robot "Saros 10" is "Ground Floor"; `image.saros_10_ground_floor` likewise): only that
- * is compared with floors, so a robot named after a floor doesn't match every floor's map.
+ * The maps' own names: what all of one robot's maps start with (its name: "Saros 10 …") taken
+ * off; a robot with a single map loses its device name instead.
  */
-export function mapOwnName(name: string, entityId: string, robot: string | undefined): string {
-  if (!robot) return `${name} ${entityId.replace(/^image\./, "").replace(/_/g, " ")}`;
-  const r = words(robot);
-  const strip = (t: string) => {
-    const w = words(t);
-    return w.startsWith(`${r} `) ? w.slice(r.length + 1) : w === r ? "" : w;
-  };
-  return `${strip(name)} ${strip(entityId.replace(/^image\./, "").replace(/_/g, " "))}`.trim();
+export function ownNames(maps: { id: string; name: string; robot?: string; device?: string }[]): Record<string, string> {
+  const out: Record<string, string> = {};
+  const byRobot = new Map<string, typeof maps>();
+  for (const m of maps) byRobot.set(m.robot ?? m.id, [...(byRobot.get(m.robot ?? m.id) ?? []), m]);
+  for (const group of byRobot.values()) {
+    const words = group.map((m) => normal(m.name).split(" "));
+    let common = 0;
+    if (group.length > 1) while (words.every((w) => w.length > common + 1 && w[common] === words[0][common])) common++;
+    else if (group[0].device) {
+      const d = normal(group[0].device).split(" ");
+      if (d.every((x, i) => words[0][i] === x) && words[0].length > d.length) common = d.length;
+    }
+    group.forEach((m, i) => (out[m.id] = words[i].slice(common).join(" ")));
+  }
+  return out;
+}
+
+export interface MapEvidence {
+  id: string;
+  /** Its own name (see ownNames). */
+  name: string;
+  /** The robot's room names on it. */
+  rooms: string[];
+}
+
+export interface FloorEvidence {
+  floor_id: string;
+  name: string;
+  /** The names of its Home Assistant areas. */
+  areas: string[];
+}
+
+/** How much a map looks like a floor, 0..1: by name, and by how many of its rooms are that floor's areas. */
+export function mapFloorScore(map: MapEvidence, floor: FloorEvidence): number {
+  const byName = Math.max(within(floor.name, map.name), within(floor.floor_id.replace(/_/g, " "), map.name));
+  const matched = map.rooms.filter((r) => floor.areas.some((a) => similarity(r, a) >= 0.72)).length;
+  const byRooms = map.rooms.length ? matched / map.rooms.length : 0;
+  // either is enough on its own; both together are surer
+  return Math.min(1, Math.max(byName, byRooms) + 0.25 * Math.min(byName, byRooms));
+}
+
+/**
+ * Which map each floor takes: every map–floor pair scored, then the surest pairs first, each
+ * floor and each map used once; a pair below `threshold` is no match.
+ */
+export function assignMaps(maps: MapEvidence[], floors: FloorEvidence[], threshold = 0.6): Record<string, string> {
+  const pairs = maps.flatMap((m) => floors.map((f) => ({ m: m.id, f: f.floor_id, score: mapFloorScore(m, f) }))).filter((p) => p.score >= threshold);
+  pairs.sort((a, b) => b.score - a.score);
+  const out: Record<string, string> = {};
+  const used = new Set<string>();
+  for (const p of pairs) {
+    if (out[p.f] || used.has(p.m)) continue;
+    out[p.f] = p.m;
+    used.add(p.m);
+  }
+  return out;
 }
 
 /** The house YAML in an assistant's answer: inside a code block if there is one, else all of it. */

@@ -1,31 +1,60 @@
 import { describe, expect, it } from "vitest";
-import { extractYaml, mapFloor, mapNotes, mapOwnName, mapScale } from "./start";
+import { assignMaps, bestMatch, extractYaml, mapNotes, mapScale, ownNames, similarity } from "./start";
 
-describe("the start screen's helpers", () => {
-  const floors = [
-    { floor_id: "ground_floor", name: "Ground Floor" },
-    { floor_id: "basement", name: "Basement" },
-    { floor_id: "upper_ground_floor", name: "Upper ground floor" },
-  ];
-  it("finds the floor a robot's map shows by its name", () => {
-    expect(mapFloor("Saros 10 Ground floor", floors)).toBe("ground_floor");
-    expect(mapFloor("saros_10_basement", floors)).toBe("basement");
-    expect(mapFloor("Saros 10 Upper ground floor", floors)).toBe("upper_ground_floor");
-    expect(mapFloor("Roborock Q10 Series Map", floors)).toBeUndefined();
-    // written together, with a dash, or with an ordinal
-    expect(mapFloor("Saros 10 Groundfloor", floors)).toBe("ground_floor");
-    expect(mapFloor("saros_10_ground-floor", floors)).toBe("ground_floor");
-    expect(mapFloor("Q10 1st floor", [...floors, { floor_id: "first_floor", name: "First floor" }])).toBe("first_floor");
-    expect(mapFloor("Robo Erdgeschoß", [{ floor_id: "eg", name: "Erdgeschoss" }, { floor_id: "og", name: "Obergeschoß" }])).toBe("eg");
-    expect(mapFloor("Robo Obergeschoss", [{ floor_id: "og", name: "Obergeschoss" }])).toBe("og");
+const floor = (floor_id: string, name: string, areas: string[] = []) => ({ floor_id, name, areas });
+const map = (id: string, name: string, rooms: string[] = []) => ({ id, name, rooms });
+
+describe("which robot map shows which floor", () => {
+  const floors = [floor("second_floor", "Second Floor"), floor("first_floor", "First Floor"), floor("ground_floor", "Ground Floor"), floor("basement", "Basement")];
+
+  it("by name, however it is written", () => {
+    expect(assignMaps([map("a", "ground floor"), map("b", "basement")], floors)).toEqual({ ground_floor: "a", basement: "b" });
+    for (const written of ["groundfloor", "ground-floor", "Ground  Floor", "grond floor"]) expect(assignMaps([map("a", written)], floors)).toEqual({ ground_floor: "a" });
+    expect(assignMaps([map("a", "1st floor")], floors)).toEqual({ first_floor: "a" });
+    expect(assignMaps([map("a", "Erdgeschoß")], [floor("eg", "Erdgeschoss"), floor("og", "Obergeschoss")])).toEqual({ eg: "a" });
   });
-  it("compares only the map's own name, not its robot's", () => {
-    const keller = [{ floor_id: "keller", name: "Keller" }, { floor_id: "eg", name: "Erdgeschoss" }];
-    // a robot named after a floor: its ground floor map is not the cellar's
-    expect(mapFloor(mapOwnName("Kellerbot Erdgeschoss", "image.kellerbot_erdgeschoss", "Kellerbot"), keller)).toBe("eg");
-    expect(mapOwnName("Saros 10 Ground Floor", "image.saros_10_ground_floor", "Saros 10")).toBe("ground floor ground floor");
-    expect(mapOwnName("Q10 Map", "image.q10_map", undefined)).toBe("Q10 Map q10 map");
+
+  it("the closer name wins, each floor and each map used once", () => {
+    const two = [floor("ug", "Upper ground floor"), floor("g", "Ground floor")];
+    expect(assignMaps([map("a", "ground floor"), map("b", "upper ground floor")], two)).toEqual({ g: "a", ug: "b" });
   });
+
+  it("by the rooms on it when the names don't help (another language, a map called Map 1)", () => {
+    const de = [floor("eg", "Erdgeschoss", ["Küche", "Wohnzimmer", "Flur"]), floor("keller", "Keller", ["Technikraum", "Gästezimmer"])];
+    const maps = [map("a", "ground floor", ["Wohnzimmer", "Küche", "Bad"]), map("b", "map 2", ["Technikraum", "Gaestezimmer", "Lager"])];
+    expect(assignMaps(maps, de)).toEqual({ eg: "a", keller: "b" });
+  });
+
+  it("a map that looks like no floor is none's", () => {
+    expect(assignMaps([map("a", "map"), map("b", "q10 series map")], floors)).toEqual({});
+  });
+
+  it("a map's own name: what a robot's maps share in front taken off (or the device's name)", () => {
+    expect(
+      ownNames([
+        { id: "a", name: "Saros 10 Ground Floor", robot: "saros" },
+        { id: "b", name: "Saros 10 Basement", robot: "saros" },
+        { id: "c", name: "Kellerbot Erdgeschoss", robot: "k", device: "Kellerbot" },
+      ]),
+    ).toEqual({ a: "ground floor", b: "basement", c: "erdgeschoss" });
+    // a robot named after a floor: its map is not that floor's
+    const kf = [floor("keller", "Keller"), floor("eg", "Erdgeschoss")];
+    expect(assignMaps([map("c", "erdgeschoss")], kf)).toEqual({ eg: "c" });
+  });
+
+  it("names alike: spelling, spaces and small typos barely matter", () => {
+    expect(similarity("Living room", "Livingroom")).toBeGreaterThan(0.9);
+    expect(similarity("Kitchen", "Bathroom")).toBeLessThan(0.3);
+    expect(bestMatch("Living room", [{ n: "Living Room" }, { n: "Kitchen" }], (o) => o.n)?.n).toBe("Living Room");
+    expect(bestMatch("Guest bedroom", [{ n: "Kitchen" }], (o) => o.n)).toBeUndefined();
+    // among a floor's few areas, less alike will do; house-wide only close names
+    expect(bestMatch("Guest bedroom", [{ n: "Guest Room" }, { n: "Corridor" }], (o) => o.n, 0.6)?.n).toBe("Guest Room");
+    expect(bestMatch("Bedroom", [{ n: "Bathroom" }], (o) => o.n, 0.6)).toBeUndefined();
+    expect(bestMatch("Hall", [{ n: "Hallway" }], (o) => o.n)).toBeUndefined();
+  });
+});
+
+describe("the start screen's other helpers", () => {
   it("knows Roborock's map scale, not others'", () => {
     expect(mapScale("roborock")).toBe(0.0125);
     expect(mapScale("xiaomi_miio")).toBeNull();
