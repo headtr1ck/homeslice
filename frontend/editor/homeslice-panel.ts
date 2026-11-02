@@ -1972,6 +1972,17 @@ export class HomeslicePanel extends LitElement {
       const c = w.a[0] * normal[0] + w.a[1] * normal[1];
       out.push(c - w.thickness / 2, c, c + w.thickness / 2);
     }
+    // the other floors' outside walls, to line this one up with
+    for (const l of this._model?.levels ?? []) {
+      if (l.id === this._level) continue;
+      const poly = outlineScope(this._model!, l.id).poly;
+      poly.forEach((p, i) => {
+        const q = poly[(i + 1) % poly.length];
+        const len = Math.hypot(q[0] - p[0], q[1] - p[1]) || 1;
+        if (Math.abs(((q[0] - p[0]) / len) * normal[0] + ((q[1] - p[1]) / len) * normal[1]) > 0.01) return;
+        out.push(p[0] * normal[0] + p[1] * normal[1]);
+      });
+    }
     return out;
   }
 
@@ -2393,7 +2404,7 @@ export class HomeslicePanel extends LitElement {
     if (drag.kind === "vertex") {
       const s = snapped(world, drag.ctx);
       this._guides = { x: s.alignX, y: s.alignY, ring: s.target, rays: s.rays };
-      this._model = moveVertex(drag.origin, this._level, drag.from, s.p);
+      this._model = moveVertex(drag.origin, this._level, drag.from, s.p, !e.shiftKey);
       this._hint = { x: screen[0], y: screen[1], lines: [...this.cornerReadout(s.p), this.t(`editor.snap_${s.kind}` as StringKey)] };
       return;
     }
@@ -2414,7 +2425,7 @@ export class HomeslicePanel extends LitElement {
         this._guides = vertical ? { x: wall * Math.sign(drag.normal[0]) } : horizontal ? { y: wall * Math.sign(drag.normal[1]) } : null;
       }
       const delta: Vec2 = [drag.normal[0] * snappedAlong, drag.normal[1] * snappedAlong];
-      this._model = moveEdge(drag.origin, this._level, drag.a, drag.b, delta);
+      this._model = moveEdge(drag.origin, this._level, drag.a, drag.b, delta, !e.shiftKey);
       this._hint = { x: screen[0], y: screen[1], lines: [this.moveReadout(delta), ...this.roomReadout()] };
       return;
     }
@@ -5056,6 +5067,8 @@ export class HomeslicePanel extends LitElement {
                 side: this.t(`editor.side_${i.target.side}` as StringKey),
               })
             : this.t(i.room ? "editor.check_unlinked_room" : "editor.check_unlinked", { entity: this.entityName(i.entity), room: roomName(i.level, i.room) });
+        case "beside":
+          return this.t("editor.check_beside", { rooms: i.rooms.map((r) => roomName(i.level, r)).join(", "), cm: Math.max(1, Math.round(i.off * 100)) });
         default:
           return i.message;
       }
@@ -5073,6 +5086,11 @@ export class HomeslicePanel extends LitElement {
                   this._pendingArea = i.area;
                   this._tool = "rect";
                 }}>${this.t("editor.draw_room")}</button>`
+              : i.kind === "beside"
+                ? html`<button data-check-beside=${i.level} @click=${() => {
+                    go(i.level);
+                    this.commit(i.fix);
+                  }}>${this.t("editor.check_beside_fix")}</button>`
               : (i.kind === "cover" || i.kind === "contact") && i.fix
                 ? html`<button @click=${() => this.commit(i.fix!)}>${this.t("editor.check_link")}</button>`
                 : i.level

@@ -65,7 +65,7 @@
   "editor.tool_select": "Zaznacz i przesuń (V)",
   "editor.tool_rect": "Narysuj pokój (R)",
   "editor.fit": "Dopasuj do ekranu",
-  "editor.help_select": "Kliknij cokolwiek, aby to zaznaczyć: pokoje, ściany, drzwi i okna, meble, światła, urządzenia. Przeciągnij, aby przesunąć; kliknij dwukrotnie ścianę, aby dodać narożnik. Alt: bez przyciągania.",
+  "editor.help_select": "Kliknij cokolwiek, aby to zaznaczyć: pokoje, ściany, drzwi i okna, meble, światła, urządzenia. Przeciągnij, aby przesunąć; kliknij dwukrotnie ścianę, aby dodać narożnik. Alt: bez przyciągania. Shift: ściana zewnętrzna przesuwa się tylko na tym piętrze (inaczej podążają za nią piętra powyżej i poniżej leżące w jednej linii).",
   "editor.help_rect": "Przeciągnij, aby narysować pokój. Esc: anuluj.",
   "editor.snap_point": "przyciągnięto do narożnika",
   "editor.snap_angle": "pod kątem 45°",
@@ -1903,5 +1903,7 @@
   "editor.floor_move_hint": "Przeciągnij w dowolnym miejscu planu: przesuwa się całe piętro (co 5 cm; Alt: dowolnie). Piętro poniżej prześwituje, aby je wyrównać. Escape lub ponownie przycisk: gotowe.",
   "editor.wall_of": "Ściana {room} po stronie {side}, bez niczego obok.",
   "editor.wall_alone_hint": "Po drugiej stronie nic nie ma: przeciągnij ją na miejsce (na ścianę zewnętrzną lub ścianę sąsiedniego pomieszczenia), a obie staną się jedną ścianą.",
-  "editor.wall_select_room": "Zaznacz {room}"
+  "editor.wall_select_room": "Zaznacz {room}",
+  "editor.check_beside": "{rooms}: jeden bok biegnie do {cm} cm obok ściany zewnętrznej zamiast na niej, więc stoją dwie ściany obok siebie.",
+  "editor.check_beside_fix": "Połóż na ścianie zewnętrznej"
 }

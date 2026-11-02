@@ -145,14 +145,35 @@ function mapRooms(m: HouseInput, levelId: string, fn: (p: Vec2) => Vec2 | null) 
  * Moves every room corner at `from` (shared corners move together) to `to`. A corner of
  * the outline moves the outline too, on every level sharing it.
  */
-export function moveVertex(model: HouseInput, levelId: string, from: Vec2, to: Vec2): HouseInput {
+export function moveVertex(model: HouseInput, levelId: string, from: Vec2, to: Vec2, linked = true): HouseInput {
   const m = clone(model);
   const scope = outlineScope(m, levelId);
   const outlineCorner = scope.poly.some((p) => dist(p, from) < SAME_POINT);
-  const levels = outlineCorner ? scope.levels : [levelId];
-  for (const id of levels) mapRooms(m, id, (p) => (dist(p, from) < SAME_POINT ? to : null));
-  if (outlineCorner) writeOutline(m, levelId, scope.owner, scope.poly.map((p) => (dist(p, from) < SAME_POINT ? to : p)));
+  const at = (p: Vec2) => (dist(p, from) < SAME_POINT ? to : null);
+  if (!outlineCorner) {
+    mapRooms(m, levelId, at);
+    return m;
+  }
+  // the floors above and below with their own outline cornered here too move along
+  for (const other of linked ? [scope, ...otherScopes(model, scope)] : [scope]) {
+    if (other !== scope && !other.poly.some((p) => at(p))) continue;
+    for (const id of other.levels) mapRooms(m, id, at);
+    writeOutline(m, other.levels[0], other.owner, other.poly.map((p) => at(p) ?? p));
+  }
   return m;
+}
+
+/** The outlines of the other levels (each once: the house's shared one, a level's own, or auto). */
+function otherScopes(model: HouseInput, scope: ReturnType<typeof outlineScope>): ReturnType<typeof outlineScope>[] {
+  const out: ReturnType<typeof outlineScope>[] = [];
+  const seen = new Set(scope.levels);
+  for (const l of model.levels) {
+    if (seen.has(l.id)) continue;
+    const other = outlineScope(model, l.id);
+    other.levels.forEach((id) => seen.add(id));
+    out.push(other);
+  }
+  return out;
 }
 
 /**
@@ -175,22 +196,81 @@ export function resizeSide(model: HouseInput, levelId: string, poly: Vec2[], i: 
  * moves the whole façade: the full outline edge, with every room along it, on every level
  * sharing the outline.
  */
-export function moveEdge(model: HouseInput, levelId: string, a: Vec2, b: Vec2, delta: Vec2): HouseInput {
+export function moveEdge(model: HouseInput, levelId: string, a: Vec2, b: Vec2, delta: Vec2, linked = true): HouseInput {
   const m = clone(model);
   const scope = outlineScope(m, levelId);
-  const facade = scope.poly
-    .map((p, i) => [p, scope.poly[(i + 1) % scope.poly.length]] as [Vec2, Vec2])
-    .find(([p, q]) => onSegmentOf(p, q)(a) && onSegmentOf(p, q)(b));
+  const edges = (poly: Vec2[]) => poly.map((p, i) => [p, poly[(i + 1) % poly.length]] as [Vec2, Vec2]);
+  const facade = edges(scope.poly).find(([p, q]) => onSegmentOf(p, q)(a) && onSegmentOf(p, q)(b));
+  const shift = (p: Vec2): Vec2 => [p[0] + delta[0], p[1] + delta[1]];
   if (!facade) {
     const on = onSegmentOf(a, b);
-    mapRooms(m, levelId, (p) => (on(p) ? [p[0] + delta[0], p[1] + delta[1]] : null));
+    mapRooms(m, levelId, (p) => (on(p) ? shift(p) : null));
     return m;
   }
   const on = onSegmentOf(facade[0], facade[1]);
-  const shift = (p: Vec2): Vec2 => [p[0] + delta[0], p[1] + delta[1]];
   for (const id of scope.levels) mapRooms(m, id, (p) => (on(p) ? shift(p) : null));
   writeOutline(m, levelId, scope.owner, scope.poly.map((p) => (on(p) ? shift(p) : p)));
+  if (!linked) return m;
+  // the same façade on the floors above and below (their own outline edge in line with
+  // this one, side by side with it): it moves along
+  const length = dist(facade[0], facade[1]);
+  for (const other of otherScopes(model, scope)) {
+    const same = edges(other.poly).filter(([p, q]) => {
+      const [pp, pq] = [project(p, facade[0], facade[1]), project(q, facade[0], facade[1])];
+      if (pp.distance > SAME_POINT || pq.distance > SAME_POINT) return false;
+      return Math.min(Math.max(pp.t, pq.t), length) - Math.max(Math.min(pp.t, pq.t), 0) > SAME_POINT;
+    });
+    if (!same.length) continue;
+    const onOther = (p: Vec2) => same.some(([x, y]) => onSegmentOf(x, y)(p));
+    for (const id of other.levels) mapRooms(m, id, (p) => (onOther(p) ? shift(p) : null));
+    writeOutline(m, other.levels[0], other.owner, other.poly.map((p) => (onOther(p) ? shift(p) : p)));
+  }
   return m;
+}
+
+/**
+ * Room corners lying just inside an outside wall (within `near`) where a room side runs
+ * along it: two walls side by side, mostly a slip. Returns the rooms concerned, how far
+ * off they are at most, and the house with those corners put on the outside wall.
+ */
+export function besideOutline(model: HouseInput, levelId: string, near = 0.3): { rooms: string[]; off: number; fixed: HouseInput } | null {
+  const scope = outlineScope(model, levelId);
+  if (scope.owner === "auto") return null;
+  const l = level(model, levelId);
+  const edges = scope.poly.map((p, i) => [p, scope.poly[(i + 1) % scope.poly.length]] as [Vec2, Vec2]);
+  const inside = l.rooms.filter((r) => (r.kind ?? "room") === "room");
+  const moves: { from: Vec2; to: Vec2 }[] = [];
+  const rooms = new Set<string>();
+  let off = 0;
+  for (const r of inside) {
+    const poly = roomPolygon(model, r);
+    poly.forEach((p, i) => {
+      const q = poly[(i + 1) % poly.length];
+      for (const [a, b] of edges) {
+        const [pp, pq] = [project(p, a, b), project(q, a, b)];
+        if (pp.distance > near || pq.distance > near) continue;
+        if (pp.distance < SAME_POINT && pq.distance < SAME_POINT) continue;
+        // beside it along a good stretch, not just a corner nearby
+        if (Math.min(Math.max(pp.t, pq.t), pp.length) - Math.max(Math.min(pp.t, pq.t), 0) < 0.5) continue;
+        // (and nothing between, the room itself neither: a narrow room there is no slip)
+        const mid: Vec2 = [(p[0] + q[0]) / 2, (p[1] + q[1]) / 2];
+        const foot = project(mid, a, b);
+        const gap: Vec2 = [(mid[0] + a[0] + ((b[0] - a[0]) * foot.t) / foot.length) / 2, (mid[1] + a[1] + ((b[1] - a[1]) * foot.t) / foot.length) / 2];
+        if (foot.distance > SAME_POINT && inside.some((o) => pointInPolygon(gap, roomPolygon(model, o)))) continue;
+        const onto = (t: number): Vec2 => [round(a[0] + ((b[0] - a[0]) * t) / pp.length), round(a[1] + ((b[1] - a[1]) * t) / pp.length)];
+        for (const [x, pr] of [[p, pp], [q, pq]] as const)
+          if (pr.distance >= SAME_POINT && !moves.some((mv) => dist(mv.from, x) < SAME_POINT)) {
+            moves.push({ from: x, to: onto(pr.t) });
+            off = Math.max(off, pr.distance);
+          }
+        rooms.add(r.id);
+      }
+    });
+  }
+  if (!moves.length) return null;
+  const fixed = clone(model);
+  mapRooms(fixed, levelId, (p) => moves.find((mv) => dist(mv.from, p) < SAME_POINT)?.to ?? null);
+  return { rooms: [...rooms], off, fixed };
 }
 
 /** Gives a level its own copy of the house outline (e.g. for an overhang), or drops it again. */

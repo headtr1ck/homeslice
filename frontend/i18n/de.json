@@ -65,7 +65,7 @@
   "editor.tool_select": "Auswählen und verschieben (V)",
   "editor.tool_rect": "Raum zeichnen (R)",
   "editor.fit": "An Bildschirm anpassen",
-  "editor.help_select": "Alles lässt sich anklicken: Räume, Wände, Türen und Fenster, Möbel, Lampen, Geräte. Ziehen verschiebt; Doppelklick auf eine Wand fügt eine Ecke hinzu. Alt: ohne Einrasten.",
+  "editor.help_select": "Alles lässt sich anklicken: Räume, Wände, Türen und Fenster, Möbel, Lampen, Geräte. Ziehen verschiebt; Doppelklick auf eine Wand fügt eine Ecke hinzu. Alt: ohne Einrasten. Umschalt: eine Außenwand nur auf diesem Stockwerk verschieben (sonst folgen die Stockwerke darüber und darunter, die mit ihr in einer Flucht liegen).",
   "editor.help_rect": "Ziehen, um einen Raum zu zeichnen. Esc: abbrechen.",
   "editor.snap_point": "an Ecke eingerastet",
   "editor.snap_angle": "im 45°-Winkel",
@@ -1903,5 +1903,7 @@
   "editor.floor_move_hint": "Irgendwo auf dem Plan ziehen: die ganze Etage verschiebt sich (in 5-cm-Schritten; Alt: frei). Die Etage darunter scheint zum Ausrichten durch. Escape oder nochmal der Knopf: fertig.",
   "editor.wall_of": "Die Wand von {room} auf ihrer {side}-Seite, ohne etwas daneben.",
   "editor.wall_alone_hint": "Auf der anderen Seite ist nichts: an ihren Platz ziehen (auf die Außenwand oder die Wand des nächsten Raums), dann werden beide eine Wand.",
-  "editor.wall_select_room": "{room} auswählen"
+  "editor.wall_select_room": "{room} auswählen",
+  "editor.check_beside": "{rooms}: eine Seite verläuft bis zu {cm} cm neben der Außenwand statt auf ihr, so stehen zwei Wände nebeneinander.",
+  "editor.check_beside_fix": "Auf die Außenwand legen"
 }

@@ -65,7 +65,7 @@
   "editor.tool_select": "Sélectionner et déplacer (V)",
   "editor.tool_rect": "Dessiner une pièce (R)",
   "editor.fit": "Ajuster à l'écran",
-  "editor.help_select": "Cliquez sur un élément pour le sélectionner : pièces, murs, portes et fenêtres, meubles, lumières, appareils. Glissez pour déplacer ; double-clic sur un mur pour ajouter un coin. Alt : sans aimantation.",
+  "editor.help_select": "Cliquez sur un élément pour le sélectionner : pièces, murs, portes et fenêtres, meubles, lumières, appareils. Glissez pour déplacer ; double-clic sur un mur pour ajouter un coin. Alt : sans aimantation. Maj : un mur extérieur ne bouge que sur cet étage (sinon les étages au-dessus et en dessous alignés avec lui suivent).",
   "editor.help_rect": "Glissez pour dessiner une pièce. Échap : annuler.",
   "editor.snap_point": "aimanté à un coin",
   "editor.snap_angle": "à 45°",
@@ -1903,5 +1903,7 @@
   "editor.floor_move_hint": "Glissez n'importe où sur le plan : tout l'étage se déplace (par pas de 5 cm ; Alt : librement). L'étage du dessous apparaît en transparence pour l'aligner. Échap ou le bouton à nouveau : terminé.",
   "editor.wall_of": "Le mur de {room} côté {side}, sans rien à côté.",
   "editor.wall_alone_hint": "Rien de l'autre côté : faites-le glisser à sa place (sur le mur extérieur ou sur le mur de la pièce voisine) et les deux ne font plus qu'un.",
-  "editor.wall_select_room": "Sélectionner {room}"
+  "editor.wall_select_room": "Sélectionner {room}",
+  "editor.check_beside": "{rooms} : un côté longe le mur extérieur jusqu'à {cm} cm au lieu d'être dessus, il y a donc deux murs côte à côte.",
+  "editor.check_beside_fix": "Placer sur le mur extérieur"
 }

@@ -65,7 +65,7 @@
   "editor.tool_select": "Select and move (V)",
   "editor.tool_rect": "Draw a room (R)",
   "editor.fit": "Fit to screen",
-  "editor.help_select": "Click anything to select it: rooms, walls, doors and windows, furniture, lights, devices. Drag to move; double-click a wall to add a corner. Alt: no snapping.",
+  "editor.help_select": "Click anything to select it: rooms, walls, doors and windows, furniture, lights, devices. Drag to move; double-click a wall to add a corner. Alt: no snapping. Shift: an outside wall moves on this floor only (else the floors above and below in line with it follow).",
   "editor.help_rect": "Drag to draw a room. Esc: cancel.",
   "editor.snap_point": "snapped to a corner",
   "editor.snap_angle": "at 45°",
@@ -1903,5 +1903,7 @@
   "editor.floor_move_hint": "Drag anywhere on the plan: the whole floor moves (in 5 cm steps; Alt: freely). The floor below shows faintly to line it up with. Escape or the button again: done.",
   "editor.wall_of": "The wall of {room} on its {side} side, with nothing beside it.",
   "editor.wall_alone_hint": "Nothing is on its other side: drag it to where it belongs (onto the outside wall, or onto the next room's wall), and the two become one wall.",
-  "editor.wall_select_room": "Select {room}"
+  "editor.wall_select_room": "Select {room}",
+  "editor.check_beside": "{rooms}: a side runs up to {cm} cm beside the outside wall instead of on it, so there are two walls side by side.",
+  "editor.check_beside_fix": "Put on the outside wall"
 }

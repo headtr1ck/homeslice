@@ -65,7 +65,7 @@
   "editor.tool_select": "Selecteren en verplaatsen (V)",
   "editor.tool_rect": "Kamer tekenen (R)",
   "editor.fit": "Passend maken",
-  "editor.help_select": "Klik op iets om het te selecteren: kamers, muren, deuren en ramen, meubels, lampen, apparaten. Sleep om te verplaatsen; dubbelklik op een muur om een hoek toe te voegen. Alt: niet magnetisch.",
+  "editor.help_select": "Klik op iets om het te selecteren: kamers, muren, deuren en ramen, meubels, lampen, apparaten. Sleep om te verplaatsen; dubbelklik op een muur om een hoek toe te voegen. Alt: niet magnetisch. Shift: een buitenmuur verschuift alleen op deze verdieping (anders volgen de verdiepingen erboven en eronder die ermee in lijn liggen).",
   "editor.help_rect": "Sleep om een kamer te tekenen. Esc: annuleren.",
   "editor.snap_point": "vastgeklikt op een hoek",
   "editor.snap_angle": "onder 45°",
@@ -1903,5 +1903,7 @@
   "editor.floor_move_hint": "Sleep ergens op de plattegrond: de hele verdieping verschuift (in stappen van 5 cm; Alt: vrij). De verdieping eronder schijnt door om op uit te lijnen. Escape of nogmaals de knop: klaar.",
   "editor.wall_of": "De wand van {room} aan de {side}kant, met niets ernaast.",
   "editor.wall_alone_hint": "Aan de andere kant is niets: sleep hem naar zijn plek (op de buitenmuur of op de wand van de volgende ruimte), dan worden beide één wand.",
-  "editor.wall_select_room": "{room} selecteren"
+  "editor.wall_select_room": "{room} selecteren",
+  "editor.check_beside": "{rooms}: een zijde loopt tot {cm} cm naast de buitenmuur in plaats van erop, zodat er twee muren naast elkaar staan.",
+  "editor.check_beside_fix": "Op de buitenmuur leggen"
 }

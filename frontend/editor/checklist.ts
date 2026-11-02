@@ -7,12 +7,13 @@ import { expandHouse } from "../model/expand";
 import { misalignedWalls, piecesInWalls, unreachableRooms } from "../model/checks";
 import type { HouseInput, OpeningSource, Side } from "../model/types";
 import { deriveWalls } from "../model/walls";
-import { updateOpening } from "./ops";
+import { besideOutline, updateOpening } from "./ops";
 
 export type CheckItem =
   | { kind: "area"; level: string; area: string; name: string }
   | { kind: "cover" | "contact"; entity: string; level?: string; room?: string; target?: { level: string; source: OpeningSource; room: string; side: Side }; fix?: HouseInput }
-  | { kind: "wall" | "model"; level?: string; message: string };
+  | { kind: "wall" | "model"; level?: string; message: string }
+  | { kind: "beside"; level: string; rooms: string[]; off: number; fix: HouseInput };
 
 /** Words for the sides of a house in entity names (English and German). */
 const SIDE_WORDS: Record<Side, RegExp> = {
@@ -85,7 +86,13 @@ export function checklist(model: HouseInput, hass: Hass, levelAreas: (levelId: s
     )
       link("contact", s.entity_id);
 
-  // 3. walls that almost line up with the wall below, and the model's own warnings
+  // 3. room sides just inside an outside wall: two walls side by side
+  for (const l of model.levels) {
+    const b = besideOutline(model, l.id);
+    if (b) items.push({ kind: "beside", level: l.id, rooms: b.rooms, off: b.off, fix: b.fixed });
+  }
+
+  // 4. walls that almost line up with the wall below, and the model's own warnings
   const walls = new Map(house.levels.map((l) => [l.id, deriveWalls(l, house.walls, [])]));
   for (const i of misalignedWalls(house, walls)) items.push({ kind: "wall", level: i.path.split(".")[1], message: i.message });
   const roomName = (l: string, r: string) => house.levels.find((x) => x.id === l)?.rooms.find((x) => x.id === r)?.name ?? r;

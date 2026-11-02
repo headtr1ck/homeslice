@@ -29,6 +29,7 @@ import {
   area,
   cornerAngle,
   deleteRoom,
+  besideOutline,
   moveEdge,
   moveLevel,
   moveVertex,
@@ -152,14 +153,49 @@ describe("editing operations", () => {
     expect(out.levels[1].rooms[0].rect).toEqual([0, 0, 10, 9]);
   });
 
-  it("a level with its own outline changes alone", () => {
+  it("a level with its own outline changes alone when unlinked (Shift)", () => {
     const m = setOwnOutline(house(), "g", true);
     m.levels.push({ id: "f", rooms: [{ id: "up", rect: [0, 0, 10, 8] }] });
-    const out = moveVertex(m, "g", [10, 0], [10, -1]);
+    const out = moveVertex(m, "g", [10, 0], [10, -1], false);
     expect(out.levels[0].outline).toEqual({ polygon: [[0, 0], [10, -1], [10, 8], [0, 8]] });
     expect(out.outline).toEqual({ rect: [0, 0, 10, 8] });
     expect(out.levels[1].rooms[0].rect).toEqual([0, 0, 10, 8]);
     expect(setOwnOutline(out, "g", false).levels[0].outline).toBeUndefined();
+  });
+
+  it("the floors above and below follow a façade or corner they share, even with their own outline", () => {
+    const m = house();
+    // a basement of its own shape, its east wall in line with the house's (only part of it)
+    m.levels.unshift({ id: "b", outline: { polygon: [[0, 0], [4, 0], [4, 3], [10, 3], [10, 8], [0, 8]] }, rooms: [{ id: "cellar", polygon: [[0, 0], [4, 0], [4, 3], [10, 3], [10, 8], [0, 8]] }] });
+    const out = moveEdge(m, "g", [10, 0], [10, 8], [0.5, 0]);
+    expect(out.outline).toEqual({ rect: [0, 0, 10.5, 8] });
+    expect(out.levels[0].outline).toEqual({ polygon: [[0, 0], [4, 0], [4, 3], [10.5, 3], [10.5, 8], [0, 8]] });
+    expect(out.levels[0].rooms[0].polygon).toContainEqual([10.5, 3]);
+    // the north façade: the basement's part in line moves, the notch's wall behind it stays
+    expect(moveEdge(m, "g", [0, 0], [10, 0], [0, -1]).levels[0].outline).toEqual({ polygon: [[0, -1], [4, -1], [4, 3], [10, 3], [10, 8], [0, 8]] });
+    // a shared corner
+    const corner = moveVertex(m, "b", [0, 8], [0, 8.5]);
+    expect(corner.outline).toEqual({ polygon: [[0, 0], [10, 0], [10, 8], [0, 8.5]] });
+    // Shift: this floor only
+    expect(moveEdge(m, "g", [10, 0], [10, 8], [0.5, 0], false).levels[0].outline).toEqual(m.levels[0].outline);
+  });
+
+  it("finds room sides just inside an outside wall and puts them on it", () => {
+    const m = house();
+    // the right room's east side leans 10 cm in at its south end: an inside wall beside the outside one
+    m.levels[0].rooms[1] = { id: "right", polygon: [[5, 0], [10, 0], [9.9, 8], [5, 8]] };
+    const found = besideOutline(m, "g")!;
+    expect(found.rooms).toEqual(["right"]);
+    expect(found.off).toBeCloseTo(0.1);
+    expect(rooms(found.fixed).right.rect).toEqual([5, 0, 5, 8]);
+    expect(besideOutline(found.fixed, "g")).toBeNull();
+    // a narrow room between is no slip
+    const strip = house();
+    strip.levels[0].rooms = [
+      { id: "left", rect: [0, 0, 9.8, 8] },
+      { id: "shaft", rect: [9.8, 0, 0.2, 8] },
+    ];
+    expect(besideOutline(strip, "g")).toBeNull();
   });
 
   it("opens and closes single sides of a boundary between two rooms", () => {

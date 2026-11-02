@@ -65,7 +65,7 @@
   "editor.tool_select": "Seleccionar y mover (V)",
   "editor.tool_rect": "Dibujar una habitación (R)",
   "editor.fit": "Ajustar a la pantalla",
-  "editor.help_select": "Haz clic en cualquier elemento para seleccionarlo: habitaciones, paredes, puertas y ventanas, muebles, luces, dispositivos. Arrastra para mover; doble clic en una pared para añadir una esquina. Alt: sin imán.",
+  "editor.help_select": "Haz clic en cualquier elemento para seleccionarlo: habitaciones, paredes, puertas y ventanas, muebles, luces, dispositivos. Arrastra para mover; doble clic en una pared para añadir una esquina. Alt: sin imán. Mayús: una pared exterior se mueve solo en esta planta (si no, la siguen las plantas de arriba y de abajo alineadas con ella).",
   "editor.help_rect": "Arrastra para dibujar una habitación. Esc: cancelar.",
   "editor.snap_point": "ajustado a una esquina",
   "editor.snap_angle": "a 45°",
@@ -1903,5 +1903,7 @@
   "editor.floor_move_hint": "Arrastra en cualquier parte del plano: toda la planta se mueve (en pasos de 5 cm; Alt: libremente). La planta de abajo se ve en transparencia para alinearla. Esc o el botón otra vez: listo.",
   "editor.wall_of": "La pared de {room} en su lado {side}, sin nada al lado.",
   "editor.wall_alone_hint": "No hay nada al otro lado: arrástrala a su sitio (sobre la pared exterior o la de la habitación vecina) y las dos serán una sola pared.",
-  "editor.wall_select_room": "Seleccionar {room}"
+  "editor.wall_select_room": "Seleccionar {room}",
+  "editor.check_beside": "{rooms}: un lado va hasta {cm} cm junto a la pared exterior en vez de sobre ella, así hay dos paredes una al lado de otra.",
+  "editor.check_beside_fix": "Poner sobre la pared exterior"
 }

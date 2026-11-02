@@ -65,7 +65,7 @@
   "editor.tool_select": "Seleziona e sposta (V)",
   "editor.tool_rect": "Disegna una stanza (R)",
   "editor.fit": "Adatta allo schermo",
-  "editor.help_select": "Clicca su qualsiasi cosa per selezionarla: stanze, pareti, porte e finestre, mobili, luci, dispositivi. Trascina per spostare; doppio clic su una parete per aggiungere un angolo. Alt: senza aggancio.",
+  "editor.help_select": "Clicca su qualsiasi cosa per selezionarla: stanze, pareti, porte e finestre, mobili, luci, dispositivi. Trascina per spostare; doppio clic su una parete per aggiungere un angolo. Alt: senza aggancio. Maiusc: una parete esterna si sposta solo su questo piano (altrimenti la seguono i piani sopra e sotto allineati).",
   "editor.help_rect": "Trascina per disegnare una stanza. Esc: annulla.",
   "editor.snap_point": "agganciato a un angolo",
   "editor.snap_angle": "a 45°",
@@ -1903,5 +1903,7 @@
   "editor.floor_move_hint": "Trascina ovunque sulla pianta: si sposta tutto il piano (a passi di 5 cm; Alt: liberamente). Il piano sottostante traspare per allinearlo. Esc o di nuovo il pulsante: fatto.",
   "editor.wall_of": "La parete di {room} sul lato {side}, senza nulla accanto.",
   "editor.wall_alone_hint": "Dall'altro lato non c'è niente: trascinala al suo posto (sulla parete esterna o su quella della stanza vicina) e le due diventano una parete.",
-  "editor.wall_select_room": "Seleziona {room}"
+  "editor.wall_select_room": "Seleziona {room}",
+  "editor.check_beside": "{rooms}: un lato corre fino a {cm} cm accanto alla parete esterna invece che su di essa, così ci sono due pareti affiancate.",
+  "editor.check_beside_fix": "Metti sulla parete esterna"
 }
