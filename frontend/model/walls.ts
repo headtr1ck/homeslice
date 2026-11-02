@@ -204,8 +204,6 @@ export function deriveWalls(level: Level, thickness: WallThickness, issues: Issu
       extendEnd: 0,
     };
   });
-  fillCorners(walls, level.outline);
-
   // free-standing walls (not on a room boundary)
   level.freeWalls.forEach((f, i) => {
     walls.push({
@@ -224,6 +222,8 @@ export function deriveWalls(level: Level, thickness: WallThickness, issues: Issu
       extendEnd: 0,
     });
   });
+  // corners filled once every wall is there, drawn ones too
+  fillCorners(walls, level.outline);
 
   // rooms reaching outside the outline are almost always a typo
   if (level.outline.length) {

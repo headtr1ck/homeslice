@@ -272,9 +272,12 @@ test.describe.serial("editor", () => {
       await page.mouse.move(bx, by, { steps: 6 });
       await page.mouse.up();
     }
-    assert((await model()).levels[0].walls.filter((w) => w.line).length >= 4, "walls not drawn");
-    // the walls close a shape: it says it is a room without an area, its button opens the assign tool
-    const badge = page.locator('homeslice-panel g.unassigned[data-unassigned="shape"]');
+    // the fourth wall closes the shape: it is a room at once, its walls the room's; it says it has no area
+    const closed = (await model()).levels[0];
+    const auto = closed.rooms.find((r) => JSON.stringify(r.rect) === "[9.5,1,2.5,2.5]");
+    assert(auto && !auto.area_id, `no room completed: ${JSON.stringify(closed.rooms.map((r) => [r.id, r.rect]))}`);
+    assert(!(closed.walls ?? []).some((w) => w.line), `the drawn walls stayed: ${JSON.stringify(closed.walls)}`);
+    const badge = page.locator(`homeslice-panel g.unassigned[data-unassigned="${auto.id}"]`);
     await badge.waitFor({ timeout: 2000 });
     assert((await badge.textContent()).includes("Unassigned room!"), "badge text");
     await shot(page, "editor-unassigned-shape");
@@ -335,19 +338,19 @@ test.describe.serial("editor", () => {
     }, [hx, hy]);
     assert((await room("hall")).area_id === area, `hall: ${JSON.stringify(await room("hall"))}`);
     assert(!(await page.locator("homeslice-panel g.assign-hover").count()), "the highlight stays");
-    // tapped: an area, then the shape the four walls close; it becomes a room, the walls its walls
+    // tapped: an area, then the room the four walls made
     const second = unplaced[1] ?? areas.at(-2)[0];
     await page.locator(`homeslice-panel .assign-areas button[data-area="${second}"]`).click();
     const [sx, sy] = await toScreen([10.7, 2.2]);
     await page.mouse.move(sx, sy);
-    await page.locator('homeslice-panel g.assign-hover[data-assign-hover="new"]').waitFor({ timeout: 2000 });
+    await page.locator(`homeslice-panel g.assign-hover[data-assign-hover="${auto.id}"]`).waitFor({ timeout: 2000 });
     await page.mouse.down();
     await page.mouse.up();
     const l = (await model()).levels[0];
     const made = l.rooms.find((r) => r.area_id === second);
     assert(made && JSON.stringify(made.rect) === "[9.5,1,2.5,2.5]", `new room: ${JSON.stringify(made)}`);
     assert(!(l.walls ?? []).some((w) => w.line), `the walls stayed: ${JSON.stringify(l.walls)}`);
-    assert(!(await page.locator('homeslice-panel g.unassigned[data-unassigned="shape"]').count()), "the shape is still unassigned");
+    assert(!(await badge.count()), "the room is still unassigned");
     // a tap outside any shape: nothing, and why
     await page.locator(`homeslice-panel .assign-areas button[data-area="${second}"]`).click();
     const [ox, oy] = await toScreen([14, 8]);
@@ -355,7 +358,8 @@ test.describe.serial("editor", () => {
     assert((await page.locator("homeslice-panel .hint-bar").textContent()).includes("close it with walls first"), "no word on a missed tap");
     await page.keyboard.press("Escape");
     await page.keyboard.press("Escape");
-    for (let i = 0; i < 6; i++) await page.keyboard.press("Control+z");
+    // four walls, the room they completed, two areas given
+    for (let i = 0; i < 7; i++) await page.keyboard.press("Control+z");
     assert(JSON.stringify(await model()) === before, `undo: ${JSON.stringify((await model()).levels[0])}`);
     await page.evaluate(() => window.panel.fitView());
   });
@@ -381,7 +385,11 @@ test.describe.serial("editor", () => {
       await page.mouse.up();
     }
     await page.keyboard.press("Escape");
-    const badge = page.locator('homeslice-panel g.unassigned[data-unassigned="shape:kitchen"]');
+    // the corner is a room at once, carved out of the kitchen, still without an area
+    let l = (await model()).levels[0];
+    const corner = l.rooms.find((r) => JSON.stringify(r.rect) === "[6,0,2,2]");
+    assert(corner && !corner.area_id, `corner: ${JSON.stringify(l.rooms.map((r) => [r.id, r.rect ?? r.polygon]))}`);
+    const badge = page.locator(`homeslice-panel g.unassigned[data-unassigned="${corner.id}"]`);
     await badge.waitFor({ timeout: 2000 });
     await shot(page, "editor-unassigned-in-room");
     const button = await badge.locator("[data-assign-open]").boundingBox();
@@ -390,10 +398,10 @@ test.describe.serial("editor", () => {
     await page.locator(`homeslice-panel .assign-areas button[data-area="${area}"]`).click();
     const [sx, sy] = await toScreen([7, 1]);
     await page.mouse.move(sx, sy);
-    await page.locator('homeslice-panel g.assign-hover[data-assign-hover="new"]').waitFor({ timeout: 2000 });
+    await page.locator(`homeslice-panel g.assign-hover[data-assign-hover="${corner.id}"]`).waitFor({ timeout: 2000 });
     await page.mouse.down();
     await page.mouse.up();
-    const l = (await model()).levels[0];
+    l = (await model()).levels[0];
     const carved = l.rooms.find((r) => r.area_id === area && r.id !== "kitchen");
     const kitchen = l.rooms.find((r) => r.id === "kitchen");
     assert(carved && JSON.stringify(carved.rect) === "[6,0,2,2]", `carved: ${JSON.stringify(carved)}`);
@@ -402,7 +410,7 @@ test.describe.serial("editor", () => {
     assert(!(await badge.count()), "the corner is still unassigned");
     await page.keyboard.press("Escape");
     await page.keyboard.press("Escape");
-    for (let i = 0; i < 3; i++) await page.keyboard.press("Control+z");
+    for (let i = 0; i < 4; i++) await page.keyboard.press("Control+z");
     assert(JSON.stringify(await model()) === before, "undo did not put the kitchen back");
     await page.evaluate(() => window.panel.fitView());
   });

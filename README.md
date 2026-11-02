@@ -119,7 +119,8 @@ repository itself doesn't contain the built frontend; build it with `npm run bui
      balcony or terrace (`B`), divider (`X`: a line across a room makes two rooms with no
      wall between, e.g. kitchen and dining area) and assign (`A`: drag a Home Assistant area
      onto a room, or into a shape your walls close off, which becomes a room; it lights up
-     before you let go). Rooms and wall-closed shapes without an area say **Unassigned room!**,
+     before you let go). Walls that close a shape make it a room at once (cut
+     out of the room they stand in, if any); rooms without an area say **Unassigned room!**,
      with a button that opens the assign tool. The roof is a level
      of its own: **+ Roof** under the floors, then presets, more parts and solar panels.
      Select a room to give its floor and walls a finish (wood, tiles, stone, paint,

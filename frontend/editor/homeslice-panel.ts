@@ -1017,6 +1017,25 @@ export class HomeslicePanel extends LitElement {
     </g>`;
   }
 
+  /** Every shape the drawn walls close off becomes a room without an area (it then says so). */
+  private completeRooms() {
+    const walled = this._model!;
+    let m = walled;
+    let made = 0;
+    // one at a time: a carve changes the shapes left
+    for (let guard = 0; guard < 20; guard++) {
+      const shape = this.freeShapes()[0];
+      if (!shape) break;
+      m = assignArea(m, this._level, undefined, { polygon: shape.poly, host: shape.host }).model;
+      this._model = m;
+      made++;
+    }
+    if (made) {
+      this.commit(m, walled);
+      this._freeWall = null;
+    } else this._model = walled;
+  }
+
   /** Puts an area where it was dropped (or tapped): onto the room there, or a new room in the closed shape. */
   private assignAt(area: string, p: Vec2) {
     const target = this.assignTarget(p);
@@ -1896,6 +1915,8 @@ export class HomeslicePanel extends LitElement {
         this.commit(model);
         this._freeWall = index;
         this._room = null;
+        // a wall that closes a shape completes a room there (no area yet); undo takes back just that
+        if (this._tool === "wall") this.completeRooms();
         // the tool stays: the next wall can start where this one ended (Esc or V to stop)
       }
       return;

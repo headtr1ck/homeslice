@@ -216,6 +216,28 @@ describe("deriveWalls", () => {
     ]);
   });
 
+  it("fills the corner where two drawn walls meet", () => {
+    const input: HouseInput = {
+      schema: 1,
+      id: "f",
+      outline: { rect: [0, 0, 10, 8] },
+      levels: [
+        {
+          id: "g",
+          rooms: [{ id: "a", rect: [0, 0, 10, 8] }],
+          walls: [{ line: [[2, 2], [5, 2]] }, { line: [[5, 2], [5, 6]] }, { line: [[7, 2], [9, 2]] }],
+        },
+      ],
+    };
+    const h = expand(input);
+    const free = deriveWalls(h.levels[0], h.walls).filter((x) => x.id.includes("_free_"));
+    // the two meeting at (5, 2) each reach half the other's thickness past it; the loose one doesn't
+    expect(free[0].extendEnd).toBeCloseTo(0.06);
+    expect(free[1].extendStart).toBeCloseTo(0.06);
+    expect(free[0].extendStart).toBe(0);
+    expect([free[2].extendStart, free[2].extendEnd]).toEqual([0, 0]);
+  });
+
   it("fills inner corners of the outline and L-corners of inside walls", () => {
     // L-shaped outline: the corner at (5, 4) is an inner corner
     const input: HouseInput = {

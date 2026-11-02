@@ -1790,15 +1790,16 @@ export function divideRoom(model: HouseInput, levelId: string, roomId: string, a
 export function assignArea(
   model: HouseInput,
   levelId: string,
-  areaId: string,
+  areaId: string | undefined,
   target: { room: string } | { polygon: Vec2[]; host?: { room: string; keep: Vec2[] } },
 ): { model: HouseInput; room: string } {
   const m = clone(model);
   const l = level(m, levelId);
-  for (const r of l.rooms) if (r.area_id === areaId && !("room" in target && r.id === target.room)) delete r.area_id;
+  // no area: just the room (a shape the walls closed, completed)
+  if (areaId) for (const r of l.rooms) if (r.area_id === areaId && !("room" in target && r.id === target.room)) delete r.area_id;
   if ("room" in target) {
     const r = l.rooms.find((x) => x.id === target.room);
-    if (r) {
+    if (r && areaId) {
       r.area_id = areaId;
       // a placeholder name gives way to the area's
       delete r.name;
@@ -1821,15 +1822,16 @@ export function assignArea(
   }
   const id = uniqueId(
     l.rooms.map((r) => r.id),
-    slug(areaId, "room"),
+    areaId ? slug(areaId, "room") : "room",
   );
+  const props = areaId ? { id, area_id: areaId } : { id };
   // carved out of a room the walls cut up: the room keeps the rest, with what stands there
   const host = target.host && l.rooms.find((r) => r.id === target.host!.room);
   if (host) {
     const { area_id: _a, name: _n, furniture: _f, lights: _l, cameras: _c, roof_windows: _w, railing: _r, ...finishes } = host;
-    splitInto(m, l, host.id, normalizeOrientation(target.host!.keep), [{ poly: normalizeOrientation(poly), room: { ...finishes, id, area_id: areaId } }]);
+    splitInto(m, l, host.id, normalizeOrientation(target.host!.keep), [{ poly: normalizeOrientation(poly), room: { ...finishes, ...props } }]);
     return { model: m, room: id };
   }
-  const added = addRoom(m, levelId, normalizeOrientation(poly), { id, area_id: areaId });
+  const added = addRoom(m, levelId, normalizeOrientation(poly), props);
   return { model: added.model, room: added.id };
 }
