@@ -1519,6 +1519,7 @@
   "modern.keypad": "Tastierino allarme",
   "alias.keypad": "tastierino, centralina allarme, sicurezza, codice",
   "editor.import": "Importa",
+  "editor.side_resize": "Trascina per allargare o restringere il pannello (doppio clic: normale)",
   "editor.import_sh3d": "Da Sweet Home 3D (.sh3d)",
   "editor.pieces": "Pezzi propri",
   "editor.pieces_hint": "{count} pezzi propri di questa casa (pieces: nello YAML, da forme semplici). Condividili come file; aggiungi quelli di altri.",

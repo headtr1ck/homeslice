@@ -1519,6 +1519,7 @@
   "modern.keypad": "Alarm-Bedienteil",
   "alias.keypad": "Bedienteil, Alarmanlage, Tastatur, Code",
   "editor.import": "Importieren",
+  "editor.side_resize": "Ziehen, um das Seitenfeld breiter oder schmaler zu machen (Doppelklick: zurück)",
   "editor.import_sh3d": "Aus Sweet Home 3D (.sh3d)",
   "editor.pieces": "Eigene Stücke",
   "editor.pieces_hint": "{count} eigene Stücke dieses Hauses (pieces: im YAML, aus einfachen Formen). Als Datei teilen; die von anderen hinzufügen.",

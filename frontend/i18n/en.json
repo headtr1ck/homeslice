@@ -1519,6 +1519,7 @@
   "modern.keypad": "Alarm keypad",
   "alias.keypad": "keypad, alarm panel, security, code",
   "editor.import": "Import",
+  "editor.side_resize": "Drag to make the panel wider or narrower (double-click: back to normal)",
   "editor.import_sh3d": "From Sweet Home 3D (.sh3d)",
   "editor.pieces": "Own pieces",
   "editor.pieces_hint": "{count} pieces of this house's own (pieces: in the YAML, built from simple shapes). Share them as a file; add someone else's.",

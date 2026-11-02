@@ -395,6 +395,7 @@ export class HomeslicePanel extends LitElement {
     _sfBusy: { state: true },
     _sfError: { state: true },
     _placing: { state: true },
+    _sideWidth: { state: true },
     _curveEdge: { state: true },
     _libraryError: { state: true },
     _checklist: { state: true },
@@ -512,6 +513,9 @@ export class HomeslicePanel extends LitElement {
   private _sfError = "";
   /** A library item being downloaded or measured before it is placed. */
   private _placing: string | null = null;
+  /** The side panel's width (px), dragged by its edge and kept in this browser; null: the default. */
+  private _sideWidth: number | null = Number(readPref("homeslice-side-width")) || null;
+  private sideDrag: { x: number; width: number; max: number } | null = null;
   /** The wall picked in a curves control (by its room or the outline). */
   private _curveEdge: { target: string; edge: number } | null = null;
   private _libraryError = "";
@@ -1707,6 +1711,32 @@ export class HomeslicePanel extends LitElement {
     }
   }
 
+  // ----- the side panel's width: dragged by its edge -----
+
+  private onSideDown = (e: PointerEvent) => {
+    const side = this.renderRoot.querySelector<HTMLElement>("section.side");
+    const main = this.renderRoot.querySelector<HTMLElement>("main");
+    if (!side || !main) return;
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    // at most two thirds of the editor: the plan keeps room to work in
+    this.sideDrag = { x: e.clientX, width: side.getBoundingClientRect().width, max: main.getBoundingClientRect().width * 0.66 };
+    e.preventDefault();
+  };
+
+  private onSideMove = (e: PointerEvent) => {
+    const d = this.sideDrag;
+    if (!d) return;
+    this._sideWidth = Math.round(Math.max(300, Math.min(d.max, d.width + d.x - e.clientX)));
+  };
+
+  private onSideUp = () => {
+    if (!this.sideDrag) return;
+    this.sideDrag = null;
+    if (this._sideWidth) writePref("homeslice-side-width", String(this._sideWidth));
+    // the preview draws at its new size
+    this.updateComplete.then(() => this.updatePreview());
+  };
+
   private updatePreview() {
     const canvas = this.renderRoot.querySelector("canvas.preview") as HTMLCanvasElement | null;
     if (!canvas || !this._model) return;
@@ -2147,7 +2177,14 @@ export class HomeslicePanel extends LitElement {
             : nothing}
           ${this.renderHint()}
         </section>
-        <section class="side">
+        <div class="side-handle" role="separator" aria-orientation="vertical" aria-label=${this.t("editor.side_resize")} title=${this.t("editor.side_resize")}
+          @pointerdown=${this.onSideDown} @pointermove=${this.onSideMove} @pointerup=${this.onSideUp} @pointercancel=${this.onSideUp}
+          @dblclick=${() => {
+            this._sideWidth = null;
+            writePref("homeslice-side-width", "");
+            this.updateComplete.then(() => this.updatePreview());
+          }}></div>
+        <section class="side" style=${this._sideWidth ? `width:${this._sideWidth}px` : ""}>
           <canvas
             class="preview"
             @pointerdown=${this.onPreviewDown}
@@ -6765,6 +6802,20 @@ export class HomeslicePanel extends LitElement {
       line-height: 1;
       opacity: 0.7;
     }
+    .side-handle {
+      width: 6px;
+      margin-right: -6px;
+      flex: none;
+      cursor: col-resize;
+      position: relative;
+      z-index: 3;
+      touch-action: none;
+    }
+    .side-handle:hover,
+    .side-handle:active {
+      background: var(--accent);
+      opacity: 0.5;
+    }
     .side {
       width: min(420px, 40%);
       display: flex;
@@ -6950,8 +7001,11 @@ export class HomeslicePanel extends LitElement {
         border-right: none;
         border-bottom: 1px solid var(--divider-color, #333);
       }
+      .side-handle {
+        display: none;
+      }
       .side {
-        width: 100%;
+        width: 100% !important;
         max-height: 45%;
         border-left: none;
         border-top: 1px solid var(--divider-color, #333);

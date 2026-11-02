@@ -1519,6 +1519,7 @@
   "modern.keypad": "Teclado de alarma",
   "alias.keypad": "teclado, panel de alarma, seguridad, código",
   "editor.import": "Importar",
+  "editor.side_resize": "Arrastra para ensanchar o estrechar el panel (doble clic: tamaño normal)",
   "editor.import_sh3d": "Desde Sweet Home 3D (.sh3d)",
   "editor.pieces": "Piezas propias",
   "editor.pieces_hint": "{count} piezas propias de esta casa (pieces: en el YAML, de formas simples). Compártelas como archivo; añade las de otros.",

@@ -34,6 +34,22 @@ test.describe.serial("editor", () => {
     await shot(page, "editor-open");
   });
 
+  test("the side panel: its edge dragged wider, kept in this browser; a double-click resets it", async () => {
+    const side = () => page.locator("homeslice-panel section.side").evaluate((el) => el.getBoundingClientRect().width);
+    const before = await side();
+    const handle = await page.locator("homeslice-panel .side-handle").boundingBox();
+    await page.mouse.move(handle.x + 3, handle.y + 200);
+    await page.mouse.down();
+    await page.mouse.move(handle.x - 150, handle.y + 200, { steps: 6 });
+    await page.mouse.up();
+    const wider = await side();
+    assert(Math.abs(wider - before - 150) < 8, `width ${before} → ${wider}`);
+    // (the panel's width plus its border)
+    assert(Math.abs(Number(await page.evaluate(() => localStorage.getItem("homeslice-side-width"))) - wider) <= 2, "width not kept");
+    await page.locator("homeslice-panel .side-handle").dblclick();
+    assert(Math.abs((await side()) - before) < 2 && !(await page.evaluate(() => localStorage.getItem("homeslice-side-width"))), "double-click did not reset");
+  });
+
   test("selecting a room shows its handles and inspector", async () => {
     const kb = await page.locator('homeslice-panel svg.plan g[data-room="kitchen"] polygon').boundingBox();
     await page.mouse.click(kb.x + kb.width / 2, kb.y + kb.height * 0.7);

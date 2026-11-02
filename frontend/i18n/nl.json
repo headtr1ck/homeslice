@@ -1519,6 +1519,7 @@
   "modern.keypad": "Alarmbediendeel",
   "alias.keypad": "bediendeel, alarmpaneel, beveiliging, code, keypad",
   "editor.import": "Importeren",
+  "editor.side_resize": "Sleep om het paneel breder of smaller te maken (dubbelklik: terug)",
   "editor.import_sh3d": "Uit Sweet Home 3D (.sh3d)",
   "editor.pieces": "Eigen stukken",
   "editor.pieces_hint": "{count} eigen stukken van dit huis (pieces: in de YAML, van eenvoudige vormen). Deel ze als bestand; voeg die van anderen toe.",
