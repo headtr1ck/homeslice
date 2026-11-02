@@ -3659,11 +3659,16 @@ export class HouseRenderer {
       l.group.position.y = l.baseY;
       l.group.updateMatrixWorld(true);
       if (index === null) box.expandByObject(l.group);
-      else for (const child of l.group.children) if (this.view.plan || !child.userData.outdoor) box.expandByObject(child);
+      else {
+        for (const child of l.group.children) if (this.view.plan || !child.userData.outdoor) box.expandByObject(child);
+        // a roof level is all roof (no rooms): frame the roof itself
+        if (box.isEmpty()) box.expandByObject(l.group);
+      }
       l.group.position.y = y;
       l.group.updateMatrixWorld(true);
     });
-    return box;
+    // nothing to frame (an empty level): the whole house, never an empty box (it would turn the camera into NaN)
+    return box.isEmpty() && index !== null ? this.boxFor(null) : box;
   }
 
   // ----- drawing -----
