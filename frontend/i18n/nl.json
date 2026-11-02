@@ -372,7 +372,7 @@
   "editor.walls_exterior": "Buiten (cm)",
   "editor.walls_interior": "Binnen (cm)",
   "editor.walls_party": "Buren (cm)",
-  "editor.walls_hint": "De omtrek is de buitenkant van het huis: dikkere buitenmuren maken de kamers kleiner, niet het huis groter. Binnenmuren liggen gecentreerd op de lijnen tussen kamers; één muur kan een eigen dikte hebben (selecteer hem).",
+  "editor.walls_hint": "De omtrek is de middellijn van de buitenmuren, zoals elke lijn tussen kamers: muren staan midden op hun lijn, een dikkere muur neemt dus van elke kant de helft. Eén binnenmuur kan een eigen dikte hebben (selecteer hem).",
   "editor.party": "Aangebouwd aan een buur",
   "editor.party_hint": "Zijden waar het huis een muur deelt met het volgende huis (rijtjeshuis of twee-onder-een-kap). Geldt voor elke verdieping.",
   "editor.party_level_hint": "Deze verdieping heeft een eigen instelling.",
@@ -1902,5 +1902,18 @@
   "editor.backdrop_add": "Toevoegen",
   "editor.backdrop_add_hint": "Nog een afbeelding onder deze verdieping, bijv. de robotkaart naast de plattegrond: wissel ertussen met N.",
   "editor.backdrop_next": "Volgende afbeelding onder deze verdieping (N)",
-  "editor.key_backdrop": "Volgende afbeelding onder de verdieping"
+  "editor.key_backdrop": "Volgende afbeelding onder de verdieping",
+  "editor.search": "Zoeken",
+  "editor.search_hint": "Zoek een gereedschap, instelling, verdieping of kamer (Ctrl+K)",
+  "editor.search_placeholder": "Balkon, dak, gebogen muur, keuken…",
+  "editor.search_none": "Niets gevonden",
+  "editor.search_curve": "Gebogen muur: selecteer een kamer of de buitenmuren, dan “Gebogen muren”",
+  "editor.search_corner": "Hoek toevoegen: dubbelklik op een muur (Selecteren)",
+  "editor.search_floor": "Verdieping",
+  "editor.key_search": "Gereedschap, instellingen, verdiepingen en kamers zoeken",
+  "editor.tip_room": "Tip: sleep een zijde of hoek om hem te verplaatsen. Dubbelklik op een muur voegt een hoek toe (een L-vormige kamer). Een kamer over andere getekend neemt hun ruimte.",
+  "editor.tip_wall": "Tip: het muurgereedschap blijft actief: begin de volgende muur aan het eind van deze. Muren die een vorm sluiten maken daar een kamer. Esc of V om te stoppen.",
+  "editor.tip_opening": "Tip: koppel in het paneel het rolluik en het contact om ze live te zien. Sleep het langs de muur of naar een andere muur.",
+  "editor.tip_stairs": "Tip: de trap opent de verdieping erboven. Sleep een hoek om de maat te wijzigen; het paneel draait hem en kiest de stijl.",
+  "editor.robot_map_card": "Deze kaart op het dashboard tonen zolang {robot} onderweg is (het gereinigde gebied groeit mee)"
 }

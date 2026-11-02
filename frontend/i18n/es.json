@@ -372,7 +372,7 @@
   "editor.walls_exterior": "Exterior (cm)",
   "editor.walls_interior": "Interior (cm)",
   "editor.walls_party": "Medianera (cm)",
-  "editor.walls_hint": "El contorno es la cara exterior de la casa: unos muros exteriores más gruesos hacen las habitaciones más pequeñas, no la casa más grande. Las paredes interiores se centran en las líneas entre habitaciones; una pared puede tener su propio grosor (selecciónala).",
+  "editor.walls_hint": "El contorno es la línea central de las paredes exteriores, como cada línea entre habitaciones: las paredes se centran en sus líneas, así que una pared más gruesa toma la mitad de cada lado. Una pared interior puede tener su propio grosor (selecciónala).",
   "editor.party": "Construida junto a un vecino",
   "editor.party_hint": "Lados en los que la casa comparte pared con la casa contigua (adosada o pareada). Se aplica a todos los niveles.",
   "editor.party_level_hint": "Este nivel tiene su propio ajuste.",
@@ -1902,5 +1902,18 @@
   "editor.backdrop_add": "Añadir",
   "editor.backdrop_add_hint": "Otra imagen bajo esta planta, p. ej. el mapa del robot junto al plano: cambia entre ellas con N.",
   "editor.backdrop_next": "Siguiente imagen bajo esta planta (N)",
-  "editor.key_backdrop": "Siguiente imagen bajo la planta"
+  "editor.key_backdrop": "Siguiente imagen bajo la planta",
+  "editor.search": "Buscar",
+  "editor.search_hint": "Busca una herramienta, ajuste, planta o habitación (Ctrl+K)",
+  "editor.search_placeholder": "Balcón, tejado, pared curva, cocina…",
+  "editor.search_none": "No se encontró nada",
+  "editor.search_curve": "Pared curva: selecciona una habitación o las paredes exteriores, luego “Paredes curvas”",
+  "editor.search_corner": "Añadir una esquina: doble clic en una pared (Seleccionar)",
+  "editor.search_floor": "Planta",
+  "editor.key_search": "Buscar herramientas, ajustes, plantas y habitaciones",
+  "editor.tip_room": "Consejo: arrastra un lado o una esquina para moverlo. Doble clic en una pared añade una esquina (una habitación en L). Una habitación dibujada sobre otras toma su espacio.",
+  "editor.tip_wall": "Consejo: la herramienta de pared sigue activa: empieza la siguiente pared en el extremo de esta. Las paredes que cierran una forma crean ahí una habitación. Esc o V para parar.",
+  "editor.tip_opening": "Consejo: enlaza su persiana y su contacto en el panel para verlos en directo. Arrástrala a lo largo de la pared o a otra pared.",
+  "editor.tip_stairs": "Consejo: la escalera abre la planta de arriba. Arrastra una esquina para cambiar su tamaño; en el panel se gira y se elige el estilo.",
+  "editor.robot_map_card": "Mostrar este mapa en la tarjeta mientras {robot} está fuera (el área limpiada crece)"
 }

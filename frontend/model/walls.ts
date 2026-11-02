@@ -10,6 +10,7 @@ import {
   bbox,
   dist,
   len,
+  edgeNormal,
   edges,
   outwardNormal,
   project,
@@ -58,7 +59,7 @@ export interface Wall {
   type: WallType;
   /** Reference line the wall was derived from (outline or shared room edge). */
   line: [Vec2, Vec2];
-  /** Centre line; exterior and party walls grow inwards from the outline. */
+  /** Centre line (the outline's edge, for exterior and party walls). */
   a: Vec2;
   b: Vec2;
   /** Unit normal; for exterior/party walls it points outside. */
@@ -190,13 +191,12 @@ export function deriveWalls(level: Level, thickness: WallThickness, issues: Issu
   const walls: Wall[] = segs.map((s, i) => {
     const t = s.type === "open" ? 0 : (s.own ?? thickness[s.type]);
     const normal = outwardNormal(s.a, s.b);
-    const shift = s.type === "interior" || s.type === "open" ? [0, 0] as Vec2 : scale(normal, -t / 2);
     return {
       id: `${level.id}_${s.type}_${i}`,
       type: s.type,
       line: [s.a, s.b],
-      a: add(s.a, shift),
-      b: add(s.b, shift),
+      a: s.a,
+      b: s.b,
       normal,
       side: s.type === "interior" || s.type === "open" ? null : sideOf(normal),
       thickness: t,
@@ -226,7 +226,7 @@ export function deriveWalls(level: Level, thickness: WallThickness, issues: Issu
     });
   });
   // corners filled once every wall is there, drawn ones too
-  fillCorners(walls, level.outline);
+  fillCorners(walls);
 
   // rooms reaching outside the outline are almost always a typo
   if (level.outline.length) {
@@ -246,39 +246,27 @@ export function deriveWalls(level: Level, thickness: WallThickness, issues: Issu
 }
 
 /**
- * Fills corners: at an inner (reflex) corner of the outline the two outer walls stop
- * short of each other, and two inside walls meeting at an angle leave the outer quarter
- * of the corner empty. Extend those wall ends by the thickness of the wall they meet.
+ * Fills corners: walls meeting at an angle each reach on by half the other's thickness, so
+ * the corner is closed on both sides (an outside corner, an inner corner of the outline,
+ * two inside walls meeting).
  */
-function fillCorners(walls: Wall[], outline: Vec2[]) {
+function fillCorners(walls: Wall[]) {
   const same = (p: Vec2, q: Vec2) => dist(p, q) < SNAP;
   const dir = (w: Wall): Vec2 => {
     const l = dist(w.line[0], w.line[1]) || 1;
     return [(w.line[1][0] - w.line[0][0]) / l, (w.line[1][1] - w.line[0][1]) / l];
   };
   const collinear = (u: Vec2, v: Vec2) => Math.abs(u[0] * v[1] - u[1] * v[0]) < 1e-3;
-  // reflex corners of the (positively oriented) outline
-  const reflex = outline.filter((p, i) => {
-    const prev = outline[(i - 1 + outline.length) % outline.length];
-    const next = outline[(i + 1) % outline.length];
-    return (p[0] - prev[0]) * (next[1] - p[1]) - (p[1] - prev[1]) * (next[0] - p[0]) < -1e-9;
-  });
+  const outside = (w: Wall) => w.type === "exterior" || w.type === "party";
   for (const w of walls) {
     if (w.type === "open") continue;
     w.line.forEach((end, i) => {
       let extend = 0;
-      if (w.type === "exterior" || w.type === "party") {
-        // reach the inside face of the outer wall met at the inner corner
-        if (reflex.some((p) => same(p, end)))
-          for (const o of walls) {
-            if (o === w || (o.type !== "exterior" && o.type !== "party") || collinear(dir(w), dir(o))) continue;
-            if (same(o.line[0], end) || same(o.line[1], end)) extend = Math.max(extend, o.thickness);
-          }
-      } else {
-        for (const o of walls) {
-          if (o === w || o.type !== "interior" || collinear(dir(w), dir(o))) continue;
-          if (same(o.line[0], end) || same(o.line[1], end)) extend = Math.max(extend, o.thickness / 2);
-        }
+      for (const o of walls) {
+        if (o === w || o.type === "open" || collinear(dir(w), dir(o))) continue;
+        // an inside wall runs into an outside one, never the other way round
+        if (outside(w) && !outside(o)) continue;
+        if (same(o.line[0], end) || same(o.line[1], end)) extend = Math.max(extend, o.thickness / 2);
       }
       if (i === 0) w.extendStart = extend;
       else w.extendEnd = extend;
@@ -286,9 +274,21 @@ function fillCorners(walls: Wall[], outline: Vec2[]) {
   }
 }
 
+/** How far each edge's wall reaches out from an outline: half of it; nothing where it is open (along a roof terrace). */
+export function facadeHalves(poly: Vec2[], partyWalls: Side[], thickness: WallThickness, open: (inside: Vec2) => boolean = () => false): number[] {
+  return poly.map((a, i) => {
+    const b = poly[(i + 1) % poly.length];
+    const n = edgeNormal(poly, i);
+    const inside: Vec2 = [(a[0] + b[0]) / 2 - n[0] * 0.05, (a[1] + b[1]) / 2 - n[1] * 0.05];
+    if (open(inside)) return 0;
+    const side = sideOf(n, PARTY_SLANT);
+    return (side && partyWalls.includes(side) ? thickness.party : thickness.exterior) / 2;
+  });
+}
+
 /**
  * A room's floor as it really is: each edge pulled inwards to the inside face of the wall
- * on it (a full outer wall, half an inside wall, nothing where the room is open). An edge
+ * on it (half the wall, nothing where the room is open). An edge
  * running along walls of different thickness is split, giving the outline a small step.
  */
 export function innerPolygon(polygon: Vec2[], walls: Wall[]): Vec2[] {
@@ -309,7 +309,7 @@ export function innerPolygon(polygon: Vec2[], walls: Wall[]): Vec2[] {
       const t0 = Math.max(0, Math.min(p0.t, p1.t));
       const t1 = Math.min(length, Math.max(p0.t, p1.t));
       if (t1 - t0 < 1e-6) continue;
-      ranges.push({ t0, t1, inset: w.type === "interior" ? w.thickness / 2 : w.thickness });
+      ranges.push({ t0, t1, inset: w.thickness / 2 });
     }
     ranges.sort((x, y) => x.t0 - y.t0);
     // fill the stretches without a wall (open) with no inset, merge equal neighbours

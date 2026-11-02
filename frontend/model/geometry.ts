@@ -217,3 +217,37 @@ export function innermost<R extends { polygon: Vec2[] }>(rooms: R[], p: Vec2): R
   for (const r of rooms) if (pointInPolygon(p, r.polygon) && (!best || Math.abs(signedArea(r.polygon)) < Math.abs(signedArea(best.polygon)))) best = r;
   return best;
 }
+
+/** Outward normal of edge i of a polygon of either orientation. */
+export function edgeNormal(poly: Vec2[], i: number): Vec2 {
+  const a = poly[i];
+  const b = poly[(i + 1) % poly.length];
+  const n = outwardNormal(a, b);
+  return signedArea(poly) < 0 ? [-n[0], -n[1]] : n;
+}
+
+/**
+ * The polygon with each edge moved outwards by its own distance (`by[i]` for the edge from
+ * corner i; negative: inwards); corners where the moved edges meet again.
+ */
+export function offsetEdges(poly: Vec2[], by: number[]): Vec2[] {
+  const n = poly.length;
+  const line = (i: number): [Vec2, Vec2] => {
+    const k = edgeNormal(poly, i);
+    const d = by[i] ?? 0;
+    const a = poly[i];
+    const b = poly[(i + 1) % n];
+    return [[a[0] + k[0] * d, a[1] + k[1] * d], [b[0] + k[0] * d, b[1] + k[1] * d]];
+  };
+  return poly.map((_, i) => {
+    const [a1, b1] = line((i - 1 + n) % n);
+    const [a2, b2] = line(i);
+    const d1 = sub(b1, a1);
+    const d2 = sub(b2, a2);
+    const den = d1[0] * d2[1] - d1[1] * d2[0];
+    // straight on (or an edge of no length): halfway between the two moved corners
+    if (Math.abs(den) < 1e-9 * ((len(d1) * len(d2)) || 1)) return [(b1[0] + a2[0]) / 2, (b1[1] + a2[1]) / 2];
+    const t = ((a2[0] - a1[0]) * d2[1] - (a2[1] - a1[1]) * d2[0]) / den;
+    return [a1[0] + d1[0] * t, a1[1] + d1[1] * t];
+  });
+}

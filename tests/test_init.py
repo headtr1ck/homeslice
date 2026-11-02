@@ -75,7 +75,7 @@ async def test_save_validates_and_notifies_subscribers(hass: HomeAssistant, setu
     first = await client.receive_json()
     assert first["event"]["model"]["id"] == "home"
 
-    await client.send_json_auto_id({"type": "homeslice/model/save", "house": "home", "model": {"schema": 2}})
+    await client.send_json_auto_id({"type": "homeslice/model/save", "house": "home", "model": {"schema": 3}})
     msg = await client.receive_json()
     assert msg["error"]["code"] == "invalid_model"
     assert "schema" in msg["error"]["message"]
@@ -228,6 +228,19 @@ def _glb(gltf: str) -> str:
 
 
 GLB = _glb('{"asset":{"version":"2.0"}}')
+
+
+async def test_uploads_are_kept_with_their_pictures_scaled_down(hass: HomeAssistant, setup, hass_ws_client) -> None:
+    from .test_glbshrink import _glb as glb_with, _png
+
+    blob = glb_with([_png(2048, 2048)], b"\0" * 12)
+    client = await hass_ws_client(hass)
+    data = "data:model/gltf-binary;base64," + base64.b64encode(blob).decode()
+    await client.send_json_auto_id({"type": "homeslice/assets/custom/upload", "name": "Big", "data": data})
+    stored = (await client.receive_json())["result"]
+    assert stored["original_bytes"] == len(blob) and stored["bytes"] < len(blob)
+    # kept like that: nothing left to do afterwards
+    assert await hass.data["homeslice"]["assets"].async_shrink_all() == 0
 
 
 async def test_custom_models_upload_list_delete(hass: HomeAssistant, setup, hass_ws_client, tmp_path: Path) -> None:

@@ -41,6 +41,12 @@ doors the robot can't see (furniture hides walls, open doors look like no wall).
 between them with `N` or the button on the plan. Homeslice doesn't read rooms off the map
 by itself: the result was never better than tracing.
 
+**The map on the card.** With the robot's map as a floor's backdrop, tick *Show this map on
+the card while … is out*: while the robot cleans, its map picture lies on the floor in the
+card, see-through, the cleaned area growing as Home Assistant's picture updates (fetched at
+most every 5 s). Moving the backdrop in the editor moves it on the card too. When the robot
+has mapped more and its picture has a new size, it isn't shown until you place it again.
+
 Older Xiaomi robots in the *Xiaomi Miio* integration report neither a position nor a map;
 the *Xiaomi Cloud Map Extractor* (HACS) adds both: its camera's `vacuum_position` attribute
 works as a live position source.

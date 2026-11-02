@@ -13,7 +13,7 @@ const demo = parse(readFileSync("examples/demo.yaml", "utf8"));
 
 /** A house with a bit of everything: grid, façade windows, stairs, walls, energy, robots. */
 const full = {
-  schema: 1,
+  schema: 2,
   id: "full",
   grid: { x: { a: 0, b: 4, c: 8 }, y: { top: 0, mid: 5, bottom: 10 } },
   outline: { rect: ["a", "top", 8, 10] },
@@ -52,8 +52,8 @@ const L = (h: House, i = 0) => h.levels[i];
 const MUTATIONS: [string, (h: House) => unknown][] = [
   ["not a mapping", () => "just text"],
   ["empty", () => null],
-  ["wrong schema", (h) => ((h.schema = 2), h)],
-  ["schema as text", (h) => ((h.schema = "1"), h)],
+  ["wrong schema", (h) => ((h.schema = 3), h)],
+  ["schema as text", (h) => ((h.schema = "2"), h)],
   ["no levels", (h) => ((h.levels = []), h)],
   ["levels not a list", (h) => ((h.levels = { g: {} }), h)],
   ["level without id", (h) => (delete L(h).id, h)],
@@ -150,6 +150,7 @@ const MUTATIONS: [string, (h: House) => unknown][] = [
   ["robot not a robot", (h) => ((h.robots[0].entity = "light.robo"), h)],
   ["robot unknown level", (h) => ((h.robots[0].level = "attic"), h)],
   ["robot without dock", (h) => (delete h.robots[0].dock, h)],
+  ["robot map without its picture", (h) => ((h.robots[0].map = { size: [100, 80], origin: [0, 0], scale: 0.0125 }), h)],
   ["north as text", (h) => ((h.north = "NNE"), h)],
   ["underfloor not an entity", (h) => ((L(h).rooms[0].underfloor = "warm"), h)],
   ["dormer without side", (h) => ((h.roof = { dormers: [{ at: 2 }] }), h)],

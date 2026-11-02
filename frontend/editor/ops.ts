@@ -1123,7 +1123,7 @@ export function newHouse(id: string, name: string, size: [number, number], level
   const [w, d] = size.map(round);
   const ids: string[] = [];
   return {
-    schema: 1,
+    schema: 2,
     id,
     name,
     // the outside walls follow the rooms (which start filling the size given)

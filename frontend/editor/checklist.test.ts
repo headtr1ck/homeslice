@@ -4,7 +4,7 @@ import type { HouseInput } from "../model/types";
 import { applyAll, checklist } from "./checklist";
 
 const model = (): HouseInput => ({
-  schema: 1,
+  schema: 2,
   id: "t",
   outline: { rect: [0, 0, 10, 8] },
   levels: [

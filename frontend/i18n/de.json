@@ -372,7 +372,7 @@
   "editor.walls_exterior": "Außen (cm)",
   "editor.walls_interior": "Innen (cm)",
   "editor.walls_party": "Nachbarwand (cm)",
-  "editor.walls_hint": "Der Umriss ist die Außenseite des Hauses: Dickere Außenwände machen die Räume kleiner, nicht das Haus größer. Innenwände liegen mittig auf den Linien zwischen den Räumen; eine einzelne Wand kann eine eigene Dicke haben (dazu auswählen).",
+  "editor.walls_hint": "Der Umriss ist die Mittellinie der Außenwände, wie jede Linie zwischen Räumen: Wände sitzen mittig auf ihren Linien, dickere Wände nehmen also von beiden Seiten die Hälfte. Eine Innenwand kann ihre eigene Dicke haben (auswählen).",
   "editor.party": "An Nachbarhaus gebaut",
   "editor.party_hint": "Seiten, an denen sich das Haus eine Wand mit dem Nachbarhaus teilt (Reihen- oder Doppelhaus). Gilt für jede Ebene.",
   "editor.party_level_hint": "Diese Ebene hat eine eigene Einstellung.",
@@ -1902,5 +1902,18 @@
   "editor.backdrop_add": "Hinzufügen",
   "editor.backdrop_add_hint": "Ein weiteres Bild unter diesem Stockwerk, z. B. die Roboterkarte neben dem Grundriss: Wechsle mit N zwischen ihnen.",
   "editor.backdrop_next": "Nächstes Bild unter diesem Stockwerk (N)",
-  "editor.key_backdrop": "Nächstes Bild unter dem Stockwerk"
+  "editor.key_backdrop": "Nächstes Bild unter dem Stockwerk",
+  "editor.search": "Suchen",
+  "editor.search_hint": "Werkzeug, Einstellung, Stockwerk oder Raum finden (Strg+K)",
+  "editor.search_placeholder": "Balkon, Dach, runde Wand, Küche…",
+  "editor.search_none": "Nichts gefunden",
+  "editor.search_curve": "Runde Wand: Raum oder Außenwände auswählen, dann „Gebogene Wände“",
+  "editor.search_corner": "Ecke hinzufügen: Doppelklick auf eine Wand (Auswählen)",
+  "editor.search_floor": "Stockwerk",
+  "editor.key_search": "Werkzeuge, Einstellungen, Stockwerke und Räume suchen",
+  "editor.tip_room": "Tipp: Ziehe eine Seite oder eine Ecke, um sie zu verschieben. Doppelklick auf eine Wand fügt eine Ecke hinzu (ein L-förmiger Raum). Ein über andere gezeichneter Raum nimmt ihnen den Platz.",
+  "editor.tip_wall": "Tipp: Das Wandwerkzeug bleibt aktiv: Beginne die nächste Wand am Ende dieser. Wände, die eine Form schließen, ergeben dort einen Raum. Esc oder V zum Beenden.",
+  "editor.tip_opening": "Tipp: Verknüpfe im Panel Rollladen und Kontakt, um sie live zu sehen. Ziehe es entlang der Wand oder auf eine andere Wand.",
+  "editor.tip_stairs": "Tipp: Die Treppe öffnet das Stockwerk darüber. Ziehe eine Ecke, um die Größe zu ändern; im Panel drehst du sie und wählst den Stil.",
+  "editor.robot_map_card": "Diese Karte im Dashboard zeigen, solange {robot} unterwegs ist (die gereinigte Fläche wächst mit)"
 }

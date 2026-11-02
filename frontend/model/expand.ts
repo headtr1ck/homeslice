@@ -3,7 +3,9 @@
 // partly broken file still renders and the user sees every problem at once.
 
 import { roomsOutline } from "./faces";
-import { bbox, bendEdges, edges, labelPoint, normalizeOrientation, outwardNormal, pointInPolygon, rectPolygon, sideOf, signedArea } from "./geometry";
+import { bbox, bendEdges, edges, labelPoint, normalizeOrientation, offsetEdges, outwardNormal, pointInPolygon, rectPolygon, sideOf, signedArea } from "./geometry";
+import { migrateHouse } from "./migrate";
+import { facadeHalves } from "./walls";
 import { FURNITURE } from "./furniture";
 import { FLOOR_FINISHES, ROOF_FINISHES, WALL_FINISHES } from "./finishes";
 
@@ -90,8 +92,9 @@ export function expandHouse(input: unknown): ExpandResult {
     err("", "The house file is empty or not a mapping.");
     return { house: null, issues };
   }
-  const h = input as HouseInput;
-  if (h.schema !== 1) err("schema", `Unsupported schema ${JSON.stringify(h.schema)}; expected 1.`);
+  // an older file (its outline on the walls' outer face) is read as it is meant
+  const h = migrateHouse(input as HouseInput);
+  if (h.schema !== 2 && h.schema !== 1) err("schema", `Unsupported schema ${JSON.stringify(h.schema)}; expected 2.`);
   if (!Array.isArray(h.levels) || h.levels.length === 0) {
     err("levels", "A house needs at least one level.");
     return { house: null, issues };
@@ -497,6 +500,7 @@ export function expandHouse(input: unknown): ExpandResult {
       height,
       slab,
       outline: outline ?? [],
+      outer: [] as Vec2[],
       partyWalls: li.party_walls ?? h.party_walls ?? [],
       rooms,
       openings,
@@ -516,6 +520,13 @@ export function expandHouse(input: unknown): ExpandResult {
     if (houseOutline) w.level.outline = houseOutline;
     // (a house just started, rooms still to draw: nothing to show yet, but it can be kept)
     else warn(w.path, "No rooms yet: draw rooms (outline: auto follows them) or set outline on the house or this level.");
+  }
+  // the outside walls' outer face: the outline (their centre line) out by half of each
+  for (const level of levels) {
+    if (!level.outline.length) continue;
+    const terraces = level.rooms.filter((r) => r.kind === "outdoor").map((r) => r.polygon);
+    const halves = facadeHalves(level.outline, level.partyWalls, walls, (p) => terraces.some((t) => pointInPolygon(p, t)));
+    level.outer = offsetEdges(level.outline, halves);
   }
 
   // façade openings: placed on each listed level in the room behind that stretch of wall
@@ -603,7 +614,7 @@ export function expandHouse(input: unknown): ExpandResult {
   const pitch = r.pitch ?? 35;
   if (!(pitch > 0 && pitch < 75)) err("roof", `pitch must be between 0 and 75 degrees, got ${pitch}.`);
   const top = levels[levels.length - 1];
-  const tb = bbox(top?.outline.length ? top.outline : [[0, 0], [1, 1]]);
+  const tb = bbox(top?.outer.length ? top.outer : [[0, 0], [1, 1]]);
   const dormers = parseDormers(r.dormers, "roof.dormers");
   if (r.shape !== undefined && !ROOF_SHAPES.includes(r.shape)) err("roof.shape", `shape must be gable, hip, shed or flat, got ${JSON.stringify(r.shape)}.`);
   if (r.high !== undefined && !SIDES.includes(r.high)) err("roof.high", `high must be one of ${SIDES.join(", ")}.`);
@@ -673,6 +684,10 @@ export function expandHouse(input: unknown): ExpandResult {
     if (li === undefined) return err(rp, `level must be one of ${[...levelIndex.keys()].join(", ")}, got ${JSON.stringify(r.level)}.`);
     if (!Array.isArray(r.dock) || r.dock.length !== 2) return err(rp, "dock must be [x, y] in metres.");
     const points = (r.position?.points ?? []).filter((p) => Array.isArray(p) && p.length === 2);
+    const map = r.map;
+    const pair = (v: unknown) => Array.isArray(v) && v.length === 2 && v.every((x) => typeof x === "number");
+    if (map !== undefined && !(typeof map?.entity === "string" && map.entity.startsWith("image.") && pair(map.size) && pair(map.origin) && typeof map.scale === "number" && map.scale > 0 && (map.rotation === undefined || typeof map.rotation === "number")))
+      return err(`${rp}.map`, "map needs entity (image.*), size [width, height] in pixels, origin [x, y] in metres, scale (metres a pixel) and optionally rotation.");
     robots.push({
       index,
       entity: r.entity,
@@ -681,6 +696,7 @@ export function expandHouse(input: unknown): ExpandResult {
       levelIndex: li,
       dock: [r.dock[0], r.dock[1]],
       ...(r.position ? { position: { entity: r.position.entity ?? r.entity, attribute: r.position.attribute, ...(typeof r.position.service === "string" ? { service: r.position.service } : {}), points: points.map(([a, b]) => [[a[0], a[1]], [b[0], b[1]]] as [Vec2, Vec2]) } } : {}),
+      ...(map ? { map: { entity: map.entity, size: [map.size[0], map.size[1]], origin: [map.origin[0], map.origin[1]], scale: map.scale, rotation: map.rotation ?? 0 } } : {}),
     });
   });
   if (h.north !== undefined && typeof h.north !== "number") err("north", `north must be degrees (a number), got ${JSON.stringify(h.north)}.`);

@@ -32,8 +32,9 @@ previous version, so a save can be undone in the editor (⚙ → Restore previou
   a room) is a **hole** in it: it gets its own walls and floor, the outer room keeps its
   shape. Two rooms may share one `area_id` (an alcove behind an opening that Home Assistant
   counts as part of the living room); the area's lights then go to the larger one.
-- `outline` is the outer face of the exterior walls; exterior walls grow inwards from it.
-  Rooms along the outside go right up to the outline.
+- `outline` is the **centre line of the outside walls**, like every other line: outside
+  walls are centred on it (half their thickness sticks out). Rooms along the outside go
+  right up to the outline. Measured from outside, the house is half a wall bigger on each side.
 - `outline: auto` instead: each level's outline is the outer edge of its rooms (gardens and
   balconies left out, so an overhang comes out right), the house's (façade, roof) the
   lowest level's. Good when the rooms are the house; set a shape when the outside differs.
@@ -43,7 +44,7 @@ previous version, so a save can be undone in the editor (⚙ → Restore previou
 ## Structure
 
 ```yaml
-schema: 1                     # always 1
+schema: 2                     # always 2
 id: home                      # slug: a-z, 0-9, _
 name: Home
 outline: { rect: [0, 0, 10, 8] }
@@ -230,4 +231,5 @@ calibration `points` set in the editor.
 - Furniture `at` in plan coordinates instead of room coordinates.
 - Inventing entity, area or floor ids: use only those in the context.
 - Levels in the wrong order (bottom first) or a level per area instead of per floor.
-- Forgetting `schema: 1`.
+- Forgetting `schema: 2`. (Files with `schema: 1` measured the outline on the walls' outer
+  face; they still load, converted.)

@@ -372,7 +372,7 @@
   "editor.walls_exterior": "Extérieur (cm)",
   "editor.walls_interior": "Intérieur (cm)",
   "editor.walls_party": "Voisin (cm)",
-  "editor.walls_hint": "Le contour est la face extérieure de la maison : des murs extérieurs plus épais rendent les pièces plus petites, pas la maison plus grande. Les murs intérieurs sont centrés sur les lignes entre les pièces ; un mur peut avoir sa propre épaisseur (sélectionnez-le).",
+  "editor.walls_hint": "Le contour est la ligne médiane des murs extérieurs, comme chaque ligne entre les pièces : les murs sont centrés sur leurs lignes, un mur plus épais prend donc la moitié de chaque côté. Un mur intérieur peut avoir sa propre épaisseur (sélectionnez-le).",
   "editor.party": "Adossée à un voisin",
   "editor.party_hint": "Côtés où la maison partage un mur avec la maison voisine (mitoyenne ou jumelée). S'applique à tous les niveaux.",
   "editor.party_level_hint": "Ce niveau a son propre réglage.",
@@ -1902,5 +1902,18 @@
   "editor.backdrop_add": "Ajouter",
   "editor.backdrop_add_hint": "Une autre image sous cet étage, p. ex. la carte du robot à côté du plan : passez de l'une à l'autre avec N.",
   "editor.backdrop_next": "Image suivante sous cet étage (N)",
-  "editor.key_backdrop": "Image suivante sous l'étage"
+  "editor.key_backdrop": "Image suivante sous l'étage",
+  "editor.search": "Rechercher",
+  "editor.search_hint": "Trouver un outil, un réglage, un étage ou une pièce (Ctrl+K)",
+  "editor.search_placeholder": "Balcon, toit, mur courbe, cuisine…",
+  "editor.search_none": "Rien trouvé",
+  "editor.search_curve": "Mur courbe : sélectionnez une pièce ou les murs extérieurs, puis « Murs courbes »",
+  "editor.search_corner": "Ajouter un coin : double-clic sur un mur (Sélection)",
+  "editor.search_floor": "Étage",
+  "editor.key_search": "Rechercher outils, réglages, étages et pièces",
+  "editor.tip_room": "Astuce : faites glisser un côté ou un coin pour le déplacer. Un double-clic sur un mur ajoute un coin (une pièce en L). Une pièce dessinée sur d'autres leur prend leur place.",
+  "editor.tip_wall": "Astuce : l'outil mur reste actif : commencez le mur suivant à l'extrémité de celui-ci. Des murs qui ferment une forme y créent une pièce. Échap ou V pour arrêter.",
+  "editor.tip_opening": "Astuce : liez son volet et son contact dans le panneau pour les voir en direct. Faites-la glisser le long du mur ou sur un autre mur.",
+  "editor.tip_stairs": "Astuce : l'escalier ouvre l'étage du dessus. Faites glisser un coin pour le redimensionner ; le panneau le tourne et règle son style.",
+  "editor.robot_map_card": "Afficher cette carte dans le tableau de bord pendant que {robot} est sorti (la zone nettoyée s'agrandit)"
 }

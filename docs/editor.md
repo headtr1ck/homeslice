@@ -31,7 +31,8 @@ curved walls; your own pieces from simple shapes (`pieces:`); duplicate floors, 
 and pieces between floors, pieces only there while a helper is on; undo/redo; the whole
 house as YAML in and out; backup and restore.
 
-Save with `Ctrl+S`. Cards update at once.
+Save with `Ctrl+S`. Cards update at once. Can't find something? `Ctrl+K` (or the magnifier in
+the header) searches every tool, setting, floor and room.
 
 ## 1. Rooms & walls
 
@@ -103,6 +104,7 @@ Press `?` in the editor for this overview.
 | `Ctrl+D` | Duplicate the selected furniture |
 | `Del` | Delete what is selected |
 | `N` | The next image under the floor |
+| `Ctrl+K` | Search: any tool, setting, floor or room by name ("balcony", "fence", "roof", "kitchen") |
 | `Esc` | Cancel, deselect |
 | `Ctrl+Z` / `Ctrl+Shift+Z` | Undo / redo |
 | `Ctrl+S` | Save |
@@ -157,6 +159,11 @@ endorsed by Sketchfab.
 Downloads clean up after themselves: Poly Haven models and textures and Sketchfab models
 that no house has used for a week are removed (Poly Haven ones come back by themselves if
 used again). Your own uploads stay until you delete them in the library.
+
+Sketchfab models and uploads are kept small: the pictures inside them are scaled down to
+1024 px (a 4K texture on a chair is never seen on a floor plan), often a tenth of the size,
+which keeps Home Assistant's backups and the tablets' downloads light. Models kept before
+this are scaled down once, by themselves.
 
 ## Backup, YAML and restore
 

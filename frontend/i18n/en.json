@@ -372,7 +372,7 @@
   "editor.walls_exterior": "Outside (cm)",
   "editor.walls_interior": "Inside (cm)",
   "editor.walls_party": "Neighbour (cm)",
-  "editor.walls_hint": "The outline is the outside face of the house: thicker outside walls make the rooms smaller, not the house bigger. Inside walls are centred on the lines between rooms; one wall can have its own thickness (select it).",
+  "editor.walls_hint": "The outline is the outside walls' centre line, like every line between rooms: walls are centred on their lines, so thicker walls take half from each side. One inside wall can have its own thickness (select it).",
   "editor.party": "Built against a neighbour",
   "editor.party_hint": "Sides where the house shares a wall with the next house (terraced or semi-detached). Applies to every level.",
   "editor.party_level_hint": "This level has its own setting.",
@@ -1902,5 +1902,18 @@
   "editor.backdrop_add": "Add",
   "editor.backdrop_add_hint": "Another image under this floor, e.g. the robot's map beside the floor plan: switch between them with N.",
   "editor.backdrop_next": "Next image under this floor (N)",
-  "editor.key_backdrop": "Next image under the floor"
+  "editor.key_backdrop": "Next image under the floor",
+  "editor.search": "Search",
+  "editor.search_hint": "Find a tool, setting, floor or room (Ctrl+K)",
+  "editor.search_placeholder": "Balcony, roof, curved wall, kitchen…",
+  "editor.search_none": "Nothing found",
+  "editor.search_curve": "Curved wall: select a room or the outside walls, then “Curved walls”",
+  "editor.search_corner": "Add a corner: double-click a wall (Select)",
+  "editor.search_floor": "Floor",
+  "editor.key_search": "Search tools, settings, floors and rooms",
+  "editor.tip_room": "Tip: drag a side to move it, or a corner. Double-click a wall to add a corner (an L-shaped room). A room drawn over others takes their space.",
+  "editor.tip_wall": "Tip: the wall tool keeps going: start the next wall on this one's end. Walls closing a shape make a room there. Esc or V to stop.",
+  "editor.tip_opening": "Tip: link its blind and contact in the panel to see them live. Drag it along its wall, or onto another wall.",
+  "editor.tip_stairs": "Tip: the stairs open the floor above. Drag a corner to resize them; the panel turns them and sets their style.",
+  "editor.robot_map_card": "Show this map on the card while {robot} is out (the cleaned area growing)"
 }

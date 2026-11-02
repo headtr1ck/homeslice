@@ -1638,6 +1638,15 @@ export class HomesliceCard extends LitElement {
     this.pollRobots(hass);
     this.robotReadings = this.house.robots.map((r) => readRobot(hass, r));
     this.robotNeeds = this.house.robots.map((r) => robotAlerts(hass, r.entity));
+    // a robot's map picture on its floor while it is out (the cleaned area growing)
+    const robotMaps = this.house.robots.map((r) => {
+      const pic = r.map && hass.states[r.map.entity];
+      const out = ["active", "returning", "paused"].includes(robotStatus(hass.states[r.entity]?.state));
+      const url = pic?.attributes.entity_picture;
+      if (!r.map || !out || typeof url !== "string" || ["unknown", "unavailable"].includes(pic!.state)) return null;
+      // (the picture's address may stay the same while it changes)
+      return `${url}${url.includes("?") ? "&" : "?"}v=${encodeURIComponent(pic!.state)}`;
+    });
     // the real sun, turned into the plan's directions; rounded so it redraws now and then, not always
     const sun = this.config.sun !== false ? hass.states["sun.sun"]?.attributes : undefined;
     const sunAt = typeof sun?.azimuth === "number" && typeof sun?.elevation === "number" ? [Math.round(sun.azimuth - this.house.north), Math.round(sun.elevation)] : null;
@@ -1662,7 +1671,7 @@ export class HomesliceCard extends LitElement {
     );
     const ruleHits = (this.config.rules ?? []).map((r) => ruleMatches(hass, r));
     const ruleTexts = (this.config.rules ?? []).map((r, i) => (ruleHits[i] ? ruleText(hass, r) : ""));
-    const signature = JSON.stringify([look, this.config.accent, lux, heat, fields, ruleHits, ruleTexts, shownWhen, lights, lamps, covers, blinds, contacts, doorNotes, values, sensors, awnings, devices, roofWindows, underfloor, badges, energyDetails, weather, this.placedPeople(hass).map((p) => [p.key, p.levelId, p.at]), this.config.weather ? hass.states[this.config.weather]?.attributes.temperature : null, cameras, this.energyReadings, this.robotReadings, this.robotNeeds, sunAt]);
+    const signature = JSON.stringify([look, this.config.accent, lux, heat, fields, ruleHits, ruleTexts, shownWhen, lights, lamps, covers, blinds, contacts, doorNotes, values, sensors, awnings, devices, roofWindows, underfloor, badges, energyDetails, weather, this.placedPeople(hass).map((p) => [p.key, p.levelId, p.at]), this.config.weather ? hass.states[this.config.weather]?.attributes.temperature : null, cameras, this.energyReadings, this.robotReadings, this.robotNeeds, robotMaps, sunAt]);
     if (signature === this.stateSignature) return;
     this.stateSignature = signature;
     this.lamps.forEach((l, i) => this.renderer!.setLamp(l.entity, lamps[i]));
@@ -1683,6 +1692,7 @@ export class HomesliceCard extends LitElement {
     this.renderer.setPeople(this.placedPeople(hass));
     this.renderer.setSun(sunAt?.[0] ?? null, sunAt?.[1] ?? null);
     this.house.robots.forEach((r, i) => this.renderer!.setRobotState(`robot-${r.index}`, this.robotReadings[i].at, ROBOT_COLORS[this.robotReadings[i].status], this.robotReadings[i].unsure));
+    this.house.robots.forEach((r, i) => this.renderer!.setRobotMap(`robot-${r.index}`, robotMaps[i] && r.map ? { url: robotMaps[i]!, ...r.map } : null));
     if (this.config.energy) this.renderer.setFlows(Object.fromEntries(this.house.energy.map((e, i) => [`energy-${e.index}`, this.energyReadings[i]?.flow ?? null])));
     this.rooms.forEach((r, i) => {
       this.renderer!.setRoomLight(r.levelId, r.room.id, lights[i]);

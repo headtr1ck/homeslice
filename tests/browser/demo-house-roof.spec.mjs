@@ -1,5 +1,6 @@
 // demo house, roof
 import { test } from "@playwright/test";
+import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { act, assert, browser, calls, lamp, open, out, setBrowser, shot, state, triangles } from "./helpers.mjs";
 
@@ -1307,6 +1308,41 @@ test.describe.serial("demo house, roof (4)", () => {
     assert(Math.abs(unsure.at[0] - 0.8) < 1e-6 && Math.abs(unsure.at[1] - 3.3) < 1e-6, `unsure robot: ${JSON.stringify(unsure)}`);
     assert((await page.locator("homeslice-card .robot-label").getAttribute("aria-label")).includes("position not reported") || (await page.locator("homeslice-card .robot-label").textContent()).includes("position not reported"), "the label doesn't say the position is missing");
     await act(page, () => page.evaluate(() => window.card.hass.pushModel(structuredClone(window.__demoModel))));
+  });
+
+  test("robots: the map picture lies on the floor while the robot is out, not when docked", async () => {
+    await page.route("**/api/image_proxy/image.robo_map**", (route) => route.fulfill({ contentType: "image/png", body: readFileSync("dev/fixtures/robot-map.png") }));
+    const set = (robot, picture) =>
+      act(page, () =>
+        page.evaluate(
+          ([robot, picture]) => {
+            const h = window.card.hass;
+            window.card.hass = {
+              ...h,
+              states: {
+                ...h.states,
+                "vacuum.robo": { ...h.states["vacuum.robo"], state: robot },
+                "image.robo_map": { entity_id: "image.robo_map", state: picture, attributes: { entity_picture: "/api/image_proxy/image.robo_map?token=t" } },
+              },
+            };
+          },
+          [robot, picture],
+        ),
+      );
+    await act(page, () =>
+      page.evaluate(() => {
+        const m = structuredClone(window.__demoModel);
+        // the 240 × 160 px picture over the ground floor, 12.5 mm a pixel... drawn larger to see it
+        m.robots[0].map = { entity: "image.robo_map", size: [240, 160], origin: [0.5, 0.5], scale: 0.03 };
+        window.card.hass.pushModel(m);
+      }),
+    );
+    await set("cleaning", "2026-11-03T10:00:00");
+    await page.waitForFunction(() => window.card.renderer.robotMapsShown().length === 1, null, { timeout: 8000 });
+    await shot(page, "demo-robot-map");
+    await set("docked", "2026-11-03T10:20:00");
+    await page.waitForFunction(() => window.card.renderer.robotMapsShown().length === 0, null, { timeout: 5000 });
+    await act(page, () => page.evaluate(() => window.card.hass.pushModel(window.__demoModel)));
   });
 
   test("robots: a warning at the dock when it needs something (water, bag, maintenance)", async () => {

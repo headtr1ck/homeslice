@@ -98,7 +98,7 @@ import { deriveWalls } from "../model/walls";
 
 // left | right, sharing the wall at x = 5
 const house = (): HouseInput => ({
-  schema: 1,
+  schema: 2,
   id: "t",
   outline: { rect: [0, 0, 10, 8] },
   levels: [
@@ -714,7 +714,7 @@ describe("robots in the editor", () => {
 describe("stacked windows", () => {
   it("repeats a level's window on the floor above, at the same place on the façade", () => {
     const two: HouseInput = {
-      schema: 1,
+      schema: 2,
       id: "t",
       outline: { rect: [0, 0, 10, 8] },
       levels: [
@@ -747,7 +747,7 @@ describe("mirroring furniture", () => {
 });
 
 describe("roof levels", () => {
-  const base = (): HouseInput => ({ schema: 1, id: "h", outline: { rect: [0, 0, 10, 8] }, roof: { pitch: 30, ridge: "north_south", finish: "roof_slate" }, levels: [{ id: "g", rooms: [{ id: "a", rect: [0, 0, 10, 8] }] }] });
+  const base = (): HouseInput => ({ schema: 2, id: "h", outline: { rect: [0, 0, 10, 8] }, roof: { pitch: 30, ridge: "north_south", finish: "roof_slate" }, levels: [{ id: "g", rooms: [{ id: "a", rect: [0, 0, 10, 8] }] }] });
 
   it("adds a roof level from the house's roof, which it replaces", () => {
     const { model, id } = addRoofLevel(base(), [0, 0, 10, 8]);
@@ -779,7 +779,7 @@ describe("roof levels", () => {
 
 describe("divideRoom", () => {
   const house = (): HouseInput => ({
-    schema: 1,
+    schema: 2,
     id: "h",
     outline: { rect: [0, 0, 8, 6] },
     levels: [
@@ -852,7 +852,7 @@ describe("divideRoom", () => {
 
 describe("assignArea", () => {
   const house = (): HouseInput => ({
-    schema: 1,
+    schema: 2,
     id: "h",
     outline: { rect: [0, 0, 10, 6] },
     levels: [
@@ -918,7 +918,7 @@ describe("assignArea", () => {
 
 describe("outline: auto", () => {
   const h = (): HouseInput => ({
-    schema: 1,
+    schema: 2,
     id: "a",
     outline: "auto",
     levels: [
@@ -971,7 +971,7 @@ describe("snapping onto walls", () => {
 
 describe("a room drawn over others takes its space from them", () => {
   const h = (): HouseInput => ({
-    schema: 1,
+    schema: 2,
     id: "o",
     outline: "auto",
     levels: [
@@ -1033,7 +1033,7 @@ describe("uncoveredPieces", () => {
 
 describe("turning and moving a floor", () => {
   const h = (): HouseInput => ({
-    schema: 1,
+    schema: 2,
     id: "t",
     outline: "auto",
     levels: [
@@ -1077,7 +1077,7 @@ describe("turning and moving a floor", () => {
 describe("façade windows", () => {
   it("read with their style (a window over a fixed pane shows as one), changed for every floor sharing them", () => {
     const h: HouseInput = {
-      schema: 1,
+      schema: 2,
       id: "f",
       outline: { rect: [0, 0, 6, 8] },
       levels: [{ id: "first", rooms: [{ id: "nora", rect: [0, 0, 6, 8] }] }],

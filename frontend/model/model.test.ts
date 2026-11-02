@@ -9,7 +9,7 @@ import { deriveWalls, type Wall } from "./walls";
 
 // A 10 × 8 m house with two rooms side by side and a shared wall on the west.
 const twoRooms = (): HouseInput => ({
-  schema: 1,
+  schema: 2,
   id: "test",
   outline: { rect: [0, 0, 10, 8] },
   party_walls: ["west"],
@@ -161,10 +161,13 @@ describe("deriveWalls", () => {
     expect(party[0].thickness).toBe(0.24);
   });
 
-  it("grows exterior walls inwards from the outline", () => {
+  it("centres exterior walls on the outline, like inside walls on their line", () => {
     const north = walls().find((x) => x.side === "north" && x.rooms[0] === "left")!;
-    expect(north.a[1]).toBeCloseTo(0.18);
+    expect(north.a[1]).toBe(0);
     expect(north.line[0][1]).toBe(0);
+    // the outer face: the outline out by half of each wall
+    const { house } = expandHouse(twoRooms());
+    expect(house!.levels[0].outer.map((p) => p.map((v) => Math.round(v * 100) / 100))).toEqual([[-0.12, -0.18], [10.18, -0.18], [10.18, 8.18], [-0.12, 8.18]]);
   });
 
   it("places openings on the right wall by position", () => {
@@ -231,7 +234,7 @@ describe("deriveWalls", () => {
 
   it("fills the corner where two drawn walls meet", () => {
     const input: HouseInput = {
-      schema: 1,
+      schema: 2,
       id: "f",
       outline: { rect: [0, 0, 10, 8] },
       levels: [
@@ -254,7 +257,7 @@ describe("deriveWalls", () => {
   it("fills inner corners of the outline and L-corners of inside walls", () => {
     // L-shaped outline: the corner at (5, 4) is an inner corner
     const input: HouseInput = {
-      schema: 1,
+      schema: 2,
       id: "l",
       outline: { polygon: [[0, 0], [5, 0], [5, 4], [10, 4], [10, 8], [0, 8]] },
       levels: [
@@ -270,19 +273,19 @@ describe("deriveWalls", () => {
     const h = expand(input);
     const w = deriveWalls(h.levels[0], h.walls);
     const at = (p: [number, number]) => w.filter((x) => x.line.some((q) => q[0] === p[0] && q[1] === p[1]));
-    // outer walls meeting at the inner corner (5, 4) reach the other wall's thickness past it
+    // outer walls meeting at the inner corner (5, 4) reach half the other wall past it
     for (const x of at([5, 4]).filter((x) => x.type === "exterior")) {
       const end = x.line[0][0] === 5 && x.line[0][1] === 4 ? x.extendStart : x.extendEnd;
-      expect(end).toBeCloseTo(0.36);
+      expect(end).toBeCloseTo(0.18);
     }
     // the inside walls' L-corner at (3, 6) is filled by half a wall thickness
     const inner = at([3, 6]).filter((x) => x.type === "interior");
     expect(inner).toHaveLength(2);
-    for (const x of inner) expect(Math.max(x.extendStart, x.extendEnd)).toBeCloseTo(0.06);
-    // outer corners need nothing
-    expect(at([10, 8]).every((x) => x.extendStart === 0 && x.extendEnd === 0)).toBe(true);
+    for (const x of inner) expect(x.line[0][0] === 3 && x.line[0][1] === 6 ? x.extendStart : x.extendEnd).toBeCloseTo(0.06);
+    // an outer corner the same: each wall reaches half the other past the corner
+    expect(at([10, 8]).map((x) => (x.line[0][0] === 10 && x.line[0][1] === 8 ? x.extendStart : x.extendEnd))).toEqual([0.18, 0.18]);
 
-    // a thin party wall meeting a thick outer wall: each reaches exactly the other's inside face
+    // a thin party wall meeting a thick outer wall: each reaches half the other past the corner
     input.levels[0].party_walls = ["east"];
     const h2 = expand(input);
     const w2 = deriveWalls(h2.levels[0], h2.walls);
@@ -290,8 +293,8 @@ describe("deriveWalls", () => {
     const atCorner = w2.filter((x) => x.line.some((q) => q[0] === 5 && q[1] === 4) && x.type !== "interior");
     const party = atCorner.find((x) => x.type === "party")!; // the wall along x = 5 faces east
     const outer = atCorner.find((x) => x.type === "exterior")!;
-    expect(ext(party)).toBeCloseTo(0.36);
-    expect(ext(outer)).toBeCloseTo(0.24);
+    expect(ext(party)).toBeCloseTo(0.18);
+    expect(ext(outer)).toBeCloseTo(0.12);
   });
 
   it("measures rooms to the inside of their walls", async () => {
@@ -300,9 +303,9 @@ describe("deriveWalls", () => {
     const h = expand(twoRooms());
     const w = deriveWalls(h.levels[0], h.walls);
     const left = innerPolygon(h.levels[0].rooms[0].polygon, w);
-    // west: party wall 0.24; north/south: exterior 0.36; east: half the 0.12 inside wall
-    expect(left.map((p) => p.map((v) => Math.round(v * 100) / 100))).toEqual([[0.24, 0.36], [4.94, 0.36], [4.94, 7.64], [0.24, 7.64]]);
-    expect(Math.abs(signedArea(left))).toBeCloseTo(4.7 * 7.28);
+    // half of each wall: the 0.24 party wall west, 0.36 exterior north/south, 0.12 inside east
+    expect(left.map((p) => p.map((v) => Math.round(v * 100) / 100))).toEqual([[0.12, 0.18], [4.94, 0.18], [4.94, 7.82], [0.12, 7.82]]);
+    expect(Math.abs(signedArea(left))).toBeCloseTo(4.82 * 7.64);
   });
 
   it("steps the inside face where a room edge runs along walls of different thickness", async () => {
@@ -310,7 +313,7 @@ describe("deriveWalls", () => {
     // like the basement: the technical room's east edge is a party wall, then an inside
     // wall to the corridor
     const input: HouseInput = {
-      schema: 1,
+      schema: 2,
       id: "b",
       outline: { polygon: [[0, 0], [2.5, 0], [2.5, 5.35], [5.5, 5.35], [5.5, 7.5], [0, 7.5]] },
       party_walls: ["east"],
@@ -327,10 +330,10 @@ describe("deriveWalls", () => {
     const h = expand(input);
     const inner = innerPolygon(h.levels[0].rooms[0].polygon, deriveWalls(h.levels[0], h.walls));
     const r = inner.map((p) => p.map((v) => Math.round(v * 100) / 100));
-    // the east side steps from the party wall (0.24) to half the inside wall (0.06)
-    expect(r).toContainEqual([2.26, 5.35]);
+    // the east side steps from half the party wall (0.12) to half the inside wall (0.06)
+    expect(r).toContainEqual([2.38, 5.35]);
     expect(r).toContainEqual([2.44, 5.35]);
-    expect(r).toContainEqual([2.44, 7.14]);
+    expect(r).toContainEqual([2.44, 7.32]);
   });
 
   it("warns about openings without a wall", () => {
@@ -442,7 +445,7 @@ describe("checks", () => {
 });
 
 describe("energy connections", () => {
-  const base = (energy: unknown[]) => ({ schema: 1, id: "e", outline: { rect: [0, 0, 6, 6] }, levels: [{ id: "g", rooms: [{ id: "r", rect: [0, 0, 6, 6] }] }], energy });
+  const base = (energy: unknown[]) => ({ schema: 2, id: "e", outline: { rect: [0, 0, 6, 6] }, levels: [{ id: "g", rooms: [{ id: "r", rect: [0, 0, 6, 6] }] }], energy });
   it("ids come from names or kinds; flows go to the hub unless connected elsewhere", () => {
     const { house, issues } = expandHouse(
       base([
@@ -466,14 +469,14 @@ describe("energy connections", () => {
 
 describe("furniture", () => {
   it("can be mirrored", () => {
-    const { house } = expandHouse({ schema: 1, id: "m", outline: { rect: [0, 0, 5, 5] }, levels: [{ id: "g", rooms: [{ id: "r", rect: [0, 0, 5, 5], furniture: [{ type: "sofa_corner", at: [2, 2], mirror: true }, { type: "sofa", at: [1, 1] }] }] }] });
+    const { house } = expandHouse({ schema: 2, id: "m", outline: { rect: [0, 0, 5, 5] }, levels: [{ id: "g", rooms: [{ id: "r", rect: [0, 0, 5, 5], furniture: [{ type: "sofa_corner", at: [2, 2], mirror: true }, { type: "sofa", at: [1, 1] }] }] }] });
     expect(house!.levels[0].rooms[0].furniture.map((f) => f.mirror)).toEqual([true, false]);
   });
 });
 
 describe("furniture linked to entities", () => {
   it("a floor lamp's light is where the lamp stands, and moves with it", () => {
-    const input = (at: [number, number]) => ({ schema: 1, id: "f", outline: { rect: [0, 0, 5, 5] }, levels: [{ id: "g", rooms: [{ id: "r", rect: [0, 0, 5, 5], lights: [{ entity: "light.lamp", at: [1, 1] }], furniture: [{ type: "floor_lamp", at, entity: "light.lamp" }, { type: "tv", at: [2, 4], entity: "media_player.tv" }] }] }] });
+    const input = (at: [number, number]) => ({ schema: 2, id: "f", outline: { rect: [0, 0, 5, 5] }, levels: [{ id: "g", rooms: [{ id: "r", rect: [0, 0, 5, 5], lights: [{ entity: "light.lamp", at: [1, 1] }], furniture: [{ type: "floor_lamp", at, entity: "light.lamp" }, { type: "tv", at: [2, 4], entity: "media_player.tv" }] }] }] });
     const room = expandHouse(input([4, 1])).house!.levels[0].rooms[0];
     expect(room.lights).toEqual([{ entity: "light.lamp", at: [4, 1], hidden: false, piece: true, type: "lamp", spots: [] }]);
     expect(room.furniture.map((f) => f.entity)).toEqual(["light.lamp", "media_player.tv"]);

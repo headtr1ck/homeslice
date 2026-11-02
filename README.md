@@ -88,7 +88,7 @@ unpack it into `<config>/custom_components/homeslice/` and restart Home Assistan
 A whole house can be this short; the editor writes the same format.
 
 ```yaml
-schema: 1
+schema: 2
 id: home
 name: Home
 outline: { rect: [0, 0, 10, 8] }

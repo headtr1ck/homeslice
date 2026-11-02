@@ -174,8 +174,9 @@ def validate(house: Any) -> list[dict[str, str]]:
         err("", "The house file is empty or not a mapping.")
         return issues
     h = house
-    if get(h, "schema") != 1 or isinstance(get(h, "schema"), bool):
-        err("schema", f"Unsupported schema {stringify(get(h, 'schema'))}; expected 1.")
+    # 1: an older file (its outline on the walls' outer face), read as 2 by the frontend
+    if get(h, "schema") not in (1, 2) or isinstance(get(h, "schema"), bool):
+        err("schema", f"Unsupported schema {stringify(get(h, 'schema'))}; expected 2.")
     levels_in = get(h, "levels")
     if not isinstance(levels_in, list) or not levels_in:
         err("levels", "A house needs at least one level.")
@@ -793,6 +794,22 @@ def validate(house: Any) -> list[dict[str, str]]:
         dock = get(r, "dock")
         if not isinstance(dock, list) or len(dock) != 2:
             err(rp, "dock must be [x, y] in metres.")
+            continue
+        rmap = get(r, "map")
+
+        def pair(v: Any) -> bool:
+            return isinstance(v, list) and len(v) == 2 and all(is_num(x) for x in v)
+
+        if rmap is not MISSING and not (
+            isinstance(get(rmap, "entity"), str)
+            and get(rmap, "entity").startswith("image.")
+            and pair(get(rmap, "size"))
+            and pair(get(rmap, "origin"))
+            and is_num(get(rmap, "scale"))
+            and num(get(rmap, "scale")) > 0
+            and (get(rmap, "rotation") is MISSING or is_num(get(rmap, "rotation")))
+        ):
+            err(f"{rp}.map", "map needs entity (image.*), size [width, height] in pixels, origin [x, y] in metres, scale (metres a pixel) and optionally rotation.")
             continue
     north = get(h, "north")
     if north is not MISSING and not is_num(north):

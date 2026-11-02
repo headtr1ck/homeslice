@@ -372,7 +372,7 @@
   "editor.walls_exterior": "Esterne (cm)",
   "editor.walls_interior": "Interne (cm)",
   "editor.walls_party": "Confinanti (cm)",
-  "editor.walls_hint": "Il perimetro è la faccia esterna della casa: pareti esterne più spesse rimpiccioliscono le stanze, non ingrandiscono la casa. Le pareti interne sono centrate sulle linee tra le stanze; una parete può avere uno spessore proprio (selezionala).",
+  "editor.walls_hint": "Il contorno è la linea centrale delle pareti esterne, come ogni linea tra le stanze: le pareti sono centrate sulle loro linee, quindi una parete più spessa prende metà da ogni lato. Una parete interna può avere un suo spessore (selezionala).",
   "editor.party": "Addossata a un vicino",
   "editor.party_hint": "Lati in cui la casa condivide una parete con la casa accanto (a schiera o bifamiliare). Vale per ogni livello.",
   "editor.party_level_hint": "Questo livello ha un'impostazione propria.",
@@ -1902,5 +1902,18 @@
   "editor.backdrop_add": "Aggiungi",
   "editor.backdrop_add_hint": "Un'altra immagine sotto questo piano, ad es. la mappa del robot accanto alla pianta: passa dall'una all'altra con N.",
   "editor.backdrop_next": "Immagine successiva sotto questo piano (N)",
-  "editor.key_backdrop": "Immagine successiva sotto il piano"
+  "editor.key_backdrop": "Immagine successiva sotto il piano",
+  "editor.search": "Cerca",
+  "editor.search_hint": "Trova uno strumento, un'impostazione, un piano o una stanza (Ctrl+K)",
+  "editor.search_placeholder": "Balcone, tetto, parete curva, cucina…",
+  "editor.search_none": "Nessun risultato",
+  "editor.search_curve": "Parete curva: seleziona una stanza o le pareti esterne, poi “Muri curvi”",
+  "editor.search_corner": "Aggiungi un angolo: doppio clic su una parete (Seleziona)",
+  "editor.search_floor": "Piano",
+  "editor.key_search": "Cerca strumenti, impostazioni, piani e stanze",
+  "editor.tip_room": "Suggerimento: trascina un lato o un angolo per spostarlo. Doppio clic su una parete aggiunge un angolo (una stanza a L). Una stanza disegnata sopra altre prende il loro spazio.",
+  "editor.tip_wall": "Suggerimento: lo strumento parete resta attivo: inizia la parete successiva alla fine di questa. Le pareti che chiudono una forma creano lì una stanza. Esc o V per fermarti.",
+  "editor.tip_opening": "Suggerimento: collega tapparella e contatto nel pannello per vederli dal vivo. Trascinala lungo la parete o su un'altra parete.",
+  "editor.tip_stairs": "Suggerimento: la scala apre il piano di sopra. Trascina un angolo per ridimensionarla; il pannello la ruota e ne imposta lo stile.",
+  "editor.robot_map_card": "Mostra questa mappa sulla scheda mentre {robot} è in giro (l'area pulita cresce)"
 }

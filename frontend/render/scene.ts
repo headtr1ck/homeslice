@@ -94,6 +94,8 @@ export function viewOptions(
 
 /** The least power that moves the pulses on a flow line. */
 const MIN_FLOW_WATTS = 10;
+// a robot's map picture on the card: fetched again at most this often while it changes
+const ROBOT_MAP_MS = 5000;
 
 // One perspective camera does both: "isometric" is a very narrow lens from far away, so
 // switching projections animates as a smooth zoom.
@@ -513,6 +515,8 @@ export class HouseRenderer {
   /** Robots: their body (moved to the live position) and status ring, on their level. */
   private robots = new Map<string, { levelIndex: number; body: THREE.Group; ring: THREE.MeshBasicMaterial; glide?: { from: Vec2; to: Vec2; start: number; ms: number }; seen?: boolean }>();
   private robotObjects: THREE.Object3D[] = [];
+  /** Robots' map pictures on their floors: the picture shown, when it was last fetched. */
+  private robotMaps = new Map<string, { mesh: THREE.Mesh; material: THREE.MeshBasicMaterial; url: string; at: number; later?: number }>();
   /** Where each energy item is, in its level group's coordinates (solar: on the roof). */
   private energyPoints = new Map<string, EnergyPoint>();
   private flows: Flow[] = [];
@@ -615,7 +619,7 @@ export class HouseRenderer {
       group.position.y = baseY;
       if (this.view.sideBySide) {
         // each floor to the right of the one below, a gap between
-        const { min, max } = bbox(level.outline.length ? level.outline : level.rooms.flatMap((r) => r.polygon));
+        const { min, max } = bbox(level.outer.length ? level.outer : level.rooms.flatMap((r) => r.polygon));
         group.position.x = this.sideX - min[0];
         this.sideX += max[0] - min[0] + 2;
       }
@@ -623,7 +627,7 @@ export class HouseRenderer {
       const floorMaterials = new Set(level.rooms.map((r) => this.floors.get(`${level.id}/${r.id}`)?.material));
       const tintable = [...materials].filter((m): m is THREE.MeshLambertMaterial => m instanceof THREE.MeshLambertMaterial && !floorMaterials.has(m));
       this.levels.push({ group, baseY, materials, tintable, opacity: 1, lift: 0, hoverOpacity: 1, hoverLift: 0 });
-      this.levelOutlines.push(level.outline);
+      this.levelOutlines.push(level.outer);
       this.levelHeights.push(level.height);
       this.levelElevations.push(level.elevation);
       this.levelRooms.push(level.rooms.filter((r) => r.kind === "room").map((r) => r.polygon));
@@ -727,8 +731,9 @@ export class HouseRenderer {
     }
 
     // slab under the level
-    if (level.outline.length) {
-      const slab = new THREE.ExtrudeGeometry(shapeOf(level.outline, holes), { depth: level.slab, bevelEnabled: false });
+    if (level.outer.length) {
+      // (under the outside walls too)
+      const slab = new THREE.ExtrudeGeometry(shapeOf(level.outer, holes), { depth: level.slab, bevelEnabled: false });
       slab.rotateX(-Math.PI / 2);
       slab.translate(0, -level.slab, 0);
       g.add(this.mesh(slab, this.lambert(COLORS.slab)));
@@ -1770,15 +1775,15 @@ export class HouseRenderer {
    * reaching across the room. Built fully extended; setAwning scales it.
    */
   private awning(g: THREE.Group, level: Level, room: Level["rooms"][number]) {
-    const outline = level.outline;
+    // against the house: on the outside walls' centre line or their outer face
     const onOutline = (p: Vec2) =>
-      outline.some((a, i) => {
+      [level.outline, level.outer].some((outline) => outline.some((a, i) => {
         const b = outline[(i + 1) % outline.length];
         const len = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1;
         const t = ((p[0] - a[0]) * (b[0] - a[0]) + (p[1] - a[1]) * (b[1] - a[1])) / len;
         const dist = Math.abs((p[0] - a[0]) * (b[1] - a[1]) - (p[1] - a[1]) * (b[0] - a[0])) / len;
         return dist < 0.02 && t > -0.02 && t < len + 0.02;
-      });
+      }));
     const poly = room.polygon;
     let best: [Vec2, Vec2] | null = null;
     poly.forEach((a, i) => {
@@ -2246,7 +2251,7 @@ export class HouseRenderer {
   private buildRoof(level: Level, roof: RoofShape): THREE.Group {
     const part: RoofPart = {
       id: "roof",
-      polygon: level.outline,
+      polygon: level.outer,
       shape: roof.shape,
       angle: roof.ridge === "east_west" ? 0 : 90,
       pitch: roof.pitch,
@@ -2627,15 +2632,15 @@ export class HouseRenderer {
 
   /** A balcony's railing along the edges that are not against the house, a metre high. */
   private railing(g: THREE.Group, level: Level, room: Level["rooms"][number]) {
-    const outline = level.outline;
+    // against the house: on the outside walls' centre line or their outer face
     const onOutline = (p: Vec2) =>
-      outline.some((a, i) => {
+      [level.outline, level.outer].some((outline) => outline.some((a, i) => {
         const b = outline[(i + 1) % outline.length];
         const len = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1;
         const t = ((p[0] - a[0]) * (b[0] - a[0]) + (p[1] - a[1]) * (b[1] - a[1])) / len;
         const dist = Math.abs((p[0] - a[0]) * (b[1] - a[1]) - (p[1] - a[1]) * (b[0] - a[0])) / len;
         return dist < 0.05 && t > -0.05 && t < len + 0.05;
-      });
+      }));
     // a terrace inside the outline: its railing runs along the open outside (the house's edge);
     // a balcony outside it: along its free edges (the house side has the wall)
     const inside = level.outline.length > 0 && pointInPolygon(labelPoint(room.polygon), level.outline);
@@ -2832,6 +2837,11 @@ export class HouseRenderer {
     }
     this.robotObjects = [];
     this.robots.clear();
+    for (const m of this.robotMaps.values()) {
+      m.material.map?.dispose();
+      clearTimeout(m.later);
+    }
+    this.robotMaps.clear();
     for (const item of items) {
       const level = this.levels[item.levelIndex];
       if (!level) continue;
@@ -2883,6 +2893,80 @@ export class HouseRenderer {
       this.robots.set(item.key, { levelIndex: item.levelIndex, body, ring: ringMaterial });
       this.applyLevel(level);
     }
+  }
+
+  /**
+   * A robot's map picture on its floor, under everything, see-through (null: not shown).
+   * A new `url` (the picture changed: the cleaned area grew) is fetched at most every few
+   * seconds; a picture of another size than placed (the robot mapped more) isn't shown.
+   */
+  setRobotMap(key: string, map: { url: string; size: Vec2; origin: Vec2; scale: number; rotation: number } | null) {
+    const r = this.robots.get(key);
+    let entry = this.robotMaps.get(key);
+    if (!r || !map) {
+      if (entry) entry.mesh.visible = false;
+      return;
+    }
+    const level = this.levels[r.levelIndex];
+    if (!level) return;
+    if (!entry) {
+      const material = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0.6, depthWrite: false, side: THREE.DoubleSide });
+      level.materials.add(material);
+      const [w, h] = [map.size[0] * map.scale, map.size[1] * map.scale];
+      const geometry = new THREE.PlaneGeometry(w, h);
+      geometry.rotateX(-Math.PI / 2);
+      const mesh = new THREE.Mesh(geometry, material);
+      // turned like the floor plan image: the picture's top-left corner at `origin`
+      const t = (map.rotation * Math.PI) / 180;
+      mesh.rotation.y = -t;
+      mesh.position.set(map.origin[0] + (w / 2) * Math.cos(t) - (h / 2) * Math.sin(t), 0.008, map.origin[1] + (w / 2) * Math.sin(t) + (h / 2) * Math.cos(t));
+      mesh.renderOrder = 1;
+      mesh.visible = false;
+      mesh.userData.outdoor = true; // taps go to the room underneath
+      level.group.add(mesh);
+      this.robotObjects.push(mesh);
+      entry = { mesh, material, url: "", at: 0 };
+      this.robotMaps.set(key, entry);
+      this.applyLevel(level);
+    }
+    const e = entry;
+    if (e.url === map.url) {
+      e.mesh.visible = !!e.material.map;
+      return;
+    }
+    clearTimeout(e.later);
+    const wait = e.at + ROBOT_MAP_MS - performance.now();
+    if (wait > 0) {
+      e.later = window.setTimeout(() => this.setRobotMap(key, map), wait);
+      return;
+    }
+    e.url = map.url;
+    e.at = performance.now();
+    new THREE.TextureLoader().load(
+      map.url,
+      (texture) => {
+        const img = texture.image as { width: number; height: number };
+        if (e.url !== map.url || this.robotMaps.get(key) !== e || img.width !== map.size[0] || img.height !== map.size[1]) {
+          texture.dispose();
+          if (this.robotMaps.get(key) === e && e.url === map.url) e.mesh.visible = false;
+          this.onChange?.();
+          return;
+        }
+        texture.colorSpace = THREE.SRGBColorSpace;
+        e.material.map?.dispose();
+        e.material.map = texture;
+        e.material.needsUpdate = true;
+        e.mesh.visible = true;
+        this.onChange?.();
+      },
+      undefined,
+      () => undefined,
+    );
+  }
+
+  /** For tests: the robots whose map picture shows on their floor. */
+  robotMapsShown(): string[] {
+    return [...this.robotMaps.entries()].filter(([, m]) => m.mesh.visible && !!m.material.map).map(([k]) => k);
   }
 
   /** Where a robot is (null: unknown, hidden) and its status colour. */
@@ -3049,7 +3133,7 @@ export class HouseRenderer {
     const info = this.roofInfo;
     if (!info || !this.roof) return null;
     const { level, shape } = info;
-    const { min, max } = bbox(level.outline);
+    const { min, max } = bbox(level.outer);
     const o = shape.overhang;
     const t = Math.tan((shape.pitch * Math.PI) / 180);
     const eastWest = shape.ridge === "east_west";

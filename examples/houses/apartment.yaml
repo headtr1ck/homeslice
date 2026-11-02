@@ -2,7 +2,7 @@
 # the east and west walls (party walls), the front door from the stairwell on the north side,
 # an open kitchen and living room onto a balcony. Pieces without a size take the
 # catalogue's (scripts/demo-model.mjs fills them in).
-schema: 1
+schema: 2
 id: apartment
 name: Apartment
 outline: { rect: [0, 0, 11, 8.5] }

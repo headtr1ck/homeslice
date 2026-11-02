@@ -12,7 +12,7 @@ describe("door & window library", () => {
   });
   it("kinds and how they open have defaults", () => {
     const { house } = expandHouse({
-      schema: 1,
+      schema: 2,
       id: "o",
       outline: { rect: [0, 0, 5, 5] },
       levels: [{ id: "g", rooms: [{ id: "r", rect: [0, 0, 5, 5] }], openings: [{ room: "r", side: "south", at: 1, width: 1, type: "door", hinge: "right", swing: "out" }, { room: "r", side: "north", at: 1, width: 1, type: "opening" }] }],
@@ -41,7 +41,7 @@ describe("kinds", () => {
 describe("a double window over a fixed pane", () => {
   it("splits at half its height unless told otherwise", () => {
     const { house } = expandHouse({
-      schema: 1,
+      schema: 2,
       id: "s",
       outline: { rect: [0, 0, 5, 5] },
       levels: [{ id: "g", rooms: [{ id: "r", rect: [0, 0, 5, 5] }], openings: [{ room: "r", side: "south", at: 1, width: 1.6, sill: 0, height: 2.2, style: "split" }, { room: "r", side: "north", at: 1, width: 1.6, sill: 0, height: 2.2, style: "split", split: 0.9 }] }],

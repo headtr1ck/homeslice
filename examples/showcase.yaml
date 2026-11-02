@@ -1,7 +1,7 @@
 # The demo house as the README, the showreel and the demo site show it (examples/demo.yaml
 # is the browser tests' copy): a front door, doors between the rooms, stairs up from the
 # living room to a landing, a garage with a car, a garden. Furniture: scripts/demo-model.mjs.
-schema: 1
+schema: 2
 id: demo
 name: Demo house
 outline: { rect: [0, 0, 8, 10] }

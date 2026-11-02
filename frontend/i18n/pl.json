@@ -372,7 +372,7 @@
   "editor.walls_exterior": "Zewnętrzne (cm)",
   "editor.walls_interior": "Wewnętrzne (cm)",
   "editor.walls_party": "Sąsiedzkie (cm)",
-  "editor.walls_hint": "Obrys to zewnętrzna powierzchnia domu: grubsze ściany zewnętrzne zmniejszają pokoje, a nie powiększają dom. Ściany wewnętrzne są wyśrodkowane na liniach między pokojami; jedna ściana może mieć własną grubość (zaznacz ją).",
+  "editor.walls_hint": "Obrys to linia środkowa ścian zewnętrznych, jak każda linia między pokojami: ściany są wyśrodkowane na swoich liniach, więc grubsza ściana zabiera połowę z każdej strony. Ściana wewnętrzna może mieć własną grubość (zaznacz ją).",
   "editor.party": "Przylega do sąsiada",
   "editor.party_hint": "Strony, po których dom dzieli ścianę z sąsiednim domem (szeregowiec lub bliźniak). Dotyczy każdego poziomu.",
   "editor.party_level_hint": "Ten poziom ma własne ustawienie.",
@@ -1902,5 +1902,18 @@
   "editor.backdrop_add": "Dodaj",
   "editor.backdrop_add_hint": "Kolejny obraz pod tym piętrem, np. mapa robota obok planu: przełączaj się między nimi klawiszem N.",
   "editor.backdrop_next": "Następny obraz pod tym piętrem (N)",
-  "editor.key_backdrop": "Następny obraz pod piętrem"
+  "editor.key_backdrop": "Następny obraz pod piętrem",
+  "editor.search": "Szukaj",
+  "editor.search_hint": "Znajdź narzędzie, ustawienie, piętro lub pokój (Ctrl+K)",
+  "editor.search_placeholder": "Balkon, dach, łukowa ściana, kuchnia…",
+  "editor.search_none": "Nic nie znaleziono",
+  "editor.search_curve": "Łukowa ściana: zaznacz pokój lub ściany zewnętrzne, potem „Łukowe ściany“",
+  "editor.search_corner": "Dodaj narożnik: kliknij dwukrotnie ścianę (Zaznacz)",
+  "editor.search_floor": "Piętro",
+  "editor.key_search": "Szukaj narzędzi, ustawień, pięter i pokoi",
+  "editor.tip_room": "Wskazówka: przeciągnij bok lub narożnik, aby go przesunąć. Dwuklik na ścianie dodaje narożnik (pokój w kształcie L). Pokój narysowany na innych zabiera im miejsce.",
+  "editor.tip_wall": "Wskazówka: narzędzie ściany działa dalej: zacznij następną ścianę na końcu tej. Ściany zamykające kształt tworzą tam pokój. Esc lub V, aby zakończyć.",
+  "editor.tip_opening": "Wskazówka: połącz w panelu roletę i kontaktron, aby widzieć je na żywo. Przeciągnij wzdłuż ściany lub na inną ścianę.",
+  "editor.tip_stairs": "Wskazówka: schody otwierają piętro wyżej. Przeciągnij narożnik, aby zmienić rozmiar; w panelu obrócisz je i wybierzesz styl.",
+  "editor.robot_map_card": "Pokaż tę mapę na karcie, gdy {robot} pracuje (sprzątany obszar rośnie)"
 }

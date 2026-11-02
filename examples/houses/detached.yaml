@@ -1,7 +1,7 @@
 # A free-standing family house for the demo site: two floors under a hip roof with solar
 # panels, a garage with a roof terrace over it, a terrace with an awning, a garden all round
 # with a pool. Pieces without a size take the catalogue's (scripts/demo-model.mjs fills them in).
-schema: 1
+schema: 2
 id: detached
 name: Detached house
 outline: { rect: [0, 0, 11, 8.5] }

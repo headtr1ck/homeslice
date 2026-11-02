@@ -1,5 +1,5 @@
 # A small two-storey demo house, used in the docs and by the browser tests.
-schema: 1
+schema: 2
 id: demo
 name: Demo house
 outline: { rect: [0, 0, 8, 10] }

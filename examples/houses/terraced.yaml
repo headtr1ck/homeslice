@@ -2,7 +2,7 @@
 # the front door on the street (north), a through living room and kitchen onto a long back
 # garden, two bedrooms and a bathroom upstairs, a studio in the loft under a steep roof with
 # a dormer and roof windows. Pieces without a size take the catalogue's (scripts/demo-model.mjs).
-schema: 1
+schema: 2
 id: terraced
 name: Terraced house
 outline: { rect: [0, 0, 5.5, 10] }

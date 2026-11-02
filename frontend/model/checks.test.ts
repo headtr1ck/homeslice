@@ -10,7 +10,7 @@ const issues = (input: HouseInput) => {
   return unreachableRooms(house!, walls).map((i) => i.message);
 };
 const two = (openings: HouseInput["levels"][number]["openings"]): HouseInput => ({
-  schema: 1,
+  schema: 2,
   id: "t",
   outline: { rect: [0, 0, 8, 4] },
   levels: [{ id: "g", rooms: [{ id: "a", rect: [0, 0, 4, 4] }, { id: "b", rect: [4, 0, 4, 4] }], openings }],
@@ -29,7 +29,7 @@ describe("can every room be reached", () => {
   });
   it("goes up the stairs", () => {
     const house: HouseInput = {
-      schema: 1,
+      schema: 2,
       id: "t",
       outline: { rect: [0, 0, 6, 4] },
       vertical: [{ id: "s", rect: [4, 0, 2, 3], from: "g", to: "f" }],
@@ -44,7 +44,7 @@ describe("can every room be reached", () => {
 
 describe("pieces in walls", () => {
   const house = (y: number): HouseInput => ({
-    schema: 1,
+    schema: 2,
     id: "t",
     outline: { rect: [0, 0, 6, 4] },
     levels: [{ id: "g", rooms: [{ id: "a", rect: [0, 0, 6, 4], furniture: [{ type: "nightstand", at: [2, y] }] }] }],

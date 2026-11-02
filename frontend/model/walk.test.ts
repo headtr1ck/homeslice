@@ -5,7 +5,7 @@ import { walkStep } from "./walk";
 
 // two rooms side by side, a door between them in the middle of the shared wall
 const { house } = expandHouse({
-  schema: 1,
+  schema: 2,
   id: "t",
   outline: { rect: [0, 0, 8, 4] },
   levels: [

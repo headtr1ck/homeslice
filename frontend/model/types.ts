@@ -480,7 +480,8 @@ export interface PieceInput {
 }
 
 export interface HouseInput {
-  schema: 1;
+  /** 2 (1: an older file, its outline on the walls' outer face; read as 2). */
+  schema: 1 | 2;
   id: string;
   name?: string;
   /** The house's own pieces (see PieceInput). */
@@ -530,6 +531,13 @@ export interface RobotInput {
   /** The dock, plan metres. */
   dock: [number, number];
   position?: RobotPositionInput;
+  /**
+   * The robot's map picture laid on its floor on the card while it is out, the cleaned area
+   * growing live: the `image.*` entity, its size in pixels and where it lies (the editor sets
+   * this from a floor's backdrop: `origin` the picture's top-left corner in plan metres,
+   * `scale` metres a pixel, `rotation` degrees).
+   */
+  map?: { entity: string; size: [number, number]; origin: [number, number]; scale: number; rotation?: number };
 }
 
 export interface RobotPositionInput {
@@ -638,7 +646,10 @@ export interface Level {
   elevation: number;
   height: number;
   slab: number;
+  /** The outside walls' centre line. */
   outline: Vec2[];
+  /** The outside walls' outer face (the outline out by half of each wall). */
+  outer: Vec2[];
   partyWalls: Side[];
   rooms: Room[];
   openings: Opening[];
@@ -688,6 +699,7 @@ export interface Robot {
   levelIndex: number;
   dock: Vec2;
   position?: { entity: string; attribute?: string; service?: string; points: [Vec2, Vec2][] };
+  map?: { entity: string; size: Vec2; origin: Vec2; scale: number; rotation: number };
 }
 
 export interface Energy {

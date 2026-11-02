@@ -28,8 +28,8 @@ test.describe.serial("editor", () => {
     const names = await page.locator("homeslice-panel svg.plan text.room-name").allTextContents();
     assert(names.includes("Living Room") && names.includes("Kitchen") && !names.includes("Bedroom"), `plan labels: ${names.join(", ")}`);
     const areas = await page.locator("homeslice-panel svg.plan text.room-area").allTextContents();
-    // inside dimensions: the 5 × 4 m kitchen minus its walls
-    assert(areas.includes("16.8 m²"), `kitchen area missing: ${areas.join(", ")}`);
+    // inside dimensions: the 5 × 4 m kitchen (on wall centre lines) minus half of each wall
+    assert(areas.includes("18.1 m²"), `kitchen area missing: ${areas.join(", ")}`);
     await page.waitForFunction(() => window.panel.renderer?.renderer.info.render.triangles > 100, null, { timeout: 10000 });
     await shot(page, "editor-open");
   });
@@ -667,13 +667,14 @@ test.describe.serial("editor", () => {
   test("lengths: every room shows its inside lengths; typing one moves the wall", async () => {
     await page.keyboard.press("Escape");
     const dims = await page.locator("homeslice-panel svg.plan text.room-dim").allTextContents();
-    // the hall inside its walls: 0.36 m outside wall, half of a 0.12 m inside wall
+    // the hall inside its walls: half the 0.36 m outside wall, half the 0.12 m inside wall
     const hallWidth = (await room("hall")).rect[2];
-    const inside = (hallWidth - 0.42).toFixed(2);
+    const inside = (hallWidth - 0.24).toFixed(2);
     assert(dims.length > 8 && dims.includes(inside), `lengths: ${dims.join(", ")} (hall ${inside})`);
-    // the house's outside size along its north and west sides
+    // the house's outside size along its north and west sides: 8 × 10 m on the wall centres,
+    // plus half of each wall (the party wall east 0.24 m, the others 0.36 m)
     const overall = await page.locator("homeslice-panel svg.plan .overall-dims text").allTextContents();
-    assert(JSON.stringify(overall) === '["8.00 m","10.00 m"]', `overall: ${overall}`);
+    assert(JSON.stringify(overall) === '["8.30 m","10.36 m"]', `overall: ${overall}`);
     const toggle = page.locator('homeslice-panel aside.tools button[aria-label="Show lengths"]');
     await toggle.click();
     assert((await page.locator("homeslice-panel svg.plan text.room-dim").count()) === 0, "lengths not hidden");
@@ -703,9 +704,9 @@ test.describe.serial("editor", () => {
     });
     await page.mouse.click(hit.x, hit.y);
     const dims = await page.locator("homeslice-panel svg.plan g.opening-dims text").allTextContents();
-    // the hall door: 1 m from the room's west end (0.36 m of it is the outside wall), 1 m wide
+    // the hall door: 1 m from the room's west end (0.18 m of it is half the outside wall), 1 m wide
     const rest = ((await room("hall")).rect[2] - 0.06 - 2).toFixed(2);
-    assert(JSON.stringify(dims) === JSON.stringify(["0.64", "1.00", rest]), `door distances: ${dims.join(", ")} (expected …, ${rest})`);
+    assert(JSON.stringify(dims) === JSON.stringify(["0.82", "1.00", rest]), `door distances: ${dims.join(", ")} (expected …, ${rest})`);
     await page.locator("homeslice-panel svg.plan g.opening-dims text", { hasText: rest }).click();
     const input = page.locator("homeslice-panel svg.plan input.dim-input");
     await input.fill("0.5");
@@ -980,7 +981,7 @@ test.describe.serial("editor", () => {
     assert(own?.thickness === 0.24 && own.type === "wall", `wall: ${JSON.stringify((await model()).levels[0].walls)}`);
     const dims = await page.locator("homeslice-panel svg.plan text.room-dim").allTextContents();
     // the hall loses another 6 cm to the thicker wall
-    const thinner = ((await room("hall")).rect[2] - 0.36 - 0.12).toFixed(2);
+    const thinner = ((await room("hall")).rect[2] - 0.18 - 0.12).toFixed(2);
     assert(dims.includes(thinner), `hall after the thicker wall: ${dims.join(", ")} (expected ${thinner})`);
     await page.keyboard.press("Control+z");
     await page.keyboard.press("Escape");
@@ -1243,22 +1244,22 @@ test.describe.serial("editor", () => {
     assert((await dropPiece("modern:sofa", living.x + living.width * 0.3, living.y + living.height * 0.75)) === "ok", "drop refused");
     assert((await room("living")).furniture?.some((f) => f.type === "sofa"), `living: ${JSON.stringify((await room("living")).furniture)}`);
     assert((await page.locator("homeslice-panel .inspector h2").textContent()) === "Sofa", "dropped sofa not selected");
-    // dragged close to the south wall, the sofa snaps flush against it (inside face: 10 − 0.36 m)
+    // dragged close to the south wall, the sofa snaps flush against it (inside face: 10 − 0.18 m)
     const sofaBox = await page.locator("homeslice-panel svg.plan g.furniture.selected rect").boundingBox();
-    const near = await toPage([3, 9.1]);
+    const near = await toPage([3, 9.25]);
     await page.mouse.move(sofaBox.x + 8, sofaBox.y + 8);
     await page.mouse.down();
     await page.mouse.move(near.x + 8 - sofaBox.width / 2, near.y + 8 - sofaBox.height / 2, { steps: 8 });
     await page.mouse.up();
     const sofa = (await room("living")).furniture.find((f) => f.type === "sofa");
-    assert(Math.abs(sofa.at[1] + 4 - (9.64 - 0.475)) < 0.011, `sofa not against the wall: ${JSON.stringify(sofa)}`);
+    assert(Math.abs(sofa.at[1] + 4 - (9.82 - 0.475)) < 0.011, `sofa not against the wall: ${JSON.stringify(sofa)}`);
     // a mirror dropped near the hall's west wall hangs on it, facing east
     await page.keyboard.press("Escape");
     const hall = await page.locator('homeslice-panel svg.plan g[data-room="hall"] polygon').boundingBox();
     await dropPiece("modern:mirror_round", hall.x + 12, hall.y + hall.height * 0.6);
     const mirror = (await room("hall")).furniture?.find((f) => f.type === "mirror");
-    // the hall's inside face of the west wall is 0.36 m from the room's corner; a 3 cm mirror sits 1.5 cm in front
-    assert(mirror && mirror.rotation === 270 && Math.abs(mirror.at[0] - 0.38) < 0.011, `mirror: ${JSON.stringify(mirror)}`);
+    // the hall's inside face of the west wall is 0.18 m from the room's corner; a 3 cm mirror sits 1.5 cm in front
+    assert(mirror && mirror.rotation === 270 && Math.abs(mirror.at[0] - 0.2) < 0.011, `mirror: ${JSON.stringify(mirror)}`);
     assert((await page.locator("homeslice-panel .inspector label", { hasText: "Above the floor" }).count()) === 1, "a wall piece's height above the floor is not offered");
     // with snapping off, the mirror goes where it is dropped, not onto the wall
     const snapBox = page.locator("homeslice-panel .inspector label.snap-pieces input");
@@ -1653,6 +1654,72 @@ test.describe.serial("editor", () => {
     await page.keyboard.press("Control+z");
     await page.locator('homeslice-panel aside.tools button.tool[data-tool="select"]').click();
     assert(errors.length === 0, errors.join(" | "));
+  });
+
+  test("command search (Ctrl+K): a tool by another word for it, a room on another floor", async () => {
+    await page.keyboard.press("Escape");
+    await page.locator("homeslice-panel svg.plan").click({ position: { x: 5, y: 300 } });
+    await page.keyboard.press("Control+k");
+    const input = page.locator("homeslice-panel input.palette-input");
+    await input.waitFor({ timeout: 3000 });
+    await input.fill("terrace");
+    assert((await page.locator("homeslice-panel .palette-list li").first().getAttribute("data-command")) === "tool:balcony", "terrace does not find the balcony tool");
+    await input.press("Enter");
+    assert(await page.evaluate(() => window.panel._tool === "balcony"), "balcony tool not chosen");
+    assert(!(await page.locator("homeslice-panel .palette").count()), "the search stays open");
+    // a room on the floor above: the floor shown, the room selected
+    await page.locator("homeslice-panel header button[data-palette-open]").click();
+    await input.fill("kids");
+    await input.press("Enter");
+    const at = await page.evaluate(() => ({ level: window.panel._level, room: window.panel._room, tool: window.panel._tool }));
+    assert(at.level === "first" && at.room === "kids" && at.tool === "select", `went to ${JSON.stringify(at)}`);
+    // nothing for gibberish; Escape closes
+    await page.keyboard.press("Control+k");
+    await input.fill("qqqzzz");
+    assert((await page.locator("homeslice-panel .palette-list li").textContent()).includes("Nothing found"), "found something for gibberish");
+    await input.press("Escape");
+    assert(!(await page.locator("homeslice-panel .palette").count()), "Escape did not close");
+    await shot(page, "editor-search");
+    await page.keyboard.press("Escape");
+    await page.evaluate(() => (window.panel._level = "ground"));
+    assert(errors.length === 0, errors.join(" | "));
+  });
+
+  test("a robot's map as a backdrop: shown on the card while it cleans, placed where the backdrop lies", async () => {
+    await page.keyboard.press("Escape");
+    await page.route("**/api/image_proxy/image.robo_map**", (route) => route.fulfill({ contentType: "image/png", body: readFileSync("dev/fixtures/robot-map.png") }));
+    await page.evaluate(() => {
+      const p = window.panel;
+      const h = p.hass;
+      p.hass = {
+        ...h,
+        entities: { ...h.entities, "vacuum.robo": { ...(h.entities["vacuum.robo"] ?? { entity_id: "vacuum.robo" }), device_id: "robo_device" }, "image.robo_map": { entity_id: "image.robo_map", device_id: "robo_device" } },
+        states: { ...h.states, "image.robo_map": { entity_id: "image.robo_map", state: "2026-11-03", attributes: { friendly_name: "Robo Ground Floor", entity_picture: "/api/image_proxy/image.robo_map?token=x" } } },
+      };
+      p._level = "ground";
+    });
+    const b = await page.locator("homeslice-panel svg.plan").boundingBox();
+    await page.mouse.click(b.x + 5, b.y + b.height - 5);
+    await page.locator("homeslice-panel .inspector button[data-robot-map='image.robo_map']").click();
+    await page.waitForFunction(() => window.panel._underlay?.source === "image.robo_map", null, { timeout: 5000 });
+    await page.evaluate(() => {
+      window.panel._calib = null;
+      window.panel._straighten = null;
+    });
+    const box = page.locator("homeslice-panel .inspector input[data-robot-map-card]");
+    await box.check();
+    await page.waitForFunction(() => !!window.panel._model.robots[0].map, null, { timeout: 5000 });
+    const map = await page.evaluate(() => window.panel._model.robots[0].map);
+    assert(map.entity === "image.robo_map" && map.size.join() === "240,160" && map.scale === 0.0125, `map: ${JSON.stringify(map)}`);
+    // the backdrop moved: the card's map goes along
+    await page.evaluate(() => window.panel.saveUnderlay({ place: { ...window.panel._underlay.place, origin: [1, 2] } }));
+    assert((await page.evaluate(() => window.panel._model.robots[0].map.origin)).join() === "1,2", "the card's map did not follow the backdrop");
+    await box.uncheck();
+    assert(!(await page.evaluate(() => window.panel._model.robots[0].map)), "still on the card");
+    page.once("dialog", (d) => d.accept());
+    await page.locator("homeslice-panel .inspector button", { hasText: "Remove image" }).click();
+    await page.waitForFunction(() => !window.panel._underlay, null, { timeout: 5000 });
+    await page.keyboard.press("Escape");
   });
 
   test("Delete removes the selected room", async () => {

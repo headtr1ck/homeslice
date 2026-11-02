@@ -4,6 +4,8 @@
 
 import { LitElement, css, html, nothing, svg, type PropertyValues } from "lit";
 import { unsafeSVG } from "lit/directives/unsafe-svg.js";
+import { ref } from "lit/directives/ref.js";
+import { type Command, searchCommands } from "./commands";
 import { OPENING_GROUPS, OPENING_PRESETS, applyPreset, kindOf, presetOf, type OpeningPreset } from "./openings";
 import { GLTFExporter } from "three/examples/jsm/exporters/GLTFExporter.js";
 import { parse as parseYaml, stringify as toYaml } from "yaml";
@@ -20,6 +22,7 @@ import { deriveWalls, innerPolygon, sideOfRoom, type Wall, type WallOpening } fr
 import { HouseRenderer } from "../render/scene";
 import { stairFrame, stairHole } from "../model/stairs";
 import { misalignedWalls } from "../model/checks";
+import { migrateHouse } from "../model/migrate";
 import { FURNITURE, FURNITURE_TYPES, mountOf } from "../model/furniture";
 import { loadModel } from "../render/models";
 import { FINISHES, MODERN, defaultKind } from "../model/modern";
@@ -195,6 +198,23 @@ const TOOLS: { tool: Tool; icon: string; key: string; group?: "build" | "opening
   { tool: "robots", icon: "mdi:robot-vacuum", key: "O", group: "devices" },
   { tool: "measure", icon: "mdi:tape-measure", key: "M" },
 ];
+
+/** More words each tool is found by in the command search. */
+const TOOL_WORDS: Record<Tool, string> = {
+  select: "select move drag pick",
+  rect: "room rectangle shape draw area",
+  wall: "wall free standing partition",
+  railing: "railing fence banister balustrade gallery",
+  balcony: "balcony terrace loggia deck patio",
+  divide: "divider invisible wall split open kitchen",
+  assign: "assign area name home assistant unassigned",
+  opening: "door window garage skylight opening blind shutter contact",
+  stairs: "stairs staircase steps ladder",
+  furniture: "furniture sofa bed table chair lamp model polyhaven sketchfab",
+  devices: "energy solar battery grid inverter heat pump wallbox",
+  robots: "robot vacuum mower dock",
+  measure: "measure ruler distance length",
+};
 
 // ----- drafts: unsaved changes kept in this browser -----
 
@@ -427,6 +447,8 @@ export class HomeslicePanel extends LitElement {
     _stair: { state: true },
     _furn: { state: true },
     _shortcuts: { state: true },
+    _palette: { state: true },
+    _tip: { state: true },
     _draft: { state: true },
     _settings: { state: true },
     _wallView: { state: true },
@@ -554,6 +576,10 @@ export class HomeslicePanel extends LitElement {
   private underlayRequest = "";
   private underlaySaveTimer = 0;
   private _shortcuts = false;
+  /** The command search (Ctrl+K): what is typed, the result picked. */
+  private _palette: { q: string; i: number } | null = null;
+  /** A tip right after doing something for the first time (each shown once in this browser). */
+  private _tip: string | null = null;
   /** Show the rooms' inside lengths on the plan. */
   private _show: Record<Layer, boolean> = readLayers();
   /** A length being typed: where its field sits and what it changes. */
@@ -891,7 +917,7 @@ export class HomeslicePanel extends LitElement {
     const st = this._start!;
     const name = st.name.trim() || model.name || this.t("editor.new_house_default_name");
     const id = st.replace ? this._house : uniqueId(this._houses.map((h) => h.id), slug(name, "home"));
-    const m: HouseInput = { ...model, id, name };
+    const m: HouseInput = { ...migrateHouse(model), id, name };
     try {
       await this._hass!.callWS({ type: "homeslice/model/save", house: id, model: m });
     } catch (e) {
@@ -1289,7 +1315,8 @@ export class HomeslicePanel extends LitElement {
     if (this.dirty && !confirm(this.t("editor.discard"))) return;
     const model = await this._hass!.callWS<HouseInput>({ type: "homeslice/model", house: id });
     this._house = id;
-    this._model = model;
+    // an older file is brought up to date at once (saved like that with the next save)
+    this._model = migrateHouse(model);
     this._saved = JSON.stringify(model);
     this.history = new History();
     this._level = this.entranceLevel(model);
@@ -1297,7 +1324,7 @@ export class HomeslicePanel extends LitElement {
     this.fitted = "";
     this._draft = null;
     const draft = readDraft(id);
-    if (draft && JSON.stringify(draft.model) !== this._saved) this._draft = { model: draft.model, time: draft.time, stale: draft.base !== hash(this._saved) };
+    if (draft && JSON.stringify(draft.model) !== this._saved && JSON.stringify(draft.model) !== JSON.stringify(this._model)) this._draft = { model: draft.model, time: draft.time, stale: draft.base !== hash(this._saved) };
   }
 
   /** The level to open first: the one on HA's entrance floor (level 0), else the lowest indoor one. */
@@ -1462,7 +1489,8 @@ export class HomeslicePanel extends LitElement {
     // a field's change event can fire again when it loses focus: no empty undo steps
     if (JSON.stringify(next) === JSON.stringify(previous)) return;
     this.history.push(previous);
-    this._model = next;
+    // (a pasted or restored older file: brought up to date)
+    this._model = migrateHouse(next);
   }
 
   private undo() {
@@ -1839,7 +1867,10 @@ export class HomeslicePanel extends LitElement {
     const typing = target && (["SELECT", "TEXTAREA"].includes(target.tagName) || (target.tagName === "INPUT" && !["checkbox", "radio", "button"].includes((target as HTMLInputElement).type)));
     if (typing) return;
     const mod = e.ctrlKey || e.metaKey;
-    if (mod && e.key.toLowerCase() === "z") {
+    if (mod && e.key.toLowerCase() === "k") {
+      e.preventDefault();
+      this._palette = this._palette ? null : { q: "", i: 0 };
+    } else if (mod && e.key.toLowerCase() === "z") {
       e.preventDefault();
       if (e.shiftKey) this.redo();
       else this.undo();
@@ -2063,8 +2094,9 @@ export class HomeslicePanel extends LitElement {
     const top = e.target as Element;
     const again = this.lastPress && Math.hypot(e.clientX - this.lastPress.x, e.clientY - this.lastPress.y) < 6;
     this.lastPress = { x: e.clientX, y: e.clientY };
-    // handles of what is selected are pressed as they are (to drag them)
-    if (!again || top.closest("[data-handle], [data-freeend], [data-stairhandle], [data-dimedit], [data-assign-open]")) return top;
+    // handles of what is selected are pressed as they are (to drag them); a selected edge
+    // with something else under it (a door in the wall) takes its turn in the round
+    if (!again || top.closest("[data-handle]:not(.edge-hit), [data-freeend], [data-stairhandle], [data-dimedit], [data-assign-open]")) return top;
     const stack: { el: Element; key: string }[] = [];
     for (const el of (this.renderRoot as ShadowRoot).elementsFromPoint(e.clientX, e.clientY)) {
       for (const attr of HomeslicePanel.PICKABLE) {
@@ -2717,6 +2749,7 @@ export class HomeslicePanel extends LitElement {
         this._room = null;
         // a wall that closes a shape completes a room there (no area yet); undo takes back just that
         if (this._tool === "wall") this.completeRooms([a, b]);
+        if (this._tool === "wall") this.tipOnce("wall");
         // the tool stays: the next wall can start where this one ended (Esc or V to stop)
       }
       return;
@@ -2734,6 +2767,7 @@ export class HomeslicePanel extends LitElement {
         this._stair = id;
         this._room = null;
         this._tool = "select";
+        this.tipOnce("stairs");
       }
     } else if (drag.kind === "rect" && this._rectPreview) {
       const [[x0, y0], , [x1, y1]] = this._rectPreview;
@@ -2755,6 +2789,8 @@ export class HomeslicePanel extends LitElement {
         this.commit(model);
         this._room = id;
         this._tool = "select";
+        // (a balcony is outdoors: no room tip)
+        if (!props.kind) this.tipOnce("room");
       }
     }
   }
@@ -2969,6 +3005,43 @@ export class HomeslicePanel extends LitElement {
     }
   }
 
+  /** The robots on this floor whose map picture a backdrop is (the same device). */
+  private robotsOfMap(source: string): number[] {
+    const device = this._hass?.entities?.[source]?.device_id;
+    return (this._model?.robots ?? []).flatMap((r, i) => (r.level === this._level && device && this._hass?.entities?.[r.entity]?.device_id === device ? [i] : []));
+  }
+
+  /** A robot's map as a backdrop: shown on the card's floor too, while the robot is out. */
+  private renderRobotMapLink(u: Underlay) {
+    if (!u.source) return nothing;
+    const source = u.source;
+    return this.robotsOfMap(source).map((i) => {
+      const r = this._model!.robots![i];
+      return html`<label class="check"><input type="checkbox" data-robot-map-card=${i} .checked=${r.map?.entity === source}
+          @change=${async (e: Event) => {
+            if (!(e.target as HTMLInputElement).checked) return this.commit(updateRobot(this._model!, i, { map: undefined }));
+            const map = await this.robotMapPlace(u);
+            if (map) this.commit(updateRobot(this._model!, i, { map }));
+          }} />
+        ${this.t("editor.robot_map_card", { robot: r.name ?? this.entityName(r.entity) })}</label>`;
+    });
+  }
+
+  /** Where the live map picture lies, as the backdrop does (its size: the picture's own, unshrunk). */
+  private async robotMapPlace(u: Underlay): Promise<NonNullable<HouseInput["robots"]>[number]["map"] | null> {
+    const url = this._hass?.states[u.source!]?.attributes.entity_picture as string | undefined;
+    let width = u.width;
+    let height = u.height;
+    if (url)
+      try {
+        ({ width, height } = await imageSize(url));
+      } catch {
+        // not showing right now: the backdrop's size it is
+      }
+    const r3 = (v: number) => Math.round(v * 1000) / 1000;
+    return { entity: u.source!, size: [width, height], origin: [r3(u.place.origin[0]), r3(u.place.origin[1])], scale: Math.round(((u.place.scale * u.width) / width) * 1e6) / 1e6, rotation: r3(u.place.rotation) };
+  }
+
   /** What a backdrop is: the robot's map it came from, or an image. */
   private backdropName(u: Underlay): string {
     return u.source ? this.entityName(u.source) : this.t("editor.backdrop_image");
@@ -3002,6 +3075,18 @@ export class HomeslicePanel extends LitElement {
     const u = this._underlay;
     if (!u) return;
     this._underlay = { ...u, ...patch };
+    // a robot showing this map on the card: it moves along
+    const moved = this._underlay;
+    if (patch.place && moved.source && this._model?.robots?.some((r) => r.map?.entity === moved.source)) {
+      let m = this._model;
+      m.robots!.forEach((r, i) => {
+        const map = r.map;
+        if (!map || map.entity !== moved.source) return;
+        const r3 = (v: number) => Math.round(v * 1000) / 1000;
+        m = updateRobot(m, i, { map: { ...map, origin: [r3(moved.place.origin[0]), r3(moved.place.origin[1])], scale: Math.round(((moved.place.scale * moved.width) / map.size[0]) * 1e6) / 1e6, rotation: r3(moved.place.rotation) } });
+      });
+      this.commit(m);
+    }
     clearTimeout(this.underlaySaveTimer);
     const send = () =>
       this._hass!.callWS({ type: "homeslice/underlay/set", house: this._house, level: u.level, slot: u.slot, ...patch }).catch((e) => {
@@ -3240,6 +3325,7 @@ export class HomeslicePanel extends LitElement {
               ${this.t("editor.underlay_ruler")}</label>`
           : nothing}
       </div>
+      ${this.renderRobotMapLink(u)}
       <div class="row">
         ${fileInput}
         <button class="danger" @click=${async () => {
@@ -3338,6 +3424,7 @@ export class HomeslicePanel extends LitElement {
           <option value="__new__">${this.t("editor.new_house")}…</option>
         </select>
         <button class="icon" title=${this.t("editor.new_house")} aria-label=${this.t("editor.new_house")} @click=${() => this.startCreate()}>+</button>
+        <button class="icon" data-palette-open title=${this.t("editor.search_hint")} aria-label=${this.t("editor.search")} @click=${() => (this._palette = { q: "", i: 0 })}><ha-icon icon="mdi:magnify"></ha-icon></button>
         <button class="icon" title=${this.t("editor.shortcuts")} aria-label=${this.t("editor.shortcuts")} @click=${() => (this._shortcuts = !this._shortcuts)}>?</button>
         <button class="icon ${this._settings ? "active" : ""}" title=${this.t("editor.house_settings")} aria-label=${this.t("editor.house_settings")}
           @click=${() => (this._settings = this._settings ? null : {})}>⚙</button>
@@ -3366,6 +3453,7 @@ export class HomeslicePanel extends LitElement {
       </header>
       ${this._error ? html`<div class="error">${this._error}</div>` : nothing}
       ${this._shortcuts ? this.renderShortcuts() : nothing}
+      ${this._palette ? this.renderPalette(this._palette) : nothing}
       ${this._draft
         ? html`<div class="draft">
             <span>${this.t(this._draft.stale ? "editor.draft_stale" : "editor.draft", { time: new Date(this._draft.time).toLocaleString(this._hass?.locale?.language) })}</span>
@@ -3453,6 +3541,10 @@ export class HomeslicePanel extends LitElement {
               ? html`<div class="start-next" role="status" data-start-next><ha-icon icon="mdi:flag-checkered"></ha-icon><span>${this._startNext}</span>
                   <button class="close" aria-label=${this.t("editor.hint_hide")} @click=${() => (this._startNext = null)}>×</button></div>`
               : nothing}${this.renderHint()}</div>
+          ${this._tip
+            ? html`<div class="start-next tip" role="status" data-tip><ha-icon icon="mdi:lightbulb-on-outline"></ha-icon><span>${this._tip}</span>
+                <button class="close" aria-label=${this.t("editor.hint_hide")} @click=${() => (this._tip = null)}>×</button></div>`
+            : nothing}
         </section>
         ${this.renderFlyout()}
         <div class="side-handle" role="separator" aria-orientation="vertical" aria-label=${this.t("editor.side_resize")} title=${this.t("editor.side_resize")}
@@ -3605,7 +3697,7 @@ export class HomeslicePanel extends LitElement {
       ${this._show.devices ? this.renderEnergyLinks() : nothing}
       ${this._show.devices ? this.renderEnergyMarkers() : nothing}
       ${this._show.devices ? this.renderRobotMarkers() : nothing}
-      ${selPoly.length ? this.renderHandles(selPoly, selected ? this.inner(selected, walls) : selPoly) : nothing}
+      ${selPoly.length && this._tool !== "opening" ? this.renderHandles(selPoly, selected ? this.inner(selected, walls) : selPoly) : nothing}
       ${this._rectPreview ? svg`<polygon class="rect-preview" points=${pts(this._rectPreview)}></polygon>` : nothing}
       ${this.renderArriving()}
       ${
@@ -4411,7 +4503,8 @@ export class HomeslicePanel extends LitElement {
 
   /** The house's outside width and depth, as dimension lines along its north and west sides. */
   private renderOverallDims() {
-    const poly = outlineScope(this._model!, this._level).poly;
+    // the house's outside size: to the outer face of its outside walls
+    const poly = expandHouse(this._model!).house?.levels.find((l) => l.id === this._level)?.outer ?? [];
     if (poly.length < 3) return nothing;
     const { min, max } = bbox(poly);
     const [x0, y0] = this.toScreen(min);
@@ -4962,6 +5055,28 @@ export class HomeslicePanel extends LitElement {
     const { model, source } = addOpening(this._model!, this._level, { room, side, at: Math.round(at * 100) / 100, ...look, width });
     this.commit(model);
     this._opening = { src: source, room };
+    this.tipOnce("opening");
+  }
+
+  /** The tip for `what`, the first time it is done in this browser. */
+  private tipOnce(what: "room" | "wall" | "opening" | "stairs") {
+    let seen: string[] = [];
+    try {
+      seen = JSON.parse(localStorage.getItem("homeslice-tips") ?? "[]");
+    } catch {
+      // no storage: tips every time, harmless
+    }
+    if (seen.includes(what)) return;
+    try {
+      localStorage.setItem("homeslice-tips", JSON.stringify([...seen, what]));
+    } catch {
+      // (as above)
+    }
+    const tip = (this._tip = this.t(`editor.tip_${what}` as StringKey));
+    // gone by itself after a while (or with ×)
+    window.setTimeout(() => {
+      if (this._tip === tip) this._tip = null;
+    }, 20000);
   }
 
   private renderOpeningInspector(sel: { src: OpeningSource; room: string }) {
@@ -6483,6 +6598,105 @@ export class HomeslicePanel extends LitElement {
     }
   }
 
+  /** Everything the command search finds: tools, settings, floors, rooms. */
+  private commands(): Command[] {
+    const m = this._model!;
+    const tool = (t: (typeof TOOLS)[number]): Command => ({
+      id: `tool:${t.tool}`,
+      label: this.t(`editor.tool_${t.tool}` as StringKey).replace(/\s*\([^)]*\)$/, ""),
+      key: t.key,
+      words: TOOL_WORDS[t.tool],
+      run: () => this.setTool(t.tool),
+    });
+    const levelIndex = m.levels.findIndex((l) => l.id === this._level);
+    const out: Command[] = [
+      ...TOOLS.map(tool),
+      ...(m.levels.some((l) => l.kind === "roof")
+        ? []
+        : [{ id: "roof", label: `+ ${this.t("editor.add_roof")}`, hint: this.t("editor.roof_level_add_hint"), words: "roof level attic gable hip solar panels dormer", run: () => this.addRoofLevelOnTop() }]),
+      { id: "level", label: this.t("editor.add_level_above"), words: "floor storey level add new", run: () => this.addLevelAt(Math.max(0, levelIndex) + 1) },
+      {
+        id: "underlay",
+        label: this.t("editor.underlay"),
+        words: "backdrop background image plan trace robot map scale",
+        run: () => {
+          this.setTool("select");
+          this.clearSelection();
+        },
+      },
+      {
+        id: "curve",
+        label: this.t("editor.search_curve"),
+        words: "curved bow arc round wall bulge",
+        // the outside walls selected: their panel has the curves
+        run: () => {
+          this.goTo(this._level);
+          this._room = OUTLINE;
+        },
+      },
+      { id: "corner", label: this.t("editor.search_corner"), words: "corner shape polygon l-shape non-rectangular double-click", run: () => this.setTool("select") },
+      { id: "settings", label: this.t("editor.house_settings"), words: "yaml backup restore download export walls thickness", run: () => (this._settings = {}) },
+      { id: "checklist", label: this.t("editor.checklist"), words: "todo problems missing areas blinds contacts", run: () => (this._checklist = true) },
+      { id: "shortcuts", label: this.t("editor.shortcuts"), key: "?", words: "keys keyboard help", run: () => (this._shortcuts = true) },
+      { id: "save", label: this.t("editor.save"), key: "Ctrl+S", words: "store", run: () => void this.save() },
+      {
+        id: "start-over",
+        label: this.t("editor.start_over"),
+        words: "new reset ai robot import trace",
+        run: () => {
+          if (this.dirty && !confirm(this.t("editor.discard"))) return;
+          this._start = this.newStart(true);
+        },
+      },
+      ...m.levels.map((l) => ({ id: `level:${l.id}`, label: this.levelName(l), hint: this.t("editor.search_floor"), words: "floor level storey", run: () => this.goTo(l.id) })),
+      ...m.levels.flatMap((l) =>
+        l.rooms.map((r) => ({ id: `room:${l.id}:${r.id}`, label: this.roomName(r), hint: this.levelName(l), words: `${r.id} room`, run: () => this.goTo(l.id, r.id) })),
+      ),
+    ];
+    return out;
+  }
+
+  private goTo(level: string, room?: string) {
+    this.setTool("select");
+    this.clearSelection();
+    this._level = level;
+    if (room) this._room = room;
+  }
+
+  private renderPalette(p: { q: string; i: number }) {
+    const found = searchCommands(this.commands(), p.q);
+    const i = Math.min(p.i, Math.max(0, found.length - 1));
+    const run = (c: Command | undefined) => {
+      if (!c) return;
+      this._palette = null;
+      c.run();
+    };
+    return html`<div class="shortcuts palette" role="dialog" aria-label=${this.t("editor.search")} @click=${() => (this._palette = null)}>
+      <div @click=${(e: Event) => e.stopPropagation()}>
+        <input class="palette-input" type="search" placeholder=${this.t("editor.search_placeholder")} .value=${p.q}
+          ${ref((el) => el && requestAnimationFrame(() => (el as HTMLInputElement).focus()))}
+          @input=${(e: Event) => (this._palette = { q: (e.target as HTMLInputElement).value, i: 0 })}
+          @keydown=${(e: KeyboardEvent) => {
+            if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+              e.preventDefault();
+              this._palette = { ...p, i: (i + (e.key === "ArrowDown" ? 1 : -1) + found.length) % Math.max(1, found.length) };
+            } else if (e.key === "Enter") run(found[i]);
+            else if (e.key === "Escape") this._palette = null;
+          }} />
+        <ul class="palette-list">
+          ${found.length
+            ? found.map(
+                (c, k) => html`<li class=${k === i ? "active" : ""} data-command=${c.id} @click=${() => run(c)}>
+                  <span class="name">${c.label}${c.hint ? html`<span class="muted">${c.hint}</span>` : nothing}</span>
+                  ${c.key ? html`<kbd>${c.key}</kbd>` : nothing}
+                </li>`,
+              )
+            : html`<li class="muted">${this.t("editor.search_none")}</li>`}
+        </ul>
+      </div>
+    </div>`;
+  }
+
   private renderShortcuts() {
     const keys: [string, StringKey][] = [
       ["V", "editor.key_select"],
@@ -6495,6 +6709,7 @@ export class HomeslicePanel extends LitElement {
       ["D", "editor.key_opening"],
       ["F", "editor.key_furniture"],
       ["E", "editor.key_devices"],
+      ["Ctrl+K", "editor.key_search"],
       ["Del", "editor.key_delete"],
       ["N", "editor.key_backdrop"],
       ["Esc", "editor.key_escape"],
@@ -8130,6 +8345,50 @@ export class HomeslicePanel extends LitElement {
       padding: 8px;
       resize: vertical;
     }
+    .palette {
+      place-items: start center;
+      padding-top: 12vh;
+    }
+    .palette > div {
+      width: min(520px, calc(100vw - 32px));
+      min-width: 0;
+      padding: 12px;
+    }
+    .palette-input {
+      width: 100%;
+      box-sizing: border-box;
+      font-size: 16px;
+      padding: 8px 10px;
+    }
+    .palette-list {
+      list-style: none;
+      margin: 8px 0 0;
+      padding: 0;
+    }
+    .palette-list li {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 6px 8px;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    .palette-list li.active,
+    .palette-list li:hover {
+      background: var(--secondary-background-color, rgba(127, 127, 127, 0.15));
+    }
+    .palette-list .name {
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+    }
+    .palette-list .name .muted {
+      font-size: 12px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
     .shortcuts {
       position: fixed;
       inset: 0;
@@ -8541,6 +8800,18 @@ export class HomeslicePanel extends LitElement {
       border: 1px solid var(--divider-color, #444);
       color: inherit;
       text-decoration: none;
+    }
+    .start-next.tip {
+      position: absolute;
+      left: 12px;
+      bottom: 12px;
+      z-index: 2;
+      max-width: min(56ch, calc(100% - 24px));
+      /* the plan under it stays usable: only its × takes clicks */
+      pointer-events: none;
+    }
+    .start-next.tip .close {
+      pointer-events: auto;
     }
     .start-next {
       display: flex;

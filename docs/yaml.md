@@ -24,16 +24,18 @@ Broken links (deleted areas, floors, entities) show up under *Settings → Repai
 ## Basics
 
 Metres; `x` points east, `y` points south (north is up, as on a printed plan). Levels are
-listed bottom to top. Walls are generated from the rooms: you never draw them. Rooms are
-stored on wall centre lines; outside walls grow inwards from the outline.
+listed bottom to top. Walls are generated from the rooms: you never draw them. Every line is a wall centre
+line: the rooms' and the outline's (outside walls are centred on it, half sticking out).
+Older files with `schema: 1` had the outline on the walls' outer face; they load converted,
+and the editor saves them as `schema: 2`.
 
 ## Example
 
 ```yaml
-schema: 1
+schema: 2
 id: home
 name: Home
-outline: { rect: [0, 0, 10, 8] }       # outer face of the exterior walls, shared by all levels
+outline: { rect: [0, 0, 10, 8] }       # centre line of the outside walls, shared by all levels
                                         # (or outline: auto: the outer edge of each level's rooms)
 party_walls: [west]                     # walls shared with a neighbour
 # the roof as a level of its own (instead of roof:): parts at any angle, a roof starting lower,
@@ -133,4 +135,6 @@ Home Assistant's energy settings; `details:` adds more readings to an item's cal
 ## Robots
 
 `robots:` places robot vacuums and lawn mowers with their dock. A live position is set up
-in the editor; see [robots](robots.md).
+in the editor, and so is `map:` (the robot's map picture on the card while it cleans:
+`{entity: image.…, size: [w, h], origin: [x, y], scale: 0.0125, rotation: 0}`); see
+[robots](robots.md).
