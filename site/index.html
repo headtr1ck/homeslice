@@ -39,6 +39,7 @@
 </main>
 <script type="module">
   import { makeHass } from "./fake-hass.js";
+  import { prepareRobots, startTours } from "./robot-tour.js";
   await import("./stand-ins.js");
   await import("./frontend/homeslice-app.js");
   // the houses to pick from: their file and how the camera first looks at them
@@ -52,6 +53,7 @@
   if (!houses[house]) house = "showcase";
   const load = async (id) => (await fetch(houses[id][1])).json();
   let fixture = await load(house);
+  prepareRobots(fixture);
   await customElements.whenDefined("homeslice-card");
   let card;
   let hass;
@@ -68,6 +70,8 @@
   };
   mount();
   const setState = (id, state, attributes = {}) => card.hass.setState(id, state, attributes);
+  // the robots drive a tour of their floor
+  let stopTours = startTours(fixture, setState);
   const groups = [
     { name: "View", items: [
       ["3D", () => (config = { ...config, mode: undefined, floors: undefined })],
@@ -96,10 +100,13 @@
     editorLink.href = id === "showcase" ? "editor.html" : `editor.html?house=${id}`;
     history.replaceState(null, "", id === "showcase" ? location.pathname : `?house=${id}`);
     fixture = await load(id);
+    prepareRobots(fixture);
+    stopTours();
     hass = undefined;
     card = undefined;
     config = { ...config, level: undefined, view: { ...base.view, ...houses[id][2] } };
     mount();
+    stopTours = startTours(fixture, setState);
     if (config.look === "night") setState("sun.sun", "below_horizon", { elevation: -15 });
   };
   for (const [id, [label]] of Object.entries(houses)) {
