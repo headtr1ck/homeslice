@@ -124,6 +124,9 @@ repository itself doesn't contain the built frontend; build it with `npm run bui
      panel offers *Same room as …* when Home Assistant counts it as part of that room); rooms without an area say **Unassigned room!**,
      with a button that opens the assign tool. The roof is a level
      of its own: **+ Roof** under the floors, then presets, more parts and solar panels.
+     A room drawn over others takes its space from them (the walls along its sides are the
+     ones already there, cut at its corners), and a wall drawn along an existing one adds
+     only what is new, so tracing a plan room by room over the starting rooms just works.
      Select a room to give its floor and walls a finish (wood, tiles, stone, paint,
      acoustic panels, brick…), one wall a different one, and the outline for the facade.
      Besides the built-in finishes, the picker offers Poly Haven's photo textures (CC0),

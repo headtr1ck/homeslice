@@ -4,6 +4,8 @@ import { bbox } from "../model/geometry";
 import {
   assignArea,
   bendEdge,
+  uncoveredPieces,
+  drawRoomOver,
   houseOutlinePolygon,
   setOutlineAuto,
   divideRoom,
@@ -929,3 +931,66 @@ describe("snapping onto walls", () => {
     expect(snap([3, 1], ctx()).kind).toBe("grid");
   });
 });
+
+describe("a room drawn over others takes its space from them", () => {
+  const h = (): HouseInput => ({
+    schema: 1,
+    id: "o",
+    outline: "auto",
+    levels: [
+      {
+        id: "g",
+        rooms: [
+          { id: "a", area_id: "living", floor: "wood", rect: [0, 0, 6, 5], furniture: [{ type: "sofa", at: [5, 1] }, { type: "table", at: [1, 4] }] },
+          { id: "b", area_id: "kitchen", rect: [6, 0, 4, 5] },
+        ],
+        openings: [{ room: "a", side: "north", at: 4.5, width: 1 }, { room: "a", side: "south", at: 1, width: 1 }],
+      },
+    ],
+  });
+  const room = (m: HouseInput, id: string) => m.levels[0].rooms.find((r) => r.id === id)!;
+
+  it("over the corner of two rooms: both shrink, the walls on its sides are the old ones, what was there moves in", () => {
+    const { model, id } = drawRoomOver(h(), "g", [[4, 0], [8, 0], [8, 3], [4, 3]]);
+    const n = room(model, id);
+    expect(n.rect).toEqual([4, 0, 4, 3]);
+    expect(n.furniture).toEqual([{ type: "sofa", at: [1, 1] }]);
+    expect(room(model, "a").polygon).toBeDefined();
+    expect(room(model, "a").furniture).toEqual([{ type: "table", at: [1, 4] }]);
+    expect(room(model, "b").polygon).toBeDefined();
+    expect(model.levels[0].openings).toEqual([
+      { room: id, side: "north", at: 0.5, width: 1 },
+      { room: "a", side: "south", at: 1, width: 1 },
+    ]);
+    // the outline still follows the rooms: nothing outside changed
+    const { house, issues } = expandHouse(model);
+    expect(issues.filter((i) => i.severity === "error")).toEqual([]);
+    expect(bbox(house!.levels[0].outline)).toEqual({ min: [0, 0], max: [10, 5] });
+  });
+
+  it("covering a room wholly: it goes; cutting one in two: the piece with its middle stays, the other is a room without an area", () => {
+    const covered = drawRoomOver(h(), "g", [[5, 0], [10, 0], [10, 5], [5, 5]]).model;
+    expect(covered.levels[0].rooms.map((r) => r.id)).toEqual(["a", "room"]);
+    expect(room(covered, "a").rect).toEqual([0, 0, 5, 5]);
+    const cut = drawRoomOver(h(), "g", [[1, 0], [2, 0], [2, 5], [1, 5]]).model;
+    expect(room(cut, "a").rect).toEqual([2, 0, 4, 5]);
+    expect(room(cut, "a_2")).toMatchObject({ rect: [0, 0, 1, 5], floor: "wood" });
+    expect(room(cut, "a_2").area_id).toBeUndefined();
+  });
+
+  it("wholly inside a room: a hole in it, the room keeps its shape", () => {
+    const { model, id } = drawRoomOver(h(), "g", [[0.5, 3.5], [1.5, 3.5], [1.5, 4.5], [0.5, 4.5]]);
+    expect(room(model, "a").rect).toEqual([0, 0, 6, 5]);
+    expect(room(model, id).furniture).toEqual([{ type: "table", at: [0.5, 0.5] }]);
+  });
+});
+
+describe("uncoveredPieces", () => {
+  it("only the parts of a new wall where there is no wall yet", () => {
+    const walls: [Vec2, Vec2][] = [[[0, 0], [4, 0]], [[6, 0], [7, 0]], [[0, 2], [9, 2]]];
+    expect(uncoveredPieces([2, 0], [9, 0], walls)).toEqual([[[4, 0], [6, 0]], [[7, 0], [9, 0]]]);
+    expect(uncoveredPieces([1, 2], [5, 2], walls)).toEqual([]);
+    expect(uncoveredPieces([1, 1], [5, 1], walls)).toEqual([[[1, 1], [5, 1]]]);
+  });
+});
+

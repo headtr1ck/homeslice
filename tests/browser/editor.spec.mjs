@@ -452,9 +452,42 @@ test.describe.serial("editor", () => {
     assert(!(await page.locator(`homeslice-panel g.unassigned[data-unassigned="${closet.id}"]`).count()), "still unassigned");
     await page.evaluate(() => window.panel.shadowRoot.activeElement?.blur());
     await page.keyboard.press("Escape");
-    // four walls, the room they completed, the area
-    for (let i = 0; i < 6; i++) await page.keyboard.press("Control+z");
+    // the walls (one fewer where a wall was there already), the room they completed, the area
+    for (let i = 0; i < 6 && JSON.stringify(await model()) !== before; i++) await page.keyboard.press("Control+z");
     assert(JSON.stringify(await model()) === before, "undo did not take the closet away");
+  });
+
+  test("a room drawn over others takes its space: the walls on its sides stay, the ones it covers go", async () => {
+    const toScreen = (p) => page.evaluate((p) => {
+      const v = window.panel._view;
+      const r = window.panel.shadowRoot.querySelector("svg.plan").getBoundingClientRect();
+      return [r.left + p[0] * v.scale + v.ox, r.top + p[1] * v.scale + v.oy];
+    }, p);
+    const before = JSON.stringify(await model());
+    await page.keyboard.press("Escape");
+    await page.evaluate(() => (window.panel._view = { ...window.panel._view, oy: window.panel._view.oy + 160 }));
+    await page.keyboard.press("r");
+    // over the meeting corner of hall and kitchen, its north side on the outside wall
+    const [ax, ay] = await toScreen([2, 0]);
+    const [bx, by] = await toScreen([5, 2]);
+    await page.mouse.move(ax, ay);
+    await page.mouse.down();
+    await page.mouse.move(bx, by, { steps: 8 });
+    await page.mouse.up();
+    const l = (await model()).levels[0];
+    const added = l.rooms.at(-1);
+    assert(JSON.stringify(added.rect) === "[2,0,3,2]", `new room: ${JSON.stringify(added)}`);
+    const hall = l.rooms.find((r) => r.id === "hall");
+    const kitchen = l.rooms.find((r) => r.id === "kitchen");
+    assert(hall.polygon && kitchen.polygon, `hall ${JSON.stringify(hall)}, kitchen ${JSON.stringify(kitchen)}`);
+    // the hall's door on the north side, inside the new room's stretch, went with it
+    const doors = l.openings.filter((o) => o.side === "north").map((o) => o.room);
+    assert(doors.length >= 1, `openings: ${JSON.stringify(l.openings)}`);
+    await page.evaluate(() => window.panel.shadowRoot.activeElement?.blur());
+    await page.keyboard.press("Control+z");
+    assert(JSON.stringify(await model()) === before, "undo did not put the rooms back");
+    await page.keyboard.press("Escape");
+    await page.evaluate(() => window.panel.fitView());
   });
 
   test("saving stores the model in HA", async () => {

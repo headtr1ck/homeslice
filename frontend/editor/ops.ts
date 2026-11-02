@@ -1,9 +1,9 @@
 // Pure editing operations on the input (short-form) model. They never mutate their input:
 // each returns a new model, which keeps undo/redo trivial and makes them easy to test.
 
-import { bbox, dist, normalizeOrientation, pointInPolygon, project, signedArea } from "../model/geometry";
+import { bbox, dist, edgeDistance, labelPoint, normalizeOrientation, pointInPolygon, project, signedArea } from "../model/geometry";
 import { expandHouse } from "../model/expand";
-import { roomsOutline } from "../model/faces";
+import { closedFaces, roomsOutline } from "../model/faces";
 import type {
   RoofPartInput, CameraInput, Coord, EnergyInput, FacadeOpeningInput, FurnitureInput, HouseInput, LevelInput, LightType, OpeningInput, OpeningSource, OpeningType, PieceInput, RoomInput, ShapeInput, RobotInput, RoofInput, Side, Vec2, VerticalInput, WallInput, WallThickness } from "../model/types";
 
@@ -1982,4 +1982,121 @@ export function hostRoom(model: HouseInput, levelId: string, roomId: string): Ro
     }
   }
   return best;
+}
+
+/**
+ * A room drawn over others takes its space from them: their walls along its sides stay (cut
+ * where its corners are), the parts it covers go, a room it cuts in two keeps the larger
+ * piece (the other becomes a room without an area), one it covers wholly goes (its area is
+ * free again). What stands in the covered parts, and their doors and windows on its sides,
+ * moves to it, in place. A room drawn wholly inside another is a hole in it.
+ */
+export function drawRoomOver(model: HouseInput, levelId: string, poly: Vec2[], props: Partial<RoomInput> = {}): { model: HouseInput; id: string } {
+  const m = clone(model);
+  const l = level(m, levelId);
+  const P = normalizeOrientation(poly.map(([x, y]) => [round(x), round(y)] as Vec2));
+  const id = props.id ?? uniqueRoomId(l);
+  const added: RoomInput = setRoomPolygon({ ...props, id } as RoomInput, P);
+  const pMin = bbox(P).min;
+  const ring = (q: Vec2[]): [Vec2, Vec2][] => q.map((a, i) => [a, q[(i + 1) % q.length]]);
+  const { min: pLo, max: pHi } = bbox(P);
+  for (const r of [...l.rooms]) {
+    if (r.kind === "void") continue;
+    const R = roomPolygon(m, r);
+    const { min, max } = bbox(R);
+    if (min[0] >= pHi[0] - 1e-6 || max[0] <= pLo[0] + 1e-6 || min[1] >= pHi[1] - 1e-6 || max[1] <= pLo[1] + 1e-6) continue;
+    const faces = closedFaces([...ring(R), ...ring(P)], 0.01, 0).filter((f) => pointInPolygon(labelPoint(f), R));
+    const nested = P.every((p) => pointInPolygon(p, R) && edgeDistance(p, R) > 0.01);
+    const covered = nested ? [P] : faces.filter((f) => pointInPolygon(labelPoint(f), P));
+    if (!covered.length) continue;
+    // what stands in the covered part goes to the new room, in place
+    const rMin = min;
+    const inP = (rel: [number, number]) => pointInPolygon([rMin[0] + rel[0], rMin[1] + rel[1]], P);
+    const toNew = (rel: [number, number]): [number, number] => [round(rMin[0] + rel[0] - pMin[0]), round(rMin[1] + rel[1] - pMin[1])];
+    const split = <T extends { at: [number, number] }>(list: T[] | undefined, into: (x: T) => void): T[] | undefined => {
+      if (!list) return list;
+      const stay = list.filter((x) => !inP(x.at));
+      for (const x of list) if (inP(x.at)) into({ ...x, at: toNew(x.at) });
+      return stay.length ? stay : undefined;
+    };
+    r.furniture = split(r.furniture, (x) => (added.furniture ??= []).push(x));
+    r.cameras = split(r.cameras, (x) => (added.cameras ??= []).push(x));
+    r.roof_windows = split(r.roof_windows, (x) => (added.roof_windows ??= []).push(x));
+    if (r.lights) {
+      const stay = r.lights.filter((li) => !li.at || !inP(li.at));
+      for (const li of r.lights)
+        if (li.at && inP(li.at)) (added.lights ??= []).push({ ...li, at: toNew(li.at), ...(li.to ? { to: toNew(li.to) } : {}), ...(li.spots ? { spots: li.spots.map(toNew) } : {}) });
+      r.lights = stay.length ? stay : undefined;
+    }
+    for (const k of ["furniture", "cameras", "roof_windows", "lights"] as const) if (r[k] === undefined) delete r[k];
+    // its doors and windows on the new room's sides
+    for (const o of l.openings ?? []) {
+      if (o.room !== r.id) continue;
+      const along = o.side === "north" || o.side === "south" ? 0 : 1;
+      const across = 1 - along;
+      const mid = rMin[along] + o.at + o.width / 2;
+      const sign = o.side === "north" || o.side === "west" ? 1 : -1;
+      let line = Infinity;
+      R.forEach((a, i) => {
+        const b = R[(i + 1) % R.length];
+        if (Math.abs(a[across] - b[across]) < 1e-6 && Math.min(a[along], b[along]) - 1e-6 <= mid && mid <= Math.max(a[along], b[along]) + 1e-6) line = Math.min(line, sign * a[across]);
+      });
+      if (!Number.isFinite(line)) continue;
+      const at: Vec2 = along === 0 ? [mid, sign * line] : [sign * line, mid];
+      if (edgeDistance(at, P) < 1e-3) {
+        o.room = id;
+        o.at = round(mid - o.width / 2 - pMin[along]);
+      }
+    }
+    if (nested) continue;
+    const rest = faces.filter((f) => !covered.includes(f));
+    if (!rest.length) {
+      // covered wholly: it goes (what was in it is the new room's now)
+      l.rooms = l.rooms.filter((x) => x !== r);
+      if (l.walls) l.walls = l.walls.filter((w) => !w.between?.includes(r.id));
+      if (l.openings) l.openings = l.openings.filter((o) => o.room !== r.id);
+      continue;
+    }
+    const centre = labelPoint(R);
+    const keep = rest.find((f) => pointInPolygon(centre, f)) ?? rest.reduce((a, b) => (Math.abs(signedArea(a)) >= Math.abs(signedArea(b)) ? a : b));
+    const { area_id: _a, name: _n, furniture: _f, lights: _l, cameras: _c, roof_windows: _w, id: _id, rect: _r, polygon: _p, ...finishes } = r;
+    const taken = [...l.rooms.map((x) => x.id), id];
+    const parts = rest
+      .filter((f) => f !== keep)
+      .map((f) => {
+        const pid = uniqueId(taken, `${r.id}_2`);
+        taken.push(pid);
+        return { poly: f, room: { ...finishes, id: pid } as RoomInput };
+      });
+    splitInto(m, l, r.id, keep, parts);
+  }
+  if (l.openings && !l.openings.length) delete l.openings;
+  if (l.walls && !l.walls.length) delete l.walls;
+  l.rooms.push(added);
+  return { model: m, id };
+}
+
+
+/** The parts of a→b not lying along any of the segments (a wall drawn over walls adds only what is new). */
+export function uncoveredPieces(a: Vec2, b: Vec2, segments: [Vec2, Vec2][], min = 0.05): [Vec2, Vec2][] {
+  const length = dist(a, b);
+  if (length < 1e-9) return [];
+  const covered: [number, number][] = [];
+  for (const [c, d] of segments) {
+    const pc = project(c, a, b);
+    const pd = project(d, a, b);
+    if (pc.distance > 0.01 || pd.distance > 0.01) continue;
+    covered.push([Math.min(pc.t, pd.t), Math.max(pc.t, pd.t)]);
+  }
+  covered.sort((x, y) => x[0] - y[0]);
+  const out: [Vec2, Vec2][] = [];
+  const at = (t: number): Vec2 => [round(a[0] + ((b[0] - a[0]) * t) / length), round(a[1] + ((b[1] - a[1]) * t) / length)];
+  let from = 0;
+  for (const [s, e] of covered) {
+    if (s - from >= min) out.push([at(from), at(Math.min(s, length))]);
+    from = Math.max(from, e);
+    if (from >= length) break;
+  }
+  if (length - from >= min) out.push([at(from), at(length)]);
+  return out;
 }

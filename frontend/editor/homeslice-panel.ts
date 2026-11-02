@@ -88,6 +88,8 @@ import {
   setPiece,
   assignArea,
   bendEdge,
+  drawRoomOver,
+  uncoveredPieces,
   snapValue,
   hostRoom,
   roomAt,
@@ -1464,6 +1466,12 @@ export class HomeslicePanel extends LitElement {
       this._drag = { kind: "freewall", ctx };
       return;
     }
+    // drawing a room, balcony or stairs: a press anywhere starts it (on a door or a lamp too)
+    if (this._tool === "rect" || this._tool === "balcony" || this._tool === "stairs") {
+      const ctx = this.snapContext();
+      this._drag = { kind: "rect", start: snap(world, ctx).p, ctx };
+      return;
+    }
     if (this._tool === "measure") {
       const ctx = this.snapContext();
       const p = snap(world, ctx).p;
@@ -1629,11 +1637,6 @@ export class HomeslicePanel extends LitElement {
     if (stairHandle && this._stair) {
       const fixed: Vec2 = JSON.parse(stairHandle.dataset.stairhandle!);
       this._drag = { kind: "stair-resize", origin: clone(this._model), id: this._stair, fixed, ctx: this.snapContext() };
-      return;
-    }
-    if (this._tool === "rect" || this._tool === "balcony" || this._tool === "stairs") {
-      const ctx = this.snapContext();
-      this._drag = { kind: "rect", start: snap(world, ctx).p, ctx };
       return;
     }
     const stairHit = target.closest("[data-stair]") as SVGElement | null;
@@ -1987,11 +1990,17 @@ export class HomeslicePanel extends LitElement {
         return;
       }
       if (Math.hypot(b[0] - a[0], b[1] - a[1]) >= 0.2) {
-        let { model, index } = addFreeWall(this._model, this._level, a, b);
-        // the railing sub-tool: a railing along a gallery or stair edge, or round a roof terrace
-        if (this._tool === "railing") model = updateFreeWall(model, this._level, index, { type: "railing" });
+        // only where there is no wall yet: along an existing one, nothing is added
+        const pieces = uncoveredPieces(a, b, this.snapContext().segments ?? []);
+        let model = this._model;
+        let index = -1;
+        for (const [p, q] of pieces) {
+          ({ model, index } = addFreeWall(model, this._level, p, q));
+          // the railing sub-tool: a railing along a gallery or stair edge, or round a roof terrace
+          if (this._tool === "railing") model = updateFreeWall(model, this._level, index, { type: "railing" });
+        }
         this.commit(model);
-        this._freeWall = index;
+        this._freeWall = index >= 0 ? index : null;
         this._room = null;
         // a wall that closes a shape completes a room there (no area yet); undo takes back just that
         if (this._tool === "wall") this.completeRooms([a, b]);
@@ -2028,7 +2037,8 @@ export class HomeslicePanel extends LitElement {
           Object.assign(props, upper ? { kind: "outdoor", railing: "metal" } : { kind: "outdoor" });
           if (!props.id) props.id = uniqueId(this.levelInput!.rooms.map((r) => r.id), upper ? "balcony" : "terrace");
         }
-        const { model, id } = addRoom(this._model, this._level, rect, props);
+        // a room drawn over others takes its space from them (balconies just go where drawn)
+        const { model, id } = this._tool === "rect" ? drawRoomOver(this._model, this._level, rect, props) : addRoom(this._model, this._level, rect, props);
         this.commit(model);
         this._room = id;
         this._tool = "select";
