@@ -17,9 +17,11 @@ export interface Hass {
   areas?: Record<string, { area_id: string; name: string; icon?: string | null; floor_id?: string | null; temperature_entity_id?: string | null; humidity_entity_id?: string | null }>;
   floors?: Record<string, { floor_id: string; name: string; level?: number | null }>;
   devices?: Record<string, { id: string; area_id?: string | null; name?: string | null; name_by_user?: string | null }>;
-  entities?: Record<string, { entity_id: string; area_id?: string | null; device_id?: string | null; hidden?: boolean; entity_category?: string | null }>;
+  entities?: Record<string, { entity_id: string; area_id?: string | null; device_id?: string | null; hidden?: boolean; entity_category?: string | null; platform?: string }>;
   /** Where the home is (for the sun's path). */
-  config?: { latitude?: number; longitude?: number; unit_system?: { temperature?: string } };
+  config?: { latitude?: number; longitude?: number; unit_system?: { temperature?: string }; location_name?: string };
+  /** HA's own fetch with the user's token (uploads). */
+  fetchWithAuth?(path: string, init?: RequestInit): Promise<Response>;
   /** The services Home Assistant offers, by domain. */
   services?: Record<string, Record<string, unknown>>;
   callWS<T>(msg: Record<string, unknown>): Promise<T>;

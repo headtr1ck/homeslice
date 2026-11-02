@@ -14775,14 +14775,6 @@
    {
     "path": "levels.g.walls[1]",
     "message": "between needs two rooms of this level (unknown: a, c; rooms: )."
-   },
-   {
-    "path": "levels.g",
-    "message": "No outline: draw rooms (outline: auto follows them) or set outline on the house or this level."
-   },
-   {
-    "path": "levels.f",
-    "message": "No outline: draw rooms (outline: auto follows them) or set outline on the house or this level."
    }
   ]
  },

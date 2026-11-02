@@ -514,7 +514,8 @@ export function expandHouse(input: unknown): ExpandResult {
 
   for (const w of waiting) {
     if (houseOutline) w.level.outline = houseOutline;
-    else err(w.path, "No outline: draw rooms (outline: auto follows them) or set outline on the house or this level.");
+    // (a house just started, rooms still to draw: nothing to show yet, but it can be kept)
+    else warn(w.path, "No rooms yet: draw rooms (outline: auto follows them) or set outline on the house or this level.");
   }
 
   // façade openings: placed on each listed level in the room behind that stretch of wall

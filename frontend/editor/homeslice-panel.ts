@@ -45,6 +45,7 @@ import {
 import { areaLightRooms, listedLights, placeLights, type PlacedLight } from "../model/lights";
 import { prefsSensors, type EnergyPrefs } from "../ha/energy";
 import { applyAll, checklist, type CheckItem } from "./checklist";
+import { extractYaml, mapFloor, mapNotes, mapScale, type MapNote } from "./start";
 import { pollPosition, rawPosition, readRobot } from "../ha/robots";
 import { ENERGY_COLORS } from "../render/scene";
 import {
@@ -269,6 +270,23 @@ interface Underlay {
   source?: string;
 }
 
+/** The start screen: the house's name, the open choice and what it holds. */
+interface StartState {
+  replace: boolean;
+  name: string;
+  open: "ai" | "robot" | "file" | null;
+  images: { name: string; data: string }[];
+  withMaps: boolean;
+  /** Robot map picture → the floor it shows. */
+  mapFloors: Record<string, string>;
+  aiEntity: string;
+  busy: boolean;
+  paste: string;
+  problems: string[];
+  note: string;
+  copied: boolean;
+}
+
 /** A stored house, as the integration lists it (with the version a restore brings back). */
 interface HouseSummary {
   id: string;
@@ -387,6 +405,8 @@ export class HomeslicePanel extends LitElement {
     _guides: { state: true },
     _loupe: { state: true },
     _create: { state: true },
+    _start: { state: true },
+    _startNext: { state: true },
     _pendingArea: { state: true },
     _stair: { state: true },
     _furn: { state: true },
@@ -485,6 +505,10 @@ export class HomeslicePanel extends LitElement {
   /** The "new house" form while it is open. */
   /** `merges`: HA floors whose areas go onto another floor's level (floor → floor). */
   private _create: { name: string; width: number; depth: number; floors: string[]; rooms: boolean; merges: Record<string, string> } | null = null;
+  /** The start screen (a new house, or starting this one over): its choices and what they hold. */
+  private _start: StartState | null = null;
+  /** After a start: the next step, shown over the plan until dismissed. */
+  private _startNext: string | null = null;
   /** The current level's floor plan image (loaded from HA), if any. */
   private _underlay: Underlay | null = null;
   private _underlayHidden = false;
@@ -666,10 +690,378 @@ export class HomeslicePanel extends LitElement {
       .catch(() => (this._energyPrefs = { energy_sources: [], device_consumption: [] }));
     try {
       this._houses = await this._hass!.callWS<HouseSummary[]>({ type: "homeslice/houses" });
+      this.housesLoaded = true;
       if (this._houses.length) await this.openHouse(this._houses[0].id);
+      else this._start = this.newStart(false);
     } catch (e) {
       this._error = String((e as { message?: string }).message ?? e);
     }
+  }
+
+  private housesLoaded = false;
+
+  // ----- the start: a new house from what Home Assistant already knows -----
+
+  private newStart(replace: boolean): StartState {
+    const maps = this.startMaps();
+    return {
+      replace,
+      name: replace ? (this._model?.name ?? "") : this._houses.length ? "" : this._hass?.config?.location_name || this.t("editor.new_house_default_name"),
+      open: null,
+      images: [],
+      withMaps: maps.length > 0,
+      mapFloors: Object.fromEntries(maps.filter((m) => m.floor).map((m) => [m.id, m.floor!])),
+      aiEntity: this.aiEntities()[0]?.id ?? "",
+      busy: false,
+      paste: "",
+      problems: [],
+      note: "",
+      copied: false,
+    };
+  }
+
+  private setStart(patch: Partial<StartState>) {
+    this._start = { ...(this._start ?? this.newStart(false)), ...patch };
+  }
+
+  /** AI Task entities (an AI connected to Home Assistant), those taking pictures first. */
+  private aiEntities(): { id: string; name: string; pictures: boolean }[] {
+    const states = this._hass?.states ?? {};
+    return Object.keys(states)
+      .filter((id) => id.startsWith("ai_task.") && states[id].state !== "unavailable")
+      .map((id) => ({ id, name: this.entityName(id), pictures: (Number(states[id].attributes.supported_features ?? 0) & 2) === 2 }))
+      .sort((a, b) => Number(b.pictures) - Number(a.pictures));
+  }
+
+  /** Robot map pictures: their robot, scale (if known) and the floor they seem to show. */
+  private startMaps(): { id: string; name: string; scale: number | null; floor?: string }[] {
+    const floors = this.haFloors();
+    return this.robotMaps().map((id) => {
+      const name = this.entityName(id);
+      return { id, name, scale: mapScale(this._hass?.entities?.[id]?.platform), floor: mapFloor(`${name} ${id.replace(/_/g, " ")}`, floors) };
+    });
+  }
+
+  /** The house's floors from Home Assistant (bottom first), "Outside" joining the ground floor; placeholder rooms where `rooms` says. */
+  private floorSeeds(rooms: (floorId: string) => boolean) {
+    const floors = this.haFloors();
+    const merges = suggestMerges([...floors].reverse().map((f) => ({ floor_id: f.floor_id, name: f.name, level: f.level, areas: this.floorAreas(f.floor_id) })));
+    const merged = (f: string) => !!merges[f] && !merges[merges[f]];
+    return floors
+      .filter((f) => !merged(f.floor_id))
+      .reverse()
+      .map((f) => {
+        const include = floors.map((x) => x.floor_id).filter((x) => merged(x) && merges[x] === f.floor_id);
+        return { floor_id: f.floor_id, ...(include.length ? { include_floors: include } : {}), areas: rooms(f.floor_id) ? [f.floor_id, ...include].flatMap((x) => this.floorAreas(x)) : [] };
+      });
+  }
+
+  /** Keeps a started house (a new one, or this one replaced) and opens it. */
+  private async startHouse(model: HouseInput, next: string | null): Promise<string | null> {
+    const st = this._start!;
+    const name = st.name.trim() || model.name || this.t("editor.new_house_default_name");
+    const id = st.replace ? this._house : uniqueId(this._houses.map((h) => h.id), slug(name, "home"));
+    const m: HouseInput = { ...model, id, name };
+    try {
+      await this._hass!.callWS({ type: "homeslice/model/save", house: id, model: m });
+    } catch (e) {
+      this.setStart({ busy: false, note: this.t("editor.save_failed", { message: String((e as { message?: string }).message ?? e) }) });
+      return null;
+    }
+    this._houses = await this._hass!.callWS<HouseSummary[]>({ type: "homeslice/houses" });
+    this._model = null;
+    this._saved = "";
+    this._start = null;
+    await this.openHouse(id);
+    this._startNext = next;
+    return id;
+  }
+
+  /** A house with the floors only (to trace a plan on, or to draw by hand). */
+  private async startEmpty(trace: boolean) {
+    const model = newHouse("home", "", [10, 8], this.floorSeeds(() => false));
+    for (const l of model.levels) l.rooms = [];
+    await this.startHouse(model, this.t(trace ? "editor.start_next_trace" : "editor.start_next_empty"));
+  }
+
+  /** What the assistant is told: the guide (this Home Assistant's floors, areas, entities), the maps, the answer wanted. */
+  private async startPrompt(st: StartState, attached: boolean): Promise<string> {
+    const { guide } = await this._hass!.callWS<{ guide: string }>({ type: "homeslice/guide" });
+    const notes: MapNote[] = [];
+    if (st.withMaps)
+      for (const m of this.startMaps()) {
+        const floor = st.mapFloors[m.id] ?? m.floor;
+        notes.push({ name: m.name, ...(floor ? { floor } : {}), scale: m.scale, rooms: await this.robotRoomNames(m.id) });
+      }
+    const pictures = st.images.length || (st.withMaps && notes.length);
+    return [
+      this.t("editor.ai_prompt_intro"),
+      pictures ? (attached ? "I attach pictures of my home: a floor plan (photo or sketch) and/or robot vacuum maps." : "I'll attach pictures of my home: a floor plan (photo or sketch) and/or robot vacuum maps.") : "I have no floor plan at hand: make a sensible first draft from the floors and areas below, rooms of typical sizes.",
+      "Reply with the whole house in one YAML code block, nothing else.",
+      guide,
+      mapNotes(notes),
+    ]
+      .filter(Boolean)
+      .join("\n\n");
+  }
+
+  /** A house in YAML (an assistant's answer, a pasted file): checked, then started. */
+  private async startFromYaml(text: string) {
+    let parsed: unknown;
+    try {
+      parsed = parseYaml(extractYaml(text));
+    } catch (e) {
+      this.setStart({ busy: false, problems: [String((e as { message?: string }).message ?? e)] });
+      return;
+    }
+    const { issues } = expandHouse(parsed);
+    const errors = issues.filter((i) => i.severity === "error").map((i) => `${i.path}: ${i.message}`);
+    if (errors.length) {
+      this.setStart({ busy: false, problems: errors });
+      return;
+    }
+    await this.startHouse(parsed as HouseInput, this.t("editor.start_next_ai"));
+  }
+
+  /** Puts a picture into Home Assistant's media (for an AI Task to look at); its media id. */
+  private async uploadMedia(name: string, data: string): Promise<string> {
+    const hass = this._hass!;
+    if (!hass.fetchWithAuth) throw new Error("This Home Assistant does not take uploads here");
+    const blob = await (await fetch(data)).blob();
+    const form = new FormData();
+    form.append("media_content_id", "media-source://media_source/local/.");
+    form.append("file", new File([blob], name.replace(/[^\w.-]+/g, "_") || "plan.jpg", { type: blob.type || "image/jpeg" }));
+    const res = await hass.fetchWithAuth("/api/media_source/local_source/upload", { method: "POST", body: form });
+    if (!res.ok) throw new Error(`Upload failed (${res.status})`);
+    return ((await res.json()) as { media_content_id: string }).media_content_id;
+  }
+
+  /** "Draw it with AI" through Home Assistant's AI Task: the pictures and maps attached, the house back. */
+  private async startWithAi(st: StartState) {
+    this.setStart({ busy: true, problems: [], note: this.t("editor.start_ai_working") });
+    try {
+      const attachments: { media_content_id: string; media_content_type: string }[] = [];
+      for (const img of st.images) attachments.push({ media_content_id: await this.uploadMedia(img.name, img.data), media_content_type: img.data.slice(5, img.data.indexOf(";")) || "image/jpeg" });
+      if (st.withMaps) for (const m of this.startMaps()) attachments.push({ media_content_id: `media-source://image/${m.id}`, media_content_type: "image/png" });
+      const instructions = await this.startPrompt(st, true);
+      const res = (await this._hass!.callService("ai_task", "generate_data", { task_name: "Homeslice house", entity_id: st.aiEntity, instructions, ...(attachments.length ? { attachments } : {}) }, undefined, false, true)) as { response?: { data?: unknown } };
+      const data = res?.response?.data;
+      if (typeof data !== "string" || !data.trim()) throw new Error(this.t("editor.start_ai_empty"));
+      this.setStart({ paste: data, note: "" });
+      await this.startFromYaml(data);
+    } catch (e) {
+      this.setStart({ busy: false, note: String((e as { message?: string }).message ?? e) });
+    }
+  }
+
+  /** "From your robot's map": the floors from Home Assistant, each map's rooms on its floor, named and given their areas. */
+  private async startFromMaps(st: StartState) {
+    this.setStart({ busy: true, note: this.t("editor.start_maps_working"), problems: [] });
+    try {
+      const maps = this.startMaps().filter((m) => m.scale && (st.mapFloors[m.id] ?? m.floor));
+      const floorOf = (m: (typeof maps)[number]) => st.mapFloors[m.id] ?? m.floor!;
+      const mapped = new Set(maps.map(floorOf));
+      const model = newHouse("home", "", [10, 8], this.floorSeeds((f) => !mapped.has(f)));
+      const { roomsFromMap } = await import("../import/robotmap");
+      const underlays: { level: string; image: string; place: Underlay["place"]; source: string }[] = [];
+      let m = model;
+      let offset: Vec2 | null = null;
+      for (const map of maps) {
+        const level = m.levels.find((l) => l.floor_id === floorOf(map) || l.include_floors?.includes(floorOf(map)));
+        if (!level) continue;
+        level.rooms = [];
+        const url = this._hass!.states[map.id]?.attributes.entity_picture as string;
+        const blob = await (await fetch(url)).blob();
+        const bitmap = await createImageBitmap(blob);
+        const canvas = document.createElement("canvas");
+        canvas.width = bitmap.width;
+        canvas.height = bitmap.height;
+        const ctx = canvas.getContext("2d", { willReadFrequently: true })!;
+        ctx.drawImage(bitmap, 0, 0);
+        const found = roomsFromMap(ctx.getImageData(0, 0, bitmap.width, bitmap.height)).sort((a, b) => b.area - a.area);
+        const scale = map.scale!;
+        // the first map's rooms start at the plan's corner; the others keep their own map's frame
+        if (!offset && found.length) {
+          const pts = found.flatMap((r) => r.polygon);
+          offset = [Math.min(...pts.map((p) => p[0])) * scale, Math.min(...pts.map((p) => p[1])) * scale];
+        }
+        const off = offset ?? [0, 0];
+        const names = await this.robotRoomNames(map.id);
+        const floorAreas = [floorOf(map), ...(level.include_floors ?? [])].flatMap((f) => this.floorAreas(f));
+        const allAreas = Object.values(this._hass!.areas ?? {});
+        for (const room of found) {
+          const poly = room.polygon.map(([x, y]) => [Math.round((x * scale - off[0]) * 100) / 100, Math.round((y * scale - off[1]) * 100) / 100] as Vec2);
+          const name = names[room.number];
+          const key = name?.trim().toLowerCase();
+          const area = key ? (floorAreas.find((a) => a.name.trim().toLowerCase() === key) ?? allAreas.find((a) => a.name.trim().toLowerCase() === key)) : undefined;
+          const taken = (m.levels.find((l) => l.id === level.id)?.rooms ?? []).map((r) => r.id);
+          const props: Partial<RoomInput> = area ? { id: uniqueId(taken, slug(area.area_id, "room")), area_id: area.area_id } : name ? { name } : {};
+          m = drawRoomOver(m, level.id, poly, props).model;
+        }
+        // the map under its floor, where its rooms are
+        const image = await shrinkImage(new File([blob], "map.png", { type: blob.type }), 2400);
+        const { width } = await imageSize(image);
+        underlays.push({ level: level.id, image, place: { origin: [-off[0], -off[1]], scale: (scale * bitmap.width) / width, rotation: 0 }, source: map.id });
+      }
+      const id = await this.startHouse(m, this.t(maps.length > 1 ? "editor.start_next_maps_floors" : "editor.start_next_maps"));
+      if (!id) return;
+      for (const u of underlays) await this._hass!.callWS({ type: "homeslice/underlay/set", house: id, level: u.level, image: u.image, place: u.place, opacity: 0.4, source: u.source });
+      this.underlayRequest = "";
+      void this.loadUnderlay();
+    } catch (e) {
+      this.setStart({ busy: false, note: String((e as { message?: string }).message ?? e) });
+    }
+  }
+
+  /** "Restore or import a file": a Homeslice backup or house, Sweet Home 3D, an SVG plan, another floor-plan card's export. */
+  private async startFromFile(file: File) {
+    this.setStart({ busy: true, problems: [], note: "" });
+    const name = file.name.toLowerCase();
+    try {
+      if (name.endsWith(".zip")) {
+        const data = await new Promise<string>((resolve) => {
+          const r = new FileReader();
+          r.onload = () => resolve(String(r.result));
+          r.readAsDataURL(file);
+        });
+        const r = await this._hass!.callWS<{ houses: string[] }>({ type: "homeslice/backup/restore", data });
+        this._houses = await this._hass!.callWS<HouseSummary[]>({ type: "homeslice/houses" });
+        this._start = null;
+        this._model = null;
+        await this.openHouse(r.houses[0] ?? this._houses[0].id);
+        return;
+      }
+      let model: HouseInput;
+      if (name.endsWith(".sh3d")) {
+        const { sh3dXml, sweetHomeToHouse } = await import("../import/sweethome");
+        model = sweetHomeToHouse(sh3dXml(new Uint8Array(await file.arrayBuffer())));
+      } else if (name.endsWith(".svg")) {
+        const width = parseFloat((prompt(this.t("editor.import_svg_width"), "12") ?? "").replace(",", "."));
+        if (!(width > 0)) return this.setStart({ busy: false });
+        const { svgToHouse } = await import("../import/svgplan");
+        model = svgToHouse(await file.text(), width).house as HouseInput;
+      } else {
+        const text = await file.text();
+        let parsed: unknown = null;
+        try {
+          parsed = parseYaml(text);
+        } catch {
+          // not YAML: another card's export
+        }
+        if (parsed && typeof parsed === "object" && "levels" in parsed) return void (await this.startFromYaml(text));
+        const { planToHouse } = await import("../import/planjson");
+        model = planToHouse(text).house as HouseInput;
+      }
+      await this.startHouse(model, this.t("editor.start_next_file"));
+    } catch (e) {
+      this.setStart({ busy: false, note: String((e as { message?: string }).message ?? e) });
+    }
+  }
+
+  private renderStart(st: StartState) {
+    const floors = this.haFloors();
+    const areas = Object.keys(this._hass?.areas ?? {}).length;
+    const ai = this.aiEntities();
+    const maps = this.startMaps();
+    const usable = maps.filter((m) => m.scale);
+    const box = (key: string, icon: string, badge: string, found: unknown, body: unknown, act: () => void, open = false, grey = false) => html`<section class="start-box ${open ? "open" : ""} ${grey ? "grey" : ""}" data-start=${key}>
+        <button class="start-head" ?disabled=${grey || st.busy} @click=${act} aria-expanded=${open}>
+          <ha-icon icon=${icon}></ha-icon>
+          <span class="start-title">${this.t(`editor.start_${key}` as StringKey)}${badge ? html`<span class="badge">${badge}</span>` : nothing}</span>
+          <span class="muted start-text">${this.t(`editor.start_${key}_text` as StringKey)}</span>
+          <span class="start-found">${found}</span>
+        </button>
+        ${open ? html`<div class="start-body">${body}</div>` : nothing}
+      </section>`;
+    const toggle = (k: StartState["open"]) => () => this.setStart({ open: st.open === k ? null : k, note: "", problems: [] });
+    const problems = st.problems.length
+      ? html`<ul class="problems">${st.problems.map((x) => html`<li>${x}</li>`)}</ul>
+          <button @click=${async () => {
+            await navigator.clipboard?.writeText(this.t("editor.ai_errors_text") + "\n" + st.problems.map((x) => `- ${x}`).join("\n")).catch(() => undefined);
+          }}>${this.t("editor.ai_errors")}</button>`
+      : nothing;
+    const aiBody = html`
+      <p class="muted">${this.t("editor.start_ai_images")}</p>
+      <div class="start-images">
+        ${st.images.map((img, i) => html`<figure><img src=${img.data} alt=${img.name} /><button class="remove-model" aria-label=${this.t("editor.light_remove")} @click=${() => this.setStart({ images: st.images.filter((_, k) => k !== i) })}>×</button></figure>`)}
+        <label class="file">${this.t("editor.start_ai_add_image")}<input type="file" accept="image/*" multiple data-start-images @change=${async (e: Event) => {
+          const files = [...((e.target as HTMLInputElement).files ?? [])];
+          (e.target as HTMLInputElement).value = "";
+          const added = await Promise.all(files.map(async (f) => ({ name: f.name, data: await shrinkImage(f, 2000) })));
+          this.setStart({ images: [...(this._start ?? st).images, ...added] });
+        }} /></label>
+      </div>
+      ${maps.length
+        ? html`<label class="check"><input type="checkbox" data-start-maps .checked=${st.withMaps} @change=${(e: Event) => this.setStart({ withMaps: (e.target as HTMLInputElement).checked })} />
+            ${this.t("editor.start_ai_maps", { maps: maps.map((m) => m.name).join(", ") })}</label>`
+        : nothing}
+      ${ai.length
+        ? html`${ai.length > 1
+              ? html`<label>${this.t("editor.start_ai_entity")}<select @change=${(e: Event) => this.setStart({ aiEntity: (e.target as HTMLSelectElement).value })}>
+                  ${ai.map((a) => html`<option value=${a.id} ?selected=${a.id === st.aiEntity}>${a.name}</option>`)}</select></label>`
+              : nothing}
+            <button class="primary" data-start-ai-run ?disabled=${st.busy} @click=${() => void this.startWithAi(st)}>${this.t("editor.start_ai_run")}</button>
+            <p class="muted">${this.t("editor.start_ai_or")}</p>`
+        : nothing}
+      <div class="row">
+        <button data-start-ai-copy @click=${async () => {
+          const text = await this.startPrompt(st, false);
+          await navigator.clipboard?.writeText(text).catch(() => undefined);
+          this.setStart({ copied: true });
+        }}>${st.copied ? this.t("editor.copied") : this.t("editor.start_ai_copy")}</button>
+        ${st.withMaps
+          ? maps.map(
+              (m) => html`<a class="button" download=${`${m.id}.png`} href=${String(this._hass?.states[m.id]?.attributes.entity_picture ?? "")}>${this.t("editor.start_ai_map_download", { map: m.name })}</a>`,
+            )
+          : nothing}
+      </div>
+      <p class="muted">${this.t("editor.start_ai_paste_hint")}</p>
+      <textarea class="yaml" rows="6" spellcheck="false" data-start-paste .value=${st.paste} @input=${(e: Event) => this.setStart({ paste: (e.target as HTMLTextAreaElement).value, problems: [] })}></textarea>
+      ${problems}
+      <button class="primary" data-start-paste-use ?disabled=${!st.paste.trim() || st.busy} @click=${() => void this.startFromYaml(st.paste)}>${this.t("editor.start_ai_use")}</button>`;
+    const robotBody = html`
+      ${maps.map(
+        (m) => html`<label class="start-map">${m.name}
+          <select data-start-map=${m.id} ?disabled=${!m.scale} @change=${(e: Event) => this.setStart({ mapFloors: { ...st.mapFloors, [m.id]: (e.target as HTMLSelectElement).value } })}>
+            <option value="">${this.t("editor.start_map_skip")}</option>
+            ${floors.map((f) => html`<option value=${f.floor_id} ?selected=${(st.mapFloors[m.id] ?? m.floor) === f.floor_id}>${f.name}</option>`)}
+          </select>
+          ${m.scale ? nothing : html`<span class="muted">${this.t("editor.start_map_scale_unknown")}</span>`}
+        </label>`,
+      )}
+      <p class="muted">${this.t("editor.start_robot_after")}</p>
+      <button class="primary" data-start-maps-run ?disabled=${st.busy || !usable.some((m) => st.mapFloors[m.id] ?? m.floor)} @click=${() => void this.startFromMaps(st)}>${this.t("editor.start_robot_run")}</button>`;
+    const fileBody = html`<label class="file">${this.t("editor.start_file_pick")}<input type="file" accept=".zip,.yaml,.yml,.json,.sh3d,.svg" data-start-file @change=${(e: Event) => {
+        const f = (e.target as HTMLInputElement).files?.[0];
+        (e.target as HTMLInputElement).value = "";
+        if (f) void this.startFromFile(f);
+      }} /></label>
+      ${problems}`;
+    return html`<div class="start" role="dialog" aria-label=${this.t("editor.start_title")}>
+      <h1>${this.t(st.replace ? "editor.start_title_again" : "editor.start_title")}</h1>
+      <p class="muted">${this.t("editor.start_intro")}</p>
+      <label class="start-name">${this.t("editor.house_name")}<input .value=${st.name} @input=${(e: Event) => this.setStart({ name: (e.target as HTMLInputElement).value })} /></label>
+      ${box("ai", "mdi:creation-outline", this.t("editor.start_badge_easiest"), ai.length ? this.t("editor.start_ai_found", { ai: ai.map((a) => a.name).join(", ") }) : this.t("editor.start_ai_none"), aiBody, toggle("ai"), st.open === "ai")}
+      ${box(
+        "robot",
+        "mdi:robot-vacuum",
+        this.t("editor.start_badge_accurate"),
+        maps.length ? this.t("editor.start_robot_found", { maps: maps.map((m) => m.name).join(", ") }) : this.t("editor.start_robot_none"),
+        robotBody,
+        toggle("robot"),
+        st.open === "robot",
+        !usable.length,
+      )}
+      ${box("file", "mdi:file-import-outline", "", this.t("editor.start_file_found"), fileBody, toggle("file"), st.open === "file")}
+      ${box("floors", "mdi:home-floor-1", "", floors.length ? this.t("editor.start_floors_found", { floors: floors.length, areas }) : this.t("editor.no_ha_floors"), nothing, () => {
+        this._start = null;
+        this.startWizard();
+      })}
+      ${box("trace", "mdi:image-outline", "", this.t("editor.start_trace_found"), nothing, () => void this.startEmpty(true))}
+      ${box("empty", "mdi:pencil-ruler", this.t("editor.start_badge_control"), "", nothing, () => void this.startEmpty(false))}
+      ${st.note ? html`<p class="notice" data-start-note>${st.note}</p>` : nothing}
+      ${this._model ? html`<div class="row end"><button @click=${() => (this._start = null)}>${this.t("editor.cancel")}</button></div>` : nothing}
+    </div>`;
   }
 
   private async openHouse(id: string) {
@@ -721,8 +1113,14 @@ export class HomeslicePanel extends LitElement {
       .map((a) => ({ area_id: a.area_id, name: a.name }));
   }
 
+  /** A new house (or this one over again): the start screen. */
   private startCreate() {
     if (this.dirty && !confirm(this.t("editor.discard"))) return;
+    this._start = this.newStart(false);
+  }
+
+  /** "From your floors and areas": the floors to take and a rough size, placeholder rooms per area. */
+  private startWizard() {
     const floors = this.haFloors();
     // an "Outside" floor joins the ground floor (HA lists floors top first)
     const merges = suggestMerges([...floors].reverse().map((f) => ({ floor_id: f.floor_id, name: f.name, level: f.level, areas: this.floorAreas(f.floor_id) })));
@@ -813,7 +1211,11 @@ export class HomeslicePanel extends LitElement {
       <label class="check"><input type="checkbox" .checked=${c.rooms} @change=${(e: Event) => set({ rooms: (e.target as HTMLInputElement).checked })} />
         ${this.t("editor.new_house_rooms")}</label>
       <div class="row end">
-        ${this._model ? html`<button @click=${() => (this._create = null)}>${this.t("editor.cancel")}</button>` : nothing}
+        <button @click=${() => {
+          // back to where to start
+          this._create = null;
+          this._start = this.newStart(false);
+        }}>${this.t("editor.cancel")}</button>
         <button class="primary" @click=${() => this.createHouse()}>${this.t("editor.create")}</button>
       </div>
     </div>`;
@@ -2603,6 +3005,9 @@ export class HomeslicePanel extends LitElement {
   }
 
   protected override render() {
+    // no house yet: where to start (once the houses are known)
+    if (this._start || (!this._model && !this._create && this._hass && !this._houses.length && this.housesLoaded && !this._error))
+      return html`<div class="empty start-wrap">${this.renderStart(this._start ?? this.newStart(false))}</div>`;
     if (this._create) return html`<div class="empty">${this._error ? html`<div class="error">${this._error}</div>` : nothing}${this.renderCreate()}</div>`;
     if (!this._model) {
       return html`<div class="empty">
@@ -2726,7 +3131,10 @@ export class HomeslicePanel extends LitElement {
           ${this._hint
             ? html`<div class="hint" style="left:${this._hint.x + 16}px;top:${this._hint.y + 16}px">${this._hint.lines.map((l) => html`<div>${l}</div>`)}</div>`
             : nothing}
-          <div class="plan-top">${this.renderHint()}</div>
+          <div class="plan-top">${this._startNext
+              ? html`<div class="start-next" role="status" data-start-next><ha-icon icon="mdi:flag-checkered"></ha-icon><span>${this._startNext}</span>
+                  <button class="close" aria-label=${this.t("editor.hint_hide")} @click=${() => (this._startNext = null)}>×</button></div>`
+              : nothing}${this.renderHint()}</div>
         </section>
         ${this.renderFlyout()}
         <div class="side-handle" role="separator" aria-orientation="vertical" aria-label=${this.t("editor.side_resize")} title=${this.t("editor.side_resize")}
@@ -5870,6 +6278,13 @@ export class HomeslicePanel extends LitElement {
       </div>
       ${st.notice ? html`<p class="notice">${st.notice}</p>` : nothing}
       <p class="muted">${this.t("editor.backup_hint")}</p>
+      <h3>${this.t("editor.start_over")}</h3>
+      <p class="muted">${this.t("editor.start_over_hint")}</p>
+      <button data-start-over @click=${() => {
+        if (this.dirty && !confirm(this.t("editor.discard"))) return;
+        this._settings = null;
+        this._start = this.newStart(true);
+      }}>${this.t("editor.start_over")}</button>
       <h3>${this.t("editor.danger")}</h3>
       <button class="danger" @click=${async () => {
         if (!confirm(this.t("editor.delete_house_confirm", { name: m.name ?? this._house }))) return;
@@ -5879,6 +6294,8 @@ export class HomeslicePanel extends LitElement {
         this._model = null;
         this._houses = await this._hass!.callWS<HouseSummary[]>({ type: "homeslice/houses" });
         if (this._houses.length) await this.openHouse(this._houses[0].id);
+        // none left: where to start
+        else this._start = this.newStart(false);
       }}>${this.t("editor.delete_house")}</button>`;
   }
 
@@ -7468,6 +7885,134 @@ export class HomeslicePanel extends LitElement {
       display: inline;
       padding: 0;
       margin-left: 4px;
+    }
+    .start-wrap {
+      align-items: flex-start;
+      overflow: auto;
+    }
+    .start {
+      max-width: 760px;
+      margin: 24px auto;
+      padding: 0 16px 32px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .start h1 {
+      margin: 0;
+      font-size: 26px;
+      font-weight: 500;
+    }
+    .start-name {
+      max-width: 360px;
+    }
+    .start-box {
+      border: 1px solid var(--divider-color, #444);
+      border-radius: 14px;
+      background: var(--card-background-color, #1c1c1c);
+      overflow: hidden;
+    }
+    .start-box.open {
+      border-color: var(--primary-color, #03a9f4);
+    }
+    .start-box.grey .start-head {
+      opacity: 0.55;
+      cursor: default;
+    }
+    .start-head {
+      display: grid;
+      grid-template-columns: 40px 1fr;
+      grid-template-rows: auto auto auto;
+      column-gap: 12px;
+      row-gap: 3px;
+      width: 100%;
+      padding: 14px 16px;
+      border: none;
+      border-radius: 0;
+      background: none;
+      text-align: left;
+      cursor: pointer;
+      --mdc-icon-size: 30px;
+    }
+    .start-head ha-icon {
+      grid-row: 1 / 4;
+      align-self: center;
+      color: var(--primary-color, #03a9f4);
+    }
+    .start-title {
+      font-size: 17px;
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .start-title .badge {
+      font-size: 11px;
+      font-weight: 500;
+      padding: 2px 8px;
+      border-radius: 10px;
+      background: color-mix(in srgb, var(--primary-color, #03a9f4) 22%, transparent);
+      color: var(--primary-text-color, #fff);
+    }
+    .start-found {
+      font-size: 12px;
+      color: var(--primary-color, #03a9f4);
+    }
+    .start-box.grey .start-found {
+      color: inherit;
+    }
+    .start-body {
+      padding: 0 16px 16px 68px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .start-images {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+    }
+    .start-images figure {
+      position: relative;
+      margin: 0;
+    }
+    .start-images img {
+      width: 96px;
+      height: 72px;
+      object-fit: cover;
+      border-radius: 8px;
+      display: block;
+    }
+    .start-map {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      align-items: center;
+      gap: 8px;
+    }
+    a.button {
+      display: inline-flex;
+      align-items: center;
+      padding: 6px 12px;
+      border-radius: 8px;
+      border: 1px solid var(--divider-color, #444);
+      color: inherit;
+      text-decoration: none;
+    }
+    .start-next {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      max-width: min(64ch, 100%);
+      padding: 8px 8px 8px 12px;
+      border-radius: 10px;
+      background: color-mix(in srgb, var(--primary-color, #03a9f4) 18%, var(--card-background-color, #1c1c1c));
+      border: 1px solid var(--primary-color, #03a9f4);
+    }
+    @media (max-width: 700px) {
+      .start-body {
+        padding-left: 16px;
+      }
     }
     .same-room {
       display: flex;

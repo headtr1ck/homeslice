@@ -646,7 +646,7 @@ def validate(house: Any) -> list[dict[str, str]]:
 
     if not house_outline:
         for lp in waiting:
-            err(lp, "No outline: draw rooms (outline: auto follows them) or set outline on the house or this level.")
+            warn(lp, "No rooms yet: draw rooms (outline: auto follows them) or set outline on the house or this level.")
 
     level_index = {lvl["id"]: lvl["index"] for lvl in levels if not isinstance(lvl["id"], (dict, list))}
 

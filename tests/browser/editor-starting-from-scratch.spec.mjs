@@ -40,7 +40,17 @@ test.describe.serial("editor, starting from scratch", () => {
         areas: { ...h.areas, garden: { ...h.areas.garden, floor_id: "outside" } },
       };
     });
-    await page.locator("homeslice-panel .empty button.primary").click();
+    // the start: a greeting and where to start, from least work to most; what was found on each
+    const start = page.locator("homeslice-panel .start");
+    await start.waitFor({ timeout: 5000 });
+    assert((await start.locator("h1").textContent()).includes("Welcome to Homeslice"), "no greeting");
+    const boxes = await start.locator("section.start-box").evaluateAll((els) => els.map((e) => [e.dataset.start, e.classList.contains("grey")]));
+    assert(JSON.stringify(boxes) === JSON.stringify([["ai", false], ["robot", true], ["file", false], ["floors", false], ["trace", false], ["empty", false]]), `boxes: ${JSON.stringify(boxes)}`);
+    // no robot map here: greyed out, saying what one would give
+    assert((await start.locator('section[data-start="robot"] .start-found').textContent()).includes("No robot map found"), "robot box text");
+    await start.locator('section[data-start="floors"] .start-found', { hasText: "4 floors" }).waitFor({ timeout: 3000 });
+    await shot(page, "editor-start");
+    await start.locator('section[data-start="floors"] button.start-head').click();
     const dialog = page.locator("homeslice-panel .create");
     assert((await dialog.locator("input[type=checkbox]").count()) === 5, "expected four floors and the rooms option");
     const outsideLevel = dialog.locator('select[aria-label="Level for Outside"]');
@@ -541,7 +551,7 @@ test.describe.serial("editor, starting from scratch", () => {
   test("deleting the house goes back to the start", async () => {
     await page.locator("homeslice-panel header button[aria-label='House settings']").click();
     await page.locator("homeslice-panel .inspector button", { hasText: "Delete house" }).click();
-    await page.waitForSelector("homeslice-panel .empty button.primary");
+    await page.waitForSelector("homeslice-panel .start section.start-box");
     assert(errors.length === 0, errors.join(" | "));
   });
 });
