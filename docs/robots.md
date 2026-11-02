@@ -33,18 +33,13 @@ robot somewhere else, far away. For a mirrored map, add a third spot.
 Some robots report their position only while cleaning, or only after their own app has
 been opened (e.g. Roborock Q10): start a short clean, or open the app, then record.
 
-**The robot's map as a floor plan.** A robot vacuum's map is true to scale (12.5 mm a
-pixel): the editor can use it as the floor plan image, to drag into place over the house
-and trace the rooms on it.
-
-**Rooms from the robot's map.** Once the map lies in place, *Rooms from this map* reads the
-rooms off its colours (the cleaning path, furniture and the robot drawn over them are
-filled in, the outlines straightened) and adds them as rooms over the plan, each taking its
-space from the rooms already there. With Roborock, the robot's room names come along
-(`roborock.get_maps`, the map matching the picture's floor), and a Home Assistant area with
-the same name is given at once; the others say *Unassigned room!*. The robot's map is never
-perfect: check the rooms over it and move walls where it is rough. If the map has changed
-since it was placed (the robot mapped more), use it as the floor plan image again first.
+**The robot's map to trace on.** A robot vacuum's map is true to scale (12.5 mm a pixel):
+put it under a floor (level inspector, or *Trace your floor plan or robot maps* when
+starting a house) and draw the rooms over it. A floor can have a few images under it, e.g.
+the floor plan beside the robot's map: the map gives true sizes, the plan the walls and
+doors the robot can't see (furniture hides walls, open doors look like no wall). Switch
+between them with `N` or the button on the plan. Homeslice doesn't read rooms off the map
+by itself: the result was never better than tracing.
 
 Older Xiaomi robots in the *Xiaomi Miio* integration report neither a position nor a map;
 the *Xiaomi Cloud Map Extractor* (HACS) adds both: its camera's `vacuum_position` attribute

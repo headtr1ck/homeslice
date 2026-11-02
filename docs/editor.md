@@ -36,7 +36,10 @@ Save with `Ctrl+S`. Cards update at once.
 ## 1. Rooms & walls
 
 Drag rooms into shape, or upload the floor plan (level inspector), set its scale with two
-points of a known length, and draw rooms over it (`R`). Walls appear by themselves; a wall
+points of a known length, and draw rooms over it (`R`). A floor can have a few images under
+it (the floor plan, a robot vacuum's map, true to scale): switch between them with `N`.
+Outside walls of the floors below and above show dashed; dragging snaps to them, and an
+outside wall in line with the floor below or above moves on both (Shift: this floor only). Walls appear by themselves; a wall
 between two rooms can be dragged on its own or switched to *open* (e.g. an open kitchen).
 Stairs: `S`.
 
@@ -99,10 +102,12 @@ Press `?` in the editor for this overview.
 | `E`, `O` | Energy, robots |
 | `Ctrl+D` | Duplicate the selected furniture |
 | `Del` | Delete what is selected |
+| `N` | The next image under the floor |
 | `Esc` | Cancel, deselect |
 | `Ctrl+Z` / `Ctrl+Shift+Z` | Undo / redo |
 | `Ctrl+S` | Save |
 | `Alt` | Hold while dragging: no snapping |
+| `Shift` | Hold while dragging an outside wall or corner: this floor only |
 | `← ↑ → ↓` | Nudge stairs or energy items (Shift: 50 cm) |
 | Double-click | On a wall: add a corner; on a corner: remove it |
 | Wheel / drag the background | Zoom / pan the plan |

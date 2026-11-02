@@ -198,8 +198,17 @@ async def test_underlays_are_stored_per_level_admin_only(
     await client.send_json_auto_id({"type": "homeslice/underlay/get", "house": "home", "level": "ground"})
     got = (await client.receive_json())["result"]
     assert got["image"] == PNG and got["opacity"] == 0.5 and got["source"] == "image.saros_map"
+    # a second backdrop for the same level (a robot's map beside the floor plan)
+    await client.send_json_auto_id({"type": "homeslice/underlay/set", "house": "home", "level": "ground", "slot": 1, "image": PNG, "source": "image.saros_map"})
+    assert (await client.receive_json())["success"]
+    await client.send_json_auto_id({"type": "homeslice/underlay/set", "house": "home", "level": "ground", "slot": 4, "image": PNG})
+    assert not (await client.receive_json())["success"]
     await client.send_json_auto_id({"type": "homeslice/underlay/get", "house": "home"})
-    assert (await client.receive_json())["result"] == {"levels": ["ground"]}
+    assert (await client.receive_json())["result"] == {"levels": ["ground"], "slots": ["ground", "ground#1"]}
+    await client.send_json_auto_id({"type": "homeslice/underlay/delete", "house": "home", "level": "ground", "slot": 1})
+    await client.receive_json()
+    await client.send_json_auto_id({"type": "homeslice/underlay/get", "house": "home", "level": "ground", "slot": 1})
+    assert (await client.receive_json())["result"] is None
 
     reader = await hass_ws_client(hass, hass_read_only_access_token)
     await reader.send_json_auto_id({"type": "homeslice/underlay/get", "house": "home", "level": "ground"})
@@ -208,7 +217,7 @@ async def test_underlays_are_stored_per_level_admin_only(
     await client.send_json_auto_id({"type": "homeslice/underlay/delete", "house": "home", "level": "ground"})
     await client.receive_json()
     await client.send_json_auto_id({"type": "homeslice/underlay/get", "house": "home"})
-    assert (await client.receive_json())["result"] == {"levels": []}
+    assert (await client.receive_json())["result"] == {"levels": [], "slots": []}
 
 
 def _glb(gltf: str) -> str:
@@ -589,6 +598,10 @@ async def test_backup_round_trip_keeps_ids(hass: HomeAssistant, setup, hass_ws_c
     m["levels"][0]["rooms"][0]["furniture"] = [{"type": "chair", "at": [1, 1], "model": f"custom:{uploaded['id']}"}]
     await client.send_json_auto_id({"type": "homeslice/model/save", "house": "home", "model": m})
     assert (await client.receive_json())["success"]
+    # two backdrops of a level: the floor plan and a robot's map
+    for slot in (0, 1):
+        await client.send_json_auto_id({"type": "homeslice/underlay/set", "house": "home", "level": "ground", "slot": slot, "image": PNG})
+        assert (await client.receive_json())["success"]
 
     await client.send_json_auto_id({"type": "homeslice/backup"})
     backup = (await client.receive_json())["result"]
@@ -601,7 +614,7 @@ async def test_backup_round_trip_keeps_ids(hass: HomeAssistant, setup, hass_ws_c
     await client.receive_json()
     await client.send_json_auto_id({"type": "homeslice/backup/restore", "data": backup["data"]})
     result = (await client.receive_json())["result"]
-    assert result == {"houses": ["home"], "plans": 0, "models": 1}
+    assert result == {"houses": ["home"], "plans": 2, "models": 1}
     await client.send_json_auto_id({"type": "homeslice/assets/custom"})
     assert [x["id"] for x in (await client.receive_json())["result"]] == [uploaded["id"]]
 

@@ -105,10 +105,19 @@ export function makeHass(fixture, onChange) {
           ];
         return out;
       }
-      if (msg.type === "homeslice/underlay/get") return msg.level ? structuredClone(underlays[`${msg.house}/${msg.level}`] ?? null) : { levels: [] };
+      // a level's backdrops: "level", then "level#1", …
+      const slotKey = (m) => `${m.house}/${m.level}${m.slot ? `#${m.slot}` : ""}`;
+      if (msg.type === "homeslice/underlay/get") {
+        if (msg.level) return structuredClone(underlays[slotKey(msg)] ?? null);
+        const slots = Object.keys(underlays)
+          .filter((k) => k.startsWith(`${msg.house}/`))
+          .map((k) => k.slice(msg.house.length + 1))
+          .sort();
+        return { levels: [...new Set(slots.map((k) => k.split("#")[0]))], slots };
+      }
       if (msg.type === "homeslice/underlay/set") {
-        const key = `${msg.house}/${msg.level}`;
-        const { type, house, level, id, ...patch } = msg;
+        const key = slotKey(msg);
+        const { type, house, level, slot, id, ...patch } = msg;
         if (!patch.image && !underlays[key]) throw new Error("Upload an image first");
         underlays[key] = { ...underlays[key], ...patch };
         return null;
@@ -194,7 +203,7 @@ export function makeHass(fixture, onChange) {
         return null;
       }
       if (msg.type === "homeslice/underlay/delete") {
-        delete underlays[`${msg.house}/${msg.level}`];
+        delete underlays[slotKey(msg)];
         return null;
       }
       if (msg.type === "config/area_registry/update") {

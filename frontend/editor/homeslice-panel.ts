@@ -261,6 +261,8 @@ async function shrinkImage(file: File, max: number): Promise<string> {
 /** A level's floor plan image: where its top-left corner sits, metres per pixel, degrees. */
 interface Underlay {
   level: string;
+  /** Which of the level's backdrops (0: the first). */
+  slot: number;
   image: string;
   width: number;
   height: number;
@@ -275,11 +277,13 @@ interface Underlay {
 interface StartState {
   replace: boolean;
   name: string;
-  open: "ai" | "robot" | "file" | null;
+  open: "ai" | "trace" | "file" | null;
   images: { name: string; data: string }[];
   withMaps: boolean;
-  /** Floor → the robot map picture its rooms come from ("" none). */
+  /** Floor → the robot map picture put under it ("" none). */
   floorMaps: Record<string, string>;
+  /** Floor → a floor plan image (a data: URL) put under it. */
+  plans?: Record<string, string>;
   /** The user picked maps for floors (the guess then stays out of it). */
   mapsTouched?: boolean;
   /** The floor whose live map catching is shown. */
@@ -406,8 +410,6 @@ export class HomeslicePanel extends LitElement {
     _rectPreview: { state: true },
     _arriving: { state: true },
     _toolMiss: { state: true },
-    _robotRoomsBusy: { state: true },
-    _robotRoomsNote: { state: true },
     _flyout: { state: true },
     _vertexSel: { state: true },
     _assignArea: { state: true },
@@ -433,6 +435,8 @@ export class HomeslicePanel extends LitElement {
     _energyPrefs: { state: true },
     _underlay: { state: true },
     _underlayHidden: { state: true },
+    _underlaySlots: { state: true },
+    _underlayAdding: { state: true },
     _calib: { state: true },
     _straighten: { state: true },
     _rulerHidden: { state: true },
@@ -533,6 +537,11 @@ export class HomeslicePanel extends LitElement {
   /** The current level's floor plan image (loaded from HA), if any. */
   private _underlay: Underlay | null = null;
   private _underlayHidden = false;
+  /** The current level's backdrops (slots), and the one shown last on each level. */
+  private _underlaySlots: number[] = [];
+  private underlaySlotOf: Record<string, number> = {};
+  /** Adding another backdrop: an upload goes to a new slot. */
+  private _underlayAdding = false;
   /** Setting the image's scale: two clicked points (image pixels), then their distance. */
   private _calib: { a?: Vec2; b?: Vec2; distance?: string } | null = null;
   /** Straightening a scan: two points (plan metres) along a wall that should run straight. */
@@ -900,10 +909,10 @@ export class HomeslicePanel extends LitElement {
   }
 
   /** A house with the floors only (to trace a plan on, or to draw by hand). */
-  private async startEmpty(trace: boolean) {
+  private async startEmpty() {
     const model = newHouse("home", "", [10, 8], this.floorSeeds(() => false));
     for (const l of model.levels) l.rooms = [];
-    await this.startHouse(model, this.t(trace ? "editor.start_next_trace" : "editor.start_next_empty"));
+    await this.startHouse(model, this.t("editor.start_next_empty"));
   }
 
   /** What the assistant is told: the guide (this Home Assistant's floors, areas, entities), the maps, the answer wanted. */
@@ -986,67 +995,46 @@ export class HomeslicePanel extends LitElement {
     }
   }
 
-  /** "From your robot's map": the floors from Home Assistant, each map's rooms on its floor, named and given their areas. */
-  private async startFromMaps(st: StartState) {
-    this.setStart({ busy: true, note: this.t("editor.start_maps_working"), problems: [] });
+  /**
+   * A house with the floors only, each with its backdrops to trace: the floor plan image
+   * given for it and the robot's map (true to scale), to switch between.
+   */
+  private async startTrace(st: StartState) {
+    this.setStart({ busy: true, note: "", problems: [] });
     try {
       const all = this.startMaps();
-      // per floor: a map caught live, else the map picture chosen for it
       const caught = this._startKept.captures;
-      const maps = Object.keys({ ...st.floorMaps, ...caught })
-        .map((floor) => {
-          const c = caught[floor];
-          const id = c?.source ?? st.floorMaps[floor];
-          const m = all.find((x) => x.id === id);
-          return m?.scale && (c || m.live) ? { ...m, floor, data: c?.data } : null;
-        })
-        .filter((m): m is NonNullable<typeof m> => !!m);
-      const floorOf = (m: (typeof maps)[number]) => m.floor!;
-      const mapped = new Set(maps.map(floorOf));
-      const model = newHouse("home", "", [10, 8], this.floorSeeds((f) => !mapped.has(f)));
-      const { roomsFromMap } = await import("../import/robotmap");
-      const underlays: { level: string; image: string; place: Underlay["place"]; source: string }[] = [];
-      let m = model;
-      let offset: Vec2 | null = null;
-      for (const map of maps) {
-        const level = m.levels.find((l) => l.floor_id === floorOf(map) || l.include_floors?.includes(floorOf(map)));
-        if (!level) continue;
-        level.rooms = [];
-        const blob = await (await fetch(map.data ?? (await this.grabMap(map.id)))).blob();
-        const bitmap = await createImageBitmap(blob);
-        const canvas = document.createElement("canvas");
-        canvas.width = bitmap.width;
-        canvas.height = bitmap.height;
-        const ctx = canvas.getContext("2d", { willReadFrequently: true })!;
-        ctx.drawImage(bitmap, 0, 0);
-        const found = roomsFromMap(ctx.getImageData(0, 0, bitmap.width, bitmap.height)).sort((a, b) => b.area - a.area);
-        const scale = map.scale!;
-        // the first map's rooms start at the plan's corner; the others keep their own map's frame
-        if (!offset && found.length) {
-          const pts = found.flatMap((r) => r.polygon);
-          offset = [Math.min(...pts.map((p) => p[0])) * scale, Math.min(...pts.map((p) => p[1])) * scale];
+      const model = newHouse("home", "", [10, 8], this.floorSeeds(() => false));
+      for (const l of model.levels) l.rooms = [];
+      const backdrops: { level: string; image: string; place: Underlay["place"]; source?: string }[] = [];
+      for (const level of model.levels) {
+        const floors = [level.floor_id, ...(level.include_floors ?? [])].filter((f): f is string => !!f);
+        // the floor plan first (it shows the walls and doors), then the robot's map
+        for (const f of floors) {
+          const plan = st.plans?.[f];
+          if (!plan) continue;
+          const { width } = await imageSize(plan);
+          backdrops.push({ level: level.id, image: plan, place: { origin: [0, 0], scale: 10 / width, rotation: 0 } });
         }
-        const off = offset ?? [0, 0];
-        const names = await this.robotRoomNames(map.id);
-        const floorAreas = [floorOf(map), ...(level.include_floors ?? [])].flatMap((f) => this.floorAreas(f));
-        const allAreas = Object.values(this._hass!.areas ?? {});
-        for (const room of found) {
-          const poly = room.polygon.map(([x, y]) => [Math.round((x * scale - off[0]) * 100) / 100, Math.round((y * scale - off[1]) * 100) / 100] as Vec2);
-          const name = names[room.number];
-          // the area most like the robot's room name: this floor's first (few to choose from: less alike will do)
-          const area = name ? (bestMatch(name, floorAreas, (a) => a.name, 0.6) ?? bestMatch(name, allAreas, (a) => a.name)) : undefined;
-          const taken = (m.levels.find((l) => l.id === level.id)?.rooms ?? []).map((r) => r.id);
-          const props: Partial<RoomInput> = area ? { id: uniqueId(taken, slug(area.area_id, "room")), area_id: area.area_id } : name ? { name } : {};
-          m = drawRoomOver(m, level.id, poly, props).model;
+        for (const f of floors) {
+          const c = caught[f];
+          const map = all.find((x) => x.id === (c?.source ?? st.floorMaps[f]));
+          if (!map?.scale || (!c && !map.live)) continue;
+          const blob = await (await fetch(c?.data ?? (await this.grabMap(map.id)))).blob();
+          const bitmap = await createImageBitmap(blob);
+          const image = await shrinkImage(new File([blob], "map.png", { type: blob.type }), 2400);
+          const { width } = await imageSize(image);
+          backdrops.push({ level: level.id, image, place: { origin: [0, 0], scale: (map.scale * bitmap.width) / width, rotation: 0 }, source: map.id });
         }
-        // the map under its floor, where its rooms are
-        const image = await shrinkImage(new File([blob], "map.png", { type: blob.type }), 2400);
-        const { width } = await imageSize(image);
-        underlays.push({ level: level.id, image, place: { origin: [-off[0], -off[1]], scale: (scale * bitmap.width) / width, rotation: 0 }, source: map.id });
       }
-      const id = await this.startHouse(m, this.t(maps.length > 1 ? "editor.start_next_maps_floors" : "editor.start_next_maps"));
+      const several = backdrops.some((b, i) => backdrops.findIndex((x) => x.level === b.level) !== i);
+      const id = await this.startHouse(model, this.t(several ? "editor.start_next_trace_both" : backdrops.length ? "editor.start_next_trace_one" : "editor.start_next_trace"));
       if (!id) return;
-      for (const u of underlays) await this._hass!.callWS({ type: "homeslice/underlay/set", house: id, level: u.level, image: u.image, place: u.place, opacity: 0.4, source: u.source });
+      const slots: Record<string, number> = {};
+      for (const b of backdrops) {
+        const slot = (slots[b.level] = (slots[b.level] ?? -1) + 1);
+        await this._hass!.callWS({ type: "homeslice/underlay/set", house: id, level: b.level, slot, image: b.image, place: b.place, opacity: 0.5, source: b.source ?? null });
+      }
       this.underlayRequest = "";
       void this.loadUnderlay();
     } catch (e) {
@@ -1115,7 +1103,7 @@ export class HomeslicePanel extends LitElement {
       </section>`;
     const toggle = (k: StartState["open"]) => () => {
       this.setStart({ open: st.open === k ? null : k, note: "", problems: [] });
-      if (k === "robot" || k === "ai") void this.guessMapFloors();
+      if (k === "trace" || k === "ai") void this.guessMapFloors();
     };
     const problems = st.problems.length
       ? html`<ul class="problems">${st.problems.map((x) => html`<li>${x}</li>`)}</ul>
@@ -1170,8 +1158,8 @@ export class HomeslicePanel extends LitElement {
     const cap = st.capture;
     const capMap = cap ? maps.find((m) => m.id === cap.map) : undefined;
     const floorName = (id: string) => floors.find((f) => f.floor_id === id)?.name ?? id;
-    const robotBody = html`
-      <p class="muted">${this.t("editor.start_robot_floors")}</p>
+    const traceBody = html`
+      <p class="muted">${this.t("editor.start_trace_floors")}</p>
       ${floors.map((f) => {
         const c = kept.captures[f.floor_id];
         const watching = kept.watches[f.floor_id];
@@ -1190,7 +1178,18 @@ export class HomeslicePanel extends LitElement {
                 <option value="">${this.t("editor.start_map_none")}</option>
                 ${ready.map((m) => html`<option value=${m.id} ?selected=${st.floorMaps[f.floor_id] === m.id}>${m.name}</option>`)}
               </select>`}
-          ${chosen(f.floor_id)
+          <label class="file start-plan">
+            ${st.plans?.[f.floor_id] ? html`<img alt="" src=${st.plans[f.floor_id]} />` : nothing}
+            ${this.t(st.plans?.[f.floor_id] ? "editor.start_plan_replace" : "editor.start_plan_add")}
+            <input type="file" accept="image/png,image/jpeg,image/webp" data-start-plan=${f.floor_id} @change=${async (e: Event) => {
+              const file = (e.target as HTMLInputElement).files?.[0];
+              (e.target as HTMLInputElement).value = "";
+              if (!file) return;
+              const data = await shrinkImage(file, 2400);
+              this.setStart({ plans: { ...((this._start ?? st).plans ?? {}), [f.floor_id]: data } });
+            }} />
+          </label>
+          ${chosen(f.floor_id) || !maps.length
             ? nothing
             : html`<div class="start-floor-help">
                 ${ready.length
@@ -1248,8 +1247,8 @@ export class HomeslicePanel extends LitElement {
         : nothing}
       ${ready.length ? html`<p class="muted">${this.t("editor.start_recheck")}</p>` : nothing}
       ${maps.some((m) => !m.scale) ? html`<p class="muted">${this.t("editor.start_map_scale_unknown")}</p>` : nothing}
-      <p class="muted">${this.t("editor.start_robot_after")}</p>
-      <button class="primary" data-start-maps-run ?disabled=${st.busy || !floors.some((f) => chosen(f.floor_id))} @click=${() => void this.startFromMaps(st)}>${this.t("editor.start_robot_run")}</button>`;
+      <p class="muted">${this.t("editor.start_trace_after")}</p>
+      <button class="primary" data-start-trace-run ?disabled=${st.busy} @click=${() => void this.startTrace(st)}>${this.t("editor.start_trace_run")}</button>`;
     const fileBody = html`<label class="file">${this.t("editor.start_file_pick")}<input type="file" accept=".zip,.yaml,.yml,.json,.sh3d,.svg" data-start-file @change=${(e: Event) => {
         const f = (e.target as HTMLInputElement).files?.[0];
         (e.target as HTMLInputElement).value = "";
@@ -1262,22 +1261,20 @@ export class HomeslicePanel extends LitElement {
       <label class="start-name">${this.t("editor.house_name")}<input .value=${st.name} @input=${(e: Event) => this.setStart({ name: (e.target as HTMLInputElement).value })} /></label>
       ${box("ai", "mdi:creation-outline", this.t("editor.start_badge_easiest"), ai.length ? this.t("editor.start_ai_found", { ai: ai.map((a) => a.name).join(", ") }) : this.t("editor.start_ai_none"), aiBody, toggle("ai"), st.open === "ai")}
       ${box(
-        "robot",
-        "mdi:robot-vacuum",
+        "trace",
+        "mdi:layers-outline",
         this.t("editor.start_badge_accurate"),
-        maps.length ? this.t("editor.start_robot_found", { maps: maps.map((m) => m.name).join(", ") }) : this.t("editor.start_robot_none"),
-        robotBody,
-        toggle("robot"),
-        st.open === "robot",
-        !maps.some((m) => m.scale),
+        maps.length ? this.t("editor.start_trace_maps", { maps: maps.map((m) => m.name).join(", ") }) : this.t("editor.start_trace_no_maps"),
+        traceBody,
+        toggle("trace"),
+        st.open === "trace",
       )}
       ${box("file", "mdi:file-import-outline", "", this.t("editor.start_file_found"), fileBody, toggle("file"), st.open === "file")}
       ${box("floors", "mdi:home-floor-1", "", floors.length ? this.t("editor.start_floors_found", { floors: floors.length, areas }) : this.t("editor.no_ha_floors"), nothing, () => {
         this._start = null;
         this.startWizard();
       })}
-      ${box("trace", "mdi:image-outline", "", this.t("editor.start_trace_found"), nothing, () => void this.startEmpty(true))}
-      ${box("empty", "mdi:pencil-ruler", this.t("editor.start_badge_control"), "", nothing, () => void this.startEmpty(false))}
+      ${box("empty", "mdi:pencil-ruler", this.t("editor.start_badge_control"), "", nothing, () => void this.startEmpty())}
       ${st.note ? html`<p class="notice" data-start-note>${st.note}</p>` : nothing}
       ${this._model
         ? html`<div class="row end"><button data-start-cancel @click=${() => {
@@ -1928,6 +1925,8 @@ export class HomeslicePanel extends LitElement {
       }
     } else if (e.key === "?") {
       this._shortcuts = !this._shortcuts;
+    } else if (e.key.toLowerCase() === "n" && !mod && !e.altKey && this._underlaySlots.length > 1) {
+      this.cycleUnderlay();
     } else if (!mod && !e.altKey) {
       const t = TOOLS.find((x) => x.key.toLowerCase() === e.key.toLowerCase());
       if (t) this.setTool(t.tool);
@@ -2933,25 +2932,55 @@ export class HomeslicePanel extends LitElement {
 
   // ----- floor plan image -----
 
-  private async loadUnderlay() {
-    const key = `${this._house}/${this._level}`;
+  private async loadUnderlay(slot?: number) {
+    const key = `${this._house}/${this._level}#${slot ?? ""}`;
     if (this.underlayRequest === key) return;
     this.underlayRequest = key;
     this._underlay = null;
     this._calib = null;
     this._underlayMove = false;
+    this._underlayAdding = false;
+    const level = this._level;
     try {
+      const list = await this._hass!.callWS<{ levels: string[]; slots?: string[] }>({ type: "homeslice/underlay/get", house: this._house });
+      if (this.underlayRequest !== key) return;
+      // "level" is its first backdrop, "level#2" another
+      const slots = (list.slots ?? list.levels)
+        .map((k) => k.split("#"))
+        .filter(([l]) => l === level)
+        .map(([, n]) => Number(n ?? 0))
+        .sort((a, b) => a - b);
+      this._underlaySlots = slots;
+      const want = slot ?? this.underlaySlotOf[level];
+      const pick = slots.includes(want as number) ? (want as number) : slots[0];
+      if (pick === undefined) return;
       const got = await this._hass!.callWS<{ image: string; place?: Underlay["place"]; opacity?: number; source?: string | null } | null>({
         type: "homeslice/underlay/get",
         house: this._house,
-        level: this._level,
+        level,
+        slot: pick,
       });
       if (!got || this.underlayRequest !== key) return;
       const { width, height } = await imageSize(got.image);
-      this._underlay = { level: this._level, image: got.image, width, height, place: got.place ?? { origin: [0, 0], scale: 0.01, rotation: 0 }, opacity: got.opacity ?? 0.5, ...(got.source ? { source: got.source } : {}) };
+      this.underlaySlotOf[level] = pick;
+      this._underlay = { level, slot: pick, image: got.image, width, height, place: got.place ?? { origin: [0, 0], scale: 0.01, rotation: 0 }, opacity: got.opacity ?? 0.5, ...(got.source ? { source: got.source } : {}) };
     } catch {
       // no image (or an older backend): nothing to show
     }
+  }
+
+  /** What a backdrop is: the robot's map it came from, or an image. */
+  private backdropName(u: Underlay): string {
+    return u.source ? this.entityName(u.source) : this.t("editor.backdrop_image");
+  }
+
+  /** Shows the level's next backdrop (the floor plan, then the robot's map, …). */
+  private cycleUnderlay() {
+    const slots = this._underlaySlots;
+    if (slots.length < 2) return;
+    const now = this._underlay?.level === this._level ? this._underlay.slot : slots[0];
+    this._underlayHidden = false;
+    void this.loadUnderlay(slots[(slots.indexOf(now) + 1) % slots.length]);
   }
 
   /** Image pixels → plan metres, and back. */
@@ -2975,7 +3004,7 @@ export class HomeslicePanel extends LitElement {
     this._underlay = { ...u, ...patch };
     clearTimeout(this.underlaySaveTimer);
     const send = () =>
-      this._hass!.callWS({ type: "homeslice/underlay/set", house: this._house, level: u.level, ...patch }).catch((e) => {
+      this._hass!.callWS({ type: "homeslice/underlay/set", house: this._house, level: u.level, slot: u.slot, ...patch }).catch((e) => {
         this._error = this.t("editor.save_failed", { message: String((e as { message?: string }).message ?? e) });
       });
     if (delay) this.underlaySaveTimer = window.setTimeout(send, delay);
@@ -2984,6 +3013,10 @@ export class HomeslicePanel extends LitElement {
 
   private async uploadUnderlay(file: File | Blob, metresPerPixel?: number, source?: string) {
     const level = this._level;
+    const current = this._underlay?.level === level ? this._underlay : null;
+    // another backdrop: the first free slot; else this one is replaced
+    const slot = this._underlayAdding ? [0, 1, 2, 3].find((n) => !this._underlaySlots.includes(n)) : (current?.slot ?? 0);
+    if (slot === undefined) return;
     try {
       const image = await shrinkImage(file as File, 2400);
       const { width, height } = await imageSize(image);
@@ -2992,8 +3025,12 @@ export class HomeslicePanel extends LitElement {
       const { min, max } = outline.length ? bbox(outline) : { min: [0, 0] as Vec2, max: [10, 8] as Vec2 };
       const scale = metresPerPixel ?? Math.max(0.001, (max[0] - min[0]) / width);
       const place = { origin: [min[0], min[1]] as Vec2, scale, rotation: 0 };
-      await this._hass!.callWS({ type: "homeslice/underlay/set", house: this._house, level, image, place, opacity: 0.5, source: source ?? null });
-      this._underlay = { level, image, width, height, place, opacity: 0.5, ...(source ? { source } : {}) };
+      await this._hass!.callWS({ type: "homeslice/underlay/set", house: this._house, level, slot, image, place, opacity: 0.5, source: source ?? null });
+      this._underlay = { level, slot, image, width, height, place, opacity: 0.5, ...(source ? { source } : {}) };
+      this._underlaySlots = [...new Set([...this._underlaySlots, slot])].sort((a, b) => a - b);
+      this.underlaySlotOf[level] = slot;
+      this.underlayRequest = `${this._house}/${level}#${slot}`;
+      this._underlayAdding = false;
       this._underlayHidden = false;
       // first straighten the scan (a robot's map is straight), then set its scale
       if (metresPerPixel) this._calib = {};
@@ -3107,7 +3144,7 @@ export class HomeslicePanel extends LitElement {
         if (f) void this.uploadUnderlay(f);
         (e.target as HTMLInputElement).value = "";
       }} />
-      <span>${u ? this.t("editor.underlay_replace") : this.t("editor.underlay_upload")}</span>
+      <span>${u && !this._underlayAdding ? this.t("editor.underlay_replace") : this.t("editor.underlay_upload")}</span>
     </label>`;
     // robot vacuums' maps (image entities of a vacuum's device): true to scale, to trace rooms on
     const maps = this.robotMaps();
@@ -3117,6 +3154,8 @@ export class HomeslicePanel extends LitElement {
             (id) => html`<button data-robot-map=${id} @click=${async () => {
               const url = this._hass?.states[id]?.attributes.entity_picture as string | undefined;
               if (!url) return;
+              // beside the floor plan as another backdrop (this map again: replaced)
+              if (u && u.source !== id && this._underlaySlots.length < 4) this._underlayAdding = true;
               const blob = await (await fetch(url)).blob();
               // Roborock draws its maps at 12.5 mm per pixel
               await this.uploadUnderlay(blob, 0.0125, id);
@@ -3125,8 +3164,27 @@ export class HomeslicePanel extends LitElement {
         </div>
         <p class="muted">${this.t("editor.underlay_robot_hint")}</p>`
       : nothing;
+    // the level's backdrops: the floor plan, a robot's map, … (N switches)
+    const slots = this._underlaySlots;
+    const backdrops = slots.length
+      ? html`<div class="backdrops">
+          ${slots.map(
+            (n, i) => html`<button class=${u?.slot === n && !this._underlayAdding ? "active" : ""} data-backdrop=${n} @click=${() => {
+              this._underlayAdding = false;
+              this._underlayHidden = false;
+              if (u?.slot !== n) void this.loadUnderlay(n);
+            }}>${u?.slot === n ? this.backdropName(u) : String(i + 1)}</button>`,
+          )}
+          ${slots.length < 4
+            ? html`<button data-backdrop-add class=${this._underlayAdding ? "active" : ""} title=${this.t("editor.backdrop_add")} @click=${() => (this._underlayAdding = !this._underlayAdding)}>+ ${this.t("editor.backdrop_add")}</button>`
+            : nothing}
+        </div>`
+      : nothing;
+    if (this._underlayAdding)
+      return html`<h3>${this.t("editor.underlay")}</h3>${backdrops}<p class="muted">${this.t("editor.backdrop_add_hint")}</p>${fileInput}${mapButtons}`;
     if (!u) return html`<h3>${this.t("editor.underlay")}</h3><p class="muted">${this.t("editor.underlay_hint")}</p>${fileInput}${mapButtons}`;
     return html`<h3>${this.t("editor.underlay")}</h3>
+      ${backdrops}
       ${this._straighten
         ? html`<div class="calib">
             <p>${this.t(this._straighten.a ? "editor.straighten_second" : "editor.straighten_first")}</p>
@@ -3182,82 +3240,20 @@ export class HomeslicePanel extends LitElement {
               ${this.t("editor.underlay_ruler")}</label>`
           : nothing}
       </div>
-      ${u.source
-        ? html`<h4>${this.t("editor.robot_rooms")}</h4>
-            <p class="muted">${this.t("editor.robot_rooms_hint")}</p>
-            <button data-robot-rooms ?disabled=${this._robotRoomsBusy} @click=${() => void this.importRobotRooms(u)}>${this.t("editor.robot_rooms_import")}</button>
-            ${this._robotRoomsNote ? html`<p class="notice">${this._robotRoomsNote}</p>` : nothing}`
-        : nothing}
       <div class="row">
         ${fileInput}
         <button class="danger" @click=${async () => {
           if (!confirm(this.t("editor.underlay_remove_confirm"))) return;
-          await this._hass!.callWS({ type: "homeslice/underlay/delete", house: this._house, level: this._level });
+          await this._hass!.callWS({ type: "homeslice/underlay/delete", house: this._house, level: this._level, slot: u.slot });
           this._underlay = null;
           this._calib = null;
           this._underlayMove = false;
+          // on to the level's next backdrop, if any
+          this.underlayRequest = "";
+          void this.loadUnderlay();
         }}>${this.t("editor.underlay_remove")}</button>
       </div>
       ${mapButtons}`;
-  }
-
-  private _robotRoomsBusy = false;
-  private _robotRoomsNote = "";
-
-  /**
-   * The rooms on the robot's map this floor plan image came from: read off its colours,
-   * placed where the image lies, named after the robot's rooms (a Home Assistant area of that
-   * name is given at once). Each is drawn like a room over others (taking its space).
-   */
-  private async importRobotRooms(u: Underlay) {
-    const hass = this._hass!;
-    const source = u.source!;
-    const url = hass.states[source]?.attributes.entity_picture as string | undefined;
-    if (!url) return;
-    this._robotRoomsBusy = true;
-    this._robotRoomsNote = "";
-    try {
-      // the map as it is now, in its own colours (the stored floor plan image may be re-encoded)
-      const bitmap = await createImageBitmap(await (await fetch(url)).blob());
-      const canvas = document.createElement("canvas");
-      canvas.width = bitmap.width;
-      canvas.height = bitmap.height;
-      const ctx = canvas.getContext("2d", { willReadFrequently: true })!;
-      ctx.drawImage(bitmap, 0, 0);
-      const { roomsFromMap } = await import("../import/robotmap");
-      const found = roomsFromMap(ctx.getImageData(0, 0, bitmap.width, bitmap.height)).sort((a, b) => b.area - a.area);
-      if (!found.length) {
-        this._robotRoomsNote = this.t("editor.robot_rooms_none");
-        return;
-      }
-      const names = await this.robotRoomNames(source);
-      const areas = Object.values(hass.areas ?? {});
-      // the image may have been stored smaller than the map; a map that grew since was placed differently
-      const k = u.width / bitmap.width;
-      if (Math.abs(k - u.height / bitmap.height) > 0.01 || (k !== 1 && Math.max(bitmap.width, bitmap.height) <= 2400)) {
-        this._robotRoomsNote = this.t("editor.robot_rooms_changed");
-        return;
-      }
-      let m = this._model!;
-      let named = 0;
-      for (const room of found) {
-        const poly = room.polygon.map(([x, y]) => this.underlayToPlan(u, [x * k, y * k])).map(([x, y]) => [Math.round(x * 100) / 100, Math.round(y * 100) / 100] as Vec2);
-        const name = names[room.number];
-        // the area most like the robot's room name: this level's floor first
-        const floorAreas = areas.filter((a) => a.floor_id && (a.floor_id === this.levelInput?.floor_id || this.levelInput?.include_floors?.includes(a.floor_id)));
-        const area = name ? (bestMatch(name, floorAreas, (a) => a.name, 0.6) ?? bestMatch(name, areas, (a) => a.name)) : undefined;
-        if (area || name) named++;
-        const taken = (m.levels.find((l) => l.id === this._level)?.rooms ?? []).map((r) => r.id);
-        const props: Partial<RoomInput> = area ? { id: uniqueId(taken, slug(area.area_id, "room")), area_id: area.area_id } : name ? { name } : {};
-        m = drawRoomOver(m, this._level, poly, props).model;
-      }
-      this.commit(m);
-      this._robotRoomsNote = this.t("editor.robot_rooms_done", { count: found.length, named });
-    } catch (err) {
-      this._robotRoomsNote = String((err as { message?: string }).message ?? err);
-    } finally {
-      this._robotRoomsBusy = false;
-    }
   }
 
   /** The robot's room names by room number, for the map picture `image` (Roborock: `roborock.get_maps`). */
@@ -3358,7 +3354,7 @@ export class HomeslicePanel extends LitElement {
           ([floor, w]) => html`<button class="mapping-chip" data-mapping=${floor} @click=${async () => {
             // back to the start, where it was left
             const kept = await this.loadStart();
-            this._start = { ...this.newStart(false), ...(kept?.state ?? {}), open: "robot", capture: { floor, map: w.map }, busy: false, note: "", problems: [], copied: false } as StartState;
+            this._start = { ...this.newStart(false), ...(kept?.state ?? {}), open: "trace", capture: { floor, map: w.map }, busy: false, note: "", problems: [], copied: false } as StartState;
           }}><ha-icon icon="mdi:radar"></ha-icon>${this.t("editor.header_mapping", { robot: this.entityName(w.robot ?? w.map), floor: this._hass?.floors?.[floor]?.name ?? floor })}</button>`,
         )}
         <span class="spacer"></span>
@@ -3443,6 +3439,11 @@ export class HomeslicePanel extends LitElement {
         <section class="plan-wrap">
           ${this.renderPlan()}
           ${this.renderCompass()}
+          ${this._underlaySlots.length > 1 && this._underlay?.level === this._level
+            ? html`<button class="backdrop-cycle" data-backdrop-cycle title=${this.t("editor.backdrop_next")} @click=${() => this.cycleUnderlay()}>
+                <ha-icon icon="mdi:layers-triple-outline"></ha-icon>${this.backdropName(this._underlay)}
+                <span class="muted">${this._underlaySlots.indexOf(this._underlay.slot) + 1}/${this._underlaySlots.length}</span></button>`
+            : nothing}
           ${this.renderWallView()}
           ${this.renderLoupe()}
           ${this._hint
@@ -3502,6 +3503,21 @@ export class HomeslicePanel extends LitElement {
     </button>`;
   }
 
+  /** The outside walls of the floors below and above, dashed, where they differ from this floor's (dragging snaps to them). */
+  private renderNeighbourOutlines(pts: (poly: Vec2[]) => string) {
+    const m = this._model!;
+    const idx = m.levels.findIndex((l) => l.id === this._level);
+    // (the level just deleted, for a moment)
+    if (idx < 0) return nothing;
+    const own = JSON.stringify(outlineScope(m, this._level).poly);
+    return [m.levels[idx - 1], m.levels[idx + 1]].map((x, i) => {
+      if (!x) return nothing;
+      const poly = outlineScope(m, x.id).poly;
+      if (poly.length < 3 || JSON.stringify(poly) === own) return nothing;
+      return svg`<polygon class="ghost-outline ${i ? "above" : "below"}" data-ghost-outline=${x.id} points=${pts(poly)}><title>${this.levelName(x)}</title></polygon>`;
+    });
+  }
+
   private renderPlan() {
     const m = this._model!;
     const idx = m.levels.findIndex((l) => l.id === this._level);
@@ -3529,6 +3545,7 @@ export class HomeslicePanel extends LitElement {
       <rect width="100%" height="100%" fill="url(#grid)"></rect>
       ${this.renderUnderlay()}
       ${below && this._show.below ? below.rooms.map((r) => svg`<polygon class="ghost" points=${pts(roomPolygon(m, r))}></polygon>`) : nothing}
+      ${this._show.below ? this.renderNeighbourOutlines(pts) : nothing}
       ${l?.kind === "roof" ? this.renderRoofParts(l, pts) : nothing}
       ${[...(l?.rooms ?? [])]
         // a room inside another is drawn over it
@@ -6479,6 +6496,7 @@ export class HomeslicePanel extends LitElement {
       ["F", "editor.key_furniture"],
       ["E", "editor.key_devices"],
       ["Del", "editor.key_delete"],
+      ["N", "editor.key_backdrop"],
       ["Esc", "editor.key_escape"],
       ["Ctrl+Z / Ctrl+Shift+Z", "editor.key_undo"],
       ["Ctrl+S", "editor.key_save"],
@@ -7326,6 +7344,34 @@ export class HomeslicePanel extends LitElement {
       fill: var(--primary-color, #03a9f4);
       font-weight: 700;
     }
+    .backdrop-cycle {
+      position: absolute;
+      right: 60px;
+      top: 14px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      max-width: 45%;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      --mdc-icon-size: 18px;
+    }
+    .backdrops {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      align-items: center;
+    }
+    .backdrops button.active {
+      border-color: var(--primary-color, #03a9f4);
+      font-weight: 600;
+    }
+    .start-plan img {
+      height: 32px;
+      vertical-align: middle;
+      margin-right: 6px;
+    }
     .compass {
       position: absolute;
       right: 10px;
@@ -7403,6 +7449,19 @@ export class HomeslicePanel extends LitElement {
     .gridline {
       stroke: var(--divider-color, #333);
       stroke-width: 1;
+    }
+    .ghost-outline {
+      fill: none;
+      stroke-width: 2;
+      stroke-dasharray: 8 5;
+      pointer-events: none;
+    }
+    .ghost-outline.below {
+      stroke: var(--secondary-text-color, #888);
+    }
+    .ghost-outline.above {
+      stroke: var(--accent-color, #ff9800);
+      opacity: 0.8;
     }
     .ghost {
       fill: none;

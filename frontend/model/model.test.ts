@@ -156,7 +156,7 @@ describe("deriveWalls", () => {
       { id: "right", rect: [5, 0, 5, 8] },
     ];
     const { house } = expandHouse(input);
-    const party = deriveWalls(house.levels[0], house.walls).filter((x) => x.type === "party");
+    const party = deriveWalls(house!.levels[0], house!.walls).filter((x) => x.type === "party");
     expect(party).toHaveLength(1);
     expect(party[0].thickness).toBe(0.24);
   });

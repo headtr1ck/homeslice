@@ -1,4 +1,4 @@
-// the start screen: a house from a robot's maps, a floor without a map caught live
+// the start screen: tracing robot maps and floor plans, a floor without a map caught live
 import { test } from "@playwright/test";
 import { readFileSync } from "node:fs";
 import { assert, base, browser, loadFixture, setBrowser, shot } from "./helpers.mjs";
@@ -10,7 +10,7 @@ test.describe.serial("editor, the start screen", () => {
     page = await browser.newPage({ viewport: { width: 1600, height: 1000 } });
     errors = [];
     page.on("pageerror", (e) => errors.push(e.message));
-    page.on("console", (m) => m.type() === "error" && errors.push(m.text()));
+    page.on("console", (m) => m.type() === "error" && errors.push(`${m.text()} (${m.location().url.split("/").pop()}:${m.location().lineNumber})`));
     page.on("dialog", (d) => d.accept());
     // both robots' map pictures: the synthetic test map (two rooms in the map's colours)
     await page.route("**/api/image_proxy/image.**", (route) => route.fulfill({ contentType: "image/png", body: readFileSync("dev/fixtures/robot-map.png") }));
@@ -37,11 +37,11 @@ test.describe.serial("editor, the start screen", () => {
     await page?.close();
   });
 
-  test("from the robot's maps: each floor its map, a floor without one mapped live, rooms named and given their areas", async () => {
+  test("tracing: each floor its robot map and floor plan, a floor without a map mapped live", async () => {
     const start = page.locator("homeslice-panel .start");
     await start.waitFor({ timeout: 5000 });
-    const robot = start.locator('section[data-start="robot"]');
-    assert(!(await robot.evaluate((e) => e.classList.contains("grey"))), "the robot box is greyed out");
+    const robot = start.locator('section[data-start="trace"]');
+    assert(!(await robot.evaluate((e) => e.classList.contains("grey"))), "the trace box is greyed out");
     assert((await robot.locator(".start-found").textContent()).includes("Robo Ground Floor"), "maps found");
     await robot.locator("button.start-head").click();
     // the ground floor took its map by name; the first floor has none yet: carry a robot there, or map it live
@@ -77,19 +77,30 @@ test.describe.serial("editor, the start screen", () => {
     await first.locator(".start-floor-map", { hasText: "Caught live" }).waitFor({ timeout: 3000 });
     // the robot stops: its map goes, the one caught stays
     await page.evaluate(() => window.panel.hass.setState("image.q10_map", "unknown"));
-    await robot.locator("button[data-start-maps-run]").click();
+    // a floor plan image for the ground floor too
+    await robot.locator('input[data-start-plan="ground_floor"]').setInputFiles("dev/fixtures/robot-map.png");
+    await robot.locator('[data-start-floor="ground_floor"] .start-plan img').waitFor({ timeout: 3000 });
+    await robot.locator("button[data-start-trace-run]").click();
     await page.locator("homeslice-panel svg.plan").waitFor({ timeout: 10000 });
     const m = await page.evaluate(() => window.panel._model);
+    // the floors start empty: the rooms are traced over the images
+    assert(m.levels.every((l) => !l.rooms.length), `rooms: ${JSON.stringify(m.levels.map((l) => l.rooms.length))}`);
     const ground = m.levels.find((l) => l.floor_id === "ground_floor");
     const upper = m.levels.find((l) => l.floor_id === "first_floor");
-    assert(m.outline === "auto", `outline: ${JSON.stringify(m.outline)}`);
-    assert(ground.rooms.some((r) => r.area_id === "kitchen") && ground.rooms.some((r) => r.area_id === "living_room"), `ground floor: ${JSON.stringify(ground.rooms.map((r) => [r.id, r.area_id, r.name]))}`);
-    assert(upper.rooms.length === 2, `first floor, from the map caught live: ${JSON.stringify(upper.rooms.map((r) => r.id))}`);
-    // the map lies under its floor, as the floor plan image
-    const u = await page.evaluate(() => window.panel.hass.callWS({ type: "homeslice/underlay/get", house: window.panel._house, level: window.panel._level }));
-    assert(u?.source === "image.robo_ground_floor" && u.place.scale === 0.0125, `ground floor's image: ${JSON.stringify(u && { source: u.source, place: u.place })}`);
+    const list = await page.evaluate(() => window.panel.hass.callWS({ type: "homeslice/underlay/get", house: window.panel._house }));
+    assert(list.slots.includes(ground.id) && list.slots.includes(`${ground.id}#1`) && list.slots.includes(upper.id), `backdrops: ${JSON.stringify(list)}`);
+    // the ground floor: the floor plan first, then the robot's map (true to scale), switched with N
+    await page.evaluate((id) => (window.panel._level = id), ground.id);
+    const cycle = page.locator("homeslice-panel button[data-backdrop-cycle]");
+    await cycle.waitFor({ timeout: 5000 });
+    assert((await cycle.textContent()).includes("Floor plan"), `first backdrop: ${await cycle.textContent()}`);
+    await page.locator("homeslice-panel svg.plan").click({ position: { x: 600, y: 600 } });
+    await page.keyboard.press("n");
+    await page.waitForFunction(() => window.panel._underlay?.slot === 1, null, { timeout: 5000 });
+    const u = await page.evaluate(() => window.panel._underlay);
+    assert(u.source === "image.robo_ground_floor" && u.place.scale === 0.0125, `ground floor's map: ${JSON.stringify({ source: u.source, place: u.place })}`);
     // and what to do next; nothing of the start is kept any more
-    assert((await page.locator("homeslice-panel [data-start-next]").textContent()).includes("own frame"), "no next step");
+    assert((await page.locator("homeslice-panel [data-start-next]").textContent()).includes("N switches"), "no next step");
     const left = await page.evaluate(() => window.panel.hass.callWS({ type: "homeslice/start" }));
     assert(left.state === null && !Object.keys(left.captures).length, `start kept: ${JSON.stringify(left).slice(0, 200)}`);
     await shot(page, "editor-start-robot-house");

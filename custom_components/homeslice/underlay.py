@@ -1,4 +1,4 @@
-"""Floor plan images under the editor's plan, one per level.
+"""Backdrop images under the editor's plan (a floor plan, a robot's map), a few per level.
 
 They live in Home Assistant's storage (one file per house, loaded only when the editor
 asks), so they are part of backups but never of the house model or any repository.
@@ -17,6 +17,8 @@ from .const import DOMAIN
 STORAGE_VERSION = 1
 # a data: URL; the editor shrinks images before uploading
 MAX_IMAGE_CHARS = 8_000_000
+# backdrops a level can have (a floor plan, robot maps, …)
+MAX_BACKDROPS = 4
 IMAGE_PREFIXES = ("data:image/png;base64,", "data:image/jpeg;base64,", "data:image/webp;base64,")
 
 
@@ -48,7 +50,7 @@ class Underlays:
         return (await self._levels(house_id)).get(level_id)
 
     async def async_list(self, house_id: str) -> list[str]:
-        """Levels that have an image."""
+        """Levels that have an image; a level's further backdrops as "level#slot"."""
         return sorted(await self._levels(house_id))
 
     async def async_set(self, house_id: str, level_id: str, patch: dict[str, Any]) -> dict[str, Any]:

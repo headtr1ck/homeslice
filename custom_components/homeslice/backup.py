@@ -26,6 +26,8 @@ MAX_FILES = 500
 MAX_TOTAL = 300_000_000
 MAX_MODEL = 12_000_000
 NAME = re.compile(r"^(manifest\.json|houses/[A-Za-z0-9_-]{1,80}\.json|underlays/[A-Za-z0-9_-]{1,80}\.json|models/index\.json|models/[A-Za-z0-9_-]{1,80}\.glb)$")
+# a level's backdrop: its id, or "id#slot" for a further one
+BACKDROP = re.compile(r"^[A-Za-z0-9_-]{1,80}(#[1-9])?$")
 
 
 class BackupError(Exception):
@@ -131,7 +133,8 @@ async def async_restore(hass: HomeAssistant, blob: bytes) -> dict[str, Any]:
             continue
         house_id = name[len("underlays/") : -len(".json")]
         for level_id, plan in (json.loads(content).get("levels") or {}).items():
-            if isinstance(plan, dict) and isinstance(level_id, str) and ID.match(level_id) and ID.match(house_id):
+            # a level's further backdrops are kept as "level#slot"
+            if isinstance(plan, dict) and isinstance(level_id, str) and BACKDROP.match(level_id) and ID.match(house_id):
                 try:
                     await underlays.async_set(house_id, level_id, plan)
                 except UnderlayError:

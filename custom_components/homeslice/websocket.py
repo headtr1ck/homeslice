@@ -16,7 +16,7 @@ from .start import Start, StartError
 from .backup import BackupError, async_backup, async_restore
 from .const import DEFAULT_HOUSE, DOMAIN, SHOW_EVENT
 from .store import HomesliceStore, ModelError
-from .underlay import UnderlayError, Underlays
+from .underlay import MAX_BACKDROPS, UnderlayError, Underlays
 
 
 def _store(hass: HomeAssistant) -> HomesliceStore:
@@ -174,17 +174,26 @@ PLACE = vol.Schema(
 )
 
 
+# a level's backdrops: the floor plan, a robot's map, …; slot 0 is stored under the level's id
+SLOT = vol.All(vol.Coerce(int), vol.Range(min=0, max=MAX_BACKDROPS - 1))
+
+
+def _slot_key(msg: dict[str, Any]) -> str:
+    return msg["level"] if not msg["slot"] else f"{msg['level']}#{msg['slot']}"
+
+
 @websocket_api.websocket_command(
-    {vol.Required("type"): "homeslice/underlay/get", vol.Required("house"): str, vol.Optional("level"): str}
+    {vol.Required("type"): "homeslice/underlay/get", vol.Required("house"): str, vol.Optional("level"): str, vol.Optional("slot", default=0): SLOT}
 )
 @websocket_api.require_admin
 @websocket_api.async_response
 async def ws_underlay_get(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
-    """A level's floor plan image and placement; without a level, the levels that have one."""
+    """A level's backdrop image (one of its slots) and placement; without a level, the levels that have one."""
     if "level" not in msg:
-        connection.send_result(msg["id"], {"levels": await _underlays(hass).async_list(msg["house"])})
+        keys = await _underlays(hass).async_list(msg["house"])
+        connection.send_result(msg["id"], {"levels": sorted({k.split("#")[0] for k in keys}), "slots": keys})
         return
-    connection.send_result(msg["id"], await _underlays(hass).async_get(msg["house"], msg["level"]))
+    connection.send_result(msg["id"], await _underlays(hass).async_get(msg["house"], _slot_key(msg)))
 
 
 @websocket_api.websocket_command(
@@ -192,6 +201,7 @@ async def ws_underlay_get(hass: HomeAssistant, connection: websocket_api.ActiveC
         vol.Required("type"): "homeslice/underlay/set",
         vol.Required("house"): str,
         vol.Required("level"): str,
+        vol.Optional("slot", default=0): SLOT,
         vol.Optional("image"): str,
         vol.Optional("place"): PLACE,
         vol.Optional("opacity"): vol.All(vol.Coerce(float), vol.Range(min=0, max=1)),
@@ -205,7 +215,7 @@ async def ws_underlay_set(hass: HomeAssistant, connection: websocket_api.ActiveC
     """Store a level's floor plan image and/or its placement (admins only)."""
     patch = {k: msg[k] for k in ("image", "place", "opacity", "source") if k in msg}
     try:
-        stored = await _underlays(hass).async_set(msg["house"], msg["level"], patch)
+        stored = await _underlays(hass).async_set(msg["house"], _slot_key(msg), patch)
     except UnderlayError as err:
         connection.send_error(msg["id"], "invalid_underlay", str(err))
         return
@@ -213,13 +223,13 @@ async def ws_underlay_set(hass: HomeAssistant, connection: websocket_api.ActiveC
 
 
 @websocket_api.websocket_command(
-    {vol.Required("type"): "homeslice/underlay/delete", vol.Required("house"): str, vol.Required("level"): str}
+    {vol.Required("type"): "homeslice/underlay/delete", vol.Required("house"): str, vol.Required("level"): str, vol.Optional("slot", default=0): SLOT}
 )
 @websocket_api.require_admin
 @websocket_api.async_response
 async def ws_underlay_delete(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
     """Remove a level's floor plan image (admins only)."""
-    await _underlays(hass).async_delete(msg["house"], msg["level"])
+    await _underlays(hass).async_delete(msg["house"], _slot_key(msg))
     connection.send_result(msg["id"])
 
 

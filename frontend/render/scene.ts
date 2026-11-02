@@ -974,7 +974,7 @@ export class HouseRenderer {
     }
     // a sharp line over a wide faint one: a soft glow
     const lines = new THREE.Group();
-    lines.add(...faces);
+    if (faces.length) lines.add(...faces); // (a floor without walls yet: none)
     for (const [linewidth, opacity] of [[6, 0.22], [1.6, 0.95]]) {
       const geo = new LineSegmentsGeometry().setPositions(pts);
       const material = new LineMaterial({ color: this.accent, linewidth, transparent: true, opacity, depthWrite: false });

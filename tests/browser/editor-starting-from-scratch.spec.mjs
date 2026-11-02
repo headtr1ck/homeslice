@@ -45,9 +45,9 @@ test.describe.serial("editor, starting from scratch", () => {
     await start.waitFor({ timeout: 5000 });
     assert((await start.locator("h1").textContent()).includes("Welcome to Homeslice"), "no greeting");
     const boxes = await start.locator("section.start-box").evaluateAll((els) => els.map((e) => [e.dataset.start, e.classList.contains("grey")]));
-    assert(JSON.stringify(boxes) === JSON.stringify([["ai", false], ["robot", true], ["file", false], ["floors", false], ["trace", false], ["empty", false]]), `boxes: ${JSON.stringify(boxes)}`);
-    // no robot map here: greyed out, saying what one would give
-    assert((await start.locator('section[data-start="robot"] .start-found').textContent()).includes("No robot map found"), "robot box text");
+    assert(JSON.stringify(boxes) === JSON.stringify([["ai", false], ["trace", false], ["file", false], ["floors", false], ["empty", false]]), `boxes: ${JSON.stringify(boxes)}`);
+    // no robot map here: a floor plan to trace, and what a robot's map would add
+    assert((await start.locator('section[data-start="trace"] .start-found').textContent()).includes("Cloud Map Extractor"), "trace box text");
     await start.locator('section[data-start="floors"] .start-found', { hasText: "4 floors" }).waitFor({ timeout: 3000 });
     await shot(page, "editor-start");
     await start.locator('section[data-start="floors"] button.start-head').click();
@@ -181,33 +181,26 @@ test.describe.serial("editor, starting from scratch", () => {
     await page.waitForSelector("homeslice-panel svg.plan image.underlay");
     const scale = await page.evaluate(() => window.panel._underlay.place.scale);
     assert(scale === 0.0125, `scale ${scale}`);
-    // its rooms read off the map's colours, named after the robot's rooms (an area of that name given at once)
-    await page.route("**/api/image_proxy/image.robo_map**", (route) => route.fulfill({ contentType: "image/png", body: readFileSync("dev/fixtures/robot-map.png") }));
-    const kitchenArea = await page.evaluate(() => Object.values(window.panel.hass.areas).find((a) => a.name === "Kitchen")?.area_id);
-    await page.evaluate(() => {
-      window.panel.hass.__fixture.robotMaps = [{ flag: 0, name: "Ground Floor", rooms: { 1: "Living room", 4: "Kitchen" } }];
-    });
-    const before = await page.evaluate(() => window.panel._model.levels.find((l) => l.id === window.panel._level).rooms.map((r) => r.id));
-    // the map has changed since it was placed (here: a different picture): it asks to place it again
-    await page.locator("homeslice-panel .inspector button[data-robot-rooms]").click();
-    await page.locator("homeslice-panel .inspector .notice", { hasText: "has changed since it was placed" }).waitFor({ timeout: 5000 });
-    await page.locator("homeslice-panel .inspector button[data-robot-map='image.robo_map']").click();
-    await page.waitForFunction(() => window.panel._underlay?.width === 240, null, { timeout: 5000 });
+    // a floor plan beside it, as another backdrop: switched with the button on the plan (or N)
     await page.evaluate(() => (window.panel._calib = null));
-    await page.locator("homeslice-panel .inspector button[data-robot-rooms]").click();
-    await page.locator("homeslice-panel .inspector .notice", { hasText: "Added 2 rooms" }).waitFor({ timeout: 5000 });
-    const rooms = (await page.evaluate(() => window.panel._model.levels.find((l) => l.id === window.panel._level).rooms)).filter((r) => !before.includes(r.id));
-    const kitchen = rooms.find((r) => r.area_id === kitchenArea);
-    // "Living room" is the area "Living Room"
-    const living = rooms.find((r) => r.area_id === "living_room");
-    assert(kitchen && living, `rooms from the map: ${JSON.stringify(rooms.map((r) => [r.id, r.area_id, r.name]))} (before: ${before})`);
-    // where the map lies, at its scale: the kitchen 44 × 68 px of 12.5 mm (plus the wall around it)
-    const kb = kitchen.rect ?? null;
-    assert(kb && Math.abs(kb[2] - 0.65) < 0.15 && Math.abs(kb[3] - 0.95) < 0.15, `kitchen size: ${JSON.stringify(kitchen)}`);
-    await shot(page, "editor-robot-rooms");
-    await page.evaluate(() => window.panel.shadowRoot.activeElement?.blur());
-    await page.keyboard.press("Control+z");
-    await page.locator("homeslice-panel .inspector button", { hasText: "Remove image" }).click();
+    await page.locator("homeslice-panel .inspector button[data-backdrop-add]").click();
+    await page.locator("homeslice-panel .inspector input[type=file][accept^='image/png']").setInputFiles("dev/fixtures/robot-map.png");
+    await page.waitForFunction(() => window.panel._underlay?.slot === 1 && window.panel._underlaySlots.length === 2, null, { timeout: 5000 });
+    await page.evaluate(() => {
+      window.panel._calib = null;
+      window.panel._straighten = null;
+    });
+    const cycle = page.locator("homeslice-panel button[data-backdrop-cycle]");
+    assert((await cycle.textContent()).includes("2/2"), `cycle: ${await cycle.textContent()}`);
+    await cycle.click();
+    await page.waitForFunction(() => window.panel._underlay?.slot === 0, null, { timeout: 5000 });
+    assert((await cycle.textContent()).includes("Robo Ground Floor"), `back to the map: ${await cycle.textContent()}`);
+    await shot(page, "editor-backdrops");
+    // each goes on its own: the map, then the plan
+    for (const left of [1, 0]) {
+      await page.locator("homeslice-panel .inspector button", { hasText: "Remove image" }).click();
+      await page.waitForFunction((n) => window.panel._underlaySlots.length === n, left, { timeout: 5000 });
+    }
     await page.keyboard.press("Escape");
   });
 

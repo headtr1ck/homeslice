@@ -37,8 +37,8 @@ lights, blinds, doors, climate, energy flows and people live on it. Free and ope
   doors swing, a temperature/humidity/CO₂ heatmap, presence and alarms, animated solar,
   battery and grid flows, people and pets in their rooms, weather and the real sun.
 - **Robots on the plan.** Robot vacuums and lawn mowers drive around with their live
-  position and show what their dock needs; their map can be the floor plan you trace.
-  With Roborock, the rooms come straight from the robot's map, named after its rooms.
+  position and show what their dock needs; their map, true to scale, lies under a floor
+  beside your floor plan to trace on.
 - **3D, 2.5D and 2D from one house.** Exploded 3D, tilted plan, flat plan, all floors side
   by side; day, night, white model or blueprint look — switch per card, not per drawing.
 - **400+ furniture pieces, plus whole libraries.** Built-in pieces resize sensibly and
