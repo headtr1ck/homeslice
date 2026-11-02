@@ -332,6 +332,8 @@ const ENERGY_ICONS: Record<string, string> = {
 /** A toggle for one lamp, shown on the focused level in rooms with several lights. */
 interface LampButton {
   entity: string;
+  /** What it switches: its light, and a lamp group's others. */
+  entities: string[];
   x: number;
   y: number;
   name: string;
@@ -1996,7 +1998,7 @@ export class HomesliceCard extends LitElement {
 
   private toggleLamp(lamp: LampButton) {
     this.note(this.t(lamp.on ? "card.note_off" : "card.note_on", { name: lamp.name }));
-    void this.hass?.callService("light", lamp.on ? "turn_off" : "turn_on", {}, { entity_id: lamp.entity });
+    void this.hass?.callService("light", lamp.on ? "turn_off" : "turn_on", {}, { entity_id: lamp.entities });
   }
 
   /** Places the lamps; only redone when the house's lights or their areas change. */
@@ -2373,17 +2375,28 @@ export class HomesliceCard extends LitElement {
     if (this._level && this.renderer.isLevelVisible(this._level)) {
       const perRoom = new Map<string, number>();
       for (const l of this.lamps) perRoom.set(`${l.levelId}/${l.roomId}`, (perRoom.get(`${l.levelId}/${l.roomId}`) ?? 0) + 1);
-      for (const l of this.lamps) {
-        if (l.levelId !== this._level || (perRoom.get(`${l.levelId}/${l.roomId}`) ?? 0) < 2) continue;
+      // lamp groups: one button for the lamps one light feeds (pieces on a group entity) and
+      // for those a lamp names in `with`; theirs go
+      const here = this.lamps.filter((l) => l.levelId === this._level);
+      const inGroup = new Set(here.flatMap((l) => l.with ?? []));
+      const byEntity = new Map<string, typeof here>();
+      for (const l of here) {
+        if (inGroup.has(l.entity) || (perRoom.get(`${l.levelId}/${l.roomId}`) ?? 0) < 2) continue;
+        byEntity.set(l.entity, [...(byEntity.get(l.entity) ?? []), l]);
+      }
+      for (const [entity, list] of byEntity) {
         // at the lamp itself (a pendant near the ceiling, a floor lamp's shade), so it sits on
-        // the lamp from any angle, not on the floor below it
-        const p = this.renderer.project(l.levelId, l.at, this.lampHeight(l));
+        // the lamp from any angle, not on the floor below it; a group at its lamps' middle
+        const l = list[0];
+        const at: Vec2 = [list.reduce((s, x) => s + x.at[0], 0) / list.length, list.reduce((s, x) => s + x.at[1], 0) / list.length];
+        const p = this.renderer.project(l.levelId, at, Math.max(...list.map((x) => this.lampHeight(x))));
         if (!p) continue;
         // keep clear of the room's label (lamp button over the name, centred on its point)
         const label = labels.find((x) => x.key === `${l.levelId}/${l.roomId}`);
         if (label && Math.abs(p.x - label.x) < 62 && Math.abs(p.y - label.y) < 64) p.y = label.y + (p.y < label.y ? -64 : 54);
-        const state = this.hass.states[l.entity];
-        buttons.push({ entity: l.entity, ...p, name: (state?.attributes.friendly_name as string | undefined) ?? l.entity, on: state?.state === "on" });
+        const entities = [...new Set([entity, ...list.flatMap((x) => x.with ?? [])])];
+        const state = this.hass.states[entity];
+        buttons.push({ entity, entities, ...p, name: (state?.attributes.friendly_name as string | undefined) ?? entity, on: entities.some((e) => this.hass!.states[e]?.state === "on") });
       }
     }
     this._lampButtons = buttons;
@@ -2553,7 +2566,7 @@ export class HomesliceCard extends LitElement {
               title=${b.name}
               aria-description=${this.t("card.lamp_hint")}
               aria-label=${this.t(b.on ? "card.light_off" : "card.light_on", { light: b.name })}
-              @pointerdown=${(e: PointerEvent) => this.lampDown(e, [b.entity], () => this.hold(b.entity))}
+              @pointerdown=${(e: PointerEvent) => this.lampDown(e, b.entities, () => this.hold(b.entity))}
               @contextmenu=${(e: Event) => {
                 e.preventDefault();
                 this.hold(b.entity);

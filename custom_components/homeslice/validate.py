@@ -401,6 +401,10 @@ def validate(house: Any) -> list[dict[str, str]]:
                     err(f"{rp}.lights.{j}.height", "height must be metres above the floor (0–6).")
                 elif ltype == "strip" and (at is MISSING or to is MISSING):
                     err(f"{rp}.lights.{j}", "A strip needs at and to: its two ends.")
+                elif (group := get(light, "with")) is not MISSING and not (
+                    isinstance(group, list) and all(isinstance(e, str) and e.startswith("light.") for e in group)
+                ):
+                    err(f"{rp}.lights.{j}.with", "with must be a list of light entities, e.g. [light.b, light.c].")
             for j, ci in enumerate(items(get(ri, "cameras"))):
                 cp = f"{rp}.cameras.{j}"
                 entity = get(ci, "entity")

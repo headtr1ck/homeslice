@@ -528,6 +528,46 @@ if (selected()) {
     await act(page, () => page.locator('homeslice-card button.lamp.single[title="Reading lamp"]').click());
   });
 
+  await test("lamp groups: pieces on one light share a button, a lamp's group switches all", async () => {
+    // still on the ground floor: two pendants on the living room light, the reading lamp in its group
+    const before = { living: await state(page, "light.living_room"), reading: await state(page, "light.reading_lamp") };
+    await act(page, () =>
+      page.evaluate(() => {
+        const m = structuredClone(window.__demoModel);
+        const living = m.levels[0].rooms.find((r) => r.id === "living");
+        living.furniture = [
+          { type: "ceiling_lamp", at: [2, 2], entity: "light.living_room" },
+          { type: "ceiling_lamp", at: [4, 2], entity: "light.living_room" },
+          { type: "floor_lamp", at: [1, 4], entity: "light.reading_lamp" },
+        ];
+        window.card.hass.pushModel(m);
+      }),
+    );
+    let buttons = page.locator("homeslice-card button.lamp.single");
+    assert((await buttons.count()) === 2, `one button per light: ${await buttons.count()}`);
+    assert((await page.evaluate(() => window.card.renderer.lampState("light.living_room")?.parts ?? window.card.lamps.filter((l) => l.entity === "light.living_room").length)) >= 2, "both pendants not lit by the light");
+    await act(page, () =>
+      page.evaluate(() => {
+        const m = structuredClone(window.__demoModel);
+        m.levels[0].rooms.find((r) => r.id === "living").lights = [{ entity: "light.living_room", at: [3, 2], with: ["light.reading_lamp"] }, { entity: "light.reading_lamp", at: [1, 4] }];
+        window.card.hass.pushModel(m);
+      }),
+    );
+    buttons = page.locator("homeslice-card button.lamp.single");
+    await page.waitForFunction(() => document.querySelector("homeslice-card").shadowRoot.querySelectorAll("button.lamp.single").length === 1);
+    const was = await state(page, "light.living_room");
+    await act(page, () => buttons.first().click());
+    const now = [await state(page, "light.living_room"), await state(page, "light.reading_lamp")];
+    assert(now[0] !== was && now[0] === now[1], `group switched: ${was} → ${now}`);
+    await act(page, () =>
+      page.evaluate((before) => {
+        window.card.hass.setState("light.living_room", before.living);
+        window.card.hass.setState("light.reading_lamp", before.reading);
+        window.card.hass.pushModel(window.__demoModel);
+      }, before),
+    );
+  });
+
   await test("a right click on a lamp opens its details", async () => {
     await page.evaluate(() => {
       window.moreInfo = [];

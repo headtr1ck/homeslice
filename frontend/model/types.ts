@@ -179,6 +179,8 @@ export interface LightInput {
   to?: [number, number];
   /** Strips: metres above the floor (default under the ceiling). */
   height?: number;
+  /** A lamp group: its button also switches and dims these lights (their own buttons go). */
+  with?: string[];
 }
 
 /**
@@ -528,7 +530,7 @@ export interface Room {
   /** As in the input, with `at` in plan coordinates. */
   /** `piece`: the light of a piece of furniture (placed where the piece is). */
   /** `spots` and `to` in plan coordinates too. */
-  lights: { entity: string; at?: Vec2; hidden: boolean; piece?: boolean; type: LightType; spots: Vec2[]; to?: Vec2; height?: number }[];
+  lights: { entity: string; at?: Vec2; hidden: boolean; piece?: boolean; type: LightType; spots: Vec2[]; to?: Vec2; height?: number; with?: string[] }[];
   /** `at` in plan coordinates; defaults filled in. */
   cameras: { entity: string; at: Vec2; direction: number; fov: number; range: number; height: number; motion?: string }[];
   /** `elevation`: bottom above the floor in metres (ceiling pieces: null, they hang from the ceiling). */

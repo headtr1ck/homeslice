@@ -85,6 +85,8 @@ vertical:
   says how it looks: `lamp` (default), `spot` (ceiling downlights; `spots: [[x, y], …]`
   adds more downlights on the same light), `strip` (an LED strip from `at` to `to`,
   optional `height` in metres) or `indirect` (light washing the room's walls).
+  `with: [light.b, light.c]` makes a lamp group: its button switches and dims those too (their
+  own buttons go). Several pieces linked to one light (an HA light group) share one button.
 - `awning: cover.…` on an outdoor room: an awning on the house wall over it.
 - `railing: glass` (or `metal`, `wood`) on an outdoor room: a balcony or roof terrace, a solid floor with a railing on its free edges.
 - `underfloor: climate.…` on a room: underfloor heating, its loops glow in the floor while it heats, on cards with `heating: true` (also a valve, switch or binary sensor).

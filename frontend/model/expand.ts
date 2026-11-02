@@ -254,6 +254,8 @@ export function expandHouse(input: unknown): ExpandResult {
         if (li.to !== undefined && !point(li.to)) return err(`${rp}.lights.${j}.to`, "to must be [metres east, metres south] of the room's north-west corner.");
         if (li.height !== undefined && !(typeof li.height === "number" && li.height >= 0 && li.height <= 6)) return err(`${rp}.lights.${j}.height`, "height must be metres above the floor (0–6).");
         if (li.type === "strip" && (li.at === undefined || li.to === undefined)) return err(`${rp}.lights.${j}`, "A strip needs at and to: its two ends.");
+        if (li.with !== undefined && !(Array.isArray(li.with) && li.with.every((e) => typeof e === "string" && e.startsWith("light."))))
+          return err(`${rp}.lights.${j}.with`, "with must be a list of light entities, e.g. [light.b, light.c].");
         const abs = (p: [number, number]): Vec2 => [min[0] + p[0], min[1] + p[1]];
         lights.push({
           entity: li.entity,
@@ -263,13 +265,15 @@ export function expandHouse(input: unknown): ExpandResult {
           spots: (li.spots ?? []).map(abs),
           ...(li.to ? { to: abs(li.to) } : {}),
           ...(li.height !== undefined ? { height: li.height } : {}),
+          ...(li.with?.length ? { with: li.with } : {}),
         });
       });
       const furniture = parseFurniture(ri.furniture, rp, min);
       // a piece's light is where the piece stands (it moves with it)
       for (const f of furniture) {
         if (!f.entity?.startsWith("light.")) continue;
-        const listed = lights.find((x) => x.entity === f.entity);
+        // (several pieces on one light — a group entity, one switch — each glow where they stand)
+        const listed = lights.find((x) => x.entity === f.entity && !x.piece);
         if (listed) Object.assign(listed, { at: f.at, piece: true });
         else lights.push({ entity: f.entity, at: f.at, hidden: false, piece: true, type: "lamp", spots: [] });
       }

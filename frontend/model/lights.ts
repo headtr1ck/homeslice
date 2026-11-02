@@ -18,6 +18,8 @@ export interface PlacedLight {
   spots: Vec2[];
   to?: Vec2;
   height?: number;
+  /** A lamp group: more lights its button switches. */
+  with?: string[];
 }
 
 /** Lights listed in any room of the house: those are never auto-placed elsewhere. */
@@ -71,5 +73,6 @@ export function placeLights(levelId: string, room: Room, polygon: Vec2[], areaLi
     spots: e.spots,
     ...("to" in e && e.to ? { to: e.to } : {}),
     ...("height" in e && e.height !== undefined ? { height: e.height } : {}),
+    ...("with" in e && e.with?.length ? { with: e.with } : {}),
   }));
 }

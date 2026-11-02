@@ -167,6 +167,8 @@ const MUTATIONS: [string, (h: House) => unknown][] = [
   ["roof window too big", (h) => ((h.roof = { windows: [{ side: "south", at: 2, width: 5 }] }), h)],
   ["roof window cover not a cover", (h) => ((h.roof = { windows: [{ side: "south", at: 2, cover: "light.x" }] }), h)],
   ["door lock not a lock", (h) => ((h.levels[0].openings[0].lock = "switch.x"), h)],
+  ["lamp group not lights", (h) => ((h.levels[0].rooms[0].lights[0].with = ["switch.x"]), h)],
+  ["valid: a lamp group", (h) => ((h.levels[0].rooms[0].lights[0].with = ["light.b", "light.c"]), h)],
   ["level odd elevation", (h) => ((h.levels[1].elevation = "high"), h)],
   ["valid: a split level", (h) => ((h.levels[1].elevation = 1.4), h)],
   ["railing line odd style", (h) => (h.levels[0].walls.push({ line: [[1, 7], [3, 7]], type: "railing", railing: "rope" }), h)],
