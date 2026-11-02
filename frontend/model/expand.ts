@@ -2,7 +2,7 @@
 // defaults and elevations. Problems are collected as issues instead of thrown, so a
 // partly broken file still renders and the user sees every problem at once.
 
-import { roomsOutline } from "./faces";
+import { roomsOutlines } from "./faces";
 import { bbox, bendEdges, edges, labelPoint, normalizeOrientation, offsetEdges, outwardNormal, pointInPolygon, rectPolygon, sideOf, signedArea } from "./geometry";
 import { migrateHouse } from "./migrate";
 import { facadeHalves } from "./walls";
@@ -438,10 +438,18 @@ export function expandHouse(input: unknown): ExpandResult {
 
     const auto = li.outline === "auto" || (autoHouse && !li.outline);
     let outline = auto ? null : (shape(li.outline as ShapeInput | undefined, `${lp}.outline`) ?? houseOutline);
+    // (auto: groups of rooms standing apart are buildings of their own)
+    let annexes: Vec2[][] = [];
     if (auto) {
-      const own = roomsOutline(rooms.filter((r) => r.kind !== "outdoor").map((r) => r.polygon));
+      const [own = [], ...apart] = roomsOutlines(rooms.filter((r) => r.kind !== "outdoor").map((r) => r.polygon));
       if (own.length && autoHouse && !houseOutline) houseOutline = own;
       outline = own.length ? own : houseOutline;
+      annexes = apart;
+    } else if (outline) {
+      // rooms wholly outside a drawn outline: buildings of their own too
+      const shape = outline;
+      const apart = rooms.filter((r) => r.kind !== "outdoor" && r.polygon.every((p) => !pointInPolygon(p, shape) || onBoundary(p, shape)) && !pointInPolygon(labelPoint(r.polygon), shape));
+      if (apart.length) annexes = roomsOutlines(apart.map((r) => r.polygon));
     }
     // an outdoor room inside the house (a roof terrace, a loggia) is decked, not lawn
     if (outline)
@@ -501,6 +509,8 @@ export function expandHouse(input: unknown): ExpandResult {
       slab,
       outline: outline ?? [],
       outer: [] as Vec2[],
+      annexes,
+      annexesOuter: [] as Vec2[][],
       partyWalls: li.party_walls ?? h.party_walls ?? [],
       rooms,
       openings,
@@ -527,6 +537,7 @@ export function expandHouse(input: unknown): ExpandResult {
     const terraces = level.rooms.filter((r) => r.kind === "outdoor").map((r) => r.polygon);
     const halves = facadeHalves(level.outline, level.partyWalls, walls, (p) => terraces.some((t) => pointInPolygon(p, t)));
     level.outer = offsetEdges(level.outline, halves);
+    level.annexesOuter = level.annexes.map((a) => offsetEdges(a, facadeHalves(a, [], walls)));
   }
 
   // façade openings: placed on each listed level in the room behind that stretch of wall
@@ -702,4 +713,13 @@ export function expandHouse(input: unknown): ExpandResult {
   if (h.north !== undefined && typeof h.north !== "number") err("north", `north must be degrees (a number), got ${JSON.stringify(h.north)}.`);
   const north = typeof h.north === "number" ? h.north : 0;
   return { house: { id: h.id, name: h.name ?? h.id, walls, levels, vertical, roof, energy, invertedCovers, robots, north, ...(h.facade ? { facade: h.facade } : {}), ...(h.pieces?.length ? { pieces: h.pieces } : {}) }, issues };
+}
+
+/** Whether p lies on the polygon's boundary (a room sharing a wall with the house). */
+function onBoundary(p: Vec2, poly: Vec2[]): boolean {
+  return edges(poly).some(([a, b]) => {
+    const l = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1;
+    const t = ((p[0] - a[0]) * (b[0] - a[0]) + (p[1] - a[1]) * (b[1] - a[1])) / l;
+    return Math.abs((p[0] - a[0]) * (b[1] - a[1]) - (p[1] - a[1]) * (b[0] - a[0])) / l < 0.01 && t > -0.01 && t < l + 0.01;
+  });
 }

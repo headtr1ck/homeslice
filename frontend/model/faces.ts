@@ -207,9 +207,19 @@ export function dropStraightCorners(poly: Vec2[]): Vec2[] {
  * rooms sharing walls. A room standing apart (a shed in the garden) is left out of it.
  */
 export function roomsOutline(rooms: Vec2[][]): Vec2[] {
+  return roomsOutlines(rooms)[0] ?? [];
+}
+
+/**
+ * The outer edge of each separate group of rooms, the biggest first: the house, then any
+ * building standing on its own (a shed, a detached garage).
+ */
+export function roomsOutlines(rooms: Vec2[][]): Vec2[][] {
   const segments: [Vec2, Vec2][] = rooms.flatMap((poly) => poly.map((p, i) => [p, poly[(i + 1) % poly.length]] as [Vec2, Vec2]));
-  const [outer] = outerBoundaries(segments, 0.25, 0);
-  if (!outer) return [];
+  return outerBoundaries(segments, 0.25, 0).map(northWestFirst);
+}
+
+function northWestFirst(outer: Vec2[]): Vec2[] {
   const poly = dropStraightCorners(outer.map(([x, y]) => [Math.round(x * 1000) / 1000, Math.round(y * 1000) / 1000] as Vec2));
   // starting at the north-west corner, like a written outline (its walls keep their numbers)
   let first = 0;

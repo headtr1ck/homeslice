@@ -297,6 +297,42 @@ describe("deriveWalls", () => {
     expect(ext(outer)).toBeCloseTo(0.12);
   });
 
+  it("with outline: auto, a group of rooms standing apart is a building of its own (a shed)", () => {
+    const input: HouseInput = {
+      schema: 2,
+      id: "shed",
+      outline: "auto",
+      party_walls: ["east"],
+      levels: [
+        {
+          id: "g",
+          rooms: [
+            { id: "house", rect: [0, 0, 8, 6] },
+            { id: "shed", rect: [12, 1, 3, 2] },
+            { id: "garden", kind: "outdoor", rect: [-2, -2, 20, 12] },
+          ],
+        },
+      ],
+    };
+    const { house, issues } = expandHouse(input);
+    expect(issues).toEqual([]);
+    const level = house!.levels[0];
+    expect(level.outline).toEqual([[0, 0], [8, 0], [8, 6], [0, 6]]);
+    expect(level.annexes).toEqual([[[12, 1], [15, 1], [15, 3], [12, 3]]]);
+    expect(level.annexesOuter[0].map((p) => p.map((v) => Math.round(v * 100) / 100))).toEqual([[11.82, 0.82], [15.18, 0.82], [15.18, 3.18], [11.82, 3.18]]);
+    const w = deriveWalls(level, house!.walls);
+    const shed = w.filter((x) => x.rooms.includes("shed"));
+    // outside walls all round, none of them the house's party wall
+    expect(shed.map((x) => x.type).sort()).toEqual(["exterior", "exterior", "exterior", "exterior"]);
+    expect(w.filter((x) => x.type === "party" && x.rooms.includes("house"))).toHaveLength(1);
+    // a drawn outline: a room wholly outside it is a building of its own the same way
+    const drawn = expandHouse({ ...input, outline: { rect: [0, 0, 8, 6] } });
+    expect(drawn.issues).toEqual([]);
+    expect(drawn.house!.levels[0].annexes).toEqual([[[12, 1], [15, 1], [15, 3], [12, 3]]]);
+    const dw = deriveWalls(drawn.house!.levels[0], drawn.house!.walls, []);
+    expect(dw.filter((x) => x.rooms.includes("shed")).every((x) => x.type === "exterior")).toBe(true);
+  });
+
   it("measures rooms to the inside of their walls", async () => {
     const { innerPolygon } = await import("./walls");
     const { signedArea } = await import("./geometry");

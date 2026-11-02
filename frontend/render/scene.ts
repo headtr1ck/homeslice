@@ -515,6 +515,8 @@ export class HouseRenderer {
   /** Robots: their body (moved to the live position) and status ring, on their level. */
   private robots = new Map<string, { levelIndex: number; body: THREE.Group; ring: THREE.MeshBasicMaterial; glide?: { from: Vec2; to: Vec2; start: number; ms: number }; seen?: boolean }>();
   private robotObjects: THREE.Object3D[] = [];
+  /** Roofs of buildings standing on their own, by level. */
+  private annexRoofs: { levelIndex: number; group: THREE.Group }[] = [];
   /** Robots' map pictures on their floors: the picture shown, when it was last fetched. */
   private robotMaps = new Map<string, { mesh: THREE.Mesh; material: THREE.MeshBasicMaterial; url: string; at: number; later?: number }>();
   /** Where each energy item is, in its level group's coordinates (solar: on the roof). */
@@ -691,6 +693,7 @@ export class HouseRenderer {
     this.glasses.clear();
     this.awnings.clear();
     this.roof = null;
+    this.annexRoofs = [];
     this.roofInfo = null;
     this.energyObjects = [];
     this.energyPoints.clear();
@@ -738,6 +741,39 @@ export class HouseRenderer {
       slab.translate(0, -level.slab, 0);
       g.add(this.mesh(slab, this.lambert(COLORS.slab)));
     }
+    // buildings of their own (a shed, a detached garage): their slab, and a roof where
+    // nothing stands on them
+    level.annexesOuter.forEach((outer, i) => {
+      const slab = new THREE.ExtrudeGeometry(shapeOf(outer, []), { depth: level.slab, bevelEnabled: false });
+      slab.rotateX(-Math.PI / 2);
+      slab.translate(0, -level.slab, 0);
+      g.add(this.mesh(slab, this.lambert(COLORS.slab)));
+      const inside = labelPoint(level.annexes[i]);
+      const covered = (this.model?.levels ?? []).some((l) => l.index > level.index && l.kind !== "roof" && (pointInPolygon(inside, l.outline) || l.annexes.some((a) => pointInPolygon(inside, a))));
+      if (!this.view.roof || covered) return;
+      const { min, max } = bbox(outer);
+      const roof = this.buildRoofPart(
+        {
+          id: `annex_${i}`,
+          polygon: outer,
+          // a low shed roof, falling along the longer side
+          shape: "shed",
+          angle: max[0] - min[0] >= max[1] - min[1] ? 0 : 90,
+          pitch: 8,
+          overhang: 0.2,
+          offset: 0,
+          high: max[0] - min[0] >= max[1] - min[1] ? "north" : "west",
+          finish: this.model?.roof.finish ?? "roof_clay",
+          dormers: [],
+          windows: [],
+          furniture: [],
+        },
+        level.height,
+        100 + i,
+      );
+      g.add(roof);
+      this.annexRoofs.push({ levelIndex: level.index, group: roof });
+    });
 
     // a stairwell looks down into a dark shaft while the floor below is hidden
     for (const hole of holes) g.add(this.well(hole, level.slab));
@@ -3679,8 +3715,9 @@ export class HouseRenderer {
 
   private applyLevel(l: LevelState) {
     l.group.position.y = l.baseY + l.lift + l.hoverLift;
-    // the roof belongs to the overview only
+    // the roof belongs to the overview only (a shed's too)
     if (this.roof && l === this.levels[this.levels.length - 1]) this.roof.visible = this.focus === null && this.hover === null;
+    for (const r of this.annexRoofs) if (this.levels[r.levelIndex] === l) r.group.visible = this.focus === null && this.hover === null;
     const opacity = l.opacity * l.hoverOpacity;
     l.group.visible = opacity > 0.01;
     const fading = opacity < 0.999;

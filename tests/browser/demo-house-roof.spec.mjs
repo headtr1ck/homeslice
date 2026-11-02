@@ -279,6 +279,22 @@ test.describe.serial("demo house, roof (1)", () => {
     await act(page, () => page.evaluate(() => window.card.hass.pushModel(window.__demoModel)));
   });
 
+  test("a shed in the garden: a building of its own, with outside walls and a roof", async () => {
+    const before = await triangles(page);
+    await act(page, () =>
+      page.evaluate(() => {
+        const m = structuredClone(window.__demoModel);
+        m.levels[0].rooms.push({ id: "shed", name: "Shed", rect: [5, 12, 2.5, 2] });
+        window.card.hass.pushModel(m);
+      }),
+    );
+    const shed = await page.evaluate(() => ({ annexes: window.card.house.levels[0].annexes, walls: [...window.card.walls.get("ground")].filter((w) => w.rooms.includes("shed")).map((w) => w.type), issues: window.card._issues.map((i) => i.message) }));
+    assert(shed.annexes.length === 1 && shed.walls.length === 4 && shed.walls.every((t) => t === "exterior") && !shed.issues.length, JSON.stringify(shed));
+    assert((await triangles(page)) > before, "nothing more drawn");
+    await shot(page, "demo-shed");
+    await act(page, () => page.evaluate(() => window.card.hass.pushModel(window.__demoModel)));
+  });
+
   test("curved walls: a bowed front, its rooms and walls following the arc", async () => {
     await act(page, () =>
       page.evaluate(() => {

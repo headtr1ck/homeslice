@@ -134,6 +134,10 @@ Home Assistant's energy settings; `details:` adds more readings to an item's cal
 
 ## Robots
 
+A garden shed, a detached garage or a garden house: draw its rooms (kind `room`) apart from
+the house, wholly outside the outline. Such a group of rooms is a building of its own, with
+outside walls (never a party wall), a floor slab and a low shed roof.
+
 `robots:` places robot vacuums and lawn mowers with their dock. A live position is set up
 in the editor, and so is `map:` (the robot's map picture on the card while it cleans:
 `{entity: image.…, size: [w, h], origin: [x, y], scale: 0.0125, rotation: 0}`); see

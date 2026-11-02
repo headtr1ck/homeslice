@@ -12,6 +12,7 @@ import {
   len,
   edgeNormal,
   edges,
+  labelPoint,
   outwardNormal,
   project,
   scale,
@@ -82,6 +83,8 @@ interface Piece {
   a: Vec2;
   b: Vec2;
   rooms: Set<string>;
+  /** On a building standing on its own (never a party wall). */
+  annex?: boolean;
   /** Direction along the (positively oriented) outline, when the piece lies on it. */
   outline: [Vec2, Vec2] | null;
 }
@@ -98,13 +101,14 @@ export function deriveWalls(level: Level, thickness: WallThickness, issues: Issu
   // 1. snapping: the outline first, so its corners win
   const points: Vec2[] = [];
   const snap = (p: Vec2): Vec2 => points.find((c) => dist(c, p) < SNAP) ?? (points.push(p), p);
-  const sources: { poly: Vec2[]; room: string | null }[] = [];
+  const sources: { poly: Vec2[]; room: string | null; annex?: boolean }[] = [];
   if (level.outline.length) sources.push({ poly: level.outline.map(snap), room: null });
+  for (const a of level.annexes) sources.push({ poly: a.map(snap), room: null, annex: true });
   for (const r of level.rooms) if (r.kind === "room") sources.push({ poly: r.polygon.map(snap), room: r.id });
 
   // 2. split at T-junctions
   const pieces = new Map<string, Piece>();
-  for (const { poly, room } of sources) {
+  for (const { poly, room, annex } of sources) {
     for (const [a, b] of edges(poly)) {
       const length = dist(a, b);
       if (length < SNAP) continue;
@@ -124,7 +128,10 @@ export function deriveWalls(level: Level, thickness: WallThickness, issues: Issu
         const key = pieceKey(p, q);
         let piece = pieces.get(key);
         if (!piece) pieces.set(key, (piece = { a: p, b: q, rooms: new Set(), outline: null }));
-        if (room === null) piece.outline = [p, q];
+        if (room === null) {
+          piece.outline = [p, q];
+          if (annex) piece.annex = true;
+        }
         else piece.rooms.add(room);
       }
     }
@@ -154,7 +161,7 @@ export function deriveWalls(level: Level, thickness: WallThickness, issues: Issu
     }
     // a side a little off square (a corner dragged a few centimetres) is still that side
     const side = sideOf(outwardNormal(...piece.outline), PARTY_SLANT);
-    return side && partyWalls.has(side) ? "party" : "exterior";
+    return side && !piece.annex && partyWalls.has(side) ? "party" : "exterior";
   };
 
   // 4. merge collinear neighbours with the same type and the same rooms on them
@@ -233,6 +240,8 @@ export function deriveWalls(level: Level, thickness: WallThickness, issues: Issu
     const ob = bbox(level.outline);
     for (const r of level.rooms) {
       if (r.kind !== "room") continue;
+      // (a building of its own: inside that)
+      if (level.annexes.some((a) => pointInPolygon(labelPoint(r.polygon), a))) continue;
       const rb = bbox(r.polygon);
       if (rb.min[0] < ob.min[0] - SNAP || rb.min[1] < ob.min[1] - SNAP || rb.max[0] > ob.max[0] + SNAP || rb.max[1] > ob.max[1] + SNAP) {
         issues.push({ severity: "warning", path: `${path}.rooms.${r.id}`, message: "Room reaches outside the level outline." });

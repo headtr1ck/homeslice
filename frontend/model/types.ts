@@ -650,6 +650,12 @@ export interface Level {
   outline: Vec2[];
   /** The outside walls' outer face (the outline out by half of each wall). */
   outer: Vec2[];
+  /**
+   * Buildings standing on their own on this level (a shed, a detached garage), with
+   * `outline: auto`: each one's outline (wall centres), and its outer face.
+   */
+  annexes: Vec2[][];
+  annexesOuter: Vec2[][];
   partyWalls: Side[];
   rooms: Room[];
   openings: Opening[];

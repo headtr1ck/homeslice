@@ -38,6 +38,9 @@ previous version, so a save can be undone in the editor (⚙ → Restore previou
 - `outline: auto` instead: each level's outline is the outer edge of its rooms (gardens and
   balconies left out, so an overhang comes out right), the house's (façade, roof) the
   lowest level's. Good when the rooms are the house; set a shape when the outside differs.
+- A building standing on its own (a garden shed, a detached garage, a garden house): its
+  rooms (kind `room`, with their `area_id`) drawn apart from the house, wholly outside the
+  outline. It gets outside walls, a floor slab and a low roof of its own.
 - Positions inside a room (lights, furniture) are metres east and south of the room's
   north-west corner (of its bounding box), not plan coordinates.
 
