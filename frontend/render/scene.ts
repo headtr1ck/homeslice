@@ -15,7 +15,7 @@ import { LineGeometry } from "three/examples/jsm/lines/LineGeometry.js";
 import { LineMaterial } from "three/examples/jsm/lines/LineMaterial.js";
 import { LineSegments2 } from "three/examples/jsm/lines/LineSegments2.js";
 import { LineSegmentsGeometry } from "three/examples/jsm/lines/LineSegmentsGeometry.js";
-import type { RoofPart, Room, House, Level, LightType, Side, Vec2, Vertical } from "../model/types";
+import type { RoofPart, Room, House, Level, LightType, PieceInput, Side, Vec2, Vertical } from "../model/types";
 import { innerPolygon, type Wall, type WallOpening } from "../model/walls";
 import { bbox, overlap, pointInPolygon } from "../model/geometry";
 import { stairFrame, stairHole } from "../model/stairs";
@@ -599,6 +599,7 @@ export class HouseRenderer {
     this.sideX = 0;
     this.facade = house.facade;
     this.roofLevel = house.levels.find((l) => l.kind === "roof") ?? null;
+    this.housePieces = house.pieces ?? [];
     this.clipSets = [];
     for (const level of house.levels) {
       const materials = new Set<THREE.Material>();
@@ -2302,6 +2303,7 @@ export class HouseRenderer {
   }
 
   private roofLevel: Level | null = null;
+  private housePieces: PieceInput[] = [];
   private levelElevations: number[] = [];
 
   /**
@@ -2939,11 +2941,18 @@ export class HouseRenderer {
     };
     const how = detailFor(f)!;
     // built-in pieces are drawn in code (their module loads with the first one)
-    const done = Promise.all(["kind" in how ? import("./modern") : null, "file" in how ? loadModel(how.file) : null]).then(([mod, model]) => {
+    const done = Promise.all(["kind" in how ? import("./modern") : "piece" in how ? import("./pieces") : null, "file" in how ? loadModel(how.file) : null]).then(([mod, model]) => {
       if (generation !== this.generation) return;
       let piece: THREE.Group | null = null;
-      if (mod && "kind" in how) {
-        piece = mod.buildModern(how.kind, f.size, f.height, f.finish, f.accent);
+      if (mod && "piece" in how) {
+        // the house's own piece, from its shapes
+        const def = this.housePieces.find((p) => p.id === how.piece);
+        piece = def ? (mod as typeof import("./pieces")).buildPiece(def, f.size, f.height, f.finish) : null;
+        piece?.traverse((o) => {
+          if (o instanceof THREE.Mesh) o.material = Array.isArray(o.material) ? o.material.map(convert) : convert(o.material);
+        });
+      } else if (mod && "kind" in how) {
+        piece = (mod as typeof import("./modern")).buildModern(how.kind, f.size, f.height, f.finish, f.accent);
         piece?.traverse((o) => {
           if (o instanceof THREE.Mesh) o.material = Array.isArray(o.material) ? o.material.map(convert) : convert(o.material);
         });

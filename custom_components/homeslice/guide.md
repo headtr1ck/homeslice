@@ -170,6 +170,28 @@ accent, entity, readings}]`.
 - `visible_when: input_boolean.…`: the piece is only there while that entity is on (a guest
   bed, the Christmas tree).
 
+### Your own pieces (optional)
+
+When nothing in the catalogue fits, the house can bring its own pieces, built from simple
+shapes, and furniture uses them as `model: piece:<id>` (placed at the piece's size unless the
+furniture gives `size`/`height`, then stretched):
+
+```yaml
+pieces:
+  - id: tv_unit
+    name: TV unit
+    size: [1.8, 0.4, 0.5]            # width, depth, height in metres
+    parts:                           # box, cylinder, taper (top: 0…1 of its bottom), sphere
+      - {shape: box, size: [1.8, 0.4, 0.45], finish: oak}
+      - {shape: cylinder, size: [0.06, 0.06, 0.05], at: [-0.8, 0.15, 0.45], finish: "#222222"}
+      - {shape: taper, size: [0.3, 0.3, 0.25], at: [0.6, 0, 0.45], top: 0.5, finish: white, glow: true}
+```
+
+`at` is a part's bottom centre: metres right, towards the front and up from the piece's bottom
+centre (front is the side a placed piece faces). `rotate` turns a part (degrees clockwise),
+`finish` is a finish name or a colour, `glow: true` lights a part with the light the piece is
+linked to.
+
 ### Energy and robots (optional)
 
 `energy: [{kind: solar, roof: south}, {kind: battery, level: ground, at: [x, y]}, {kind:

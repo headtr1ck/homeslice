@@ -8,7 +8,7 @@ import { FLOOR_FINISHES, ROOF_FINISHES, WALL_FINISHES } from "./finishes";
 
 /** A furniture model reference (see FurnitureInput.model). */
 // kenney:<name> was a bundled model; such pieces now show their type's built-in piece
-const MODEL_REF = /^(builtin|(kenney|polyhaven|custom|modern):[A-Za-z0-9_-]+)$/;
+const MODEL_REF = /^(builtin|(kenney|polyhaven|custom|modern|piece):[A-Za-z0-9_-]+)$/;
 /** How a light can look (see LightInput.type). */
 export const LIGHT_TYPES: LightType[] = ["lamp", "spot", "strip", "indirect"];
 import type {
@@ -145,14 +145,17 @@ export function expandHouse(input: unknown): ExpandResult {
       const def = FURNITURE[fi?.type as FurnitureType];
       if (!def) return err(fp, `type must be one of ${Object.keys(FURNITURE).join(", ")}, got ${JSON.stringify(fi?.type)}.`);
       if (!Array.isArray(fi.at) || fi.at.length !== 2) return err(fp, "at must be [metres east, metres south] of the room's north-west corner (the piece's centre).");
-      const size = fi.size ?? def.size;
+      // a house piece comes at its own size
+      const own = typeof fi.model === "string" && fi.model.startsWith("piece:") ? h.pieces?.find((x) => x.id === fi.model!.slice(6)) : undefined;
+      const size = fi.size ?? (own ? [own.size[0], own.size[1]] : def.size);
       if (!(size[0] > 0 && size[1] > 0)) return err(fp, "size must be [width, depth] in metres.");
       const mount = fi.mount ?? def.mount ?? "floor";
       if (!["floor", "wall", "ceiling"].includes(mount)) return err(fp, `mount must be floor, wall or ceiling, got ${JSON.stringify(fi.mount)}.`);
       const elevation = mount === "ceiling" ? null : mount === "wall" ? (fi.elevation ?? def.elevation ?? 1.2) : 0;
       if (fi.height !== undefined && !(typeof fi.height === "number" && fi.height > 0)) return err(fp, "height must be in metres.");
       if (fi.model !== undefined && !(typeof fi.model === "string" && MODEL_REF.test(fi.model)))
-        return err(fp, `model must be modern:<kind>, polyhaven:<id>, custom:<id> or builtin, got ${JSON.stringify(fi.model)}.`);
+        return err(fp, `model must be modern:<kind>, polyhaven:<id>, custom:<id>, piece:<id> or builtin, got ${JSON.stringify(fi.model)}.`);
+      if (fi.model?.startsWith("piece:") && !pieceIds.has(fi.model!.slice(6))) return err(fp, `model ${fi.model} names no piece in pieces (pieces: ${[...pieceIds].join(", ") || "none"}).`);
       if (fi.finish !== undefined && typeof fi.finish !== "string") return err(fp, "finish must be a name like oak, white or grey.");
       if (fi.accent !== undefined && typeof fi.accent !== "string") return err(fp, "accent must be a name like black, brass or oak.");
       if (fi.readings !== undefined && !(Array.isArray(fi.readings) && fi.readings.every((r) => typeof r === "string" && r.includes("."))))
@@ -164,7 +167,7 @@ export function expandHouse(input: unknown): ExpandResult {
         at: [min[0] + fi.at[0], min[1] + fi.at[1]],
         rotation: (((fi.rotation ?? 0) % 360) + 360) % 360,
         size: [size[0], size[1]],
-        height: fi.height ?? def.height,
+        height: fi.height ?? own?.size[2] ?? def.height,
         mount,
         elevation,
         mirror: !!fi.mirror,
@@ -205,6 +208,27 @@ export function expandHouse(input: unknown): ExpandResult {
     return out;
   };
   const ROOF_SHAPES = ["gable", "hip", "shed", "flat"];
+
+  // the house's own pieces
+  const pieceIds = new Set<string>();
+  const SHAPES = ["box", "cylinder", "taper", "sphere"];
+  const size3 = (v: unknown) => Array.isArray(v) && v.length === 3 && v.every((x) => typeof x === "number" && x > 0 && x < 50);
+  (h.pieces ?? []).forEach((pi, i) => {
+    const pp = `pieces[${pi?.id ?? i}]`;
+    if (typeof pi?.id !== "string" || !/^[A-Za-z0-9_-]+$/.test(pi.id)) return err(pp, "A piece needs an id of letters, digits, _ and -.");
+    if (pieceIds.has(pi.id)) return err(pp, `Duplicate piece id "${pi.id}".`);
+    if (!size3(pi.size)) return err(`${pp}.size`, "size must be [width, depth, height] in metres.");
+    if (!Array.isArray(pi.parts) || !pi.parts.length) return err(`${pp}.parts`, "A piece needs parts: a list of shapes.");
+    for (const [j, part] of pi.parts.entries()) {
+      const qp = `${pp}.parts[${j}]`;
+      if (!SHAPES.includes(part?.shape)) return err(qp, `shape must be one of ${SHAPES.join(", ")}, got ${JSON.stringify(part?.shape)}.`);
+      if (!size3(part.size)) return err(`${qp}.size`, "size must be [width, depth, height] in metres.");
+      if (part.at !== undefined && !(Array.isArray(part.at) && part.at.length === 3 && part.at.every((x) => typeof x === "number")))
+        return err(`${qp}.at`, "at must be [metres right, towards the front, up] from the piece's bottom centre.");
+      if (part.finish !== undefined && typeof part.finish !== "string") return err(`${qp}.finish`, "finish must be a name like oak or a colour like #c9a47c.");
+    }
+    pieceIds.add(pi.id);
+  });
 
   const ids = new Set<string>();
   const levels: Level[] = [];
@@ -593,5 +617,5 @@ export function expandHouse(input: unknown): ExpandResult {
   });
   if (h.north !== undefined && typeof h.north !== "number") err("north", `north must be degrees (a number), got ${JSON.stringify(h.north)}.`);
   const north = typeof h.north === "number" ? h.north : 0;
-  return { house: { id: h.id, name: h.name ?? h.id, walls, levels, vertical, roof, energy, invertedCovers, robots, north, ...(h.facade ? { facade: h.facade } : {}) }, issues };
+  return { house: { id: h.id, name: h.name ?? h.id, walls, levels, vertical, roof, energy, invertedCovers, robots, north, ...(h.facade ? { facade: h.facade } : {}), ...(h.pieces?.length ? { pieces: h.pieces } : {}) }, issues };
 }

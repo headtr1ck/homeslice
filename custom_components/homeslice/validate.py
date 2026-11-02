@@ -24,7 +24,7 @@ FLOOR_HINT = "a floor finish like wood, oak_herringbone or tile_white (see the c
 BLIND_STYLES = ["roller", "venetian"]
 ROOF_HINT = "a roof covering like roof_clay, roof_slate or roof_metal (see the catalogue) or polyhaven:<texture>"
 WALL_HINT = "a wall finish like paint_white, acoustic_oak or brick_red (see the catalogue) or polyhaven:<texture>"
-MODEL_REF = re.compile(r"^(builtin|(kenney|polyhaven|custom|modern):[A-Za-z0-9_-]+)$")
+MODEL_REF = re.compile(r"^(builtin|(kenney|polyhaven|custom|modern|piece):[A-Za-z0-9_-]+)$")
 LIGHT_TYPES = ["lamp", "spot", "strip", "indirect"]
 SIDES = ["north", "south", "east", "west"]
 ENERGY_KINDS = ["solar", "battery", "grid", "inverter", "device"]
@@ -267,7 +267,10 @@ def validate(house: Any) -> list[dict[str, str]]:
                 continue
             model = get(fi, "model")
             if model is not MISSING and not (isinstance(model, str) and MODEL_REF.match(model)):
-                err(fp, f"model must be modern:<kind>, polyhaven:<id>, custom:<id> or builtin, got {stringify(model)}.")
+                err(fp, f"model must be modern:<kind>, polyhaven:<id>, custom:<id>, piece:<id> or builtin, got {stringify(model)}.")
+                continue
+            if isinstance(model, str) and model.startswith("piece:") and model[6:] not in piece_ids:
+                err(fp, f"model {model} names no piece in pieces (pieces: {', '.join(piece_ids) or 'none'}).")
                 continue
             finish = get(fi, "finish")
             if finish is not MISSING and not isinstance(finish, str):
@@ -324,6 +327,47 @@ def validate(house: Any) -> list[dict[str, str]]:
                 err(f"{wp}.contact", "contact must be an entity id, e.g. binary_sensor.….")
 
     roof_shapes = ("gable", "hip", "shed", "flat")
+
+    # the house's own pieces
+    piece_ids: list[str] = []
+    shapes = ("box", "cylinder", "taper", "sphere")
+
+    def size3(v: Any) -> bool:
+        return isinstance(v, list) and len(v) == 3 and all(is_num(x) and 0 < x < 50 for x in v)
+
+    for i, pi in enumerate(items(get(h, "pieces"))):
+        pid = get(pi, "id")
+        pp = f"pieces[{text(nullish(pid, i))}]"
+        if not (isinstance(pid, str) and re.match(r"^[A-Za-z0-9_-]+$", pid)):
+            err(pp, "A piece needs an id of letters, digits, _ and -.")
+            continue
+        if pid in piece_ids:
+            err(pp, f'Duplicate piece id "{pid}".')
+            continue
+        if not size3(get(pi, "size")):
+            err(f"{pp}.size", "size must be [width, depth, height] in metres.")
+            continue
+        parts = get(pi, "parts")
+        if not isinstance(parts, list) or not parts:
+            err(f"{pp}.parts", "A piece needs parts: a list of shapes.")
+            continue
+        bad = False
+        for j, part in enumerate(parts):
+            qp = f"{pp}.parts[{j}]"
+            if get(part, "shape") not in shapes:
+                err(qp, f"shape must be one of {', '.join(shapes)}, got {stringify(get(part, 'shape'))}.")
+            elif not size3(get(part, "size")):
+                err(f"{qp}.size", "size must be [width, depth, height] in metres.")
+            elif (at := get(part, "at")) is not MISSING and not (isinstance(at, list) and len(at) == 3 and all(is_num(x) for x in at)):
+                err(f"{qp}.at", "at must be [metres right, towards the front, up] from the piece's bottom centre.")
+            elif (finish := get(part, "finish")) is not MISSING and not isinstance(finish, str):
+                err(f"{qp}.finish", "finish must be a name like oak or a colour like #c9a47c.")
+            else:
+                continue
+            bad = True
+            break
+        if not bad:
+            piece_ids.append(pid)
 
     level_ids: set[Any] = set()
     levels: list[dict[str, Any]] = []

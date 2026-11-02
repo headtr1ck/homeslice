@@ -7,9 +7,10 @@ import { defaultKind } from "../model/modern";
 import type { FurnitureType } from "../model/types";
 
 /** How a piece is drawn in detail: a built-in piece (`kind`), a model file, or neither. */
-export function detailFor(f: { type: FurnitureType; mount?: string; model?: string }): { kind: string } | { file: string } | null {
+export function detailFor(f: { type: FurnitureType; mount?: string; model?: string }): { kind: string } | { file: string } | { piece: string } | null {
   const m = f.model;
   if (m === "builtin") return null;
+  if (m?.startsWith("piece:")) return { piece: m.slice(6) };
   if (m?.startsWith("modern:")) return { kind: m.slice(7) };
   if (m?.startsWith("polyhaven:") || m?.startsWith("custom:")) return { file: m };
   // no model, or one of the Kenney models Homeslice once bundled: the type's own piece

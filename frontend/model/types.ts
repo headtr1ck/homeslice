@@ -440,10 +440,38 @@ export interface DormerInput {
   shape?: "gable" | "shed";
 }
 
+/** A part of a house's own piece: a shape, where it stands in the piece and its finish. */
+export interface PiecePartInput {
+  shape: "box" | "cylinder" | "taper" | "sphere";
+  /** Width, depth and height in metres (a cylinder's width and depth are its diameters). */
+  size: [number, number, number];
+  /** Its bottom centre: metres right, towards the front and up from the piece's bottom centre (default 0, 0, 0). */
+  at?: [number, number, number];
+  /** A taper's top as a part of its bottom (0 a cone, default 0.6). */
+  top?: number;
+  /** Degrees it is turned (clockwise from above). */
+  rotate?: number;
+  /** A finish name (oak, white, black…) or a colour like "#c9a47c"; default: the piece's finish. */
+  finish?: string;
+  /** Lights up with the light the piece is linked to (a lampshade, a bulb). */
+  glow?: boolean;
+}
+
+/** A piece the house brings itself, built from simple shapes: furniture uses it as model `piece:<id>`. */
+export interface PieceInput {
+  id: string;
+  name?: string;
+  /** Width, depth and height in metres: placed pieces stretch the parts to their own size. */
+  size: [number, number, number];
+  parts: PiecePartInput[];
+}
+
 export interface HouseInput {
   schema: 1;
   id: string;
   name?: string;
+  /** The house's own pieces (see PieceInput). */
+  pieces?: PieceInput[];
   outline?: ShapeInput;
   grid?: { x?: Record<string, number>; y?: Record<string, number> };
   walls?: Partial<WallThickness>;
@@ -619,6 +647,7 @@ export interface Vertical {
 export interface House {
   id: string;
   name: string;
+  pieces?: PieceInput[];
   walls: WallThickness;
   levels: Level[];
   vertical: Vertical[];

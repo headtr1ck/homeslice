@@ -1004,6 +1004,29 @@ if (selected()) {
     await act(page, () => page.evaluate(() => window.card.hass.pushModel(window.__demoModel)));
   });
 
+  await test("a house's own piece, built from its shapes and stretched to its place", async () => {
+    await act(page, async () => {
+      await page.evaluate(() => {
+        const m = structuredClone(window.__demoModel);
+        m.pieces = [{ id: "tv_unit", size: [1.8, 0.4, 0.5], parts: [{ shape: "box", size: [1.8, 0.4, 0.45], finish: "oak" }, { shape: "cylinder", size: [0.06, 0.06, 0.05], at: [-0.8, 0.15, 0.45], finish: "#222222" }, { shape: "taper", size: [0.3, 0.3, 0.25], at: [0.6, 0, 0.45], top: 0.5, finish: "white", glow: true }] }];
+        m.levels[0].rooms.find((r) => r.id === "living").furniture = [{ type: "item", model: "piece:tv_unit", at: [2, 0.4], size: [2.4, 0.4] }];
+        window.card.hass.pushModel(m);
+      });
+      await page.evaluate(() => window.card.renderer.modelsReady());
+    });
+    const found = await page.evaluate(() => {
+      let piece = null;
+      window.card.renderer.object.traverse((o) => {
+        if (o.userData.detailed && !piece) piece = o;
+      });
+      const meshes = [];
+      piece?.traverse((o) => o.isMesh && meshes.push(o));
+      return { meshes: meshes.length, scale: piece?.children[0]?.scale.x };
+    });
+    assert(found.meshes === 3 && Math.abs(found.scale - 2.4 / 1.8) < 1e-6, JSON.stringify(found));
+    await act(page, () => page.evaluate(() => window.card.hass.pushModel(window.__demoModel)));
+  });
+
   await test("a gallery railing drawn along its line", async () => {
     await act(page, () =>
       page.evaluate(() => {
