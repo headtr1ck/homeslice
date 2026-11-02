@@ -873,6 +873,42 @@ test.describe.serial("editor", () => {
     assert(errors.length === 0, errors.join(" | "));
   });
 
+  test("Sketchfab: a token, a search, a model placed with its author and licence; a backup says what is for this home only", async () => {
+    await page.route("**/homeslice_assets/**", (route) => route.fulfill({ contentType: "model/gltf-binary", body: readFileSync(join(root, "dev/fixtures/chair.glb")) }));
+    await page.keyboard.press("Escape");
+    await page.keyboard.press("f");
+    await page.locator("homeslice-panel .library-sources button[data-source=sketchfab]").click();
+    const token = page.locator("homeslice-panel input[data-sketchfab-token]");
+    await token.fill("wrong");
+    await token.locator("xpath=..").locator("xpath=following-sibling::button").click();
+    await page.locator("homeslice-panel .sketchfab-token .error").waitFor();
+    await token.fill("good-token");
+    await token.locator("xpath=..").locator("xpath=following-sibling::button").click();
+    const search = page.locator("homeslice-panel input.sketchfab-search");
+    await search.fill("sofa");
+    await search.press("Enter");
+    await page.locator('homeslice-panel button[data-sketchfab="free1"]').waitFor();
+    const title = await page.locator('homeslice-panel button[data-sketchfab="free1"]').getAttribute("title");
+    assert(title.includes("Ann") && title.includes("NonCommercial"), `credit: ${title}`);
+    await shot(page, "editor-sketchfab");
+    // a room picked: the bought one goes into it
+    const room = await page.evaluate(() => window.panel._model.levels.find((l) => l.id === window.panel._level).rooms[0].id);
+    await page.evaluate((room) => (window.panel._room = room), room);
+    await page.locator('homeslice-panel button[data-sketchfab="bought1"]').click();
+    await page.waitForFunction(() => window.panel._model.levels.some((l) => l.rooms.some((r) => (r.furniture ?? []).some((f) => f.model === "custom:" + window.panel._customModels.find((m) => m.uid === "bought1")?.id))), null, { timeout: 10000 });
+    // the backup still downloads, and says the bought model is for this home only
+    await page.evaluate(() => (window.panel._room = null));
+    await page.locator("homeslice-panel header button[aria-label='House settings']").click();
+    const download = page.waitForEvent("download");
+    await page.locator("homeslice-panel button[data-backup]").click();
+    await download;
+    const notice = await page.locator("homeslice-panel .notice").textContent();
+    assert(notice.includes("For your own backup only") && notice.includes("Bought sofa"), `notice: ${notice}`);
+    await page.locator("homeslice-panel header button[aria-label='House settings']").click();
+    await page.evaluate(() => window.panel.shadowRoot.activeElement?.blur());
+    await page.keyboard.press("Control+z");
+  });
+
   test("a floor lamp linked to a light: the lamp marker goes, the piece is the lamp", async () => {
     await page.keyboard.press("Escape");
     await page.keyboard.press("Escape");

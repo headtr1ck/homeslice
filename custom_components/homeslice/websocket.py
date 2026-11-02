@@ -11,6 +11,7 @@ from homeassistant.components import websocket_api
 from homeassistant.core import Event, HomeAssistant, callback
 
 from .assets import AssetError, Assets
+from .sketchfab import Sketchfab
 from .backup import BackupError, async_backup, async_restore
 from .const import DEFAULT_HOUSE, DOMAIN, SHOW_EVENT
 from .store import HomesliceStore, ModelError
@@ -29,10 +30,14 @@ def _assets(hass: HomeAssistant) -> Assets:
     return hass.data[DOMAIN]["assets"]
 
 
+def _sketchfab(hass: HomeAssistant) -> Sketchfab:
+    return hass.data[DOMAIN]["sketchfab"]
+
+
 @callback
 def async_register_websocket(hass: HomeAssistant) -> None:
     """Register the websocket commands."""
-    for command in (ws_list, ws_get_model, ws_subscribe, ws_save, ws_delete, ws_import_files, ws_underlay_get, ws_underlay_set, ws_underlay_delete, ws_polyhaven_catalog, ws_polyhaven_fetch, ws_texture_catalog, ws_texture_fetch, ws_custom_list, ws_custom_upload, ws_custom_delete, ws_guide, ws_validate, ws_restore, ws_show_subscribe, ws_backup, ws_backup_restore):
+    for command in (ws_list, ws_get_model, ws_subscribe, ws_save, ws_delete, ws_import_files, ws_underlay_get, ws_underlay_set, ws_underlay_delete, ws_polyhaven_catalog, ws_polyhaven_fetch, ws_texture_catalog, ws_texture_fetch, ws_custom_list, ws_custom_upload, ws_custom_delete, ws_sketchfab_status, ws_sketchfab_token, ws_sketchfab_search, ws_sketchfab_fetch, ws_guide, ws_validate, ws_restore, ws_show_subscribe, ws_backup, ws_backup_restore):
         websocket_api.async_register_command(hass, command)
 
 
@@ -289,6 +294,50 @@ async def ws_custom_delete(hass: HomeAssistant, connection: websocket_api.Active
         connection.send_error(msg["id"], "invalid_id", str(err))
         return
     connection.send_result(msg["id"])
+
+
+# ----- Sketchfab, with the user's own token (admins only; the token never leaves Home Assistant) -----
+
+
+@websocket_api.websocket_command({vol.Required("type"): "homeslice/sketchfab"})
+@websocket_api.require_admin
+@websocket_api.async_response
+async def ws_sketchfab_status(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
+    """Whether a Sketchfab token is set, and whose."""
+    connection.send_result(msg["id"], await _sketchfab(hass).async_status())
+
+
+@websocket_api.websocket_command({vol.Required("type"): "homeslice/sketchfab/token", vol.Required("token"): vol.Any(None, str)})
+@websocket_api.require_admin
+@websocket_api.async_response
+async def ws_sketchfab_token(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
+    """Checks and keeps a Sketchfab API token (null forgets it)."""
+    try:
+        connection.send_result(msg["id"], await _sketchfab(hass).async_set_token(msg["token"]))
+    except AssetError as err:
+        connection.send_error(msg["id"], "invalid_token", str(err))
+
+
+@websocket_api.websocket_command({vol.Required("type"): "homeslice/sketchfab/search", vol.Required("query"): str, vol.Optional("cursor"): vol.Any(None, str)})
+@websocket_api.require_admin
+@websocket_api.async_response
+async def ws_sketchfab_search(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
+    """Models this account may download."""
+    try:
+        connection.send_result(msg["id"], await _sketchfab(hass).async_search(msg["query"], msg.get("cursor")))
+    except AssetError as err:
+        connection.send_error(msg["id"], "unavailable", str(err))
+
+
+@websocket_api.websocket_command({vol.Required("type"): "homeslice/sketchfab/fetch", vol.Required("uid"): str})
+@websocket_api.require_admin
+@websocket_api.async_response
+async def ws_sketchfab_fetch(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
+    """Downloads a model into the house's own models."""
+    try:
+        connection.send_result(msg["id"], await _sketchfab(hass).async_fetch(msg["uid"]))
+    except AssetError as err:
+        connection.send_error(msg["id"], "unavailable", str(err))
 
 
 # ----- for assistants: the guide, validation and restoring the previous version -----

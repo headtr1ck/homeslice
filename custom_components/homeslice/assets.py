@@ -330,18 +330,22 @@ class Assets:
             raise AssetError("The model is too large (12 MB at most)")
         blob = base64.b64decode(data.split(",", 1)[1])
         check_links(glb_json(blob))
+        return await self.async_custom_store(name, blob)
+
+    async def async_custom_store(self, name: str, blob: bytes, meta: dict[str, Any] | None = None) -> dict[str, Any]:
+        """Keeps a checked .glb under a new, unguessable id (with where it came from, if anywhere)."""
         asset_id = secrets.token_hex(12)
         name = (name or "Model").strip()[:80] or "Model"
 
         def write() -> dict[str, Any]:
             (self.root / "custom" / f"{asset_id}.glb").write_bytes(blob)
             index = self._custom_index()
-            index[asset_id] = {"name": name, "bytes": len(blob)}
+            index[asset_id] = {"name": name, "bytes": len(blob), **(meta or {})}
             self._index_path.write_text(json.dumps(index, indent=1))
             return index[asset_id]
 
-        meta = await self.hass.async_add_executor_job(write)
-        return {"id": asset_id, "url": f"{ASSETS_URL}/custom/{asset_id}.glb", **meta}
+        stored = await self.hass.async_add_executor_job(write)
+        return {"id": asset_id, "url": f"{ASSETS_URL}/custom/{asset_id}.glb", **stored}
 
     async def async_custom_delete(self, asset_id: str) -> None:
         if not ID.match(asset_id):

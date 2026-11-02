@@ -7,8 +7,27 @@ import { FURNITURE, FURNITURE_GROUPS } from "../model/furniture";
 import { MODERN_GROUPS, defaultKind } from "../model/modern";
 import type { FurnitureMount, FurnitureType, PieceInput } from "../model/types";
 
-export type LibrarySource = "builtin" | "polyhaven" | "custom";
-export const LIBRARY_SOURCES: LibrarySource[] = ["builtin", "polyhaven", "custom"];
+export type LibrarySource = "builtin" | "polyhaven" | "sketchfab" | "custom";
+export const LIBRARY_SOURCES: LibrarySource[] = ["builtin", "polyhaven", "sketchfab", "custom"];
+
+/** A model found on Sketchfab (what this account may download). */
+export interface SketchfabHit {
+  uid: string;
+  name: string;
+  author: string | null;
+  licence: Licence;
+  faces: number | null;
+  bytes: number | null;
+  thumbnail: string | null;
+  url: string | null;
+}
+
+/** A model's licence: its slug (by, by-nc, cc0…, or store for one bought), label and link. */
+export interface Licence {
+  slug: string;
+  label: string;
+  url: string | null;
+}
 
 export interface LibraryItem {
   /** Unique within the library, e.g. `modern:sofa`. */
@@ -26,6 +45,8 @@ export interface LibraryItem {
   thumb: string;
   /** Its own size (models), else the type's. */
   size?: [number, number];
+  /** Author and licence (models from Sketchfab). */
+  credit?: string;
   height?: number;
   /** Words to search for besides the name. */
   tags?: string[];
@@ -67,7 +88,17 @@ export interface CustomAsset {
   name: string;
   url: string;
   bytes: number;
+  /** Where it came from (Sketchfab), its author and licence; uploads have none. */
+  source?: "sketchfab";
+  author?: string | null;
+  author_url?: string | null;
+  licence?: Licence;
+  /** May be passed on (as its licence says); bought ones are for this home only. */
+  shareable?: boolean;
 }
+
+/** A model's credit line: "Ann · CC Attribution", or nothing for the user's own uploads. */
+export const credit = (m: CustomAsset | undefined) => (m?.source ? [m.author, m.licence?.label].filter(Boolean).join(" · ") : "");
 
 /** A file next to the bundle (Home Assistant serves the whole folder). */
 const asset = (path: string) => new URL(/* @vite-ignore */ path, import.meta.url).href;
@@ -196,7 +227,7 @@ export function customGroups(models: CustomAsset[], pieces: PieceInput[] = []): 
   return [
     // the house's own pieces (built from shapes), at their own size
     ...(pieces.length ? [{ id: "house_pieces", items: pieces.map((p) => ({ key: `piece:${p.id}`, type: "item" as const, model: `piece:${p.id}`, name: p.name ?? p.id, thumb: "", size: [p.size[0], p.size[1]] as [number, number], height: p.size[2] })) }] : []),
-    ...(models.length ? [{ id: "uploaded", items: models.map((m) => ({ key: `custom:${m.id}`, type: "item" as const, model: `custom:${m.id}`, name: m.name, thumb: "" })) }] : []),
+    ...(models.length ? [{ id: "uploaded", items: models.map((m) => ({ key: `custom:${m.id}`, type: "item" as const, model: `custom:${m.id}`, name: m.name, thumb: "", ...(m.source ? { credit: credit(m) } : {}) })) }] : []),
   ];
 }
 

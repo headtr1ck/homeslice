@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import base64
+import json
 from datetime import timedelta
 from pathlib import Path
 import struct
@@ -235,6 +236,48 @@ async def test_custom_models_upload_list_delete(hass: HomeAssistant, setup, hass
     assert (await client.receive_json())["success"]
     await client.send_json_auto_id({"type": "homeslice/assets/custom"})
     assert (await client.receive_json())["result"] == []
+
+
+async def test_sketchfab_token_search_and_fetch(hass: HomeAssistant, setup, hass_ws_client, aioclient_mock, hass_read_only_access_token, tmp_path: Path) -> None:
+    api = "https://api.sketchfab.com/v3"
+    files = "https://sketchfab-prod-media.s3.amazonaws.com/archives/sofa.glb"
+    aioclient_mock.get(f"{api}/me", json={"username": "someone"})
+    aioclient_mock.get(
+        f"{api}/search",
+        json={"results": [{"uid": "abc123", "name": "Sofa", "user": {"displayName": "Ann"}, "license": {"slug": "by-nc", "label": "CC Attribution-NonCommercial"}, "archives": {"glb": {"size": 1000}}, "thumbnails": {"images": [{"url": "https://t/1.jpg", "width": 256}]}}], "cursors": {"next": None}},
+    )
+    aioclient_mock.get(f"{api}/models/abc123", json={"name": "Sofa", "user": {"displayName": "Ann", "profileUrl": "https://sketchfab.com/ann"}, "license": {"slug": "by-nc", "label": "CC Attribution-NonCommercial", "url": "https://cc/by-nc"}, "viewerUrl": "https://sketchfab.com/3d-models/sofa-abc123"})
+    aioclient_mock.get(f"{api}/models/abc123/download", json={"glb": {"url": files, "size": 100}})
+    aioclient_mock.get(files, content=base64.b64decode(GLB.split(",", 1)[1]))
+    # a paid model this account hasn't bought: the download API refuses
+    aioclient_mock.get(f"{api}/models/paid1/download", status=403)
+    aioclient_mock.get(f"{api}/models/paid1", json={"name": "Paid", "license": {}})
+
+    client = await hass_ws_client(hass)
+    await client.send_json_auto_id({"type": "homeslice/sketchfab/search", "query": "sofa"})
+    assert (await client.receive_json())["error"]["message"] == "Add a Sketchfab API token first"
+    await client.send_json_auto_id({"type": "homeslice/sketchfab/token", "token": "secret-token"})
+    assert (await client.receive_json())["result"] == {"configured": True, "username": "someone"}
+    # the token goes to Sketchfab's API only, never back to a browser
+    await client.send_json_auto_id({"type": "homeslice/sketchfab"})
+    assert "secret-token" not in json.dumps(await client.receive_json())
+    await client.send_json_auto_id({"type": "homeslice/sketchfab/search", "query": "sofa"})
+    found = (await client.receive_json())["result"]["results"]
+    assert found[0]["uid"] == "abc123" and found[0]["licence"]["slug"] == "by-nc" and found[0]["author"] == "Ann"
+
+    await client.send_json_auto_id({"type": "homeslice/sketchfab/fetch", "uid": "abc123"})
+    stored = (await client.receive_json())["result"]
+    assert stored["source"] == "sketchfab" and stored["author"] == "Ann" and stored["licence"]["slug"] == "by-nc" and stored["shareable"]
+    assert (tmp_path / "homeslice" / "assets" / "custom" / f"{stored['id']}.glb").read_bytes().startswith(b"glTF")
+    file_calls = [c for c in aioclient_mock.mock_calls if str(c[1]).startswith(files)]
+    assert file_calls and not (file_calls[0][3] or {}).get("Authorization")
+    await client.send_json_auto_id({"type": "homeslice/sketchfab/fetch", "uid": "paid1"})
+    assert "does not let this account" in (await client.receive_json())["error"]["message"]
+
+    # admins only
+    reader = await hass_ws_client(hass, hass_read_only_access_token)
+    await reader.send_json_auto_id({"type": "homeslice/sketchfab/search", "query": "sofa"})
+    assert (await reader.receive_json())["error"]["code"] == "unauthorized"
 
 
 async def test_polyhaven_models_are_downloaded_once(hass: HomeAssistant, setup, hass_ws_client, aioclient_mock, tmp_path: Path) -> None:

@@ -32,6 +32,8 @@ import {
   humanize,
   planPicture,
   polyhavenGroups,
+  credit,
+  type SketchfabHit,
   type CustomAsset,
   type LibraryGroup,
   type LibraryItem,
@@ -388,6 +390,10 @@ export class HomeslicePanel extends LitElement {
     _textureBusy: { state: true },
     _entityFilter: { state: true },
     _customModels: { state: true },
+    _sketchfab: { state: true },
+    _sfResults: { state: true },
+    _sfBusy: { state: true },
+    _sfError: { state: true },
     _placing: { state: true },
     _curveEdge: { state: true },
     _libraryError: { state: true },
@@ -499,6 +505,11 @@ export class HomeslicePanel extends LitElement {
   private _textureBusy: string | null = null;
   private _entityFilter = "";
   private _customModels: CustomAsset[] | null = null;
+  /** Sketchfab: whether a token is set (whose), the last search, a download going on, a problem. */
+  private _sketchfab: { configured: boolean; username: string | null } | null = null;
+  private _sfResults: { query: string; results: SketchfabHit[]; next: string | null } | null = null;
+  private _sfBusy: string | null = null;
+  private _sfError = "";
   /** A library item being downloaded or measured before it is placed. */
   private _placing: string | null = null;
   /** The wall picked in a curves control (by its room or the outline). */
@@ -4495,6 +4506,8 @@ export class HomeslicePanel extends LitElement {
         status = html`<p class="muted">${this.t("editor.library_loading")}</p>`;
       } else if ("error" in c) status = html`<p class="muted">${this.t("editor.library_polyhaven_error", { error: c.error })}</p>`;
       else groups = polyhavenGroups(c);
+    } else if (source === "sketchfab") {
+      status = this.renderSketchfab(room);
     } else {
       if (!this._customModels) this.loadCustomModels();
       groups = customGroups(this._customModels ?? [], this._model?.pieces ?? []);
@@ -4524,8 +4537,10 @@ export class HomeslicePanel extends LitElement {
           <p class="muted">${this.t("editor.library_upload_hint")}</p>`
         : nothing}
       ${this._libraryError ? html`<p class="error">${this._libraryError}</p>` : nothing}
-      <input class="library-search" type="search" placeholder=${this.t("editor.library_search")} aria-label=${this.t("editor.library_search")} .value=${this._libraryFilter}
-        @input=${(e: Event) => (this._libraryFilter = (e.target as HTMLInputElement).value)} />
+      ${source === "sketchfab"
+        ? nothing
+        : html`<input class="library-search" type="search" placeholder=${this.t("editor.library_search")} aria-label=${this.t("editor.library_search")} .value=${this._libraryFilter}
+            @input=${(e: Event) => (this._libraryFilter = (e.target as HTMLInputElement).value)} />`}
       ${status}
       ${status === nothing && !groups.length ? html`<p class="muted">${this.t(source === "custom" && !this._libraryFilter ? "editor.library_no_uploads" : "editor.library_none")}</p>` : nothing}
       ${groups.map(
@@ -4534,7 +4549,7 @@ export class HomeslicePanel extends LitElement {
             ${g.items.map((item) => {
               const name = item.name ?? typeName(item.type);
               return html`<div class="piece-wrap">
-                <button class="piece ${this._placing === item.key ? "placing" : ""}" draggable="true" title=${name} data-type=${item.type} data-key=${item.key}
+                <button class="piece ${this._placing === item.key ? "placing" : ""}" draggable="true" title=${item.credit ? `${name} — ${item.credit}` : name} data-type=${item.type} data-key=${item.key}
                   @dragstart=${(e: DragEvent) => {
                     this.libraryDrag = item;
                     e.dataTransfer?.setData("text/plain", item.key);
@@ -4566,7 +4581,9 @@ export class HomeslicePanel extends LitElement {
     if (source === "kenney") return this.t("editor.library_builtin");
     if (source === "builtin") return `${this.t("editor.library_builtin")} · ${this.t("editor.library_simple")}`;
     if (source === "modern") return `${this.t("editor.library_builtin")} · ${this.t(`modern.${id}` as StringKey)}`;
-    const custom = source === "custom" ? this._customModels?.find((m) => m.id === id)?.name : undefined;
+    const own = source === "custom" ? this._customModels?.find((m) => m.id === id) : undefined;
+    // a Sketchfab model: its author and licence go with its name (attribution)
+    const custom = own ? [own.name, credit(own)].filter(Boolean).join(" — ") : undefined;
     const polyhaven = source === "polyhaven" && this._polyhaven && !("error" in this._polyhaven) ? this._polyhaven.find((a) => a.id === id)?.name : undefined;
     return `${this.t(`editor.library_${source}` as StringKey)} · ${custom ?? polyhaven ?? humanize(id)}`;
   }
@@ -4590,6 +4607,109 @@ export class HomeslicePanel extends LitElement {
       .finally(() => (this.polyhavenRequest = null));
   }
   private polyhavenRequest: Promise<unknown> | null = null;
+
+  /** After an export with Sketchfab models in it: "for your own backup only" and the credits it needs. */
+  private licenceNotice(models: CustomAsset[]) {
+    const from = models.filter((m) => m.source === "sketchfab");
+    if (!from.length) return;
+    const line = (m: CustomAsset) => `${m.name} (${credit(m)})`;
+    const own = from.filter((m) => !m.shareable).map(line);
+    const credits = from.filter((m) => m.shareable && m.licence?.slug !== "cc0").map(line);
+    const notice = [own.length ? this.t("editor.backup_private", { models: own.join(", ") }) : "", credits.length ? this.t("editor.backup_credits", { models: credits.join(", ") }) : ""].filter(Boolean).join(" ");
+    if (notice) this._settings = { ...(this._settings ?? {}), notice };
+  }
+
+  // ----- Sketchfab: with the user's own API token, kept in Home Assistant -----
+
+  private loadSketchfab() {
+    if (this.sketchfabRequest || !this._hass) return;
+    this.sketchfabRequest = this._hass
+      .callWS<{ configured: boolean; username: string | null }>({ type: "homeslice/sketchfab" })
+      .then((s) => (this._sketchfab = s))
+      .catch(() => (this._sketchfab = { configured: false, username: null }))
+      .finally(() => (this.sketchfabRequest = null));
+  }
+  private sketchfabRequest: Promise<unknown> | null = null;
+
+  private async sketchfabSearch(query: string, more = false) {
+    this._sfError = "";
+    try {
+      const r = await this._hass!.callWS<{ results: SketchfabHit[]; next: string | null }>({ type: "homeslice/sketchfab/search", query, ...(more && this._sfResults?.next ? { cursor: this._sfResults.next } : {}) });
+      this._sfResults = { query, results: more ? [...(this._sfResults?.results ?? []), ...r.results] : r.results, next: r.next };
+    } catch (err) {
+      this._sfError = String((err as { message?: string }).message ?? err);
+    }
+  }
+
+  /** Downloads a model into Home Assistant (once) and places it in the room, if one is picked. */
+  private async sketchfabFetch(hit: SketchfabHit, room: RoomInput | null) {
+    if (this._sfBusy) return;
+    this._sfBusy = hit.uid;
+    this._sfError = "";
+    try {
+      const known = this._customModels?.find((m) => m.source === "sketchfab" && (m as { uid?: string }).uid === hit.uid);
+      const stored = known ?? (await this._hass!.callWS<CustomAsset>({ type: "homeslice/sketchfab/fetch", uid: hit.uid }));
+      if (!known) this._customModels = [...(this._customModels ?? []), stored];
+      const item: LibraryItem = { key: `custom:${stored.id}`, type: "item", model: `custom:${stored.id}`, name: stored.name, thumb: hit.thumbnail ?? "" };
+      if (room) await this.addFurnitureAt(item, labelPoint(this.inner(room)), room.id);
+      else this._sfError = this.t("editor.sketchfab_added", { name: stored.name });
+    } catch (err) {
+      this._sfError = String((err as { message?: string }).message ?? err);
+    } finally {
+      this._sfBusy = null;
+    }
+  }
+
+  private renderSketchfab(room: RoomInput | null) {
+    if (!this._sketchfab) {
+      this.loadSketchfab();
+      return html`<p class="muted">${this.t("editor.library_loading")}</p>`;
+    }
+    if (!this._customModels) this.loadCustomModels();
+    if (!this._sketchfab.configured)
+      return html`<div class="sketchfab-token">
+        <p class="muted">${this.t("editor.sketchfab_hint")}
+          <a href="https://sketchfab.com/settings/password" target="_blank" rel="noopener">sketchfab.com/settings/password</a></p>
+        <label>${this.t("editor.sketchfab_token")}<input type="password" data-sketchfab-token autocomplete="off" /></label>
+        <button class="primary" @click=${async (e: Event) => {
+          const input = (e.target as HTMLElement).parentElement!.querySelector("input")!;
+          try {
+            this._sketchfab = await this._hass!.callWS({ type: "homeslice/sketchfab/token", token: input.value });
+            this._sfError = "";
+          } catch (err) {
+            this._sfError = String((err as { message?: string }).message ?? err);
+          }
+        }}>${this.t("editor.sketchfab_save")}</button>
+        ${this._sfError ? html`<p class="error">${this._sfError}</p>` : nothing}
+      </div>`;
+    const res = this._sfResults;
+    const mb = (b: number | null) => (b ? `${(b / 1e6).toFixed(b < 1e7 ? 1 : 0)} MB` : "");
+    return html`<div class="sketchfab">
+      <p class="muted">${this.t("editor.sketchfab_signed_in", { name: this._sketchfab.username ?? "" })}
+        <button class="link" @click=${async () => {
+          this._sketchfab = await this._hass!.callWS({ type: "homeslice/sketchfab/token", token: null });
+          this._sfResults = null;
+        }}>${this.t("editor.sketchfab_forget")}</button></p>
+      <p class="muted">${this.t("editor.sketchfab_licence_hint")}</p>
+      <input type="search" class="sketchfab-search" placeholder=${this.t("editor.sketchfab_search")} aria-label=${this.t("editor.sketchfab_search")} .value=${res?.query ?? ""}
+        @keydown=${(e: KeyboardEvent) => e.key === "Enter" && void this.sketchfabSearch((e.target as HTMLInputElement).value.trim())} />
+      ${this._sfError ? html`<p class="muted">${this._sfError}</p>` : nothing}
+      <div class="library">
+        ${(res?.results ?? []).map(
+          (hit) => html`<div class="piece-wrap">
+            <button class="piece ${this._sfBusy === hit.uid ? "placing" : ""}" data-sketchfab=${hit.uid} title=${`${hit.name} — ${[hit.author, hit.licence.label].filter(Boolean).join(" · ")}`}
+              ?disabled=${!!this._sfBusy} @click=${() => void this.sketchfabFetch(hit, room)}>
+              ${hit.thumbnail ? html`<img src=${hit.thumbnail} alt="" loading="lazy" draggable="false" />` : html`<span class="no-thumb"><ha-icon icon="mdi:cube-outline"></ha-icon></span>`}
+              <span>${hit.name}</span>
+              <small class="muted">${[hit.licence.label, mb(hit.bytes)].filter(Boolean).join(" · ")}</small>
+            </button>
+          </div>`,
+        )}
+      </div>
+      ${res?.next ? html`<button @click=${() => void this.sketchfabSearch(res.query, true)}>${this.t("editor.sketchfab_more")}</button>` : nothing}
+      ${res && !res.results.length ? html`<p class="muted">${this.t("editor.library_none")}</p>` : nothing}
+    </div>`;
+  }
 
   private loadCustomModels() {
     if (this.customRequest || !this._hass) return;
@@ -4775,6 +4895,9 @@ export class HomeslicePanel extends LitElement {
       a.href = URL.createObjectURL(new Blob([glb], { type: "model/gltf-binary" }));
       a.download = `${this._house}.glb`;
       a.click();
+      // the models it holds: what may not be passed on, what needs credit
+      const used = new Set(this._model!.levels.flatMap((l) => l.rooms.flatMap((r) => (r.furniture ?? []).map((f) => f.model?.slice(7)))));
+      this.licenceNotice((this._customModels ?? []).filter((m) => used.has(m.id)));
       setTimeout(() => URL.revokeObjectURL(a.href), 1000);
     } finally {
       r.dispose();
@@ -4984,6 +5107,8 @@ export class HomeslicePanel extends LitElement {
           a.href = data;
           a.download = `${new Date().toISOString().slice(0, 10)}-${name}`;
           a.click();
+          // never held back: but it says what in it is for this home only, and what needs credit
+          this.licenceNotice(this._customModels ?? (await this._hass!.callWS<CustomAsset[]>({ type: "homeslice/assets/custom" })));
         }}>${this.t("editor.backup_download")}</button>
         <label class="file"
           >${this.t("editor.backup_restore")}
@@ -6510,6 +6635,15 @@ export class HomeslicePanel extends LitElement {
       stroke-linecap: round;
       opacity: 0.7;
       pointer-events: none;
+    }
+    button.link {
+      border: none;
+      background: none;
+      padding: 0 0 0 6px;
+      min-height: 0;
+      color: var(--accent);
+      text-decoration: underline;
+      cursor: pointer;
     }
     .piece-editor {
       border: 1px solid var(--line, rgba(127, 127, 127, 0.3));

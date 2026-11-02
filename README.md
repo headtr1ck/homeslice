@@ -47,7 +47,8 @@ Spanish, Italian and Polish (help with more languages is welcome).
 - **400+ pieces drawn to their size, with nothing to download.** Sofas get more seats as
   they get wider, kitchens more units, wardrobes more doors — in your finishes, and they
   react: screens show what plays, fans turn, radiators glow, cars come and go. Poly Haven
-  models and your own glTF files on top, checked before they load.
+  models, Sketchfab models (with your own account) and your own glTF files on top, checked
+  before they load.
 - **Real roofs.** Roof parts at any angle, roofs that start a floor lower (walls cut along
   them), coverings, dormers, roof terraces (an outdoor room under the slope, the roof cut away above it), roof windows with shutters, solar panels on the slope.
 - **Private.** Nothing leaves your Home Assistant: no cloud, no telemetry, no account.
@@ -121,12 +122,12 @@ repository itself doesn't contain the built frontend; build it with `npm run bui
    - **2. Doors & windows:** click a wall to add a window, link its blind and contact.
    - **3. Objects & entities:** lights are placed automatically and can be dragged;
      drag furniture from the library (wall pieces go against a wall; `R` to turn); place solar, battery, grid and power-measured
-     devices for the energy overlay. The library has three sources: **Built-in** (pieces
+     devices for the energy overlay. The library has four sources: **Built-in** (pieces
      drawn by Homeslice to their size, with a finish and often a second colour: sofas,
      wardrobes, kitchens, bathroom, lamps, plants, garden, play, cars and bikes…), **Poly Haven** (realistic
-     models, downloaded into Home Assistant once when placed) and **Custom** (upload your
-     own `.glb`; it has to be self-contained: models that load textures or data from
-     other websites are refused, so no screen showing your house contacts a stranger).
+     models, downloaded into Home Assistant once when placed), **Sketchfab** (see below) and
+     **Custom** (upload your own `.glb`; it has to be self-contained: models that load textures
+     or data from other websites are refused, so no screen showing your house contacts a stranger).
    - Save (`Ctrl+S`). Cards update at once.
 4. Add a **Homeslice** card to a dashboard. Its visual editor shows a small preview: turn
    it into the angle you want, then pick the look.
@@ -468,3 +469,14 @@ The editor's Poly Haven library uses the [Poly Haven](https://polyhaven.com) API
 models are CC0. Home Assistant downloads a model (1k textures) into
 `<config>/homeslice/assets/` the first time a house uses it, and every device loads it
 from there. Homeslice is not made or endorsed by Poly Haven.
+
+**Sketchfab** works with your own account: paste your API token
+([sketchfab.com/settings/password](https://sketchfab.com/settings/password)) into the
+editor's Sketchfab tab. Home Assistant keeps it (like any integration's credentials, in its
+`.storage` folder, in its own encrypted backups, never in Homeslice's export) and sends it
+only to Sketchfab's API; browsers never see it. Search finds what your account may download:
+free models of any licence (a home is personal use, so non-commercial ones are fine too) and
+the ones you bought. A model is downloaded once into Home Assistant, checked like an upload,
+and keeps its author and licence, shown with the piece. Exports are never held back, but a
+backup or 3D export says which models in it are for your own use only (bought ones) and which
+need their author's credit when shared. Homeslice is not made or endorsed by Sketchfab.

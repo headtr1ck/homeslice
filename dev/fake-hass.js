@@ -136,6 +136,23 @@ export function makeHass(fixture, onChange) {
         return { url: `/homeslice_assets/polyhaven/${msg.asset}/${msg.asset}_1k.gltf` };
       }
       const uploads = (fixture.uploads ??= []);
+      // Sketchfab with a pretend account: "good-token" works; one free model, one bought
+      if (msg.type === "homeslice/sketchfab") return { configured: !!fixture.sketchfabUser, username: fixture.sketchfabUser ?? null };
+      if (msg.type === "homeslice/sketchfab/token") {
+        if (msg.token && msg.token !== "good-token") throw new Error("Sketchfab refused: check the API token");
+        fixture.sketchfabUser = msg.token ? "someone" : undefined;
+        return { configured: !!msg.token, username: fixture.sketchfabUser ?? null };
+      }
+      if (msg.type === "homeslice/sketchfab/search") {
+        const hit = (uid, name, slug, label) => ({ uid, name, author: "Ann", licence: { slug, label, url: null }, faces: 1000, bytes: 2_500_000, thumbnail: null, url: null });
+        return { results: [hit("free1", `${msg.query} (free)`, "by-nc", "CC Attribution-NonCommercial"), hit("bought1", `${msg.query} (bought)`, "store", "Bought on Sketchfab")], next: null };
+      }
+      if (msg.type === "homeslice/sketchfab/fetch") {
+        const free = msg.uid === "free1";
+        const added = { id: `m${uploads.length + 1}`, name: free ? "Free sofa" : "Bought sofa", url: `/homeslice_assets/custom/m${uploads.length + 1}.glb`, bytes: 1000, source: "sketchfab", uid: msg.uid, author: "Ann", licence: free ? { slug: "by-nc", label: "CC Attribution-NonCommercial", url: null } : { slug: "store", label: "Bought on Sketchfab", url: null }, shareable: free };
+        uploads.push(added);
+        return structuredClone(added);
+      }
       if (msg.type === "homeslice/assets/custom") return structuredClone(uploads);
       if (msg.type === "homeslice/assets/custom/upload") {
         if (!msg.data.startsWith("data:")) throw new Error("Upload a .glb file (binary glTF)");
