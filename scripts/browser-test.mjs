@@ -1817,6 +1817,12 @@ if (selected()) {
     );
     const docked = await page.evaluate(() => window.card.renderer.robotState()[0]);
     assert(docked.color === "#9e9e9e" && Math.abs(docked.at[0] - 0.8) < 1e-6 && Math.abs(docked.at[1] - 3.3) < 1e-6, `docked: ${JSON.stringify(docked)}`);
+    // it drives there (about 0.3 m/s), it doesn't jump
+    assert(Math.hypot(docked.drawn[0] - 0.8, docked.drawn[1] - 3.3) > 0.3, `jumped: ${JSON.stringify(docked)}`);
+    await page.waitForFunction(() => {
+      const r = window.card.renderer.robotState()[0];
+      return Math.hypot(r.drawn[0] - 0.8, r.drawn[1] - 3.3) < 1e-3;
+    }, null, { timeout: 8000 });
   });
 
   await test("robots: a Roborock answers its position when asked (a service, not an attribute)", async () => {

@@ -510,7 +510,7 @@ export class HouseRenderer {
   private roofInfo: { level: Level; shape: RoofShape } | null = null;
   private energyObjects: THREE.Object3D[] = [];
   /** Robots: their body (moved to the live position) and status ring, on their level. */
-  private robots = new Map<string, { levelIndex: number; body: THREE.Group; ring: THREE.MeshBasicMaterial }>();
+  private robots = new Map<string, { levelIndex: number; body: THREE.Group; ring: THREE.MeshBasicMaterial; glide?: { from: Vec2; to: Vec2; start: number; ms: number }; seen?: boolean }>();
   private robotObjects: THREE.Object3D[] = [];
   /** Where each energy item is, in its level group's coordinates (solar: on the roof). */
   private energyPoints = new Map<string, EnergyPoint>();
@@ -1230,7 +1230,20 @@ export class HouseRenderer {
   /** Whether a door or window is still moving (the card animates only then). */
   get leavesMoving() {
     for (const list of this.leaves.values()) for (const l of list) if (l.now !== l.target) return true;
+    // (and robots driving to their last reported spot)
+    for (const r of this.robots.values()) if (r.glide) return true;
     return false;
+  }
+
+  /** Moves robots along to where they were last seen. */
+  private glideRobots(now: number) {
+    for (const r of this.robots.values()) {
+      const g = r.glide;
+      if (!g) continue;
+      const t = Math.min(1, (now - g.start) / g.ms);
+      r.body.position.set(g.from[0] + (g.to[0] - g.from[0]) * t, 0, g.from[1] + (g.to[1] - g.from[1]) * t);
+      if (t >= 1) r.glide = undefined;
+    }
   }
 
   /** For tests: how far an opening's leaves are open (0 … 1). */
@@ -2737,8 +2750,19 @@ export class HouseRenderer {
   setRobotState(key: string, at: Vec2 | null, color: string, unsure = false) {
     const r = this.robots.get(key);
     if (!r) return;
+    const was = r.body.visible;
     r.body.visible = !!at;
-    if (at) r.body.position.set(at[0], 0, at[1]);
+    if (at) {
+      // a new reading near the last: drive there at a robot's pace (about 0.3 m/s); far, or just seen: jump
+      const from: Vec2 = [r.body.position.x, r.body.position.z];
+      const d = Math.hypot(at[0] - from[0], at[1] - from[1]);
+      if (was && r.seen && d > 0.02 && d < 4) r.glide = { from, to: at, start: performance.now(), ms: Math.min(4000, Math.max(300, (d / 0.3) * 1000)) };
+      else {
+        r.glide = undefined;
+        r.body.position.set(at[0], 0, at[1]);
+      }
+      r.seen = true;
+    } else r.glide = undefined;
     r.ring.color.set(color);
     r.body.userData.unsure = unsure;
     r.body.traverse((o) => {
@@ -2765,7 +2789,8 @@ export class HouseRenderer {
 
   /** For tests: where each robot is drawn. */
   robotState() {
-    return [...this.robots.entries()].map(([key, r]) => ({ key, visible: r.body.visible, at: [r.body.position.x, r.body.position.z], color: `#${r.ring.color.getHexString()}`, unsure: !!r.body.userData.unsure }));
+    // at: where it was reported; drawn: where it is on its way there
+    return [...this.robots.entries()].map(([key, r]) => ({ key, visible: r.body.visible, at: r.glide ? [...r.glide.to] : [r.body.position.x, r.body.position.z], drawn: [r.body.position.x, r.body.position.z], color: `#${r.ring.color.getHexString()}`, unsure: !!r.body.userData.unsure }));
   }
 
   /** Power per item (W towards what it is connected to); flows below a few watts stand still. */
@@ -3787,6 +3812,7 @@ export class HouseRenderer {
     this.placeLights();
     if (this.flows.length) this.updateFlows(now);
     if (this.devices.size || this.leaves.size) this.spin(now);
+    if (this.robots.size) this.glideRobots(now);
     if (this.weatherFx?.falling) this.weatherFx.step(now);
     this.applyCuts();
     if (this.occluders.length) this.fadeOccluders();
