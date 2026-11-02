@@ -187,6 +187,8 @@ wide the drawing is in reality.
 ```yaml
 type: custom:homeslice-card
 house: home                    # the house id
+roof: toggle                   # the roof: show, hide, or a roof button for the viewer: toggle (shown at first) or
+                               #   toggle_hidden (hidden at first); the choice stays on that device
 interactive: false             # true: drag to turn, scroll/pinch to zoom, two fingers move, double-click to reset;
                                #   buttons turn, show from above or tilted, and keep a start view on this device
 energy: false                  # true: energy overlay (shows the roof unless view.roof: false)

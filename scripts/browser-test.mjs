@@ -1088,6 +1088,28 @@ if (selected()) {
     await act(page, () => page.evaluate(() => window.card.hass.pushModel(window.__demoModel)));
   });
 
+  await test("roof: a roof button for the viewer, remembered on this device", async () => {
+    await page.evaluate(() => localStorage.removeItem("homeslice-roof:" + (window.card.config.house ?? "home")));
+    await act(page, () => page.evaluate(() => window.card.setConfig({ ...window.card.baseConfig, roof: "toggle_hidden" })).then(() => page.evaluate(() => (window.card.hass = window.card.hass))));
+    const shown = () => page.evaluate(() => window.card.renderer.roofVisible());
+    assert((await shown()) === false, "roof shown though hidden at first");
+    await act(page, () => page.locator("homeslice-card button.roof-toggle").click());
+    await page.waitForFunction(() => window.card.renderer.roofVisible());
+    // kept on this device: still there after the card is set up again
+    await act(page, () => page.evaluate(() => window.card.setConfig({ ...window.card.baseConfig })).then(() => page.evaluate(() => (window.card.hass = window.card.hass))));
+    assert(await shown(), "the choice was not kept");
+    await act(page, () => page.evaluate(() => window.card.setConfig({ ...window.card.baseConfig, roof: "hide" })).then(() => page.evaluate(() => (window.card.hass = window.card.hass))));
+    assert((await shown()) === false && !(await page.locator("homeslice-card button.roof-toggle").count()), "hide still shows the roof or its button");
+    await page.evaluate(() => localStorage.removeItem("homeslice-roof:" + (window.card.config.house ?? "home")));
+    await act(page, () =>
+      page.evaluate(() => {
+        const { roof, ...config } = window.card.baseConfig;
+        window.card.setConfig(config);
+        window.card.hass = window.card.hass;
+      }),
+    );
+  });
+
   await test("a gallery railing drawn along its line", async () => {
     await act(page, () =>
       page.evaluate(() => {

@@ -207,7 +207,7 @@ export class HomesliceCardEditor extends LitElement {
         ><input type="checkbox" .checked=${v.show_outdoor !== false} @change=${(e: Event) => this.change({}, { show_outdoor: (e.target as HTMLInputElement).checked ? undefined : false })} />
         ${this.t("cardeditor.outdoor")}</label
       >
-      <label class="check" ?hidden=${this._config.mode === "plan"}
+      <label class="check" ?hidden=${this._config.mode === "plan" || !!this._config.roof}
         ><input type="checkbox" .checked=${!!v.roof} @change=${(e: Event) => this.change({}, { roof: (e.target as HTMLInputElement).checked || undefined })} />
         ${this.t("cardeditor.roof")}</label
       >
@@ -241,6 +241,12 @@ export class HomesliceCardEditor extends LitElement {
         >${this.t("cardeditor.heatmap_style")}
         <select @change=${(e: Event) => this.change({ heatmap_style: (e.target as HTMLSelectElement).value === "smooth" ? "smooth" : undefined })}>
           ${(["rooms", "smooth"] as const).map((v) => html`<option value=${v} ?selected=${(this._config.heatmap_style ?? "rooms") === v}>${this.t(`cardeditor.heatmap_style_${v}`)}</option>`)}
+        </select>
+      </label>
+      <label
+        >${this.t("cardeditor.roof_mode")}
+        <select data-roof @change=${(e: Event) => this.change({ roof: ((e.target as HTMLSelectElement).value || undefined) as HomesliceCardConfig["roof"] })}>
+          ${(["", "show", "hide", "toggle", "toggle_hidden"] as const).map((v) => html`<option value=${v} ?selected=${(this._config.roof ?? "") === v}>${this.t(`cardeditor.roof_mode_${v || "default"}`)}</option>`)}
         </select>
       </label>
       <label

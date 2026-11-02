@@ -58,6 +58,11 @@ export interface HomesliceCardConfig {
   room_panel?: boolean;
   /** Drag to turn, scroll/pinch to zoom, two fingers (or a trackpad scroll) to move, double-click to reset (default false: the view is locked). */
   interactive?: boolean;
+  /**
+   * The roof: `show` always, `hide` never, or a roof button for the viewer starting shown
+   * (`toggle`) or hidden (`toggle_hidden`); the choice stays on that device. Default: as `view.roof` says.
+   */
+  roof?: "show" | "hide" | "toggle" | "toggle_hidden";
   /** Show the energy overlay: solar on the roof, battery, grid and devices with their power flows. */
   energy?: boolean;
   /** Light the house from the real sun (HA's sun.sun) and dim it at night (default true). */
@@ -488,6 +493,8 @@ export class HomesliceCard extends LitElement {
     this.view = viewOptions(config.view);
     // the overlay puts solar panels on the roof, so it shows the roof unless told not to
     if (config.energy && config.view?.roof === undefined) this.view.roof = true;
+    if (config.roof === "show" || config.roof === "hide") this.view.roof = config.roof === "show";
+    else if (config.roof === "toggle" || config.roof === "toggle_hidden") this.view.roof = this.savedRoof() ?? config.roof === "toggle";
     // weak devices: simple furniture unless the card asks for detailed
     if (this.quality === "low" && config.view?.furniture === undefined) this.view.furniture = "simple";
     if (config.mode === "plan") {
@@ -1451,6 +1458,39 @@ export class HomesliceCard extends LitElement {
       )}
       ${list.length > shown.length ? html`<span class="more">+${list.length - shown.length}</span>` : nothing}
     </div>`;
+  }
+
+  // ----- the roof button -----
+
+  private roofKey() {
+    return `homeslice-roof:${this.config.house ?? "home"}`;
+  }
+
+  /** This device's choice for the roof (toggle modes), or null. */
+  private savedRoof(): boolean | null {
+    try {
+      const v = localStorage.getItem(this.roofKey());
+      return v === null ? null : v === "1";
+    } catch {
+      return null;
+    }
+  }
+
+  private renderRoofToggle() {
+    const mode = this.config.roof;
+    if ((mode !== "toggle" && mode !== "toggle_hidden") || this.plan || this._walking) return nothing;
+    const on = !!this.view.roof;
+    return html`<button class="roof-toggle ${on ? "on" : ""}" title=${this.t("card.roof_toggle")} aria-label=${this.t("card.roof_toggle")} aria-pressed=${on}
+      @click=${() => {
+        try {
+          localStorage.setItem(this.roofKey(), on ? "0" : "1");
+        } catch {
+          // private mode: until the page reloads
+        }
+        this.setConfig(this.baseConfig);
+        if (!this.savedRoof() === on) this.view.roof = !on;
+        this.hass = this.hass;
+      }}><ha-icon icon=${on ? "mdi:home-roof" : "mdi:home-outline"}></ha-icon></button>`;
   }
 
   /** The weather's temperature and humidity outside, if the card has a weather entity. */
@@ -2461,6 +2501,7 @@ export class HomesliceCard extends LitElement {
           ${this.renderShortcuts()}
           ${this.renderTimeTravel()}
           ${this.renderWalk()}
+          ${this.renderRoofToggle()}
           ${this.renderLayers()}
           ${this.interactive && !this.plan
             ? html`<div class="views">
@@ -2898,6 +2939,24 @@ export class HomesliceCard extends LitElement {
       display: flex;
       align-items: center;
       gap: 6px;
+    }
+    .roof-toggle {
+      position: absolute;
+      left: 144px;
+      bottom: 56px;
+      z-index: 2;
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      border: 1px solid var(--divider-color, rgba(255, 255, 255, 0.2));
+      background: var(--card-background-color, rgba(20, 24, 28, 0.85));
+      color: var(--primary-text-color, #ddd);
+      display: grid;
+      place-items: center;
+      cursor: pointer;
+    }
+    .roof-toggle.on {
+      color: var(--primary-color, #03a9f4);
     }
     .walk-open {
       position: absolute;
