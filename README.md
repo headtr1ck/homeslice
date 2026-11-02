@@ -38,7 +38,7 @@ Spanish, Italian and Polish (help with more languages is welcome).
   area in HA and the house follows; nothing to keep in sync by hand.
 - **No drawing program needed.** No SVG to draw in another tool, no 3D model to export
   from Blender: the editor is in Home Assistant, with snapping walls, a plan image to trace
-  over, a wall view for exact placing, and imports (Sweet Home 3D today).
+  over, a wall view for exact placing, and imports (Sweet Home 3D, SVG floor plans).
 - **3D, 2.5D and 2D from one house.** The same house is an exploded 3D model, a tilted
   plan, a flat floor plan or all floors side by side — switch per card, not per drawing.
 - **Your AI assistant can draw it.** The house is short, readable YAML with clear errors;
@@ -170,6 +170,11 @@ The guide itself is [`custom_components/homeslice/guide.md`](custom_components/h
 
 **Coming from Sweet Home 3D?** Editor → ⚙ → *Import* → *From Sweet Home 3D (.sh3d)*: rooms, doors, windows and
 furniture come in as YAML to check before using it.
+
+**Coming from an SVG floor-plan card?** Editor → ⚙ → *Import* → *Floor plan drawing (.svg)*:
+closed shapes become rooms (named by their label or id), and elements whose id or class names
+an entity (`light.kitchen`) become that light or device in the room under them. You say how
+wide the drawing is in reality.
 
 ## Card
 

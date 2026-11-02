@@ -3640,6 +3640,40 @@ if (selected()) {
     assert(!(await page.evaluate(() => window.panel._settings)), "settings still open");
   });
 
+  await test("import an SVG floor plan: rooms from closed shapes, entities from their ids", async () => {
+    await page.keyboard.press("Escape");
+    await page.locator("homeslice-panel header button[aria-label='House settings']").click();
+    // a frame, two rooms (one inside a moved group, one a path), a light and a sensor named by their ids
+    // the width it asks for: 12 m
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" viewBox="0 0 1200 800">
+      <rect x="0" y="0" width="1200" height="800" fill="none" stroke="#000"/>
+      <g transform="translate(0 0)"><rect id="Kitchen" x="0" y="0" width="600" height="800"/></g>
+      <path inkscape:label="Living room" d="M600 0 H1200 V800 H600 Z"/>
+      <circle id="light.kitchen" cx="300" cy="400" r="20"/>
+      <rect id="sensor.living_temperature" x="890" y="390" width="20" height="20"/>
+    </svg>`;
+    await page.evaluate(() => {
+      window.__prompt = window.prompt;
+      window.prompt = () => "12";
+    });
+    await page.locator("homeslice-panel input[data-import-svg]").setInputFiles({ name: "plan.svg", mimeType: "image/svg+xml", buffer: Buffer.from(svg) });
+    await page.waitForFunction(() => window.panel._settings?.paste?.includes("living_room") || window.panel._settings?.problems, null, { timeout: 5000 }).catch(() => undefined);
+    const st = await page.evaluate(() => window.panel._settings);
+    await page.evaluate(() => (window.prompt = window.__prompt));
+    assert(st?.paste, `nothing imported: ${JSON.stringify(st)}`);
+    const house = parse(st.paste);
+    const [kitchen, living] = house.levels[0].rooms;
+    assert(kitchen.id === "kitchen" && JSON.stringify(kitchen.polygon.flat().filter((v) => v === 6).length) === "2", `kitchen: ${JSON.stringify(kitchen)}`);
+    assert(living.name === "Living room" && living.polygon.some(([x]) => x === 12), `living: ${JSON.stringify(living)}`);
+    assert(JSON.stringify(kitchen.lights) === JSON.stringify([{ entity: "light.kitchen", at: [3, 4] }]), `light: ${JSON.stringify(kitchen.lights)}`);
+    const sensor = living.furniture?.[0];
+    assert(sensor?.entity === "sensor.living_temperature" && sensor.mount === "wall", `sensor: ${JSON.stringify(sensor)}`);
+    assert(JSON.stringify(house.outline) === JSON.stringify({ rect: [0, 0, 12, 8] }), `outline: ${JSON.stringify(house.outline)}`);
+    await page.locator("homeslice-panel textarea.yaml").fill("");
+    await page.evaluate(() => window.panel.shadowRoot.activeElement?.blur());
+    await page.locator("homeslice-panel header button[aria-label='House settings']").click();
+  });
+
   await test("house settings: YAML in and out, invalid YAML is explained", async () => {
     await page.keyboard.press("Escape");
     await page.locator("homeslice-panel header button[aria-label='House settings']").click();

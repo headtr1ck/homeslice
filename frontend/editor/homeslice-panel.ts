@@ -4742,6 +4742,24 @@ export class HomeslicePanel extends LitElement {
           }
         }} />
       </label>
+      <label class="file"
+        >${this.t("editor.import_svg")}
+        <input type="file" accept=".svg,image/svg+xml" data-import-svg @change=${async (e: Event) => {
+          const file = (e.target as HTMLInputElement).files?.[0];
+          (e.target as HTMLInputElement).value = "";
+          if (!file) return;
+          // SVG units mean nothing on their own: how wide the drawing is in reality
+          const width = parseFloat((prompt(this.t("editor.import_svg_width"), "12") ?? "").replace(",", "."));
+          if (!(width > 0)) return;
+          try {
+            const { svgToHouse } = await import("../import/svgplan");
+            const found = svgToHouse(await file.text(), width, m.id);
+            this._settings = { ...st, paste: toYaml(found.house, { lineWidth: 0, flowCollectionPadding: false }), problems: undefined, notice: this.t("editor.import_svg_done", { rooms: found.rooms, entities: found.entities }) };
+          } catch (err) {
+            this._settings = { ...st, problems: [String((err as Error).message)] };
+          }
+        }} />
+      </label>
       <p class="muted">${this.t("editor.import_hint")}</p>
       <h3>${this.t("editor.backup")}</h3>
       <div class="row">
