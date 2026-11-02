@@ -251,7 +251,10 @@ def validate(house: Any) -> list[dict[str, str]]:
 
     furniture_types = catalog()["furniture_types"]
     opening_types = catalog()["opening_types"]
-    house_outline = shape(get(h, "outline"), "outline")
+    # outline: auto (each level's follows its rooms; the house's is the lowest level's)
+    auto_house = get(h, "outline") == "auto"
+    house_outline: Any = None if auto_house else shape(get(h, "outline"), "outline")
+    waiting: list[str] = []
     floor_finishes = catalog()["floor_finishes"]
     wall_finishes = catalog()["wall_finishes"]
 
@@ -403,6 +406,7 @@ def validate(house: Any) -> list[dict[str, str]]:
             level_ids.add(lid)
 
         room_ids: list[Any] = []
+        has_indoor = False
         for i, ri in enumerate(items(get(li, "rooms"))):
             rid = get(ri, "id")
             rp = f"{lp}.rooms.{text(nullish(rid, i))}"
@@ -418,6 +422,8 @@ def validate(house: Any) -> list[dict[str, str]]:
                 if not truthy(get(ri, "rect")) and not truthy(get(ri, "polygon")):
                     err(rp, "A room needs rect: [x, y, width, depth] or polygon: [[x, y], …].")
                 continue
+            if get(ri, "kind") != "outdoor":
+                has_indoor = True
             floor = get(ri, "floor")
             if floor is not MISSING and not finish_ok(floor, floor_finishes):
                 err(f"{rp}.floor", f"floor must be {FLOOR_HINT}, got {stringify(floor)}.")
@@ -574,9 +580,17 @@ def validate(house: Any) -> list[dict[str, str]]:
                 continue
             err(wp, "A wall entry needs between: [room, room] or line: [[x, y], [x, y]].")
 
-        outline = shape(get(li, "outline"), f"{lp}.outline") or house_outline
-        if not outline:
-            err(lp, "No outline: set outline on the house (shared by all levels) or on this level.")
+        lout = get(li, "outline")
+        if lout == "auto" or (auto_house and not truthy(lout)):
+            if has_indoor:
+                if auto_house and not house_outline:
+                    house_outline = "auto"
+            elif not house_outline:
+                waiting.append(lp)
+        else:
+            outline = shape(lout, f"{lp}.outline") or house_outline
+            if not outline:
+                err(lp, "No outline: set outline on the house (shared by all levels) or on this level.")
         include = get(li, "include_floors")
         if include is not MISSING and not (isinstance(include, list) and all(isinstance(f, str) for f in include)):
             err(f"{lp}.include_floors", "include_floors must be a list of Home Assistant floor ids.")
@@ -629,6 +643,10 @@ def validate(house: Any) -> list[dict[str, str]]:
                 check_windows(get(ri, "windows"), f"{rp}.windows")
                 check_furniture(get(ri, "furniture"), rp)
         levels.append({"id": lid, "index": index})
+
+    if not house_outline:
+        for lp in waiting:
+            err(lp, "No outline: draw rooms (outline: auto follows them) or set outline on the house or this level.")
 
     level_index = {lvl["id"]: lvl["index"] for lvl in levels if not isinstance(lvl["id"], (dict, list))}
 

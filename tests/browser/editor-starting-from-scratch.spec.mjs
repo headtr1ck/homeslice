@@ -53,7 +53,8 @@ test.describe.serial("editor, starting from scratch", () => {
     await page.waitForFunction(() => window.panel.shadowRoot.querySelector("svg.plan .room"));
     const m = await model();
     assert(m.id === "test_house" && m.name === "Test house", `id/name: ${m.id} ${m.name}`);
-    assert(JSON.stringify(m.outline) === '{"rect":[0,0,9,8]}', `outline: ${JSON.stringify(m.outline)}`);
+    // the outside walls follow the rooms, which fill the size given
+    assert(m.outline === "auto", `outline: ${JSON.stringify(m.outline)}`);
     assert(JSON.stringify(m.levels.map((l) => l.id)) === '["basement","ground_floor","first_floor"]', `levels: ${m.levels.map((l) => l.id)}`);
     assert(JSON.stringify(m.levels[1].include_floors) === '["outside"]', `ground floor includes: ${JSON.stringify(m.levels[1].include_floors)}`);
     // opens on the entrance floor with a room per area
@@ -199,12 +200,18 @@ test.describe.serial("editor, starting from scratch", () => {
     await curves.locator("select[data-curve-edge]").selectOption("2");
     await curves.locator("input[data-curve-bulge]").fill("1.5");
     await curves.locator("input[data-curve-bulge]").press("Enter");
-    const m = await page.evaluate(() => ({ outline: window.panel._model.outline.curves, rooms: window.panel._model.levels[0].rooms.filter((r) => r.curves).map((r) => r.id) }));
+    // the outline of the floor being edited (its own, where its rooms differ from the floor below's), and the room along it
+    const m = await page.evaluate(() => {
+      const p = window.panel;
+      const l = p._model.levels.find((x) => x.id === p._level);
+      const outline = (l.outline && l.outline !== "auto" ? l.outline : p._model.outline).curves;
+      return { outline, rooms: l.rooms.filter((r) => r.curves).map((r) => r.id) };
+    });
     assert(JSON.stringify(m.outline) === JSON.stringify([{ edge: 2, bulge: 1.5 }]) && m.rooms.length, `curved: ${JSON.stringify(m)}`);
     await shot(page, "editor-curved");
     await page.evaluate(() => window.panel.shadowRoot.activeElement?.blur());
     await page.keyboard.press("Control+z");
-    assert(!(await page.evaluate(() => window.panel._model.outline.curves)), "undo kept the curve");
+    assert(await page.evaluate(() => window.panel._model.outline === "auto"), "undo did not go back to the automatic outline");
     await page.evaluate(() => (window.panel._room = null));
   });
 

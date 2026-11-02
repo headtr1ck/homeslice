@@ -34,6 +34,9 @@ previous version, so a save can be undone in the editor (⚙ → Restore previou
   counts as part of the living room); the area's lights then go to the larger one.
 - `outline` is the outer face of the exterior walls; exterior walls grow inwards from it.
   Rooms along the outside go right up to the outline.
+- `outline: auto` instead: each level's outline is the outer edge of its rooms (gardens and
+  balconies left out, so an overhang comes out right), the house's (façade, roof) the
+  lowest level's. Good when the rooms are the house; set a shape when the outside differs.
 - Positions inside a room (lights, furniture) are metres east and south of the room's
   north-west corner (of its bounding box), not plan coordinates.
 

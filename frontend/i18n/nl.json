@@ -1811,5 +1811,7 @@
   "editor.robots_none": "Nog geen robotstofzuigers of robotmaaiers in Home Assistant.",
   "editor.same_room": "Afgescheiden, maar één ruimte met:",
   "editor.same_room_inside": "Binnen een andere ruimte. Voor Home Assistant één ruimte ermee?",
-  "editor.same_room_as": "Zelfde ruimte als {room}"
+  "editor.same_room_as": "Zelfde ruimte als {room}",
+  "editor.outline_auto": "De ruimtes volgen (automatisch)",
+  "editor.outline_auto_hint": "De buitenmuren lopen om de ruimtes van deze verdieping en bewegen mee. Een muur buigen, of dit uitvinken, legt de omtrek vast zoals hij is."
 }

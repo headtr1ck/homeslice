@@ -1811,5 +1811,7 @@
   "editor.robots_none": "Pas encore de robot aspirateur ni de tondeuse dans Home Assistant.",
   "editor.same_room": "Séparée par un mur, mais une seule pièce avec :",
   "editor.same_room_inside": "Dans une autre pièce. Une seule pièce avec elle pour Home Assistant ?",
-  "editor.same_room_as": "Même pièce que {room}"
+  "editor.same_room_as": "Même pièce que {room}",
+  "editor.outline_auto": "Suivre les pièces (automatique)",
+  "editor.outline_auto_hint": "Les murs extérieurs entourent les pièces de cet étage et bougent avec elles. Courber un mur, ou décocher ceci, fige le contour tel quel."
 }

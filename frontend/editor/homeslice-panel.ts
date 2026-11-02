@@ -14,7 +14,7 @@ import en from "../i18n/en.json";
 import de from "../i18n/de.json";
 import { DEFAULTS, LIGHT_TYPES, expandHouse } from "../model/expand";
 import { bbox, bendEdges, edgeDistance, labelPoint, normalizeOrientation, pointInPolygon, project, signedArea, within } from "../model/geometry";
-import { closedFaces, faceAt } from "./faces";
+import { closedFaces, faceAt } from "../model/faces";
 import type { DormerInput, EnergyInput, LevelInput, RoofInput, RoofPartInput, RoofWindowInput, FurnitureInput, FurnitureMount, FurnitureType, HouseInput, Issue, LightType, OpeningInput, OpeningSource, OpeningType, PieceInput, RoomInput, ShapeInput, Side, Vec2, Vertical } from "../model/types";
 import { deriveWalls, innerPolygon, sideOfRoom, type Wall, type WallOpening } from "../model/walls";
 import { HouseRenderer } from "../render/scene";
@@ -130,6 +130,7 @@ import {
   openSides,
   outlineScope,
   setBoundaryOpen,
+  setOutlineAuto,
   setOwnOutline,
   removeVertex,
   roomPolygon,
@@ -5812,12 +5813,18 @@ export class HomeslicePanel extends LitElement {
     const poly = scope.poly;
     return html`<h2>${this.t("editor.outline")}</h2>
       <p class="muted">${this.n(area(poly))} m² ${this.t("editor.outline_area")}</p>
-      <p class="muted">${scope.owner === "house" ? this.t("editor.outline_shared", { levels: names.join(", ") }) : this.t("editor.outline_own")}</p>
+      <label class="check">
+        <input type="checkbox" data-outline-auto .checked=${scope.owner === "auto"} @change=${(e: Event) => this.commit(setOutlineAuto(m, (e.target as HTMLInputElement).checked))} />
+        ${this.t("editor.outline_auto")}
+      </label>
+      <p class="muted">${scope.owner === "auto" ? this.t("editor.outline_auto_hint") : scope.owner === "house" ? this.t("editor.outline_shared", { levels: names.join(", ") }) : this.t("editor.outline_own")}</p>
       <p class="muted">${this.t("editor.outline_hint")}</p>
-      <button @click=${() => this.commit(setOwnOutline(m, this._level, scope.owner === "house"))}>
-        ${scope.owner === "house" ? this.t("editor.outline_make_own") : this.t("editor.outline_use_house")}
-      </button>
-      ${this.renderCurves(scope.owner === "house" ? m.outline : this.levelInput?.outline, "outline")}
+      ${scope.owner === "auto"
+        ? nothing
+        : html`<button @click=${() => this.commit(setOwnOutline(m, this._level, scope.owner === "house"))}>
+            ${scope.owner === "house" ? this.t("editor.outline_make_own") : this.t("editor.outline_use_house")}
+          </button>`}
+      ${this.renderCurves(scope.owner === "auto" ? { polygon: scope.poly } : ((scope.owner === "house" ? m.outline : this.levelInput?.outline) as ShapeInput | undefined), "outline")}
       <h3>${this.t("editor.surface_facade")}</h3>
       <p class="muted">${this.t("editor.surface_facade_hint")}</p>
       ${this.renderFinishPicker("wall", m.facade, (facade) => {

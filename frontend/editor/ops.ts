@@ -3,6 +3,7 @@
 
 import { bbox, dist, normalizeOrientation, pointInPolygon, project, signedArea } from "../model/geometry";
 import { expandHouse } from "../model/expand";
+import { roomsOutline } from "../model/faces";
 import type {
   RoofPartInput, CameraInput, Coord, EnergyInput, FacadeOpeningInput, FurnitureInput, HouseInput, LevelInput, LightType, OpeningInput, OpeningSource, OpeningType, PieceInput, RoomInput, ShapeInput, RobotInput, RoofInput, Side, Vec2, VerticalInput, WallInput, WallThickness } from "../model/types";
 
@@ -53,21 +54,74 @@ export function level(model: HouseInput, levelId: string): LevelInput {
 }
 
 /** Polygon of an outline (or any rect/polygon shape). */
-export function shapePolygon(model: HouseInput, shape: ShapeInput | undefined): Vec2[] {
-  return shape ? roomPolygon(model, { id: "", ...shape }) : [];
+export function shapePolygon(model: HouseInput, shape: ShapeInput | "auto" | undefined): Vec2[] {
+  return shape && shape !== "auto" ? roomPolygon(model, { id: "", ...shape }) : [];
+}
+
+/** Whether this level's outline follows its rooms (`outline: auto`). */
+export function outlineIsAuto(model: HouseInput, levelId: string): boolean {
+  const l = level(model, levelId);
+  return l.outline === "auto" || (model.outline === "auto" && !l.outline);
+}
+
+/** The outline `auto` gives a level: the outer edge of its rooms, else the house's. */
+export function autoOutline(model: HouseInput, levelId: string): Vec2[] {
+  const own = roomsOutline(level(model, levelId).rooms.filter((r) => r.kind !== "outdoor").map((r) => roomPolygon(model, r)));
+  return own.length ? own : houseOutlinePolygon(model);
+}
+
+/** The house's outline (façades, roof, new levels): the lowest level's when it is `auto`. */
+export function houseOutlinePolygon(model: HouseInput): Vec2[] {
+  if (model.outline !== "auto") return shapePolygon(model, model.outline);
+  for (const l of model.levels) {
+    const own = roomsOutline(l.rooms.filter((r) => r.kind !== "outdoor").map((r) => roomPolygon(model, r)));
+    if (own.length) return own;
+  }
+  return [];
+}
+
+/**
+ * An automatic outline made fixed (as it is now): the house's the lowest level's, and each
+ * level whose rooms reach further (an overhang) gets its own. Or back to following the rooms.
+ */
+export function setOutlineAuto(model: HouseInput, auto: boolean): HouseInput {
+  const m = clone(model);
+  if (auto) {
+    m.outline = "auto";
+    for (const l of m.levels) delete l.outline;
+    return m;
+  }
+  if (m.outline !== "auto") return m;
+  const house = houseOutlinePolygon(model);
+  const shapeOf = (poly: Vec2[]) => {
+    const { id: _id, ...shape } = setRoomPolygon({ id: "" }, poly);
+    return shape as ShapeInput;
+  };
+  for (const l of m.levels) {
+    if (l.outline && l.outline !== "auto") continue;
+    const own = outlineIsAuto(model, l.id) ? autoOutline(model, l.id) : house;
+    const same = own.length === house.length && own.every((p) => house.some((q) => Math.hypot(p[0] - q[0], p[1] - q[1]) < 1e-6));
+    if (!same && own.length) l.outline = shapeOf(own);
+    else delete l.outline;
+  }
+  m.outline = house.length ? shapeOf(house) : undefined;
+  return m;
 }
 
 /**
  * The outline a level uses: its own, or the house outline shared by every level without
  * one. Editing it affects all `levels` listed.
  */
-export function outlineScope(model: HouseInput, levelId: string): { owner: "house" | "level"; levels: string[]; poly: Vec2[] } {
+export function outlineScope(model: HouseInput, levelId: string): { owner: "house" | "level" | "auto"; levels: string[]; poly: Vec2[] } {
   const l = level(model, levelId);
+  // following the rooms: editing it moves their corners on its edge, nothing else to write
+  if (outlineIsAuto(model, levelId)) return { owner: "auto", levels: [levelId], poly: autoOutline(model, levelId) };
   if (l.outline) return { owner: "level", levels: [levelId], poly: shapePolygon(model, l.outline) };
   return { owner: "house", levels: model.levels.filter((x) => !x.outline).map((x) => x.id), poly: shapePolygon(model, model.outline) };
 }
 
-function writeOutline(m: HouseInput, levelId: string, owner: "house" | "level", poly: Vec2[]) {
+function writeOutline(m: HouseInput, levelId: string, owner: "house" | "level" | "auto", poly: Vec2[]) {
+  if (owner === "auto") return;
   const { id: _id, ...shape } = setRoomPolygon({ id: "" }, poly);
   if (owner === "house") m.outline = shape;
   else level(m, levelId).outline = shape;
@@ -143,7 +197,10 @@ export function moveEdge(model: HouseInput, levelId: string, a: Vec2, b: Vec2, d
 export function setOwnOutline(model: HouseInput, levelId: string, own: boolean): HouseInput {
   const m = clone(model);
   const l = level(m, levelId);
-  if (own && !l.outline && m.outline) l.outline = clone(m.outline);
+  if (own && !l.outline && m.outline === "auto") {
+    const { id: _id, ...shape } = setRoomPolygon({ id: "" }, autoOutline(model, levelId));
+    l.outline = shape;
+  } else if (own && !l.outline && m.outline) l.outline = clone(m.outline);
   if (!own) delete l.outline;
   return m;
 }
@@ -654,7 +711,7 @@ export function setOpeningLevels(model: HouseInput, levelId: string, src: Openin
   const room = o && l.rooms.find((r) => r.id === o.room);
   if (!o || !room) return { model: m, source: src };
   const along = o.side === "north" || o.side === "south" ? 0 : 1;
-  const house = shapePolygon(m, m.outline);
+  const house = houseOutlinePolygon(m);
   const base = bbox(house.length ? house : outlineScope(m, levelId).poly).min[along];
   const f: FacadeOpeningInput = {
     side: o.side,
@@ -929,7 +986,8 @@ export function newHouse(id: string, name: string, size: [number, number], level
     schema: 1,
     id,
     name,
-    outline: { rect: [0, 0, w, d] },
+    // the outside walls follow the rooms (which start filling the size given)
+    outline: "auto",
     levels: (levels.length ? levels : [{ name: "Ground floor", areas: [] }]).map((seed) => {
       const lid = uniqueId(ids, slug(seed.floor_id ?? seed.name ?? "level", "level"));
       ids.push(lid);
@@ -952,7 +1010,7 @@ export function addLevel(model: HouseInput, index: number, seed: LevelSeed): { m
     m.levels.map((l) => l.id),
     slug(seed.floor_id ?? seed.name ?? "level", "level"),
   );
-  const poly = shapePolygon(m, m.outline);
+  const poly = houseOutlinePolygon(m);
   const { min, max } = poly.length ? bbox(poly) : { min: [0, 0] as Vec2, max: [10, 8] as Vec2 };
   const l: LevelInput = { id, rooms: layoutRooms([min[0], min[1], round(max[0] - min[0]), round(max[1] - min[1])], seed.areas) };
   if (seed.floor_id) l.floor_id = seed.floor_id;
@@ -1627,14 +1685,16 @@ const withCurve = <S extends ShapeInput>(s: S, edge: number, bulge: number): S =
  * of it would need a slice of the arc: drawn straight): `bulge` metres off the straight line.
  */
 export function bendEdge(model: HouseInput, levelId: string, target: { room: string } | "outline", edge: number, bulge: number): HouseInput {
-  const m = clone(model);
+  // a curve is the outline's own: an automatic one becomes fixed first
+  let m = clone(model);
   if (target !== "outline") {
     const l = level(m, levelId);
     l.rooms = l.rooms.map((r) => (r.id === target.room ? withCurve(r, edge, bulge) : r));
     return m;
   }
+  if (outlineIsAuto(m, levelId)) m = setOutlineAuto(m, false);
   const scope = outlineScope(m, levelId);
-  const shape = scope.owner === "house" ? m.outline! : level(m, levelId).outline!;
+  const shape = (scope.owner === "house" ? m.outline! : level(m, levelId).outline!) as ShapeInput;
   const corners = shapeCorners(m, shape);
   const [a, b] = [corners[edge], corners[(edge + 1) % corners.length]];
   const same = (p: Vec2, q: Vec2) => Math.hypot(p[0] - q[0], p[1] - q[1]) < SAME_POINT;

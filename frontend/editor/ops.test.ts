@@ -1,8 +1,11 @@
 import { describe, expect, it } from "vitest";
-import type { HouseInput, Vec2 } from "../model/types";
+import type { HouseInput, ShapeInput, Vec2 } from "../model/types";
+import { bbox } from "../model/geometry";
 import {
   assignArea,
   bendEdge,
+  houseOutlinePolygon,
+  setOutlineAuto,
   divideRoom,
   mergePieces,
   setPiece,
@@ -288,7 +291,10 @@ describe("houses and levels", () => {
       { floor_id: "ground_floor", areas: [{ area_id: "kitchen", name: "Kitchen" }, { area_id: "living_room", name: "Living" }, { area_id: "hall", name: "Hall" }] },
       { floor_id: "first_floor", areas: [] },
     ]);
-    expect(m.outline).toEqual({ rect: [0, 0, 10, 8] });
+    // the outside walls follow the rooms, which fill the size given
+    expect(m.outline).toBe("auto");
+    expect(houseOutlinePolygon(m)).toHaveLength(4);
+    expect(bbox(houseOutlinePolygon(m))).toEqual({ min: [0, 0], max: [10, 8] });
     expect(m.levels.map((l) => l.id)).toEqual(["ground_floor", "first_floor"]);
     const rects = m.levels[0].rooms.map((r) => r.rect);
     // two columns: two rooms in the first row, the last fills the second
@@ -388,7 +394,7 @@ describe("houses and levels", () => {
     m.levels[0].rooms = [{ id: "front", rect: [0, 4, 10, 4] }, { id: "back", rect: [0, 0, 10, 4] }, { id: "garden", kind: "outdoor", rect: [0, 8, 10, 4] }];
     m.levels[0].openings = [];
     m = bendEdge(m, "g", "outline", 2, 1.2);
-    expect(m.outline!.curves).toEqual([{ edge: 2, bulge: 1.2 }]);
+    expect((m.outline as ShapeInput).curves).toEqual([{ edge: 2, bulge: 1.2 }]);
     // the garden outside the wall bends the other way, along the same arc
     expect(m.levels[0].rooms.map((r) => r.curves)).toEqual([[{ edge: 2, bulge: 1.2 }], undefined, [{ edge: 0, bulge: -1.2 }]]);
     m = bendEdge(m, "g", { room: "front" }, 2, 0);
@@ -868,5 +874,41 @@ describe("assignArea", () => {
     ]);
     // the drawn walls are the rooms' walls now
     expect(l.walls?.filter((w) => w.line) ?? []).toEqual([]);
+  });
+});
+
+describe("outline: auto", () => {
+  const h = (): HouseInput => ({
+    schema: 1,
+    id: "a",
+    outline: "auto",
+    levels: [
+      { id: "g", rooms: [{ id: "a", rect: [0, 0, 6, 5] }, { id: "b", rect: [6, 0, 4, 5] }, { id: "garden", kind: "outdoor", rect: [0, 5, 10, 4] }] },
+      // the first floor reaches 0.5 m further north
+      { id: "f", rooms: [{ id: "c", rect: [0, -0.5, 10, 5.5] }] },
+    ],
+  });
+
+  it("each level's outline is the outer edge of its rooms; the house's the lowest level's", () => {
+    const { house, issues } = expandHouse(h());
+    expect(issues.filter((i) => i.severity === "error")).toEqual([]);
+    expect(bbox(house!.levels[0].outline)).toEqual({ min: [0, 0], max: [10, 5] });
+    expect(bbox(house!.levels[1].outline)).toEqual({ min: [0, -0.5], max: [10, 5] });
+  });
+
+  it("moving a room's outer wall moves the outline with it; nothing is fixed", () => {
+    const m = moveEdge(h(), "g", [10, 0], [10, 5], [0.5, 0]);
+    expect(m.outline).toBe("auto");
+    expect(bbox(houseOutlinePolygon(m)).max[0]).toBe(10.5);
+  });
+
+  it("made fixed: the house's is the lowest level's, a level reaching further gets its own; and back", () => {
+    const fixed = setOutlineAuto(h(), false);
+    expect(fixed.outline).toEqual({ rect: [0, 0, 10, 5] });
+    expect(fixed.levels[0].outline).toBeUndefined();
+    expect(fixed.levels[1].outline).toEqual({ rect: [0, -0.5, 10, 5.5] });
+    const back = setOutlineAuto(fixed, true);
+    expect(back.outline).toBe("auto");
+    expect(back.levels.every((l) => !l.outline)).toBe(true);
   });
 });

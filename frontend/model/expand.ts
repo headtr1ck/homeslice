@@ -2,6 +2,7 @@
 // defaults and elevations. Problems are collected as issues instead of thrown, so a
 // partly broken file still renders and the user sees every problem at once.
 
+import { roomsOutline } from "./faces";
 import { bbox, bendEdges, edges, labelPoint, normalizeOrientation, outwardNormal, pointInPolygon, rectPolygon, sideOf, signedArea } from "./geometry";
 import { FURNITURE } from "./furniture";
 import { FLOOR_FINISHES, ROOF_FINISHES, WALL_FINISHES } from "./finishes";
@@ -156,7 +157,10 @@ export function expandHouse(input: unknown): ExpandResult {
   };
 
   const walls: WallThickness = { ...DEFAULTS.walls, ...(h.walls ?? {}) };
-  const houseOutline = shape(h.outline, "outline");
+  // `outline: auto`: each level's is the outer edge of its rooms; the house's (façades, roof) the lowest level's
+  const autoHouse = h.outline === "auto";
+  let houseOutline = autoHouse ? null : shape(h.outline as ShapeInput | undefined, "outline");
+  const waiting: { level: Level; path: string }[] = [];
   if (h.facade !== undefined && !finishOk(h.facade, WALL_FINISHES)) err("facade", `facade must be ${WALL_HINT}, got ${JSON.stringify(h.facade)}.`);
 
   /** Pieces in a room or on a roof part: `at` from the shape's north-west corner (`min`). */
@@ -429,12 +433,18 @@ export function expandHouse(input: unknown): ExpandResult {
       err(wp, "A wall entry needs between: [room, room] or line: [[x, y], [x, y]].");
     });
 
-    const outline = shape(li.outline, `${lp}.outline`) ?? houseOutline;
+    const auto = li.outline === "auto" || (autoHouse && !li.outline);
+    let outline = auto ? null : (shape(li.outline as ShapeInput | undefined, `${lp}.outline`) ?? houseOutline);
+    if (auto) {
+      const own = roomsOutline(rooms.filter((r) => r.kind !== "outdoor").map((r) => r.polygon));
+      if (own.length && autoHouse && !houseOutline) houseOutline = own;
+      outline = own.length ? own : houseOutline;
+    }
     // an outdoor room inside the house (a roof terrace, a loggia) is decked, not lawn
     if (outline)
       for (const r of rooms)
         if (r.kind === "outdoor" && !(li.rooms ?? []).find((x) => x.id === r.id)?.floor && pointInPolygon(labelPoint(r.polygon), outline)) r.floor = "decking";
-    if (!outline) err(lp, "No outline: set outline on the house (shared by all levels) or on this level.");
+    if (!outline && !auto) err(lp, "No outline: set outline on the house (shared by all levels) or on this level.");
 
     if (li.include_floors !== undefined && !(Array.isArray(li.include_floors) && li.include_floors.every((f) => typeof f === "string")))
       err(`${lp}.include_floors`, "include_floors must be a list of Home Assistant floor ids.");
@@ -476,7 +486,7 @@ export function expandHouse(input: unknown): ExpandResult {
     // a roof level has no storey of its own: it sits on the floor below
     const height = li.height ?? (kind === "roof" ? 0 : DEFAULTS.levelHeight);
     const slab = li.slab ?? (kind === "roof" ? 0 : DEFAULTS.slab);
-    levels.push({
+    const levelOut = {
       id: li.id,
       kind,
       roofs,
@@ -494,10 +504,18 @@ export function expandHouse(input: unknown): ExpandResult {
       freeWalls,
       railings,
       thickBoundaries,
-    });
+    };
+    levels.push(levelOut);
+    // a level of the auto outline with no rooms (an empty attic) takes the house's, once known
+    if (!outline && auto) waiting.push({ level: levelOut, path: lp });
     // (a split level at its own elevation leaves the stack as it is)
     if (typeof li.elevation !== "number") elevation += height + slab;
   });
+
+  for (const w of waiting) {
+    if (houseOutline) w.level.outline = houseOutline;
+    else err(w.path, "No outline: draw rooms (outline: auto follows them) or set outline on the house or this level.");
+  }
 
   // façade openings: placed on each listed level in the room behind that stretch of wall
   (h.facade_openings ?? []).forEach((fi, i) => {

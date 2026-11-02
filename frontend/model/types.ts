@@ -278,7 +278,8 @@ export interface LevelInput {
    * mezzanine). It sits exactly there; the other floors stack as if it weren't there.
    */
   elevation?: number;
-  outline?: ShapeInput;
+  /** This level's own outline (an overhang), or `auto`: the outer edge of its rooms. */
+  outline?: ShapeInput | "auto";
   party_walls?: Side[];
   rooms: RoomInput[];
   openings?: OpeningInput[];
@@ -484,7 +485,12 @@ export interface HouseInput {
   name?: string;
   /** The house's own pieces (see PieceInput). */
   pieces?: PieceInput[];
-  outline?: ShapeInput;
+  /**
+   * The outer face of the exterior walls, shared by every level without its own; or `auto`:
+   * each level's is the outer edge of its rooms (balconies and gardens left out), and the
+   * house's (façades, roof) the lowest level's.
+   */
+  outline?: ShapeInput | "auto";
   grid?: { x?: Record<string, number>; y?: Record<string, number> };
   walls?: Partial<WallThickness>;
   party_walls?: Side[];

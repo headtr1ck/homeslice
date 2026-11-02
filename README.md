@@ -335,6 +335,7 @@ schema: 1
 id: home
 name: Home
 outline: { rect: [0, 0, 10, 8] }       # outer face of the exterior walls, shared by all levels
+                                        # (or outline: auto: the outer edge of each level's rooms)
 party_walls: [west]                     # walls shared with a neighbour
 # the roof as a level of its own (instead of roof:): parts at any angle, a roof starting lower,
 # pieces on it such as solar panels; in the editor: + Roof under the floors, then presets

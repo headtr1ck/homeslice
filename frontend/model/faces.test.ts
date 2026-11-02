@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { signedArea } from "../model/geometry";
-import type { Vec2 } from "../model/types";
-import { closedFaces, faceAt } from "./faces";
+import { signedArea } from "./geometry";
+import type { Vec2 } from "./types";
+import { closedFaces, faceAt, roomsOutline } from "./faces";
 
 const area = (p: Vec2[]) => Math.round(Math.abs(signedArea(p)) * 100) / 100;
 
@@ -59,5 +59,22 @@ describe("closedFaces", () => {
     expect(closedFaces(walls).map(area).sort()).toEqual([6, 6]);
     // 10 cm short is a gap, not a wall meeting another
     expect(closedFaces([...walls.slice(0, 4), [[2, 0.1], [2, 3]]]).map(area)).toEqual([12]);
+  });
+});
+
+describe("roomsOutline", () => {
+  const sq = (x: number, y: number, w: number, d: number): Vec2[] => [[x, y], [x + w, y], [x + w, y + d], [x, y + d]];
+  it("the outer edge of rooms sharing walls, without corners where inside walls meet it", () => {
+    // an L of three rooms
+    const outline = roomsOutline([sq(0, 0, 4, 3), sq(4, 0, 3, 3), sq(0, 3, 4, 2)]);
+    expect(Math.abs(signedArea(outline))).toBeCloseTo(29);
+    expect(outline).toHaveLength(6);
+    expect(signedArea(outline)).toBeGreaterThan(0);
+  });
+
+  it("a room standing apart is left out; a room inside another changes nothing", () => {
+    const outline = roomsOutline([sq(0, 0, 6, 5), sq(2, 2, 1, 1), sq(10, 0, 2, 2)]);
+    expect(outline).toHaveLength(4);
+    expect(Math.abs(signedArea(outline))).toBeCloseTo(30);
   });
 });

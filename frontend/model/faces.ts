@@ -3,8 +3,8 @@
  * edges, the house outline) close off, as polygons. Used to turn walls drawn freehand into
  * rooms by giving a closed shape an area.
  */
-import { pointInPolygon, signedArea } from "../model/geometry";
-import type { Vec2 } from "../model/types";
+import { pointInPolygon, signedArea } from "./geometry";
+import type { Vec2 } from "./types";
 
 const KEY = 1000; // millimetres: points closer than this are one point
 const key = (p: Vec2) => `${Math.round(p[0] * KEY)},${Math.round(p[1] * KEY)}`;
@@ -36,6 +36,22 @@ function onSegment(p: Vec2, a: Vec2, b: Vec2): number | null {
  * of another segment, or just past it, by up to `gap` metres counts as meeting it.
  */
 export function closedFaces(input: [Vec2, Vec2][], minArea = 0.25, gap = 0.05): Vec2[][] {
+  return traceLoops(input, gap).filter((poly) => signedArea(poly) > minArea);
+}
+
+/**
+ * The outer edges of what the segments enclose, one per separate group (largest first):
+ * e.g. the outside of a set of rooms sharing walls. Holes and inner edges don't count.
+ */
+export function outerBoundaries(input: [Vec2, Vec2][], minArea = 0.25, gap = 0.05): Vec2[][] {
+  return traceLoops(input, gap)
+    .filter((poly) => signedArea(poly) < -minArea)
+    .map((poly) => [...poly].reverse())
+    .sort((a, b) => signedArea(b) - signedArea(a));
+}
+
+/** Every loop the segments make: bounded faces one way round, the outsides of groups the other. */
+function traceLoops(input: [Vec2, Vec2][], gap: number): Vec2[][] {
   const segments = closeGaps(input, gap);
   // cut every segment where another touches or crosses it
   const pieces: [Vec2, Vec2][] = [];
@@ -116,7 +132,7 @@ export function closedFaces(input: [Vec2, Vec2][], minArea = 0.25, gap = 0.05): 
       }
       const poly = loop.map((k) => at.get(k)!);
       // one orientation is the bounded faces, the other the outside of each connected part
-      if (poly.length >= 3 && signedArea(poly) > minArea) faces.push(poly);
+      if (poly.length >= 3) faces.push(poly);
     }
   }
   return faces;
@@ -174,4 +190,32 @@ export function faceAt(faces: Vec2[][], p: Vec2): Vec2[] | null {
   let best: Vec2[] | null = null;
   for (const f of faces) if (pointInPolygon(p, f) && (!best || Math.abs(signedArea(f)) < Math.abs(signedArea(best)))) best = f;
   return best;
+}
+
+/** Without corners on a straight line (where an inside wall meets an outer edge). */
+export function dropStraightCorners(poly: Vec2[]): Vec2[] {
+  const out = poly.filter((p, i) => {
+    const a = poly[(i - 1 + poly.length) % poly.length];
+    const b = poly[(i + 1) % poly.length];
+    return Math.abs((p[0] - a[0]) * (b[1] - p[1]) - (p[1] - a[1]) * (b[0] - p[0])) > 1e-6;
+  });
+  return out.length >= 3 ? out : poly;
+}
+
+/**
+ * The outline rooms make together (`outline: auto`): the outer edge of the largest group of
+ * rooms sharing walls. A room standing apart (a shed in the garden) is left out of it.
+ */
+export function roomsOutline(rooms: Vec2[][]): Vec2[] {
+  const segments: [Vec2, Vec2][] = rooms.flatMap((poly) => poly.map((p, i) => [p, poly[(i + 1) % poly.length]] as [Vec2, Vec2]));
+  const [outer] = outerBoundaries(segments, 0.25, 0);
+  if (!outer) return [];
+  const poly = dropStraightCorners(outer.map(([x, y]) => [Math.round(x * 1000) / 1000, Math.round(y * 1000) / 1000] as Vec2));
+  // starting at the north-west corner, like a written outline (its walls keep their numbers)
+  let first = 0;
+  poly.forEach((p, i) => {
+    const f = poly[first];
+    if (p[1] < f[1] - 1e-9 || (Math.abs(p[1] - f[1]) < 1e-9 && p[0] < f[0])) first = i;
+  });
+  return [...poly.slice(first), ...poly.slice(0, first)];
 }
