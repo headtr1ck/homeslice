@@ -706,7 +706,7 @@
   "editor.ai_hint": "Skopiuj prompt do ChatGPT, Claude lub Gemini, dołącz zdjęcie lub szkic planu domu i wklej odpowiedź w pole poniżej. Prompt wyjaśnia format i wymienia Twoje piętra, obszary i urządzenia, dzięki czemu asystent łączy właściwe.",
   "editor.ai_prompt": "Kopiuj prompt dla asystenta AI",
   "editor.ai_prompt_intro": "Narysuj proszę mój dom dla Homeslice (widoku domu 3D w Home Assistancie). Dołączę plan piętra (albo opiszę pokoje). Postępuj według poniższego przewodnika, używaj tylko identyfikatorów pięter, obszarów i encji, które wymienia, zapytaj mnie o wszystko, co niejasne, i odpowiedz całym domem jako YAML w jednym bloku kodu.",
-  "editor.ai_tools_hint": "Asystenci mogą też pracować bezpośrednio na domu: własni asystenci Home Assistanta (dodaj API „Homeslice” w ustawieniach agenta konwersacji) oraz zewnętrzni przez integrację MCP Server lub API HTTP. Zobacz README.",
+  "editor.ai_tools_hint": "Asystenci mogą też pracować bezpośrednio na domu: własni asystenci Home Assistanta (dodaj API „Homeslice” w ustawieniach agenta konwersacji) oraz zewnętrzni przez integrację MCP Server lub API HTTP. Zobacz docs/llm.md.",
   "editor.ai_errors": "Kopiuj błędy dla asystenta",
   "editor.ai_errors_text": "Homeslice znalazł te błędy w domu. Popraw je i odpowiedz całym poprawionym YAML-em:",
   "editor.restore": "Przywróć wersję z {when} ({source})",

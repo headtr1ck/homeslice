@@ -706,7 +706,7 @@
   "editor.ai_hint": "Copia el prompt en ChatGPT, Claude o Gemini, añade una foto o un boceto de tu plano y pega su respuesta en el campo de abajo. El prompt explica el formato y lista tus plantas, áreas y dispositivos, para que el asistente vincule los correctos.",
   "editor.ai_prompt": "Copiar prompt para un asistente de IA",
   "editor.ai_prompt_intro": "Por favor, dibuja mi casa para Homeslice (una vista 3D de casa para Home Assistant). Adjuntaré un plano (o describiré las habitaciones). Sigue la guía de abajo, usa solo los ids de plantas, áreas y entidades que lista, pregúntame lo que no esté claro y responde con la casa entera en YAML dentro de un solo bloque de código.",
-  "editor.ai_tools_hint": "Los asistentes también pueden trabajar directamente con la casa: los asistentes propios de Home Assistant (añade la API \"Homeslice\" en los ajustes de un agente de conversación) y los externos mediante la integración Servidor MCP o la API HTTP. Consulta el README.",
+  "editor.ai_tools_hint": "Los asistentes también pueden trabajar directamente con la casa: los asistentes propios de Home Assistant (añade la API \"Homeslice\" en los ajustes de un agente de conversación) y los externos mediante la integración Servidor MCP o la API HTTP. Consulta docs/llm.md.",
   "editor.ai_errors": "Copiar errores para el asistente",
   "editor.ai_errors_text": "Homeslice ha encontrado estos errores en la casa. Corrígelos y responde con el YAML completo corregido:",
   "editor.restore": "Restaurar la versión del {when} ({source})",

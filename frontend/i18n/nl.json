@@ -706,7 +706,7 @@
   "editor.ai_hint": "Kopieer de prompt naar ChatGPT, Claude of Gemini, voeg een foto of schets van je plattegrond toe en plak het antwoord in het veld hieronder. De prompt legt het formaat uit en noemt je verdiepingen, ruimtes en apparaten, zodat de assistent de juiste koppelt.",
   "editor.ai_prompt": "Prompt voor een AI-assistent kopiëren",
   "editor.ai_prompt_intro": "Teken alsjeblieft mijn huis voor Homeslice (een 3D-huisweergave voor Home Assistant). Ik voeg een plattegrond toe (of beschrijf de kamers). Volg de onderstaande handleiding, gebruik alleen de id's van verdiepingen, ruimtes en entiteiten die erin staan, vraag me naar alles wat onduidelijk is en antwoord met het hele huis als YAML in één codeblok.",
-  "editor.ai_tools_hint": "Assistenten kunnen ook rechtstreeks aan het huis werken: de eigen assistenten van Home Assistant (voeg de \"Homeslice\"-API toe in de instellingen van een gespreksagent) en externe via de MCP Server-integratie of de HTTP-API. Zie de README.",
+  "editor.ai_tools_hint": "Assistenten kunnen ook rechtstreeks aan het huis werken: de eigen assistenten van Home Assistant (voeg de \"Homeslice\"-API toe in de instellingen van een gespreksagent) en externe via de MCP Server-integratie of de HTTP-API. Zie docs/llm.md.",
   "editor.ai_errors": "Fouten voor de assistent kopiëren",
   "editor.ai_errors_text": "Homeslice heeft deze fouten in het huis gevonden. Los ze op en antwoord met de hele gecorrigeerde YAML:",
   "editor.restore": "De versie van {when} ({source}) herstellen",

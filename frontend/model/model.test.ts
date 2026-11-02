@@ -400,6 +400,16 @@ describe("documentation", () => {
     expect(issues).toEqual([]);
     expect(house?.levels.map((l) => l.id)).toEqual(["ground", "first"]);
   });
+
+  it("the format reference's full example house is valid", async () => {
+    const { readFileSync } = await import("node:fs");
+    const { parse } = await import("yaml");
+    const doc = readFileSync(new URL("../../docs/yaml.md", import.meta.url), "utf8");
+    const block = doc.split("## Example")[1].split("```yaml")[1].split("```")[0];
+    const { house, issues } = expandHouse(parse(block));
+    expect(issues.filter((i) => i.severity === "error")).toEqual([]);
+    expect(house?.levels.length).toBeGreaterThan(1);
+  });
 });
 
 describe("checks", () => {
