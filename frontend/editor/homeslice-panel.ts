@@ -409,6 +409,7 @@ export class HomeslicePanel extends LitElement {
     _robotRoomsBusy: { state: true },
     _robotRoomsNote: { state: true },
     _flyout: { state: true },
+    _vertexSel: { state: true },
     _assignArea: { state: true },
     _assignHover: { state: true },
     _levelDrag: { state: true },
@@ -491,6 +492,8 @@ export class HomeslicePanel extends LitElement {
   private _assignedLast: string | null = null;
   private assignDrag: string | null = null;
   private _assignHover: { poly: Vec2[]; area: string; room?: string } | null = null;
+  /** A room corner selected (Delete removes it, its neighbours joined). */
+  private _vertexSel: Vec2 | null = null;
   /** The toolbar button whose choices are open beside it, and where. */
   private _flyout: string | null = null;
   private _flyoutAt: { x: number; y: number } | null = null;
@@ -1515,6 +1518,7 @@ export class HomeslicePanel extends LitElement {
   /** Nothing selected. */
   private clearSelection() {
     this._wallView = null;
+    this._vertexSel = null;
     this._room = null;
     this._wall = null;
     this._opening = null;
@@ -1865,6 +1869,10 @@ export class HomeslicePanel extends LitElement {
     } else if ((e.key === "Delete" || e.key === "Backspace") && this._energySel !== null && this._model) {
       this.commit(deleteEnergy(this._model, this._energySel));
       this._energySel = null;
+    } else if ((e.key === "Delete" || e.key === "Backspace") && this._vertexSel && this._model) {
+      // a corner: its two neighbours joined directly
+      this.commit(removeVertex(this._model, this._level, this._vertexSel));
+      this._vertexSel = null;
     } else if ((e.key === "Delete" || e.key === "Backspace") && this._freeWall !== null && this._model) {
       this.commit(deleteFreeWall(this._model, this._level, this._freeWall));
       this._freeWall = null;
@@ -2048,6 +2056,8 @@ export class HomeslicePanel extends LitElement {
     const world = this.eventWorld(e);
     this._toolMiss = "";
     this._flyout = null;
+    // a corner stays selected only while it is what was pressed
+    this._vertexSel = null;
     const u = this._underlay?.level === this._level ? this._underlay : null;
     if (u && this._straighten) {
       if (!this._straighten.a) this._straighten = { a: world };
@@ -2254,6 +2264,8 @@ export class HomeslicePanel extends LitElement {
     const handle = target.closest("[data-handle]") as SVGElement | null;
     if (handle?.dataset.handle === "vertex") {
       const from: Vec2 = JSON.parse(handle.dataset.at!);
+      // a press selects the corner (Delete removes it); dragging moves it
+      this._vertexSel = from;
       this._drag = { kind: "vertex", origin: clone(this._model), from, ctx: { ...this.snapContext(from), anchors: this.neighbourCorners(from) } };
       return;
     }
@@ -4474,7 +4486,8 @@ export class HomeslicePanel extends LitElement {
     })}
     ${poly.map((p) => {
       const [x, y] = this.toScreen(p);
-      return svg`<circle class="vertex" data-handle="vertex" data-at=${JSON.stringify(p)} cx=${x} cy=${y} r="7"></circle>`;
+      const sel = !!this._vertexSel && Math.hypot(this._vertexSel[0] - p[0], this._vertexSel[1] - p[1]) < 0.01;
+      return svg`<circle class="vertex ${sel ? "selected" : ""}" data-handle="vertex" data-at=${JSON.stringify(p)} cx=${x} cy=${y} r=${sel ? 9 : 7}></circle>`;
     })}`;
   }
 
@@ -8039,6 +8052,11 @@ export class HomeslicePanel extends LitElement {
       stroke: var(--accent);
       stroke-width: 2;
       cursor: move;
+    }
+    .vertex.selected {
+      fill: var(--primary-color, #03a9f4);
+      stroke: #fff;
+      stroke-width: 2;
     }
     .vertex {
       fill: var(--accent);

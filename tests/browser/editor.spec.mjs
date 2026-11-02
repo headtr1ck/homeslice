@@ -114,7 +114,19 @@ test.describe.serial("editor", () => {
     await page.mouse.dblclick(vx, vy);
     const after = await room("kitchen");
     assert(!(after.polygon ?? []).some(([px, py]) => Math.abs(px - 6) < 0.06 && Math.abs(py - 4) < 0.01), `corner not removed: ${JSON.stringify(after)}`);
+    // or: a corner clicked (selected), then Delete: its neighbours joined
+    await page.mouse.dblclick(x, y);
+    const again = ((await room("kitchen")).polygon ?? []).find(([px, py]) => Math.abs(px - 6) < 0.06 && Math.abs(py - 4) < 0.01);
+    assert(again, "no corner added the second time");
+    const [kx, ky] = await toScreen(again);
+    await page.mouse.click(kx, ky);
+    assert(await page.locator("homeslice-panel circle.vertex.selected").count(), "the corner is not selected");
     await page.evaluate(() => window.panel.shadowRoot.activeElement?.blur());
+    await page.keyboard.press("Delete");
+    const shape = (r) => JSON.stringify(r.rect ?? r.polygon);
+    assert(shape(await room("kitchen")) === shape(JSON.parse(before)), `Delete did not remove the corner: ${JSON.stringify(await room("kitchen"))}`);
+    await page.keyboard.press("Control+z");
+    await page.keyboard.press("Control+z");
     await page.keyboard.press("Control+z");
     await page.keyboard.press("Control+z");
     assert(JSON.stringify(await room("kitchen")) === before, `undo: ${JSON.stringify(await room("kitchen"))}`);

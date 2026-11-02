@@ -1038,3 +1038,18 @@ describe("turning and moving a floor", () => {
   });
 });
 
+describe("façade windows", () => {
+  it("read with their style (a window over a fixed pane shows as one), changed for every floor sharing them", () => {
+    const h: HouseInput = {
+      schema: 1,
+      id: "f",
+      outline: { rect: [0, 0, 6, 8] },
+      levels: [{ id: "first", rooms: [{ id: "nora", rect: [0, 0, 6, 8] }] }],
+      facade_openings: [{ id: "sw", side: "south", at: 1, width: 1, style: "split_single", split: 1.1, levels: ["first"], covers: { first: "cover.nora" } }],
+    };
+    expect(readOpening(h, "first", { kind: "facade", index: 0 })).toMatchObject({ style: "split_single", split: 1.1, cover: "cover.nora" });
+    const m = updateOpening(h, "first", { kind: "facade", index: 0 }, { style: "split" });
+    expect(readOpening(m, "first", { kind: "facade", index: 0 })?.style).toBe("split");
+  });
+});
+

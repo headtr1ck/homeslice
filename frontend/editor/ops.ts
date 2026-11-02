@@ -299,11 +299,18 @@ export function splitEdge(model: HouseInput, levelId: string, a: Vec2, b: Vec2, 
 export function removeVertex(model: HouseInput, levelId: string, at: Vec2): HouseInput {
   const m = clone(model);
   const l = level(m, levelId);
+  // every room with that corner: its neighbours joined directly
   l.rooms = l.rooms.map((room) => {
     const poly = roomPolygon(m, room);
     const out = poly.filter((p) => dist(p, at) >= SAME_POINT);
     return out.length !== poly.length && out.length >= 3 ? setRoomPolygon(room, out) : room;
   });
+  // a drawn outline with that corner too (the floor's own, or the house's it uses)
+  const scope = outlineScope(m, levelId);
+  if (scope.owner !== "auto") {
+    const out = scope.poly.filter((p) => dist(p, at) >= SAME_POINT);
+    if (out.length !== scope.poly.length && out.length >= 3) writeOutline(m, levelId, scope.owner, out);
+  }
   return m;
 }
 
@@ -641,7 +648,11 @@ export function readOpening(model: HouseInput, levelId: string, src: OpeningSour
   if (src.kind === "level") return level(model, levelId).openings?.[src.index] ?? null;
   const f = model.facade_openings?.[src.index];
   if (!f) return null;
-  return { room: "", side: f.side, at: f.at, width: f.width, type: f.type, sill: f.sill, height: f.height, cover: f.covers?.[levelId], contact: f.contacts?.[levelId], lock: f.locks?.[levelId], blind: f.blinds?.[levelId], blind_style: f.blind_style };
+  // its own fields (style, hinge, split…) as they are; covers, contacts, locks and blinds this level's
+  const { id: _id, levels: _levels, covers, contacts, locks, blinds, ...own } = f;
+  const opening: OpeningInput = { ...own, room: "", cover: covers?.[levelId], contact: contacts?.[levelId], lock: locks?.[levelId], blind: blinds?.[levelId] };
+  for (const k of Object.keys(opening) as (keyof OpeningInput)[]) if (opening[k] === undefined) delete opening[k];
+  return opening;
 }
 
 /**
