@@ -49,7 +49,7 @@ Spanish, Italian and Polish (help with more languages is welcome).
   react: screens show what plays, fans turn, radiators glow, cars come and go. Poly Haven
   models and your own glTF files on top, checked before they load.
 - **Real roofs.** Roof parts at any angle, roofs that start a floor lower (walls cut along
-  them), coverings, dormers, roof terraces cut into the slope, roof windows with shutters, solar panels on the slope.
+  them), coverings, dormers, roof terraces (an outdoor room under the slope, the roof cut away above it), roof windows with shutters, solar panels on the slope.
 - **Private.** Nothing leaves your Home Assistant: no cloud, no telemetry, no account.
 - **Made for wall tablets.** Draws only when something changes, a low-quality mode for old
   tablets, kiosk options (back to the start view, dim at night, a clock), and HA's own
@@ -338,7 +338,6 @@ roof:                                   # optional; drawn by cards with view.roo
   shape: gable                  # or hip, shed (one slope, high: north) or flat
   finish: roof_clay             # roof_concrete, roof_slate, roof_shingles, roof_metal, roof_green…
   dormers: [{ side: south, at: 4, width: 1.6, shape: gable }]   # or shape: shed
-  terraces: [{ side: south, at: 6, width: 3, depth: 2 }]      # a terrace cut into the slope, a railing at the eave
   windows:                      # roof windows, with an outside shutter and a contact
     - { side: south, at: 2, up: 1.5, cover: cover.roof_window, contact: binary_sensor.roof_window }
 north: 0                                # optional: degrees the plan's north side is turned east of true north

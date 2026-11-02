@@ -43,7 +43,6 @@ outline: { rect: [0, 0, 10, 8] }
 party_walls: [east]           # outside walls shared with a neighbour (terraced houses)
 roof: { ridge: east_west, pitch: 35 }      # optional; ridge east_west or north_south
 # dormers: [{side: south, at: 4, width: 1.6, shape: gable}]  (side: a slope's side; at: metres along the ridge; shape gable or shed)
-# terraces: [{side: south, at: 4, width: 3, depth: 2, railing: glass}]  (a terrace cut into that slope: floor, walls, a railing at the eave)
 # shape: gable | hip | shed (high: <side>) | flat; finish: roof_clay | roof_concrete | roof_slate | roof_shingles | roof_metal | roof_green
 # windows: [{side: south, at: 2, up: 1.5, width: 0.78, height: 1.18, cover: cover.…, contact: binary_sensor.…}]  (up: metres up the slope)
 # Or the roof as the top level (`kind: roof`, no floor_id, no rooms) with `roofs:` parts, each
@@ -90,6 +89,9 @@ vertical:
   own buttons go). Several pieces linked to one light (an HA light group) share one button.
 - `awning: cover.…` on an outdoor room: an awning on the house wall over it.
 - `railing: glass` (or `metal`, `wood`) on an outdoor room: a balcony or roof terrace, a solid floor with a railing on its free edges.
+- A roof terrace is an outdoor room inside the outline on the top floor (or the floor under a
+  roof level), reaching the eave: no outside wall along it, the railing on its open edges, decking,
+  and the roof above it cut away. Give the room next to it a door onto it.
 - `underfloor: climate.…` on a room: underfloor heating, its loops glow in the floor while it heats, on cards with `heating: true` (also a valve, switch or binary sensor).
 - `cameras: [{entity: camera.…, at: [x, y], direction: 180, fov: 90, range: 5, height: 2.3,
   motion: binary_sensor.…}]`: a camera where it hangs and what it sees; `direction` is

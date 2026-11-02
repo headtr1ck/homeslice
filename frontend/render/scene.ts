@@ -17,7 +17,7 @@ import { LineSegments2 } from "three/examples/jsm/lines/LineSegments2.js";
 import { LineSegmentsGeometry } from "three/examples/jsm/lines/LineSegmentsGeometry.js";
 import type { RoofPart, Room, House, Level, LightType, PieceInput, Side, Vec2, Vertical } from "../model/types";
 import { innerPolygon, type Wall, type WallOpening } from "../model/walls";
-import { bbox, overlap, pointInPolygon } from "../model/geometry";
+import { bbox, labelPoint, overlap, pointInPolygon } from "../model/geometry";
 import { stairFrame, stairHole } from "../model/stairs";
 
 /** `isometric`: parallel lines stay parallel; `perspective`: walls lean, like a photo. */
@@ -307,16 +307,17 @@ export function serpentine(poly: Vec2[], spacing: number, inset: number): [Vec2,
  * Flat faces (convex, in order) as one geometry, textured in metres: u along `along`
  * (the eave), v up the face.
  */
-export function roofGeometry(faces: { pts: THREE.Vector3[]; along: THREE.Vector3 }[]): THREE.BufferGeometry {
+export function roofGeometry(faces: { pts: THREE.Vector3[]; along: THREE.Vector3; origin?: THREE.Vector3 }[]): THREE.BufferGeometry {
   const pos: number[] = [];
   const uv: number[] = [];
-  for (const { pts, along } of faces) {
+  for (const { pts, along, origin: shared } of faces) {
     const a = along.clone().normalize();
     const normal = new THREE.Vector3().subVectors(pts[1], pts[0]).cross(new THREE.Vector3().subVectors(pts[2], pts[0])).normalize();
     const up = new THREE.Vector3().crossVectors(normal, a).normalize();
     // v grows up the slope
     if (up.y < 0) up.negate();
-    const origin = pts[0];
+    // (pieces of one face give its corner: their textures run on across them)
+    const origin = shared ?? pts[0];
     const map = (p: THREE.Vector3) => [p.clone().sub(origin).dot(a), p.clone().sub(origin).dot(up)];
     for (let i = 1; i + 1 < pts.length; i++)
       for (const p of [pts[0], pts[i], pts[i + 1]]) {
@@ -604,6 +605,8 @@ export class HouseRenderer {
     for (const level of house.levels) {
       const materials = new Set<THREE.Material>();
       this.building = materials;
+      const below = house.levels[level.index - 1];
+      this.terracesBelow = level.kind === "roof" && below ? this.terracesOf(below) : [];
       const group = this.buildLevel(level, walls.get(level.id) ?? [], house.vertical);
       this.building = null;
       const baseY = this.view.sideBySide ? 0 : level.elevation + level.index * this.view.explode;
@@ -714,7 +717,8 @@ export class HouseRenderer {
 
     // a roof level: only its roof parts, sitting on the floor below
     if (level.kind === "roof") {
-      if (this.view.roof) level.roofs.forEach((part, i) => g.add(this.buildRoofPart(part, 0, i + 1)));
+      // (its terraces are outdoor rooms of the floor below, under its slopes)
+      if (this.view.roof) level.roofs.forEach((part, i) => g.add(this.buildRoofPart(part, 0, i + 1, this.terracesBelow)));
       g.userData.roofLevel = true;
       return g;
     }
@@ -742,13 +746,15 @@ export class HouseRenderer {
       const inside = holes.map((h) => overlap(h, floorPoly)).filter((h): h is Vec2[] => !!h);
       const geo = new THREE.ShapeGeometry(shapeOf(floorPoly, inside));
       geo.rotateX(-Math.PI / 2);
-      geo.translate(0, room.kind === "outdoor" ? -level.slab + 0.01 : 0.004, 0);
+      // a terrace inside the house (under the roof) is a floor of this storey; gardens lie on the ground
+      const terrace = room.kind === "outdoor" && level.outline.length > 0 && pointInPolygon(labelPoint(room.polygon), level.outline);
+      geo.translate(0, room.kind === "outdoor" && !terrace ? -level.slab + 0.01 : 0.004, 0);
       // its finish: a texture in plan metres, or a colour
       const { map, color } = this.finish(room.floor);
       // outdoor areas reach over the floors below in the exploded view: keep them see-through
       // (on the lowest level nothing is below: solid there)
       // (a balcony is a real floor: solid)
-      const material = room.kind === "outdoor" && level.index > 0 && !room.railing ? this.lambert(color, { map, transparent: true, opacity: 0.55, depthWrite: false }) : this.lambert(color, { map });
+      const material = room.kind === "outdoor" && level.index > 0 && !room.railing && !terrace ? this.lambert(color, { map, transparent: true, opacity: 0.55, depthWrite: false }) : this.lambert(color, { map });
       const floor = this.mesh(geo, material, false);
       floor.userData.room = `${level.id}/${room.id}`;
       floor.userData.outdoor = room.kind === "outdoor";
@@ -2129,10 +2135,9 @@ export class HouseRenderer {
       finish: roof.finish,
       dormers: roof.dormers,
       windows: roof.windows,
-      terraces: roof.terraces,
       furniture: [],
     };
-    return this.buildRoofPart(part, level.height, 0);
+    return this.buildRoofPart(part, level.height, 0, this.terracesOf(level));
   }
 
   /**
@@ -2153,7 +2158,14 @@ export class HouseRenderer {
   }
 
   /** One roof part: its faces textured with its covering, gable ends, dormers, windows, pieces. */
-  private buildRoofPart(part: RoofPart, levelBase: number, partIndex: number): THREE.Group {
+  /** A floor's roof terraces: its outdoor rooms inside the outline (the roof above them is cut away). */
+  private terracesOf(level: Level): Level["rooms"] {
+    return level.outline.length ? level.rooms.filter((r) => r.kind === "outdoor" && pointInPolygon(labelPoint(r.polygon), level.outline)) : [];
+  }
+  /** The floor under a roof level's terraces, while it is built. */
+  private terracesBelow: Level["rooms"] = [];
+
+  private buildRoofPart(part: RoofPart, levelBase: number, partIndex: number, terraces: Level["rooms"] = []): THREE.Group {
     const g = new THREE.Group();
     const base = levelBase + part.offset;
     const f = this.roofFrame(part, base);
@@ -2163,9 +2175,8 @@ export class HouseRenderer {
     const mat = new THREE.MeshLambertMaterial({ color: covering.color, map: covering.map, side: THREE.DoubleSide });
     const ends = new THREE.MeshLambertMaterial({ color: COLORS.wall, side: THREE.DoubleSide });
     for (const m of [mat, ends]) this.building ? this.building.add(m) : this.levels[this.levels.length - 1]?.materials.add(m);
-    const faces: { pts: THREE.Vector3[]; along: THREE.Vector3 }[] = [];
+    const faces: { pts: THREE.Vector3[]; along: THREE.Vector3; origin?: THREE.Vector3 }[] = [];
     const walls: THREE.Vector3[][] = [];
-    const terraceFloors: THREE.Vector3[][] = [];
     const A0 = r0 - o;
     const A1 = r1 + o;
     const C0 = u0 - o;
@@ -2205,16 +2216,19 @@ export class HouseRenderer {
         faces.push({ pts: [P(A0, C1, zE), P(A0, C0, zE), P(Ra0, Cm, zR)], along: alongC.clone().negate() });
         faces.push({ pts: [P(A1, C0, zE), P(A1, C1, zE), P(Ra1, Cm, zR)], along: alongC });
       } else {
-        // terraces cut into a slope: the slope in pieces around each recess
+        // roof terraces (outdoor rooms under a slope, at its eave): the slope cut away above them
         const room = Math.max(0, half - o - 0.4);
         const cuts = (low: boolean) =>
-          part.terraces
-            .filter((tr) => Math.abs(f.facing(tr.side)) >= 0.5 && f.facing(tr.side) < 0 === low && room >= 0.8)
+          terraces
             .map((tr) => {
-              const w = Math.min(tr.width, r1 - r0 - 0.4);
-              const mid = Math.max(r0 + w / 2 + 0.2, Math.min(r1 - w / 2 - 0.2, r0 + tr.at));
-              return { tr, a0: mid - w / 2, a1: mid + w / 2, depth: Math.min(tr.depth, room) };
+              const as = tr.polygon.map((p) => p[0] * f.d[0] + p[1] * f.d[1]);
+              const cs = tr.polygon.map((p) => p[0] * f.n[0] + p[1] * f.n[1]);
+              const [cmin, cmax] = [Math.min(...cs), Math.max(...cs)];
+              // on this slope's eave: it reaches the wall line there
+              const atEave = low ? Math.abs(cmin - u0) < 0.3 : Math.abs(cmax - u1) < 0.3;
+              return atEave ? { tr, a0: Math.max(r0, Math.min(...as)), a1: Math.min(r1, Math.max(...as)), depth: Math.min(cmax - cmin, room) } : null;
             })
+            .filter((x): x is NonNullable<typeof x> => !!x && x.a1 - x.a0 > 0.3 && x.depth > 0.3)
             .sort((x, y) => x.a0 - y.a0);
         // one slope, from its eave (c0) up to the ridge, z rising with the distance from the eave
         const slope = (low: boolean) => {
@@ -2223,22 +2237,21 @@ export class HouseRenderer {
           const quad = (a0: number, a1: number, ca: number, cb: number) =>
             low ? [P(a0, ca, z(ca)), P(a1, ca, z(ca)), P(a1, cb, z(cb)), P(a0, cb, z(cb))] : [P(a1, ca, z(ca)), P(a0, ca, z(ca)), P(a0, cb, z(cb)), P(a1, cb, z(cb))];
           const along = low ? alongA : alongA.clone().negate();
+          // the pieces around a terrace share the whole slope's texture: no seams
+          const origin = quad(A0, A1, c0, Cm)[0];
           let from = A0;
           for (const cut of cuts(low)) {
             const wallC = low ? u0 : u1;
             const back = low ? u0 + cut.depth : u1 - cut.depth;
-            if (cut.a0 > from) faces.push({ pts: quad(from, cut.a0, c0, Cm), along });
-            faces.push({ pts: quad(cut.a0, cut.a1, back, Cm), along });
+            if (cut.a0 > from) faces.push({ pts: quad(from, cut.a0, c0, Cm), along, origin });
+            faces.push({ pts: quad(cut.a0, cut.a1, back, Cm), along, origin });
             from = cut.a1;
-            // its floor, the cheek walls up to the slope, the back wall, a railing along the eave
+            // the cheek walls up to the slope and the back wall (the terrace room has the floor, the railing and its door)
             const zb = z(back);
-            terraceFloors.push([P(cut.a0, wallC, base), P(cut.a1, wallC, base), P(cut.a1, back, base), P(cut.a0, back, base)]);
             for (const a of [cut.a0, cut.a1]) walls.push([P(a, wallC, base), P(a, back, base), P(a, back, zb)]);
             walls.push([P(cut.a0, back, base), P(cut.a1, back, base), P(cut.a1, back, zb), P(cut.a0, back, zb)]);
-            const [ra, rb] = [P(cut.a0, wallC, 0), P(cut.a1, wallC, 0)];
-            this.railingSegment(g, [ra.x, ra.z], [rb.x, rb.z], base, cut.tr.railing);
           }
-          if (from < A1) faces.push({ pts: quad(from, A1, c0, Cm), along });
+          if (from < A1) faces.push({ pts: quad(from, A1, c0, Cm), along, origin });
         };
         slope(true);
         slope(false);
@@ -2247,14 +2260,6 @@ export class HouseRenderer {
     }
     g.add(this.mesh(roofGeometry(faces), mat));
     if (walls.length) g.add(this.mesh(roofGeometry(walls.map((pts) => ({ pts, along: pts[1].clone().sub(pts[0]).normalize() }))), ends));
-    if (terraceFloors.length) {
-      const deck = this.finish("decking");
-      const floor = new THREE.MeshLambertMaterial({ color: deck.color, map: deck.map, side: THREE.DoubleSide });
-      this.building ? this.building.add(floor) : this.levels[this.levels.length - 1]?.materials.add(floor);
-      const mesh = this.mesh(roofGeometry(terraceFloors.map((pts) => ({ pts, along: pts[1].clone().sub(pts[0]).normalize() }))), floor);
-      mesh.userData.terrace = true;
-      g.add(mesh);
-    }
     if (part.shape === "gable" || part.shape === "hip") for (const d of part.dormers) this.dormer(g, d, f, mat);
     if (part.shape !== "flat") part.windows.forEach((w, i) => this.roofWindow(g, w, partIndex * 100 + i, part, f));
     for (const piece of part.furniture) g.add(this.roofPiece(piece, part, f));
@@ -2479,12 +2484,14 @@ export class HouseRenderer {
         const dist = Math.abs((p[0] - a[0]) * (b[1] - a[1]) - (p[1] - a[1]) * (b[0] - a[0])) / len;
         return dist < 0.05 && t > -0.05 && t < len + 0.05;
       });
-    const y = room.kind === "outdoor" ? -level.slab : 0;
+    // a terrace inside the outline: its railing runs along the open outside (the house's edge);
+    // a balcony outside it: along its free edges (the house side has the wall)
+    const inside = level.outline.length > 0 && pointInPolygon(labelPoint(room.polygon), level.outline);
+    const y = room.kind === "outdoor" && !inside ? -level.slab : 0;
     const poly = room.polygon;
     poly.forEach((a, i) => {
       const b = poly[(i + 1) % poly.length];
-      // the house side has the wall
-      if (onOutline([(a[0] + b[0]) / 2, (a[1] + b[1]) / 2])) return;
+      if (onOutline([(a[0] + b[0]) / 2, (a[1] + b[1]) / 2]) !== inside) return;
       this.railingSegment(g, a, b, y, room.railing ?? "metal");
     });
   }

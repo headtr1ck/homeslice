@@ -1058,25 +1058,31 @@ if (selected()) {
     await act(page, () => page.evaluate(() => window.card.hass.pushModel(window.__demoModel)));
   });
 
-  await test("a roof terrace cut into the slope: a floor, walls and a railing in the recess", async () => {
+  await test("a roof terrace: an outdoor room of the top floor, its floor, door and railing, the roof cut away above", async () => {
     await act(page, () =>
       page.evaluate(() => {
         const m = structuredClone(window.__demoModel);
-        m.roof = { ...(m.roof ?? {}), terraces: [{ side: "west", at: 5, width: 3, depth: 2 }] };
+        const first = m.levels[1];
+        // the kids' room gives its east end to a terrace under the east slope, a door out to it
+        first.rooms.find((r) => r.id === "kids").rect = [0, 6, 5, 4];
+        first.rooms.push({ id: "terrace", kind: "outdoor", railing: "glass", rect: [5, 6, 3, 4] });
+        first.openings = [first.openings[0], first.openings[1], { room: "kids", side: "east", at: 1.5, width: 0.9, type: "door" }];
         window.card.hass.pushModel(m);
       }),
     );
     const found = await page.evaluate(() => {
-      let deck = 0;
+      const r = window.card.renderer;
+      const floor = r.floors.get("first/terrace");
       let rails = 0;
-      window.card.renderer.object.traverse((o) => {
-        if (o.userData.terrace) deck++;
-        if (o.userData.railing) rails++;
-      });
-      return { deck, rails };
+      r.object.traverse((o) => o.userData.railing && rails++);
+      const walls = [...window.card.walls.get("first")].filter((w) => w.type === "exterior" && w.side === "east").map((w) => [w.a, w.b]);
+      floor?.geometry.computeBoundingBox();
+      return { floorY: floor?.geometry.boundingBox.min.y, rails, walls };
     });
-    assert(found.deck === 1 && found.rails >= 1, JSON.stringify(found));
-    await page.evaluate(() => window.card.renderer.turnTo(250, 30));
+    assert(Math.abs(found.floorY) < 0.01 && found.rails >= 2, JSON.stringify(found));
+    // no outside wall along the terrace: the east wall ends where the kids' room does
+    assert(found.walls.every(([a, b]) => Math.max(a[1], b[1]) <= 6.2), `east walls: ${JSON.stringify(found.walls)}`);
+    await page.evaluate(() => window.card.renderer.turnTo(110, 35));
     await page.waitForTimeout(600);
     await shot(page, "demo-roof-terrace");
     await act(page, () => page.evaluate(() => window.card.hass.pushModel(window.__demoModel)));

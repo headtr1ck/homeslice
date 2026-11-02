@@ -14,6 +14,7 @@ import {
   outwardNormal,
   project,
   scale,
+  pointInPolygon,
   sideOf,
   sub,
 } from "./geometry";
@@ -138,8 +139,16 @@ export function deriveWalls(level: Level, thickness: WallThickness, issues: Issu
   const isOpen = (piece: Piece) => level.openBoundaries.some((o) => matches(piece, o));
   // the last entry wins, like in the file
   const ownThickness = (piece: Piece) => [...(level.thickBoundaries ?? [])].reverse().find((o) => matches(piece, o))?.thickness;
+  // outdoor rooms inside the outline (a roof terrace, a loggia): no outer wall along them
+  const outdoorInside = level.rooms.filter((r) => r.kind === "outdoor");
   const typeOf = (piece: Piece): WallType => {
     if (!piece.outline) return isOpen(piece) ? "open" : "interior";
+    if (!piece.rooms.size && outdoorInside.length) {
+      const [a, b] = piece.outline;
+      const n = outwardNormal(a, b);
+      const inside: Vec2 = [(a[0] + b[0]) / 2 - n[0] * 0.05, (a[1] + b[1]) / 2 - n[1] * 0.05];
+      if (outdoorInside.some((r) => pointInPolygon(inside, r.polygon))) return "open";
+    }
     const side = sideOf(outwardNormal(...piece.outline));
     return side && partyWalls.has(side) ? "party" : "exterior";
   };
