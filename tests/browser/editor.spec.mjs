@@ -132,6 +132,32 @@ test.describe.serial("editor", () => {
     assert(JSON.stringify(await room("kitchen")) === before, `undo: ${JSON.stringify(await room("kitchen"))}`);
   });
 
+  test("pressed again on the same spot: what lies under the selection is selected, round again", async () => {
+    await page.keyboard.press("Escape");
+    await page.keyboard.press("Escape");
+    // the hall's door, in its wall, in the hall
+    const door = await page.evaluate(() => {
+      const l = [...window.panel.shadowRoot.querySelectorAll("svg.plan [data-opening]")].find((x) => JSON.parse(x.dataset.opening).room === "hall");
+      const r = l.getBoundingClientRect();
+      return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+    });
+    const picked = () => page.evaluate(() => window.panel.selectedKey());
+    await page.mouse.click(door.x, door.y);
+    const first = await picked();
+    assert(first.startsWith("data-opening="), `first: ${first}`);
+    await page.mouse.click(door.x, door.y);
+    const second = await picked();
+    assert(second && second !== first, `second: ${second}`);
+    // round again, back to the top in the end
+    const seen = new Set([first, second]);
+    for (let i = 0; i < 4 && (await picked()) !== first; i++) {
+      await page.mouse.click(door.x, door.y);
+      seen.add(await picked());
+    }
+    assert((await picked()) === first && seen.size >= 2, `round: ${[...seen]}`);
+    await page.keyboard.press("Escape");
+  });
+
   test("drawing a room and linking it to an area", async () => {
     await page.keyboard.press("Escape");
     await page.keyboard.press("r");

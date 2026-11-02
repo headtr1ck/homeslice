@@ -2041,12 +2041,55 @@ export class HomeslicePanel extends LitElement {
 
   // ----- pointer handling on the plan -----
 
+  /** Things that can be selected on the plan, topmost first: their attribute. */
+  private static readonly PICKABLE = ["data-robot", "data-energy", "data-camera", "data-light", "data-opening", "data-furniture", "data-freewall", "data-stair", "data-wall", "data-room", "data-outline"];
+  private lastPress: { x: number; y: number } | null = null;
+
+  /**
+   * What a press means: the topmost thing there, or, pressed again on the same spot while that
+   * is selected, the next one under it (stairs under stairs, a door under a lamp…), round again.
+   */
+  private underneath(e: PointerEvent): Element {
+    const top = e.target as Element;
+    const again = this.lastPress && Math.hypot(e.clientX - this.lastPress.x, e.clientY - this.lastPress.y) < 6;
+    this.lastPress = { x: e.clientX, y: e.clientY };
+    // handles of what is selected are pressed as they are (to drag them)
+    if (!again || top.closest("[data-handle], [data-freeend], [data-stairhandle], [data-dimedit], [data-assign-open]")) return top;
+    const stack: { el: Element; key: string }[] = [];
+    for (const el of (this.renderRoot as ShadowRoot).elementsFromPoint(e.clientX, e.clientY)) {
+      for (const attr of HomeslicePanel.PICKABLE) {
+        const hit = el.closest(`[${attr}]`);
+        if (!hit) continue;
+        const key = `${attr}=${hit.getAttribute(attr)}`;
+        if (!stack.some((x) => x.key === key)) stack.push({ el: hit, key });
+        break;
+      }
+    }
+    const i = stack.findIndex((x) => x.key === this.selectedKey());
+    return i >= 0 && stack.length > 1 ? stack[(i + 1) % stack.length].el : top;
+  }
+
+  /** The selection, as the attribute of what shows it on the plan. */
+  private selectedKey(): string {
+    if (this._furn) return `data-furniture=${JSON.stringify(this._furn)}`;
+    if (this._stair) return `data-stair=${this._stair}`;
+    if (this._freeWall !== null) return `data-freewall=${this._freeWall}`;
+    if (this._opening) return `data-opening=${JSON.stringify(this._opening)}`;
+    if (this._wall) return `data-wall=${JSON.stringify(this._wall)}`;
+    if (this._room === OUTLINE) return "data-outline=1";
+    if (this._room) return `data-room=${this._room}`;
+    if (this._robotSel !== null) return `data-robot=${this._robotSel}`;
+    if (this._energySel !== null) return `data-energy=${this._energySel}`;
+    return "";
+  }
+
   private onPlanDown(e: PointerEvent) {
     if (!this._model) return;
     // typing a length: the field handles its own clicks
     if ((e.target as Element).closest("foreignObject")) return;
     this._settings = null;
-    const target = e.target as Element;
+    // pressed again where the selection is: what lies under it instead
+    const target = this._tool === "select" ? this.underneath(e) : (e.target as Element);
     // (a pointer the browser no longer tracks cannot be captured)
     try {
       (e.currentTarget as Element).setPointerCapture(e.pointerId);
