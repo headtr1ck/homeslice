@@ -4,7 +4,7 @@
 import { bbox, dist, normalizeOrientation, pointInPolygon, project, signedArea } from "../model/geometry";
 import { expandHouse } from "../model/expand";
 import type {
-  RoofPartInput, CameraInput, Coord, EnergyInput, FacadeOpeningInput, FurnitureInput, HouseInput, LevelInput, LightType, OpeningInput, OpeningSource, OpeningType, RoomInput, ShapeInput, RobotInput, RoofInput, Side, Vec2, VerticalInput, WallInput, WallThickness } from "../model/types";
+  RoofPartInput, CameraInput, Coord, EnergyInput, FacadeOpeningInput, FurnitureInput, HouseInput, LevelInput, LightType, OpeningInput, OpeningSource, OpeningType, PieceInput, RoomInput, ShapeInput, RobotInput, RoofInput, Side, Vec2, VerticalInput, WallInput, WallThickness } from "../model/types";
 
 /** Points closer than this count as the same corner (shared by neighbouring rooms). */
 export const SAME_POINT = 0.01;
@@ -1563,4 +1563,23 @@ export function moveFurniture(model: HouseInput, levelId: string, roomId: string
   const removed = deleteFurniture(model, levelId, roomId, index);
   const added = addFurniture(removed, levelId, toRoom, { ...piece, at });
   return { model: added.model, room: toRoom, index: added.index };
+}
+
+/**
+ * Adds a pack's pieces to the house: the same piece again is skipped, another one with a
+ * taken id gets a new id. Returns the model and the ids it added.
+ */
+export function mergePieces(model: HouseInput, pieces: PieceInput[]): { model: HouseInput; added: string[] } {
+  const m = clone(model);
+  const list = (m.pieces ??= []);
+  const added: string[] = [];
+  for (const p of pieces) {
+    const same = list.find((x) => x.id === p.id);
+    if (same && JSON.stringify(same) === JSON.stringify(p)) continue;
+    const id = same ? uniqueId(list.map((x) => x.id), p.id) : p.id;
+    list.push({ ...clone(p), id });
+    added.push(id);
+  }
+  if (!list.length) delete m.pieces;
+  return { model: m, added };
 }

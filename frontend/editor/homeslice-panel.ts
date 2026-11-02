@@ -81,6 +81,7 @@ import {
   duplicateLevel,
   moveRoomToLevel,
   movePieceToLevel,
+  mergePieces,
   addEnergy,
   deleteEnergy,
   updateEnergy,
@@ -4753,6 +4754,41 @@ export class HomeslicePanel extends LitElement {
             }}>${st.errorsCopied ? this.t("editor.copied") : this.t("editor.ai_errors")}</button>`
         : nothing}
       <button class="primary" ?disabled=${!st.paste?.trim()} @click=${applyPaste}>${this.t("editor.yaml_apply")}</button>
+      <h3>${this.t("editor.pieces")}</h3>
+      <p class="muted">${this.t("editor.pieces_hint", { count: m.pieces?.length ?? 0 })}</p>
+      <div class="row">
+        <button data-pieces-download ?disabled=${!m.pieces?.length} @click=${() => {
+          const a = document.createElement("a");
+          a.href = URL.createObjectURL(new Blob([toYaml({ pieces: m.pieces }, { lineWidth: 0, flowCollectionPadding: false })], { type: "text/yaml" }));
+          a.download = `${m.id}-pieces.yaml`;
+          a.click();
+          setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+        }}>${this.t("editor.pieces_download")}</button>
+        <label class="file"
+          >${this.t("editor.pieces_add")}
+          <input type="file" accept=".yaml,.yml,.json" data-pieces-add @change=${async (e: Event) => {
+            const file = (e.target as HTMLInputElement).files?.[0];
+            (e.target as HTMLInputElement).value = "";
+            if (!file) return;
+            try {
+              const pack = parseYaml(await file.text()) as { pieces?: unknown };
+              const pieces = Array.isArray(pack?.pieces) ? pack.pieces : Array.isArray(pack) ? pack : null;
+              if (!pieces) throw new Error(this.t("editor.pieces_none"));
+              const merged = mergePieces(m, pieces);
+              // checked like any house change: a broken pack is not taken
+              const problems = expandHouse(merged.model).issues.filter((i) => i.severity === "error" && i.path.startsWith("pieces"));
+              if (problems.length) {
+                this._settings = { ...st, problems: problems.map((p) => `${p.path}: ${p.message}`) };
+                return;
+              }
+              this.commit(merged.model);
+              this._settings = { ...st, problems: undefined, notice: this.t("editor.pieces_added", { count: merged.added.length }) };
+            } catch (err) {
+              this._settings = { ...st, problems: [String((err as Error).message)] };
+            }
+          }} />
+        </label>
+      </div>
       <h3>${this.t("editor.import")}</h3>
       <label class="file"
         >${this.t("editor.import_sh3d")}

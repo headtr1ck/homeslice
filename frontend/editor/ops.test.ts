@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { HouseInput, Vec2 } from "../model/types";
 import {
+  mergePieces,
   duplicateLevel,
   moveRoomToLevel,
   movePieceToLevel,
@@ -359,6 +360,15 @@ describe("houses and levels", () => {
     // into a room that starts elsewhere: the same spot on the plan
     m.levels[1].rooms = [{ id: "all", rect: [1, 0, 9, 8] }];
     expect(movePieceToLevel(m, "g", "right", 0, "up").model.levels[1].rooms[0].furniture).toEqual([{ type: "sofa", at: [6, 2] }]);
+  });
+
+  it("adds a pack's pieces: the same one once, another with a taken id renamed", () => {
+    const unit = { id: "unit", size: [1, 0.4, 0.5] as [number, number, number], parts: [{ shape: "box" as const, size: [1, 0.4, 0.5] as [number, number, number] }] };
+    let m = mergePieces(house(), [unit]).model;
+    const again = mergePieces(m, [unit, { ...unit, size: [2, 0.4, 0.5] }]);
+    expect(again.added).toEqual(["unit_2"]);
+    m = again.model;
+    expect(m.pieces!.map((p) => p.id)).toEqual(["unit", "unit_2"]);
   });
 
   it("makes ids from names", () => {

@@ -3813,6 +3813,22 @@ if (selected()) {
     assert((await page.evaluate(() => window.panel._model.levels.length)) === before, "undo did not bring the house back");
   });
 
+  await test("own pieces: add a pack from a file, a broken one is refused", async () => {
+    await page.keyboard.press("Escape");
+    await page.locator("homeslice-panel header button[aria-label='House settings']").click();
+    const pack = "pieces:\n  - id: stool\n    size: [0.4, 0.4, 0.45]\n    parts:\n      - {shape: cylinder, size: [0.4, 0.4, 0.05], at: [0, 0, 0.4], finish: oak}\n      - {shape: taper, size: [0.3, 0.3, 0.4], top: 0.4, finish: black}\n";
+    await page.locator("homeslice-panel input[data-pieces-add]").setInputFiles({ name: "stool.yaml", mimeType: "text/yaml", buffer: Buffer.from(pack) });
+    await page.waitForFunction(() => window.panel._model.pieces?.some((p) => p.id === "stool"), null, { timeout: 5000 });
+    assert(await page.locator("homeslice-panel button[data-pieces-download]").isEnabled(), "download stays off");
+    const broken = "pieces:\n  - id: bad\n    size: [1, 1, 1]\n    parts: [{shape: star, size: [1, 1, 1]}]\n";
+    await page.locator("homeslice-panel input[data-pieces-add]").setInputFiles({ name: "bad.yaml", mimeType: "text/yaml", buffer: Buffer.from(broken) });
+    await page.waitForFunction(() => window.panel._settings?.problems?.some((p) => p.includes("shape must be")), null, { timeout: 5000 });
+    assert(!(await page.evaluate(() => window.panel._model.pieces.some((p) => p.id === "bad"))), "a broken piece was taken");
+    await page.keyboard.press("Escape");
+    await page.keyboard.press("Control+z");
+    await page.locator("homeslice-panel header button[aria-label='House settings']").click();
+  });
+
   await test("house settings: YAML in and out, invalid YAML is explained", async () => {
     await page.keyboard.press("Escape");
     await page.locator("homeslice-panel header button[aria-label='House settings']").click();
