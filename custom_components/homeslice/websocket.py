@@ -37,7 +37,7 @@ def _sketchfab(hass: HomeAssistant) -> Sketchfab:
 @callback
 def async_register_websocket(hass: HomeAssistant) -> None:
     """Register the websocket commands."""
-    for command in (ws_list, ws_get_model, ws_subscribe, ws_save, ws_delete, ws_import_files, ws_underlay_get, ws_underlay_set, ws_underlay_delete, ws_polyhaven_catalog, ws_polyhaven_fetch, ws_texture_catalog, ws_texture_fetch, ws_custom_list, ws_custom_upload, ws_custom_delete, ws_sketchfab_status, ws_sketchfab_token, ws_sketchfab_search, ws_sketchfab_fetch, ws_guide, ws_validate, ws_restore, ws_show_subscribe, ws_backup, ws_backup_restore):
+    for command in (ws_list, ws_get_model, ws_subscribe, ws_save, ws_delete, ws_import_files, ws_underlay_get, ws_underlay_set, ws_underlay_delete, ws_polyhaven_catalog, ws_polyhaven_fetch, ws_texture_catalog, ws_texture_fetch, ws_custom_list, ws_custom_upload, ws_custom_delete, ws_assets_unused, ws_assets_cleanup, ws_sketchfab_status, ws_sketchfab_token, ws_sketchfab_search, ws_sketchfab_fetch, ws_guide, ws_validate, ws_restore, ws_show_subscribe, ws_backup, ws_backup_restore):
         websocket_api.async_register_command(hass, command)
 
 
@@ -294,6 +294,34 @@ async def ws_custom_delete(hass: HomeAssistant, connection: websocket_api.Active
         connection.send_error(msg["id"], "invalid_id", str(err))
         return
     connection.send_result(msg["id"])
+
+
+def _in_use(hass: HomeAssistant, draft: Any) -> list[Any]:
+    """Every house model kept (and the one before each, which a restore brings back), plus an editor's unsaved one."""
+    houses = hass.data[DOMAIN]["store"].houses.values()
+    return [h.get("model") for h in houses] + [(h.get("previous") or {}).get("model") for h in houses] + [draft]
+
+
+@websocket_api.websocket_command({vol.Required("type"): "homeslice/assets/unused", vol.Optional("draft"): dict})
+@websocket_api.require_admin
+@websocket_api.async_response
+async def ws_assets_unused(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
+    """The downloaded and uploaded models and textures no house uses (admins only)."""
+    connection.send_result(msg["id"], await _assets(hass).async_unused(_in_use(hass, msg.get("draft"))))
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): "homeslice/assets/cleanup",
+        vol.Required("assets"): [{vol.Required("kind"): vol.In(["polyhaven", "textures", "custom"]), vol.Required("id"): str}],
+        vol.Optional("draft"): dict,
+    }
+)
+@websocket_api.require_admin
+@websocket_api.async_response
+async def ws_assets_cleanup(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
+    """Removes the chosen unused ones (admins only); anything a house uses again is kept."""
+    connection.send_result(msg["id"], await _assets(hass).async_remove_unused(_in_use(hass, msg.get("draft")), msg["assets"]))
 
 
 # ----- Sketchfab, with the user's own token (admins only; the token never leaves Home Assistant) -----

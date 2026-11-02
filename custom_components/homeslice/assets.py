@@ -13,6 +13,7 @@ import json
 import logging
 import re
 import secrets
+import shutil
 import struct
 import time
 from pathlib import Path, PurePosixPath
@@ -65,6 +66,8 @@ class AssetError(ValueError):
 POLYHAVEN_SUFFIXES = {".gltf", ".bin", ".jpg", ".jpeg", ".png", ".webp"}
 # where the names of uploaded models are kept: outside the served folder
 CUSTOM_INDEX = "custom_models.json"
+# a clean-up leaves what was fetched this recently alone (an editor may be about to save it)
+UNUSED_GRACE = 3600
 
 
 def glb_json(blob: bytes) -> Any:
@@ -359,28 +362,86 @@ class Assets:
 
         await self.hass.async_add_executor_job(remove)
 
+    # ----- clean-up -----
+
+    def _unused(self, used: dict[str, set[str]]) -> list[dict[str, Any]]:
+        """What is on disk but no house uses (blocking); just-downloaded ones are left alone."""
+        out: list[dict[str, Any]] = []
+        fresh = time.time() - UNUSED_GRACE
+
+        def size(path: Path) -> int:
+            return sum(f.stat().st_size for f in path.rglob("*") if f.is_file()) if path.is_dir() else path.stat().st_size
+
+        for kind, folder in (("polyhaven", "polyhaven"), ("textures", "textures")):
+            base = self.root / folder
+            for path in sorted(base.iterdir()) if base.is_dir() else []:
+                if path.is_dir() and ID.match(path.name) and path.name not in used[kind] and path.stat().st_mtime < fresh:
+                    name = path.name
+                    if kind == "textures" and (path / "info.json").exists():
+                        name = json.loads((path / "info.json").read_text()).get("name", name)
+                    out.append({"kind": kind, "id": path.name, "name": name, "bytes": size(path)})
+        for asset_id, meta in self._custom_index().items():
+            path = self.root / "custom" / f"{asset_id}.glb"
+            if asset_id in used["custom"] or (path.exists() and path.stat().st_mtime >= fresh):
+                continue
+            out.append({"kind": "custom", "id": asset_id, "name": meta.get("name", asset_id), "bytes": meta.get("bytes", 0), "source": meta.get("source", "upload")})
+        return out
+
+    async def async_unused(self, models: list[Any]) -> list[dict[str, Any]]:
+        """The downloaded and uploaded models and textures none of the given house models uses."""
+        used: dict[str, set[str]] = {"polyhaven": set(), "textures": set(), "custom": set()}
+        for model in models:
+            for kind, ids in asset_refs(model).items():
+                used[kind] |= ids
+        return await self.hass.async_add_executor_job(self._unused, used)
+
+    async def async_remove_unused(self, models: list[Any], wanted: list[dict[str, str]]) -> list[dict[str, Any]]:
+        """Removes the chosen ones, if they are still unused; what was removed."""
+        unused = {(a["kind"], a["id"]): a for a in await self.async_unused(models)}
+        gone = [unused[(w.get("kind"), w.get("id"))] for w in wanted if (w.get("kind"), w.get("id")) in unused]
+
+        def remove() -> None:
+            for a in gone:
+                if a["kind"] == "custom":
+                    continue
+                shutil.rmtree(self.root / a["kind"] / a["id"], ignore_errors=True)
+
+        await self.hass.async_add_executor_job(remove)
+        for a in gone:
+            if a["kind"] == "custom":
+                await self.async_custom_delete(a["id"])
+        return gone
+
+
+REF = re.compile(r"^(polyhaven|custom):([A-Za-z0-9_-]{1,80})$")
+
+
+def asset_refs(model: Any) -> dict[str, set[str]]:
+    """Every downloaded or uploaded asset a house model names, wherever it does: Poly Haven
+    models (furniture `model:`), Poly Haven textures (any finish: floors, walls, roofs, pieces…)
+    and the house's own models (`custom:`)."""
+    found: dict[str, set[str]] = {"polyhaven": set(), "textures": set(), "custom": set()}
+
+    def walk(value: Any, key: str | None) -> None:
+        if isinstance(value, dict):
+            for k, v in value.items():
+                walk(v, k)
+        elif isinstance(value, list):
+            for v in value:
+                walk(v, key)
+        elif isinstance(value, str) and (m := REF.match(value)):
+            kind, asset_id = m.groups()
+            found["custom" if kind == "custom" else "polyhaven" if key == "model" else "textures"].add(asset_id)
+
+    walk(model, None)
+    return found
+
 
 def polyhaven_refs(model: dict[str, Any]) -> set[str]:
     """The Poly Haven models a house model uses."""
-    refs = set()
-    for level in model.get("levels", []) if isinstance(model, dict) else []:
-        for room in level.get("rooms", []):
-            for piece in room.get("furniture", []) or []:
-                ref = piece.get("model") if isinstance(piece, dict) else None
-                if isinstance(ref, str) and ref.startswith("polyhaven:") and ID.match(ref[10:]):
-                    refs.add(ref[10:])
-    return refs
+    return asset_refs(model)["polyhaven"]
 
 
 def texture_refs(model: dict[str, Any]) -> set[str]:
-    """The Poly Haven textures a house model uses (floors, walls, wall sides, facade)."""
-    refs: list[Any] = [model.get("facade")] if isinstance(model, dict) else []
-    for level in model.get("levels", []) if isinstance(model, dict) else []:
-        for room in level.get("rooms", []):
-            if not isinstance(room, dict):
-                continue
-            refs += [room.get("floor"), room.get("wall")]
-            sides = room.get("wall_sides")
-            if isinstance(sides, dict):
-                refs += list(sides.values())
-    return {r[10:] for r in refs if isinstance(r, str) and r.startswith("polyhaven:") and ID.match(r[10:])}
+    """The Poly Haven textures a house model uses (any finish)."""
+    return asset_refs(model)["textures"]

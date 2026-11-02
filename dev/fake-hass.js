@@ -153,6 +153,23 @@ export function makeHass(fixture, onChange) {
         uploads.push(added);
         return structuredClone(added);
       }
+      if (msg.type === "homeslice/assets/unused" || msg.type === "homeslice/assets/cleanup") {
+        // a downloaded Poly Haven chair and texture nobody uses, and the uploads the open house doesn't name
+        const named = JSON.stringify(msg.draft ?? {});
+        fixture.cleaned ??= [];
+        const unused = [
+          { kind: "polyhaven", id: "old_chair", name: "old_chair", bytes: 3_200_000 },
+          { kind: "textures", id: "old_brick", name: "Old brick", bytes: 400_000 },
+          ...uploads.filter((u) => !named.includes(`custom:${u.id}`)).map((u) => ({ kind: "custom", id: u.id, name: u.name, bytes: u.bytes, source: u.source ?? "upload" })),
+        ].filter((a) => !fixture.cleaned.includes(`${a.kind}:${a.id}`));
+        if (msg.type === "homeslice/assets/unused") return unused;
+        const gone = unused.filter((a) => msg.assets.some((w) => w.kind === a.kind && w.id === a.id));
+        for (const a of gone) {
+          fixture.cleaned.push(`${a.kind}:${a.id}`);
+          if (a.kind === "custom") uploads.splice(uploads.findIndex((u) => u.id === a.id), 1);
+        }
+        return gone;
+      }
       if (msg.type === "homeslice/assets/custom") return structuredClone(uploads);
       if (msg.type === "homeslice/assets/custom/upload") {
         if (!msg.data.startsWith("data:")) throw new Error("Upload a .glb file (binary glTF)");

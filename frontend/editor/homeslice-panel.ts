@@ -363,6 +363,8 @@ export class HomeslicePanel extends LitElement {
     _shortcuts: { state: true },
     _draft: { state: true },
     _settings: { state: true },
+    _unused: { state: true },
+    _cleanupNotice: { state: true },
     _wallView: { state: true },
     _energyPlace: { state: true },
     _energySel: { state: true },
@@ -525,6 +527,9 @@ export class HomeslicePanel extends LitElement {
   private _draft: { model: HouseInput; time: number; stale: boolean } | null = null;
   private draftTimer = 0;
   /** House settings in the inspector: name, YAML in and out, delete. */
+  /** Downloaded and uploaded models and textures no house uses (house settings: clean up), with which are ticked. */
+  private _unused: { kind: "polyhaven" | "textures" | "custom"; id: string; name: string; bytes: number; source?: string; pick: boolean }[] | null = null;
+  private _cleanupNotice?: string;
   private _settings: { paste?: string; problems?: string[]; copied?: boolean; prompt?: "copying" | "copied" | string; errorsCopied?: boolean; notice?: string } | null = null;
   /** Energy item waiting for a click on the plan to be placed. */
   private _energyPlace: EnergyInput | null = null;
@@ -4645,6 +4650,50 @@ export class HomeslicePanel extends LitElement {
   }
   private polyhavenRequest: Promise<unknown> | null = null;
 
+  /** House settings: the downloaded (and uploaded) models and textures no house uses, to remove. */
+  private renderCleanup() {
+    const list = this._unused;
+    // the open, unsaved house counts as used too
+    const draft = this._model ?? undefined;
+    const mb = (bytes: number) => (bytes / 1e6).toFixed(bytes < 1e6 ? 2 : 1);
+    if (!list)
+      return html`${this._cleanupNotice ? html`<p class="notice" data-cleanup-done>${this._cleanupNotice}</p>` : nothing}<div class="row">
+          <button data-cleanup-find @click=${async () => {
+            const found = await this._hass!.callWS<NonNullable<typeof this._unused>>({ type: "homeslice/assets/unused", draft });
+            // own uploads cannot be downloaded again: never ticked by themselves
+            this._cleanupNotice = undefined;
+            this._unused = found.map((a) => ({ ...a, pick: a.kind !== "custom" || a.source === "sketchfab" }));
+          }}>${this.t("editor.cleanup_find")}</button>
+        </div>
+        <p class="muted">${this.t("editor.cleanup_hint")}</p>`;
+    if (!list.length) return html`<p class="notice" data-cleanup-none>${this.t("editor.cleanup_none")}</p>`;
+    const picked = list.filter((a) => a.pick);
+    const kind = (a: (typeof list)[number]) => this.t(a.kind === "custom" ? (a.source === "sketchfab" ? "editor.cleanup_sketchfab" : "editor.cleanup_upload") : a.kind === "textures" ? "editor.cleanup_texture" : "editor.cleanup_polyhaven");
+    return html`<ul class="cleanup">
+        ${list.map(
+          (a) => html`<li>
+            <label
+              ><input type="checkbox" data-cleanup=${`${a.kind}:${a.id}`} .checked=${a.pick} @change=${(e: Event) => {
+                a.pick = (e.target as HTMLInputElement).checked;
+                this._unused = [...list];
+              }} />
+              ${a.name} <span class="muted">${kind(a)} · ${mb(a.bytes)} MB</span></label
+            >
+          </li>`,
+        )}
+      </ul>
+      <div class="row">
+        <button class="danger" data-cleanup-remove ?disabled=${!picked.length} @click=${async () => {
+          if (picked.some((a) => a.kind === "custom" && a.source !== "sketchfab") && !confirm(this.t("editor.cleanup_confirm_upload"))) return;
+          const gone = await this._hass!.callWS<unknown[]>({ type: "homeslice/assets/cleanup", draft, assets: picked.map(({ kind, id }) => ({ kind, id })) });
+          this._unused = null;
+          this._customModels = null;
+          this._cleanupNotice = this.t("editor.cleanup_done", { count: gone.length, mb: mb(picked.reduce((n, a) => n + a.bytes, 0)) });
+        }}>${this.t("editor.cleanup_remove", { count: picked.length, mb: mb(picked.reduce((n, a) => n + a.bytes, 0)) })}</button>
+        <button @click=${() => (this._unused = null)}>${this.t("editor.cancel")}</button>
+      </div>`;
+  }
+
   /** After an export with Sketchfab models in it: "for your own backup only" and the credits it needs. */
   private licenceNotice(models: CustomAsset[]) {
     const from = models.filter((m) => m.source === "sketchfab");
@@ -5195,6 +5244,8 @@ export class HomeslicePanel extends LitElement {
       </div>
       ${st.notice ? html`<p class="notice">${st.notice}</p>` : nothing}
       <p class="muted">${this.t("editor.backup_hint")}</p>
+      <h3>${this.t("editor.cleanup")}</h3>
+      ${this.renderCleanup()}
       <h3>${this.t("editor.danger")}</h3>
       <button class="danger" @click=${async () => {
         if (!confirm(this.t("editor.delete_house_confirm", { name: m.name ?? this._house }))) return;
@@ -5475,6 +5526,16 @@ export class HomeslicePanel extends LitElement {
   }
 
   static override styles = css`
+    ul.cleanup {
+      list-style: none;
+      padding: 0;
+      margin: 4px 0;
+      max-height: 240px;
+      overflow: auto;
+    }
+    ul.cleanup li {
+      padding: 2px 0;
+    }
     p.notice {
       padding: 8px 10px;
       border-radius: 8px;

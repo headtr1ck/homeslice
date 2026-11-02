@@ -238,6 +238,47 @@ async def test_custom_models_upload_list_delete(hass: HomeAssistant, setup, hass
     assert (await client.receive_json())["result"] == []
 
 
+async def test_unused_assets_cleanup(hass: HomeAssistant, setup, hass_ws_client, hass_read_only_access_token, tmp_path: Path) -> None:
+    import os
+
+    root = tmp_path / "homeslice" / "assets"
+    old = 1_000_000_000  # long ago: past the grace for fresh downloads
+    for kind, asset_id in (("polyhaven", "sofa_01"), ("polyhaven", "chair_02"), ("textures", "red_brick"), ("textures", "slate"), ("textures", "fresh_one")):
+        (root / kind / asset_id).mkdir(parents=True)
+        (root / kind / asset_id / "f.bin").write_bytes(b"x" * 10)
+        if asset_id != "fresh_one":
+            os.utime(root / kind / asset_id, (old, old))
+    client = await hass_ws_client(hass)
+    ids = []
+    for name in ("Used", "Unused", "In the draft"):
+        await client.send_json_auto_id({"type": "homeslice/assets/custom/upload", "name": name, "data": GLB})
+        ids.append((await client.receive_json())["result"]["id"])
+    for asset_id in ids:
+        os.utime(root / "custom" / f"{asset_id}.glb", (old, old))
+    house = {
+        "id": "home",
+        "levels": [{"floor": "ground", "rooms": [{"area": "living", "points": [[0, 0], [4, 0], [4, 4], [0, 4]], "furniture": [{"type": "sofa", "at": [1, 1], "model": "polyhaven:sofa_01"}, {"type": "table", "at": [2, 2], "model": f"custom:{ids[0]}"}]}]}],
+        # a roof finish counts too
+        "roof": {"finish": "polyhaven:slate"},
+    }
+    hass.data["homeslice"]["store"].houses["home"] = {"model": house, "source": "editor"}
+    draft = {"levels": [{"rooms": [{"furniture": [{"model": f"custom:{ids[2]}"}]}]}]}
+    await client.send_json_auto_id({"type": "homeslice/assets/unused", "draft": draft})
+    unused = (await client.receive_json())["result"]
+    assert sorted((a["kind"], a["id"]) for a in unused) == [("custom", ids[1]), ("polyhaven", "chair_02"), ("textures", "red_brick")]
+    assert next(a for a in unused if a["kind"] == "polyhaven")["bytes"] == 10
+    # only the chosen ones, and only while still unused
+    await client.send_json_auto_id({"type": "homeslice/assets/cleanup", "draft": draft, "assets": [{"kind": "polyhaven", "id": "chair_02"}, {"kind": "custom", "id": ids[1]}, {"kind": "polyhaven", "id": "sofa_01"}, {"kind": "textures", "id": "../.."}]})
+    gone = (await client.receive_json())["result"]
+    assert sorted(a["id"] for a in gone) == sorted(["chair_02", ids[1]])
+    assert not (root / "polyhaven" / "chair_02").exists() and (root / "polyhaven" / "sofa_01").exists() and (root / "textures" / "red_brick").exists()
+    assert not (root / "custom" / f"{ids[1]}.glb").exists() and ids[1] not in (tmp_path / "homeslice" / "custom_models.json").read_text()
+    # admins only
+    viewer = await hass_ws_client(hass, hass_read_only_access_token)
+    await viewer.send_json_auto_id({"type": "homeslice/assets/unused"})
+    assert not (await viewer.receive_json())["success"]
+
+
 async def test_sketchfab_token_search_and_fetch(hass: HomeAssistant, setup, hass_ws_client, aioclient_mock, hass_read_only_access_token, tmp_path: Path) -> None:
     api = "https://api.sketchfab.com/v3"
     files = "https://sketchfab-prod-media.s3.amazonaws.com/archives/sofa.glb"
@@ -371,8 +412,8 @@ async def test_polyhaven_textures_catalog_and_download(hass: HomeAssistant, setu
 def test_texture_refs() -> None:
     from custom_components.homeslice.assets import texture_refs
 
-    model = {"facade": "polyhaven:red_brick", "levels": [{"rooms": [{"floor": "polyhaven:wood_floor", "wall": "paint_white", "wall_sides": {"north": "polyhaven:../x", "east": "polyhaven:plaster"}}]}]}
-    assert texture_refs(model) == {"red_brick", "wood_floor", "plaster"}
+    model = {"facade": "polyhaven:red_brick", "roof": {"finish": "polyhaven:slate"}, "levels": [{"rooms": [{"floor": "polyhaven:wood_floor", "wall": "paint_white", "wall_sides": {"north": "polyhaven:../x", "east": "polyhaven:plaster"}, "furniture": [{"model": "polyhaven:sofa_01"}]}]}]}
+    assert texture_refs(model) == {"red_brick", "wood_floor", "plaster", "slate"}
 
 
 async def test_polyhaven_catalog_keeps_home_categories(hass: HomeAssistant, setup, hass_ws_client, aioclient_mock) -> None:

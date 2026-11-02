@@ -945,6 +945,22 @@ test.describe.serial("editor", () => {
     await download;
     const notice = await page.locator("homeslice-panel .notice").textContent();
     assert(notice.includes("For your own backup only") && notice.includes("Bought sofa"), `notice: ${notice}`);
+    // clean-up: what no house (nor the open one) uses; own uploads are not ticked by themselves
+    await page.locator("homeslice-panel button[data-cleanup-find]").click();
+    const listed = await page.locator("homeslice-panel ul.cleanup input").evaluateAll((els) => els.map((e) => [e.dataset.cleanup, e.checked]));
+    const ticked = Object.fromEntries(listed);
+    assert(ticked["polyhaven:old_chair"] === true && ticked["textures:old_brick"] === true, `listed: ${JSON.stringify(listed)}`);
+    const placed = await page.evaluate(() => window.panel._customModels.filter((m) => m.source === "sketchfab").map((m) => `custom:${m.id}`));
+    assert(placed.length === 2 && placed.every((k) => !(k in ticked)), `placed models listed: ${JSON.stringify(listed)}`);
+    assert(listed.filter(([k]) => k.startsWith("custom:")).every(([, on]) => !on), `uploads ticked: ${JSON.stringify(listed)}`);
+    await page.locator('homeslice-panel ul.cleanup input[data-cleanup="textures:old_brick"]').uncheck();
+    await page.locator("homeslice-panel button[data-cleanup-remove]").click();
+    const done = await page.locator("homeslice-panel [data-cleanup-done]").textContent();
+    assert(done.includes("Removed 1 (3.2 MB)"), `cleanup notice: ${done}`);
+    await page.locator("homeslice-panel button[data-cleanup-find]").click();
+    const left = await page.locator("homeslice-panel ul.cleanup input").evaluateAll((els) => els.map((e) => e.dataset.cleanup));
+    assert(!left.includes("polyhaven:old_chair") && left.includes("textures:old_brick"), `left: ${left}`);
+    await page.locator("homeslice-panel ul.cleanup ~ .row button:not(.danger)").click();
     await page.locator("homeslice-panel header button[aria-label='House settings']").click();
     await page.evaluate(() => window.panel.shadowRoot.activeElement?.blur());
     // the two pieces placed
