@@ -50,6 +50,7 @@ import {
   boundaryThickness,
   deleteFreeWall,
   freeWallIndexes,
+  railingIndexes,
   resizeSide,
   setBoundaryThickness,
   setOpeningDefaults,
@@ -2225,7 +2226,7 @@ export class HomeslicePanel extends LitElement {
         })}
       ${this._show.dims && l ? this.renderRoomDims(l.rooms, walls) : nothing}
       ${this._show.dims && l ? this.renderOverallDims() : nothing}
-      ${level ? this.renderFreeWalls(level.freeWalls) : nothing}
+      ${level ? this.renderFreeWalls(level.freeWalls, level.railings ?? []) : nothing}
       ${this._stair ? this.renderStairHandles() : nothing}
       ${this._show.furniture ? this.renderFurniture() : nothing}
       ${this._show.lights ? this.renderLamps() : nothing}
@@ -3103,14 +3104,17 @@ export class HomeslicePanel extends LitElement {
   }
 
   /** Click targets and handles of free-standing walls (the walls themselves are drawn with the others). */
-  private renderFreeWalls(free: { a: Vec2; b: Vec2 }[]) {
-    const indexes = freeWallIndexes(this._model!, this._level);
-    return svg`${free.map((w, k) => {
-      const index = indexes[k];
+  private renderFreeWalls(free: { a: Vec2; b: Vec2 }[], railings: { a: Vec2; b: Vec2 }[]) {
+    const walls = freeWallIndexes(this._model!, this._level);
+    const rails = railingIndexes(this._model!, this._level);
+    // (railings drawn as a thin double line: see-through, not a wall)
+    const list = [...free.map((w, k) => ({ ...w, index: walls[k], railing: false })), ...railings.map((w, k) => ({ ...w, index: rails[k], railing: true }))];
+    return svg`${list.map((w) => {
+      const index = w.index;
       const [ax, ay] = this.toScreen(w.a);
       const [bx, by] = this.toScreen(w.b);
       const sel = index === this._freeWall;
-      return svg`<line class="wall-hit free ${sel ? "selected" : ""}" data-freewall=${index} x1=${ax} y1=${ay} x2=${bx} y2=${by} stroke-width="14"></line>
+      return svg`${w.railing ? svg`<line class="railing-line" x1=${ax} y1=${ay} x2=${bx} y2=${by}></line>` : nothing}<line class="wall-hit free ${sel ? "selected" : ""}" data-freewall=${index} x1=${ax} y1=${ay} x2=${bx} y2=${by} stroke-width="14"></line>
         ${sel ? svg`<circle class="vertex" data-freeend="0" cx=${ax} cy=${ay} r="7"></circle><circle class="vertex" data-freeend="1" cx=${bx} cy=${by} r="7"></circle>` : nothing}`;
     })}`;
   }
@@ -3744,6 +3748,7 @@ export class HomeslicePanel extends LitElement {
   }
 
   private renderFreeWallInspector(index: number) {
+    // (handlers read the model when they run: a field committing on blur must not undo a change made just before)
     const m = this._model!;
     const w = this.levelInput?.walls?.[index];
     if (!w?.line) return nothing;
@@ -3758,13 +3763,28 @@ export class HomeslicePanel extends LitElement {
             if (!(v >= 0.2) || !len) return;
             // the second end moves along the wall
             const end: Vec2 = [a[0] + ((b[0] - a[0]) * v) / len, a[1] + ((b[1] - a[1]) * v) / len];
-            this.commit(updateFreeWall(m, this._level, index, { line: [a, end] }));
+            this.commit(updateFreeWall(this._model!, this._level, index, { line: [a, end] }));
           }} />
         </label>
-        ${this.cmInput(this.t("editor.wall_thickness"), w.thickness, m.walls?.interior ?? DEFAULTS.walls.interior, (v) => this.commit(updateFreeWall(m, this._level, index, { thickness: v })))}
+        ${w.type === "railing" ? nothing : this.cmInput(this.t("editor.wall_thickness"), w.thickness, m.walls?.interior ?? DEFAULTS.walls.interior, (v) => this.commit(updateFreeWall(this._model!, this._level, index, { thickness: v })))}
+      </div>
+      <div class="row">
+        <label>${this.t("editor.free_wall_kind")}
+          <select data-free-kind @change=${(e: Event) => this.commit(updateFreeWall(this._model!, this._level, index, { type: (e.target as HTMLSelectElement).value === "railing" ? "railing" : "wall" }))}>
+            <option value="wall" ?selected=${w.type !== "railing"}>${this.t("editor.free_wall_kind_wall")}</option>
+            <option value="railing" ?selected=${w.type === "railing"}>${this.t("editor.free_wall_kind_railing")}</option>
+          </select>
+        </label>
+        ${w.type === "railing"
+          ? html`<label>${this.t("editor.railing")}
+              <select @change=${(e: Event) => this.commit(updateFreeWall(this._model!, this._level, index, { railing: (e.target as HTMLSelectElement).value as "glass" | "metal" | "wood" }))}>
+                ${(["metal", "glass", "wood"] as const).map((v) => html`<option value=${v} ?selected=${(w.railing ?? "metal") === v}>${this.t(`editor.railing_${v}`)}</option>`)}
+              </select>
+            </label>`
+          : nothing}
       </div>
       <button class="danger" @click=${() => {
-        this.commit(deleteFreeWall(m, this._level, index));
+        this.commit(deleteFreeWall(this._model!, this._level, index));
         this._freeWall = null;
       }}>${this.t("editor.free_wall_delete")}</button>`;
   }
@@ -6293,6 +6313,13 @@ export class HomeslicePanel extends LitElement {
       stroke-width: 6;
       stroke-linecap: round;
       opacity: 0.7;
+      pointer-events: none;
+    }
+    .railing-line {
+      stroke: var(--primary-text-color, #333);
+      stroke-width: 3;
+      stroke-dasharray: 2 4;
+      stroke-linecap: round;
       pointer-events: none;
     }
     .wall-hit.free.selected {

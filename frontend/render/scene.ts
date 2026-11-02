@@ -765,6 +765,8 @@ export class HouseRenderer {
 
     for (const room of level.rooms) if (room.awning && (room.kind !== "outdoor" || this.view.showOutdoor)) this.awning(g, level, room);
     for (const room of level.rooms) if (room.railing && room.kind === "outdoor" && this.view.showOutdoor) this.railing(g, level, room);
+    // free-standing railings: galleries, the edges of a stairwell
+    for (const r of level.railings ?? []) this.railingSegment(g, r.a, r.b, 0, r.style);
     for (const room of level.rooms) for (const c of room.cameras ?? []) this.camera3d(g, c);
 
     // walls, split around openings; each face in its room's finish (or the facade's)
@@ -2384,33 +2386,35 @@ export class HouseRenderer {
         return dist < 0.05 && t > -0.05 && t < len + 0.05;
       });
     const y = room.kind === "outdoor" ? -level.slab : 0;
-    const h = 1.0;
-    const frame = this.lambert(room.railing === "wood" ? "#8b6a4a" : "#3b4046");
-    const glass = this.lambert(COLORS.glass, { transparent: true, opacity: 0.35, depthWrite: false });
     const poly = room.polygon;
     poly.forEach((a, i) => {
       const b = poly[(i + 1) % poly.length];
-      const mid: Vec2 = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
       // the house side has the wall
-      if (onOutline(mid)) return;
-      const len = Math.hypot(b[0] - a[0], b[1] - a[1]);
-      if (len < 0.05) return;
-      const angle = -Math.atan2(b[1] - a[1], b[0] - a[0]);
-      const piece = new THREE.Group();
-      piece.position.set(mid[0], y, mid[1]);
-      piece.rotation.y = angle;
-      // a handrail and posts; between them glass, bars or boards
-      piece.add(this.mesh(new THREE.BoxGeometry(len, 0.05, 0.06), frame).translateY(h));
-      const posts = Math.max(2, Math.round(len / 1.2) + 1);
-      for (let k = 0; k < posts; k++) piece.add(this.mesh(new THREE.BoxGeometry(0.05, h, 0.05), frame).translateX(-len / 2 + (k * len) / (posts - 1)).translateY(h / 2));
-      if (room.railing === "glass") piece.add(this.mesh(new THREE.BoxGeometry(len, h - 0.12, 0.015), glass, false).translateY((h - 0.12) / 2 + 0.04));
-      else {
-        const step = room.railing === "wood" ? 0.14 : 0.11;
-        const n = Math.max(1, Math.floor(len / step));
-        for (let k = 1; k < n; k++) piece.add(this.mesh(new THREE.BoxGeometry(room.railing === "wood" ? 0.08 : 0.018, h - 0.06, 0.018), frame).translateX(-len / 2 + k * (len / n)).translateY((h - 0.06) / 2));
-      }
-      g.add(piece);
+      if (onOutline([(a[0] + b[0]) / 2, (a[1] + b[1]) / 2])) return;
+      this.railingSegment(g, a, b, y, room.railing ?? "metal");
     });
+  }
+
+  /** A metre-high railing from a to b: a handrail and posts, glass, bars or boards between. */
+  private railingSegment(g: THREE.Group, a: Vec2, b: Vec2, y: number, style: "glass" | "metal" | "wood") {
+    const h = 1.0;
+    const len = Math.hypot(b[0] - a[0], b[1] - a[1]);
+    if (len < 0.05) return;
+    const frame = this.lambert(style === "wood" ? "#8b6a4a" : "#3b4046");
+    const piece = new THREE.Group();
+    piece.position.set((a[0] + b[0]) / 2, y, (a[1] + b[1]) / 2);
+    piece.rotation.y = -Math.atan2(b[1] - a[1], b[0] - a[0]);
+    piece.add(this.mesh(new THREE.BoxGeometry(len, 0.05, 0.06), frame).translateY(h));
+    const posts = Math.max(2, Math.round(len / 1.2) + 1);
+    for (let k = 0; k < posts; k++) piece.add(this.mesh(new THREE.BoxGeometry(0.05, h, 0.05), frame).translateX(-len / 2 + (k * len) / (posts - 1)).translateY(h / 2));
+    if (style === "glass") piece.add(this.mesh(new THREE.BoxGeometry(len, h - 0.12, 0.015), this.lambert(COLORS.glass, { transparent: true, opacity: 0.35, depthWrite: false }), false).translateY((h - 0.12) / 2 + 0.04));
+    else {
+      const step = style === "wood" ? 0.14 : 0.11;
+      const n = Math.max(1, Math.floor(len / step));
+      for (let k = 1; k < n; k++) piece.add(this.mesh(new THREE.BoxGeometry(style === "wood" ? 0.08 : 0.018, h - 0.06, 0.018), frame).translateX(-len / 2 + k * (len / n)).translateY((h - 0.06) / 2));
+    }
+    piece.userData.railing = style;
+    g.add(piece);
   }
 
   /**

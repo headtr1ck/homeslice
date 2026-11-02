@@ -480,6 +480,10 @@ def validate(house: Any) -> list[dict[str, str]]:
                 pb = (coord(get(b, 0), "x", wp), coord(get(b, 1), "y", wp))
                 if math.hypot(pb[0] - pa[0], pb[1] - pa[1]) < 0.05:
                     err(wp, "A wall line needs two different points.")
+                    continue
+                railing = get(wi, "railing")
+                if get(wi, "type") == "railing" and railing is not MISSING and railing not in ("glass", "metal", "wood"):
+                    err(f"{wp}.railing", f"railing must be glass, metal or wood, got {stringify(railing)}.")
                 continue
             err(wp, "A wall entry needs between: [room, room] or line: [[x, y], [x, y]].")
 

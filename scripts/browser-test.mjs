@@ -947,6 +947,23 @@ if (selected()) {
     });
   });
 
+  await test("a gallery railing drawn along its line", async () => {
+    await act(page, () =>
+      page.evaluate(() => {
+        const m = structuredClone(window.__demoModel);
+        m.levels[1].walls = [...(m.levels[1].walls ?? []), { line: [[5, 4], [8, 4]], type: "railing", railing: "glass" }];
+        window.card.hass.pushModel(m);
+      }),
+    );
+    const found = await page.evaluate(() => {
+      const out = [];
+      window.card.renderer.object.traverse((o) => o.userData.railing && out.push(o.userData.railing));
+      return out;
+    });
+    assert(found.includes("glass"), `railings: ${JSON.stringify(found)}`);
+    await act(page, () => page.evaluate(() => window.card.hass.pushModel(window.__demoModel)));
+  });
+
   await test("a piece shown only while its helper is on", async () => {
     await act(page, async () => {
       await page.evaluate(() => {
@@ -2587,6 +2604,12 @@ if (selected()) {
     await typeInto("Thickness (cm)", 8);
     assert((await walls()).find((w) => w.line)?.thickness === 0.08, `thickness: ${JSON.stringify(await walls())}`);
     await shot(page, "editor-free-wall");
+    // the same line as a glass railing: no thickness, still selected
+    await page.locator("homeslice-panel .inspector select[data-free-kind]").selectOption("railing");
+    await page.locator("homeslice-panel .inspector label", { hasText: "Railing (balcony)" }).locator("select").selectOption("glass");
+    const railing = (await walls()).find((w) => w.line);
+    assert(railing.type === "railing" && railing.railing === "glass" && railing.thickness === undefined, `railing: ${JSON.stringify(railing)}`);
+    assert(await page.locator("homeslice-panel svg.plan line.railing-line").count(), "railing not drawn on the plan");
     await page.locator("homeslice-panel .inspector button", { hasText: "Delete wall" }).click();
     assert(!(await walls()).some((w) => w.line), "free wall not deleted");
   });

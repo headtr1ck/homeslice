@@ -526,6 +526,11 @@ export function freeWallIndexes(model: HouseInput, levelId: string): number[] {
   return (level(model, levelId).walls ?? []).flatMap((w, i) => (w.line && (w.type ?? "wall") === "wall" ? [i] : []));
 }
 
+/** The level's free-standing railings (lines with type railing), by their place in `walls`. */
+export function railingIndexes(model: HouseInput, levelId: string): number[] {
+  return (level(model, levelId).walls ?? []).flatMap((w, i) => (w.line && w.type === "railing" ? [i] : []));
+}
+
 export function addFreeWall(model: HouseInput, levelId: string, a: Vec2, b: Vec2): { model: HouseInput; index: number } {
   const m = clone(model);
   const l = level(m, levelId);
@@ -533,12 +538,24 @@ export function addFreeWall(model: HouseInput, levelId: string, a: Vec2, b: Vec2
   return { model: m, index: l.walls.length - 1 };
 }
 
-export function updateFreeWall(model: HouseInput, levelId: string, index: number, patch: { line?: [Vec2, Vec2]; thickness?: number }): HouseInput {
+export function updateFreeWall(model: HouseInput, levelId: string, index: number, patch: { line?: [Vec2, Vec2]; thickness?: number; type?: "wall" | "railing"; railing?: "glass" | "metal" | "wood" }): HouseInput {
   const m = clone(model);
   const w = level(m, levelId).walls?.[index];
   if (!w?.line) return m;
+  // a wall or a railing (a railing has no thickness; a wall no railing style)
+  if (patch.type === "railing") {
+    w.type = "railing";
+    delete w.thickness;
+  } else if (patch.type === "wall") {
+    delete w.type;
+    delete w.railing;
+  }
+  if ("railing" in patch) {
+    if (patch.railing && patch.railing !== "metal") w.railing = patch.railing;
+    else delete w.railing;
+  }
   if (patch.line) w.line = patch.line.map((p) => [round(p[0]), round(p[1])]) as [Vec2, Vec2];
-  if ("thickness" in patch) {
+  if ("thickness" in patch && w.type !== "railing") {
     if (patch.thickness === undefined) delete w.thickness;
     else w.thickness = round(patch.thickness);
   }

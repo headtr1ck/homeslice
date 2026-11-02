@@ -197,9 +197,11 @@ export interface WallInput {
    * `open`: no wall there (default for `between`); `wall`: build one (default for `line`;
    * with `between`, used to give that wall its own `thickness`).
    */
-  type?: "open" | "wall";
+  type?: "open" | "wall" | "railing";
   /** Metres (default: the house's interior wall thickness). */
   thickness?: number;
+  /** A `railing` line (a gallery, a stair's edge): `glass`, `metal` (default) or `wood`, a metre high. */
+  railing?: "glass" | "metal" | "wood";
 }
 
 export interface OpeningInput {
@@ -589,6 +591,8 @@ export interface Level {
   openBoundaries: { between: [string, string]; side?: Side }[];
   /** Free-standing walls. */
   freeWalls: { a: Vec2; b: Vec2; thickness?: number }[];
+  /** Free-standing railings (galleries, stair edges). */
+  railings: { a: Vec2; b: Vec2; style: "glass" | "metal" | "wood" }[];
   /** Walls between two rooms with their own thickness, optionally one side only. */
   thickBoundaries: { between: [string, string]; side?: Side; thickness: number }[];
 }

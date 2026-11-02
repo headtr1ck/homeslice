@@ -327,6 +327,7 @@ export function expandHouse(input: unknown): ExpandResult {
 
     const openBoundaries: Level["openBoundaries"] = [];
     const freeWalls: Level["freeWalls"] = [];
+    const railings: Level["railings"] = [];
     const thickBoundaries: Level["thickBoundaries"] = [];
     (li.walls ?? []).forEach((wi, i) => {
       const wp = `${lp}.walls[${i}]`;
@@ -346,7 +347,10 @@ export function expandHouse(input: unknown): ExpandResult {
         const a: Vec2 = [coord(x0, "x", wp), coord(y0, "y", wp)];
         const b: Vec2 = [coord(x1, "x", wp), coord(y1, "y", wp)];
         if (Math.hypot(b[0] - a[0], b[1] - a[1]) < 0.05) return err(wp, "A wall line needs two different points.");
-        if ((wi.type ?? "wall") === "wall") freeWalls.push({ a, b, thickness: wi.thickness });
+        if (wi.type === "railing") {
+          if (wi.railing !== undefined && !["glass", "metal", "wood"].includes(wi.railing)) return err(`${wp}.railing`, `railing must be glass, metal or wood, got ${JSON.stringify(wi.railing)}.`);
+          railings.push({ a, b, style: wi.railing ?? "metal" });
+        } else if ((wi.type ?? "wall") === "wall") freeWalls.push({ a, b, thickness: wi.thickness });
         return;
       }
       err(wp, "A wall entry needs between: [room, room] or line: [[x, y], [x, y]].");
@@ -409,6 +413,7 @@ export function expandHouse(input: unknown): ExpandResult {
       openings,
       openBoundaries,
       freeWalls,
+      railings,
       thickBoundaries,
     });
     elevation += height + slab;
