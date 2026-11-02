@@ -10,18 +10,39 @@ export function mapScale(platform: string | undefined): number | null {
   return null;
 }
 
-const key = (t: string) =>
+const ORDINALS: Record<string, string> = { "1st": "first", "2nd": "second", "3rd": "third", "4th": "fourth", "5th": "fifth" };
+
+/** A name as plain words: lower case, accents off (ß as ss), ordinals spelled out. */
+const words = (t: string) =>
   t
     .toLowerCase()
+    .replace(/ß/g, "ss")
     .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
     .replace(/[^a-z0-9]+/g, " ")
-    .trim();
+    .trim()
+    .split(" ")
+    .map((w) => ORDINALS[w] ?? w)
+    .join(" ");
 
-/** The floor a robot's map shows, by name ("Saros 10 Ground floor" ↔ floor "Ground Floor"); undefined when none matches. */
+/**
+ * The floor a robot's map shows, by name ("Saros 10 Ground floor" ↔ floor "Ground Floor"; spaces
+ * and dashes don't matter: "Groundfloor", "ground-floor"; "1st floor" is "First floor");
+ * undefined when none matches.
+ */
 export function mapFloor(mapName: string, floors: { floor_id: string; name: string }[]): string | undefined {
-  const m = ` ${key(mapName)} `;
+  const m = words(mapName);
+  const joined = m.replace(/ /g, "");
   // longest names first: "Upper ground floor" before "Ground floor"
-  return [...floors].sort((a, b) => b.name.length - a.name.length).find((f) => m.includes(` ${key(f.name)} `) || m.includes(` ${key(f.floor_id.replace(/_/g, " "))} `))?.floor_id;
+  return [...floors]
+    .sort((a, b) => b.name.length - a.name.length)
+    .find((f) =>
+      [f.name, f.floor_id.replace(/_/g, " ")].some((n) => {
+        const w = words(n);
+        // as whole words, or written together (short names only as words: "eg" is in "legs")
+        return ` ${m} `.includes(` ${w} `) || (w.length >= 6 && joined.includes(w.replace(/ /g, "")));
+      }),
+    )?.floor_id;
 }
 
 /** The house YAML in an assistant's answer: inside a code block if there is one, else all of it. */

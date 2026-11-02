@@ -3126,9 +3126,10 @@ export class HomeslicePanel extends LitElement {
     try {
       const res = (await hass.callService("roborock", "get_maps", {}, { entity_id: vacuum }, false, true)) as { response?: Record<string, { maps?: { name?: string; rooms?: Record<string, string> }[] }> };
       const maps = res?.response?.[vacuum]?.maps ?? [];
-      // the map whose name the picture's entity carries ("…_ground_floor" ↔ "Ground Floor"), else the only one
-      const key = (t: string) => t.toLowerCase().replace(/[^a-z0-9]+/g, "_");
-      const map = maps.find((x) => x.name && image.includes(key(x.name))) ?? (maps.length === 1 ? maps[0] : undefined);
+      // the map whose name the picture carries ("…_ground_floor" ↔ "Ground Floor", "Groundfloor" too), else the only one
+      const named = maps.map((x, i) => ({ floor_id: String(i), name: x.name ?? "" })).filter((x) => x.name);
+      const match = mapFloor(`${this.entityName(image)} ${image.replace(/_/g, " ")}`, named);
+      const map = match !== undefined ? maps[Number(match)] : maps.length === 1 ? maps[0] : undefined;
       return Object.fromEntries(Object.entries(map?.rooms ?? {}).map(([n, name]) => [Number(n), name]));
     } catch {
       return {};

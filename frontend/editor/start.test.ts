@@ -12,6 +12,12 @@ describe("the start screen's helpers", () => {
     expect(mapFloor("saros_10_basement", floors)).toBe("basement");
     expect(mapFloor("Saros 10 Upper ground floor", floors)).toBe("upper_ground_floor");
     expect(mapFloor("Roborock Q10 Series Map", floors)).toBeUndefined();
+    // written together, with a dash, or with an ordinal
+    expect(mapFloor("Saros 10 Groundfloor", floors)).toBe("ground_floor");
+    expect(mapFloor("saros_10_ground-floor", floors)).toBe("ground_floor");
+    expect(mapFloor("Q10 1st floor", [...floors, { floor_id: "first_floor", name: "First floor" }])).toBe("first_floor");
+    expect(mapFloor("Robo Erdgeschoß", [{ floor_id: "eg", name: "Erdgeschoss" }, { floor_id: "og", name: "Obergeschoß" }])).toBe("eg");
+    expect(mapFloor("Robo Obergeschoss", [{ floor_id: "og", name: "Obergeschoss" }])).toBe("og");
   });
   it("knows Roborock's map scale, not others'", () => {
     expect(mapScale("roborock")).toBe(0.0125);
