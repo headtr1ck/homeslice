@@ -1501,6 +1501,8 @@
   "alias.keypad": "tastierino, centralina allarme, sicurezza, codice",
   "editor.import": "Importa",
   "editor.import_sh3d": "Da Sweet Home 3D (.sh3d)",
+  "editor.import_plan": "Pianta da un'altra scheda di pianta 3D (.json)…",
+  "editor.import_plan_done": "{rooms} stanze importate ({skipped} elementi tralasciati, sotto): controllale sopra, poi applica.",
   "editor.import_svg": "Disegno della pianta (.svg)…",
   "editor.import_svg_width": "Quanto è largo il disegno nella realtà (metri)?",
   "editor.import_svg_done": "{rooms} stanze e {entities} elementi collegati trovati: controllali sopra, poi applica.",

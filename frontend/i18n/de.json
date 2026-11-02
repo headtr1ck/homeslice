@@ -1501,6 +1501,8 @@
   "alias.keypad": "Bedienteil, Alarmanlage, Tastatur, Code",
   "editor.import": "Importieren",
   "editor.import_sh3d": "Aus Sweet Home 3D (.sh3d)",
+  "editor.import_plan": "Plan aus einer anderen 3D-Grundriss-Karte (.json)…",
+  "editor.import_plan_done": "{rooms} Räume importiert ({skipped} Dinge ausgelassen, unten aufgelistet): oben prüfen, dann übernehmen.",
   "editor.import_svg": "Grundriss-Zeichnung (.svg)…",
   "editor.import_svg_width": "Wie breit ist die Zeichnung in Wirklichkeit (Meter)?",
   "editor.import_svg_done": "{rooms} Räume und {entities} verknüpfte Dinge gefunden: oben prüfen, dann übernehmen.",

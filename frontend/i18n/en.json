@@ -1501,6 +1501,8 @@
   "alias.keypad": "keypad, alarm panel, security, code",
   "editor.import": "Import",
   "editor.import_sh3d": "From Sweet Home 3D (.sh3d)",
+  "editor.import_plan": "Plan from another 3D floor-plan card (.json)…",
+  "editor.import_plan_done": "{rooms} rooms imported ({skipped} things left out, listed below): check them in the box above, then apply.",
   "editor.import_svg": "Floor plan drawing (.svg)…",
   "editor.import_svg_width": "How wide is the drawing in reality (metres)?",
   "editor.import_svg_done": "{rooms} rooms and {entities} linked things found: check them in the box above, then apply.",

@@ -3757,6 +3757,39 @@ if (selected()) {
     await page.locator("homeslice-panel header button[aria-label='House settings']").click();
   });
 
+  await test("import a plan from another 3D floor-plan card and use it", async () => {
+    await page.keyboard.press("Escape");
+    await page.locator("homeslice-panel header button[aria-label='House settings']").click();
+    const plan = {
+      version: 1,
+      settings: { wall_exterior: 0.24, wall_interior: 0.12 },
+      floors: [
+        {
+          id: "f0",
+          name: "Ground floor",
+          elevation: 0,
+          height: 2.5,
+          rooms: [
+            { id: "a", name: "Living", points: [[0, 0], [5, 0], [5, 4], [0, 4]] },
+            { id: "b", name: "Kitchen", points: [[5, 0], [8, 0], [8, 4], [5, 4]] },
+          ],
+          openings: [{ id: "o", room_id: "a", edge: 2, offset: 2.5, type: "door", width: 0.9, height: 2.05, sill: 0 }],
+          furniture: [{ id: "s", type: "sofa", x: 2.5, z: 3, rotation: 180, w: 2.2, d: 0.9, h: 0.8 }],
+          placements: [],
+        },
+      ],
+    };
+    await page.locator("homeslice-panel input[data-import-plan]").setInputFiles({ name: "plan.json", mimeType: "application/json", buffer: Buffer.from(JSON.stringify({ format: "export", version: 1, building: plan })) });
+    await page.waitForFunction(() => window.panel._settings?.paste?.includes("kitchen"), null, { timeout: 5000 });
+    const before = await page.evaluate(() => window.panel._model.levels.length);
+    await page.locator("homeslice-panel .inspector button.primary", { hasText: "Apply" }).click();
+    const m = await page.evaluate(() => window.panel._model);
+    assert(m.levels[0].rooms.map((r) => r.id).join() === "living,kitchen" && m.levels[0].openings?.[0]?.side === "south", `applied: ${JSON.stringify(m.levels[0])}`);
+    await page.keyboard.press("Escape");
+    await page.keyboard.press("Control+z");
+    assert((await page.evaluate(() => window.panel._model.levels.length)) === before, "undo did not bring the house back");
+  });
+
   await test("house settings: YAML in and out, invalid YAML is explained", async () => {
     await page.keyboard.press("Escape");
     await page.locator("homeslice-panel header button[aria-label='House settings']").click();

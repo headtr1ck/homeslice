@@ -1501,6 +1501,8 @@
   "alias.keypad": "bediendeel, alarmpaneel, beveiliging, code, keypad",
   "editor.import": "Importeren",
   "editor.import_sh3d": "Uit Sweet Home 3D (.sh3d)",
+  "editor.import_plan": "Plan uit een andere 3D-plattegrondkaart (.json)…",
+  "editor.import_plan_done": "{rooms} kamers geïmporteerd ({skipped} dingen weggelaten, hieronder): controleer ze hierboven en pas ze toe.",
   "editor.import_svg": "Plattegrondtekening (.svg)…",
   "editor.import_svg_width": "Hoe breed is de tekening in werkelijkheid (meter)?",
   "editor.import_svg_done": "{rooms} kamers en {entities} gekoppelde dingen gevonden: controleer ze hierboven en pas ze toe.",
