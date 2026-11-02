@@ -138,6 +138,28 @@ test.describe.serial("editor", () => {
     assert(added?.kind === "outdoor" && added.railing === "metal", `balcony: ${JSON.stringify(added)}`);
     await page.evaluate(() => window.panel.shadowRoot.activeElement?.blur());
     await page.keyboard.press("Control+z");
+    // the balcony tool: a balcony wherever it is drawn (here inside the outline, as on a loggia)
+    await page.locator('homeslice-panel button.tool[data-tool="balcony"]').click();
+    const drag = async (a, b) => {
+      const [ax, ay] = await toScreen(a);
+      const [bx, by] = await toScreen(b);
+      await page.mouse.move(ax, ay);
+      await page.mouse.down();
+      await page.mouse.move(bx, by, { steps: 8 });
+      await page.mouse.up();
+    };
+    await drag([1.3, 1.3], [2.6, 2.6]);
+    const loggia = await page.evaluate(() => window.panel._model.levels[1].rooms.at(-1));
+    assert(loggia?.kind === "outdoor" && loggia.railing === "metal" && loggia.id.startsWith("balcony"), `loggia: ${JSON.stringify(loggia)}`);
+    await page.evaluate(() => window.panel.shadowRoot.activeElement?.blur());
+    await page.keyboard.press("Control+z");
+    // the railing tool (G): a railing, not a wall
+    await page.keyboard.press("g");
+    await drag([1, 3], [3, 3]);
+    const railing = await page.evaluate(() => window.panel._model.levels[1].walls?.at(-1));
+    assert(railing?.type === "railing" && railing.thickness === undefined, `railing: ${JSON.stringify(railing)}`);
+    await page.evaluate(() => window.panel.shadowRoot.activeElement?.blur());
+    await page.keyboard.press("Control+z");
     await page.evaluate((id) => (window.panel._level = id), level);
   });
 
@@ -945,22 +967,6 @@ test.describe.serial("editor", () => {
     await download;
     const notice = await page.locator("homeslice-panel .notice").textContent();
     assert(notice.includes("For your own backup only") && notice.includes("Bought sofa"), `notice: ${notice}`);
-    // clean-up: what no house (nor the open one) uses; own uploads are not ticked by themselves
-    await page.locator("homeslice-panel button[data-cleanup-find]").click();
-    const listed = await page.locator("homeslice-panel ul.cleanup input").evaluateAll((els) => els.map((e) => [e.dataset.cleanup, e.checked]));
-    const ticked = Object.fromEntries(listed);
-    assert(ticked["polyhaven:old_chair"] === true && ticked["textures:old_brick"] === true, `listed: ${JSON.stringify(listed)}`);
-    const placed = await page.evaluate(() => window.panel._customModels.filter((m) => m.source === "sketchfab").map((m) => `custom:${m.id}`));
-    assert(placed.length === 2 && placed.every((k) => !(k in ticked)), `placed models listed: ${JSON.stringify(listed)}`);
-    assert(listed.filter(([k]) => k.startsWith("custom:")).every(([, on]) => !on), `uploads ticked: ${JSON.stringify(listed)}`);
-    await page.locator('homeslice-panel ul.cleanup input[data-cleanup="textures:old_brick"]').uncheck();
-    await page.locator("homeslice-panel button[data-cleanup-remove]").click();
-    const done = await page.locator("homeslice-panel [data-cleanup-done]").textContent();
-    assert(done.includes("Removed 1 (3.2 MB)"), `cleanup notice: ${done}`);
-    await page.locator("homeslice-panel button[data-cleanup-find]").click();
-    const left = await page.locator("homeslice-panel ul.cleanup input").evaluateAll((els) => els.map((e) => e.dataset.cleanup));
-    assert(!left.includes("polyhaven:old_chair") && left.includes("textures:old_brick"), `left: ${left}`);
-    await page.locator("homeslice-panel ul.cleanup ~ .row button:not(.danger)").click();
     await page.locator("homeslice-panel header button[aria-label='House settings']").click();
     await page.evaluate(() => window.panel.shadowRoot.activeElement?.blur());
     // the two pieces placed

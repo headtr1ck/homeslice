@@ -246,7 +246,8 @@ test.describe.serial("editor, starting from scratch", () => {
       window.panel._tool = "select";
       window.panel._room = "__outline__";
     });
-    await click("homeslice-panel button[data-add-roof-level]");
+    // right in the level list, next to "+ Floor"
+    await click("homeslice-panel aside.levels button[data-add-roof]");
     const model = () => page.evaluate(() => window.panel._model);
     let m = await model();
     const roof = m.levels.at(-1);
@@ -495,7 +496,7 @@ test.describe.serial("editor, starting from scratch", () => {
     await height.fill("2.8");
     await height.dispatchEvent("change");
     assert((await lvl("ground_floor")).height === 2.8, "height not stored");
-    await page.locator("homeslice-panel button.add-level").click();
+    await page.locator("homeslice-panel button.add-level:not([data-add-roof])").click();
     const m = await model();
     assert(m.levels.length === 4 && m.levels[3].name === "New level", `levels: ${JSON.stringify(m.levels.map((l) => l.id))}`);
     assert((await page.locator("homeslice-panel .inspector h2").textContent()) === "New level", "new level not selected");

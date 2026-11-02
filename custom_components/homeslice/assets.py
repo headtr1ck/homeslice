@@ -21,6 +21,7 @@ from typing import Any
 
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from homeassistant.helpers.storage import Store
 
 from .const import MODEL_DIR
 
@@ -66,8 +67,9 @@ class AssetError(ValueError):
 POLYHAVEN_SUFFIXES = {".gltf", ".bin", ".jpg", ".jpeg", ".png", ".webp"}
 # where the names of uploaded models are kept: outside the served folder
 CUSTOM_INDEX = "custom_models.json"
-# a clean-up leaves what was fetched this recently alone (an editor may be about to save it)
+# downloads no house uses are removed after a week; what was fetched within the hour is left alone
 UNUSED_GRACE = 3600
+UNUSED_KEEP = 7 * 24 * 3600
 
 
 def glb_json(blob: bytes) -> Any:
@@ -111,6 +113,7 @@ class Assets:
         self._catalog: tuple[float, list[dict[str, Any]]] | None = None
         self._textures: tuple[float, list[dict[str, Any]]] | None = None
         self._fetching: dict[str, asyncio.Task[None]] = {}
+        self._unused_store: Store[dict[str, float]] = Store(hass, 1, "homeslice.unused_assets")
 
     def ensure_dirs(self) -> None:
         """Create the folders (blocking)."""
@@ -362,54 +365,53 @@ class Assets:
 
         await self.hass.async_add_executor_job(remove)
 
-    # ----- clean-up -----
+    # ----- clean-up: by itself -----
 
     def _unused(self, used: dict[str, set[str]]) -> list[dict[str, Any]]:
-        """What is on disk but no house uses (blocking); just-downloaded ones are left alone."""
+        """What was downloaded but no house uses (blocking): Poly Haven models and textures, and
+        Sketchfab models. Own uploads are never on it (they cannot be downloaded again), nor
+        what was fetched just now (an editor may be about to save it)."""
         out: list[dict[str, Any]] = []
         fresh = time.time() - UNUSED_GRACE
-
-        def size(path: Path) -> int:
-            return sum(f.stat().st_size for f in path.rglob("*") if f.is_file()) if path.is_dir() else path.stat().st_size
-
-        for kind, folder in (("polyhaven", "polyhaven"), ("textures", "textures")):
-            base = self.root / folder
+        for kind in ("polyhaven", "textures"):
+            base = self.root / kind
             for path in sorted(base.iterdir()) if base.is_dir() else []:
                 if path.is_dir() and ID.match(path.name) and path.name not in used[kind] and path.stat().st_mtime < fresh:
-                    name = path.name
-                    if kind == "textures" and (path / "info.json").exists():
-                        name = json.loads((path / "info.json").read_text()).get("name", name)
-                    out.append({"kind": kind, "id": path.name, "name": name, "bytes": size(path)})
+                    out.append({"kind": kind, "id": path.name})
         for asset_id, meta in self._custom_index().items():
             path = self.root / "custom" / f"{asset_id}.glb"
-            if asset_id in used["custom"] or (path.exists() and path.stat().st_mtime >= fresh):
+            if meta.get("source") != "sketchfab" or asset_id in used["custom"] or (path.exists() and path.stat().st_mtime >= fresh):
                 continue
-            out.append({"kind": "custom", "id": asset_id, "name": meta.get("name", asset_id), "bytes": meta.get("bytes", 0), "source": meta.get("source", "upload")})
+            out.append({"kind": "custom", "id": asset_id})
         return out
 
-    async def async_unused(self, models: list[Any]) -> list[dict[str, Any]]:
-        """The downloaded and uploaded models and textures none of the given house models uses."""
+    async def async_sweep(self, models: list[Any]) -> list[dict[str, Any]]:
+        """Notes what no house uses, and removes what has stayed unused for a week (so an undo
+        or an unsaved draft still finds it); what was removed."""
         used: dict[str, set[str]] = {"polyhaven": set(), "textures": set(), "custom": set()}
         for model in models:
             for kind, ids in asset_refs(model).items():
                 used[kind] |= ids
-        return await self.hass.async_add_executor_job(self._unused, used)
-
-    async def async_remove_unused(self, models: list[Any], wanted: list[dict[str, str]]) -> list[dict[str, Any]]:
-        """Removes the chosen ones, if they are still unused; what was removed."""
-        unused = {(a["kind"], a["id"]): a for a in await self.async_unused(models)}
-        gone = [unused[(w.get("kind"), w.get("id"))] for w in wanted if (w.get("kind"), w.get("id")) in unused]
+        unused = await self.hass.async_add_executor_job(self._unused, used)
+        marks = await self._unused_store.async_load() or {}
+        now = time.time()
+        # the marks of what is used again go; new ones start now
+        marks = {f"{a['kind']}:{a['id']}": marks.get(f"{a['kind']}:{a['id']}", now) for a in unused}
+        gone = [a for a in unused if now - marks[f"{a['kind']}:{a['id']}"] >= UNUSED_KEEP]
 
         def remove() -> None:
             for a in gone:
-                if a["kind"] == "custom":
-                    continue
-                shutil.rmtree(self.root / a["kind"] / a["id"], ignore_errors=True)
+                if a["kind"] != "custom":
+                    shutil.rmtree(self.root / a["kind"] / a["id"], ignore_errors=True)
 
         await self.hass.async_add_executor_job(remove)
         for a in gone:
             if a["kind"] == "custom":
                 await self.async_custom_delete(a["id"])
+            marks.pop(f"{a['kind']}:{a['id']}", None)
+        await self._unused_store.async_save(marks)
+        if gone:
+            _LOGGER.info("Removed %d downloaded models and textures no house has used for a week", len(gone))
         return gone
 
 

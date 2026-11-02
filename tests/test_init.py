@@ -238,45 +238,46 @@ async def test_custom_models_upload_list_delete(hass: HomeAssistant, setup, hass
     assert (await client.receive_json())["result"] == []
 
 
-async def test_unused_assets_cleanup(hass: HomeAssistant, setup, hass_ws_client, hass_read_only_access_token, tmp_path: Path) -> None:
+async def test_unused_downloads_go_after_a_week(hass: HomeAssistant, setup, hass_ws_client, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     import os
 
+    from custom_components.homeslice import assets as assets_mod
+
     root = tmp_path / "homeslice" / "assets"
+    assets = hass.data["homeslice"]["assets"]
     old = 1_000_000_000  # long ago: past the grace for fresh downloads
     for kind, asset_id in (("polyhaven", "sofa_01"), ("polyhaven", "chair_02"), ("textures", "red_brick"), ("textures", "slate"), ("textures", "fresh_one")):
         (root / kind / asset_id).mkdir(parents=True)
-        (root / kind / asset_id / "f.bin").write_bytes(b"x" * 10)
-        if asset_id != "fresh_one":
-            os.utime(root / kind / asset_id, (old, old))
-    client = await hass_ws_client(hass)
-    ids = []
-    for name in ("Used", "Unused", "In the draft"):
-        await client.send_json_auto_id({"type": "homeslice/assets/custom/upload", "name": name, "data": GLB})
-        ids.append((await client.receive_json())["result"]["id"])
-    for asset_id in ids:
+        # fresh_one: downloaded a minute before the third sweep
+        stamp = 2_000_000_000 + 8 * 24 * 3600 - 60 if asset_id == "fresh_one" else old
+        os.utime(root / kind / asset_id, (stamp, stamp))
+    blob = base64.b64decode(GLB.split(",", 1)[1])
+    used = (await assets.async_custom_store("Used", blob, {"source": "sketchfab"}))["id"]
+    unused = (await assets.async_custom_store("Unused", blob, {"source": "sketchfab"}))["id"]
+    own = (await assets.async_custom_store("Own upload", blob))["id"]
+    for asset_id in (used, unused, own):
         os.utime(root / "custom" / f"{asset_id}.glb", (old, old))
     house = {
-        "id": "home",
-        "levels": [{"floor": "ground", "rooms": [{"area": "living", "points": [[0, 0], [4, 0], [4, 4], [0, 4]], "furniture": [{"type": "sofa", "at": [1, 1], "model": "polyhaven:sofa_01"}, {"type": "table", "at": [2, 2], "model": f"custom:{ids[0]}"}]}]}],
+        "levels": [{"rooms": [{"furniture": [{"model": "polyhaven:sofa_01"}, {"model": f"custom:{used}"}]}]}],
         # a roof finish counts too
         "roof": {"finish": "polyhaven:slate"},
     }
-    hass.data["homeslice"]["store"].houses["home"] = {"model": house, "source": "editor"}
-    draft = {"levels": [{"rooms": [{"furniture": [{"model": f"custom:{ids[2]}"}]}]}]}
-    await client.send_json_auto_id({"type": "homeslice/assets/unused", "draft": draft})
-    unused = (await client.receive_json())["result"]
-    assert sorted((a["kind"], a["id"]) for a in unused) == [("custom", ids[1]), ("polyhaven", "chair_02"), ("textures", "red_brick")]
-    assert next(a for a in unused if a["kind"] == "polyhaven")["bytes"] == 10
-    # only the chosen ones, and only while still unused
-    await client.send_json_auto_id({"type": "homeslice/assets/cleanup", "draft": draft, "assets": [{"kind": "polyhaven", "id": "chair_02"}, {"kind": "custom", "id": ids[1]}, {"kind": "polyhaven", "id": "sofa_01"}, {"kind": "textures", "id": "../.."}]})
-    gone = (await client.receive_json())["result"]
-    assert sorted(a["id"] for a in gone) == sorted(["chair_02", ids[1]])
-    assert not (root / "polyhaven" / "chair_02").exists() and (root / "polyhaven" / "sofa_01").exists() and (root / "textures" / "red_brick").exists()
-    assert not (root / "custom" / f"{ids[1]}.glb").exists() and ids[1] not in (tmp_path / "homeslice" / "custom_models.json").read_text()
-    # admins only
-    viewer = await hass_ws_client(hass, hass_read_only_access_token)
-    await viewer.send_json_auto_id({"type": "homeslice/assets/unused"})
-    assert not (await viewer.receive_json())["success"]
+    now = [2_000_000_000.0]
+    monkeypatch.setattr(assets_mod.time, "time", lambda: now[0])
+    # first seen unused: noted, nothing removed yet
+    assert await assets.async_sweep([house]) == []
+    now[0] += 6 * 24 * 3600
+    # in use again in the meantime: its mark goes
+    assert await assets.async_sweep([house, {"facade": "polyhaven:red_brick"}]) == []
+    now[0] += 2 * 24 * 3600
+    gone = await assets.async_sweep([house])
+    assert sorted(a["id"] for a in gone) == sorted(["chair_02", unused])
+    assert not (root / "polyhaven" / "chair_02").exists() and not (root / "custom" / f"{unused}.glb").exists()
+    for kept in (root / "polyhaven" / "sofa_01", root / "textures" / "slate", root / "textures" / "fresh_one", root / "textures" / "red_brick", root / "custom" / f"{used}.glb", root / "custom" / f"{own}.glb"):
+        assert kept.exists(), kept
+    now[0] += 8 * 24 * 3600
+    # red_brick a week after it was last used; fresh_one only noted (its first sweep)
+    assert [a["id"] for a in await assets.async_sweep([house])] == ["red_brick"]
 
 
 async def test_sketchfab_token_search_and_fetch(hass: HomeAssistant, setup, hass_ws_client, aioclient_mock, hass_read_only_access_token, tmp_path: Path) -> None:

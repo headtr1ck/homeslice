@@ -114,7 +114,9 @@ repository itself doesn't contain the built frontend; build it with `npm run bui
    - **1. Rooms & walls:** drag rooms into shape, or upload the floor plan (level
      inspector), set its scale with two points of a known length, and draw rooms over
      it (`R`). Walls appear by themselves; a wall between two rooms can be dragged on its
-     own or switched to *open* (e.g. an open kitchen). Stairs: `S`.
+     own or switched to *open* (e.g. an open kitchen). Stairs: `S`; balconies and terraces:
+     `B`; railings (galleries, stair edges): `G`; free-standing walls: `W`. The roof is a level
+     of its own: **+ Roof** under the floors, then presets, more parts and solar panels.
      Select a room to give its floor and walls a finish (wood, tiles, stone, paint,
      acoustic panels, brick…), one wall a different one, and the outline for the facade.
      Besides the built-in finishes, the picker offers Poly Haven's photo textures (CC0),
@@ -328,7 +330,7 @@ name: Home
 outline: { rect: [0, 0, 10, 8] }       # outer face of the exterior walls, shared by all levels
 party_walls: [west]                     # walls shared with a neighbour
 # the roof as a level of its own (instead of roof:): parts at any angle, a roof starting lower,
-# pieces on it such as solar panels; in the editor: house settings → Use a roof level, then presets
+# pieces on it such as solar panels; in the editor: + Roof under the floors, then presets
 #  - id: roof
 #    kind: roof
 #    roofs:
@@ -480,3 +482,7 @@ the ones you bought. A model is downloaded once into Home Assistant, checked lik
 and keeps its author and licence, shown with the piece. Exports are never held back, but a
 backup or 3D export says which models in it are for your own use only (bought ones) and which
 need their author's credit when shared. Homeslice is not made or endorsed by Sketchfab.
+
+Downloads clean up after themselves: Poly Haven models and textures and Sketchfab models
+that no house has used for a week are removed (Poly Haven ones come back by themselves if
+used again). Your own uploads stay until you delete them in the library.

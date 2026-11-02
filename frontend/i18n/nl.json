@@ -1685,17 +1685,6 @@
   "editor.backup_restore_confirm": "Deze back-up terugzetten? De huizen erin vervangen die met dezelfde id (hun vorige versies blijven bewaard).",
   "editor.backup_restored": "Teruggezet: {houses} huizen, {plans} plattegrondafbeeldingen, {models} modellen.",
   "editor.backup_hint": "Alles wat Homeslice bewaart in één bestand: huizen, plattegrondafbeeldingen, geüploade modellen. Home Assistant-back-ups bevatten het ook; deze verhuist een huis naar een andere installatie.",
-  "editor.cleanup": "Gedownloade modellen en texturen",
-  "editor.cleanup_find": "Ongebruikte zoeken",
-  "editor.cleanup_hint": "Eenmaal gedownloade modellen en texturen blijven in Home Assistant. Hier staan de modellen die geen huis meer gebruikt, om ruimte vrij te maken. Die van Poly Haven worden vanzelf opnieuw gedownload als ze nodig zijn.",
-  "editor.cleanup_none": "Alle gedownloade modellen en texturen zijn in gebruik.",
-  "editor.cleanup_polyhaven": "Poly Haven-model",
-  "editor.cleanup_texture": "Poly Haven-textuur",
-  "editor.cleanup_sketchfab": "Sketchfab-model",
-  "editor.cleanup_upload": "eigen upload",
-  "editor.cleanup_remove": "{count} verwijderen ({mb} MB)",
-  "editor.cleanup_confirm_upload": "Hier zitten eigen uploads bij: die kunnen niet opnieuw worden gedownload. Toch verwijderen?",
-  "editor.cleanup_done": "{count} verwijderd ({mb} MB).",
   "card.layers": "Lagen",
   "card.layer_energy": "Energiestroom",
   "card.layer_heating": "Verwarming",
@@ -1778,5 +1767,9 @@
   "editor.roof_preset_tuscan": "Toscaans",
   "editor.roof_preset_hip": "Schilddak",
   "editor.roof_preset_shed": "Lessenaarsdak",
-  "editor.roof_preset_flat": "Plat dak"
+  "editor.roof_preset_flat": "Plat dak",
+  "editor.tool_balcony": "Balkon of terras tekenen (B)",
+  "editor.tool_railing": "Balustrade tekenen (G)",
+  "editor.terrace": "Terras",
+  "editor.add_roof": "Dak"
 }

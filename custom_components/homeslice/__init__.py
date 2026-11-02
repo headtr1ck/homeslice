@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import timedelta
 import logging
 from pathlib import Path
 
@@ -14,6 +15,8 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import Event, HomeAssistant, ServiceCall, callback
 from homeassistant.helpers import area_registry as ar, entity_registry as er, floor_registry as fr
 from homeassistant.helpers.debounce import Debouncer
+from homeassistant.helpers.event import async_track_time_interval
+from homeassistant.helpers.start import async_at_started
 
 from .assets import ASSETS_URL, Assets
 from .sketchfab import Sketchfab
@@ -143,6 +146,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         if model:
             hass.async_create_background_task(assets.async_ensure_models(model), f"homeslice models {house_id}")
     entry.async_on_unload(store.async_listen(house_changed))
+
+    # downloads no house uses any more go by themselves (after a week unused): daily, and once started
+    async def sweep(*_: object) -> None:
+        houses = store.houses.values()
+        # the version before each, which a restore brings back, counts as used
+        await assets.async_sweep([h.get("model") for h in houses] + [(h.get("previous") or {}).get("model") for h in houses])
+
+    entry.async_on_unload(async_track_time_interval(hass, sweep, timedelta(days=1)))
+    entry.async_on_unload(async_at_started(hass, sweep))
     # the tools for AI assistants (conversation agents, and MCP clients through MCP Server)
     entry.async_on_unload(async_register_llm_api(hass))
     for event_type in (

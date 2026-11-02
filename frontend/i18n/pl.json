@@ -1685,17 +1685,6 @@
   "editor.backup_restore_confirm": "Przywrócić tę kopię? Jej domy zastąpią te o tym samym id (poprzednie wersje zostaną zachowane).",
   "editor.backup_restored": "Przywrócono: domy {houses}, obrazy planu {plans}, modele {models}.",
   "editor.backup_hint": "Wszystko, co przechowuje Homeslice, w jednym pliku: domy, obrazy planów, przesłane modele. Kopie Home Assistant też to zawierają; ta przenosi dom na inną instalację.",
-  "editor.cleanup": "Pobrane modele i tekstury",
-  "editor.cleanup_find": "Znajdź nieużywane",
-  "editor.cleanup_hint": "Pobrane modele i tekstury zostają w Home Assistant. Tu są te, których żaden dom już nie używa, aby zwolnić miejsce. Te z Poly Haven pobiorą się ponownie same, gdy będą potrzebne.",
-  "editor.cleanup_none": "Wszystkie pobrane modele i tekstury są w użyciu.",
-  "editor.cleanup_polyhaven": "model Poly Haven",
-  "editor.cleanup_texture": "tekstura Poly Haven",
-  "editor.cleanup_sketchfab": "model Sketchfab",
-  "editor.cleanup_upload": "własny plik",
-  "editor.cleanup_remove": "Usuń {count} ({mb} MB)",
-  "editor.cleanup_confirm_upload": "Wśród nich są własne pliki: nie da się ich pobrać ponownie. Usunąć mimo to?",
-  "editor.cleanup_done": "Usunięto {count} ({mb} MB).",
   "card.layers": "Warstwy",
   "card.layer_energy": "Przepływ energii",
   "card.layer_heating": "Ogrzewanie",
@@ -1778,5 +1767,9 @@
   "editor.roof_preset_tuscan": "Toskański",
   "editor.roof_preset_hip": "Czterospadowy",
   "editor.roof_preset_shed": "Jednospadowy",
-  "editor.roof_preset_flat": "Płaski"
+  "editor.roof_preset_flat": "Płaski",
+  "editor.tool_balcony": "Narysuj balkon lub taras (B)",
+  "editor.tool_railing": "Narysuj balustradę (G)",
+  "editor.terrace": "Taras",
+  "editor.add_roof": "Dach"
 }

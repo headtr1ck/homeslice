@@ -1685,17 +1685,6 @@
   "editor.backup_restore_confirm": "Diese Sicherung wiederherstellen? Ihre Häuser ersetzen die mit derselben ID (deren vorige Versionen bleiben erhalten).",
   "editor.backup_restored": "Wiederhergestellt: {houses} Häuser, {plans} Grundrissbilder, {models} Modelle.",
   "editor.backup_hint": "Alles, was Homeslice speichert, in einer Datei: Häuser, Grundrissbilder, hochgeladene Modelle. Home-Assistant-Backups enthalten es auch; diese hier bringt ein Zuhause auf eine andere Installation.",
-  "editor.cleanup": "Heruntergeladene Modelle und Texturen",
-  "editor.cleanup_find": "Ungenutzte suchen",
-  "editor.cleanup_hint": "Einmal heruntergeladene Modelle und Texturen bleiben in Home Assistant. Hier stehen die, die kein Haus mehr nutzt, um Platz freizugeben. Poly-Haven-Dateien werden bei Bedarf von selbst neu geladen.",
-  "editor.cleanup_none": "Alle heruntergeladenen Modelle und Texturen werden genutzt.",
-  "editor.cleanup_polyhaven": "Poly-Haven-Modell",
-  "editor.cleanup_texture": "Poly-Haven-Textur",
-  "editor.cleanup_sketchfab": "Sketchfab-Modell",
-  "editor.cleanup_upload": "eigener Upload",
-  "editor.cleanup_remove": "{count} entfernen ({mb} MB)",
-  "editor.cleanup_confirm_upload": "Darunter sind eigene Uploads: Sie lassen sich nicht erneut herunterladen. Trotzdem entfernen?",
-  "editor.cleanup_done": "{count} entfernt ({mb} MB).",
   "card.layers": "Ebenen",
   "card.layer_energy": "Energiefluss",
   "card.layer_heating": "Heizung",
@@ -1778,5 +1767,9 @@
   "editor.roof_preset_tuscan": "Toskana",
   "editor.roof_preset_hip": "Walmdach",
   "editor.roof_preset_shed": "Pultdach",
-  "editor.roof_preset_flat": "Flachdach"
+  "editor.roof_preset_flat": "Flachdach",
+  "editor.tool_balcony": "Balkon oder Terrasse zeichnen (B)",
+  "editor.tool_railing": "Geländer zeichnen (G)",
+  "editor.terrace": "Terrasse",
+  "editor.add_roof": "Dach"
 }
