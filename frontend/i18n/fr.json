@@ -1773,7 +1773,7 @@
   "editor.add_roof": "Toit",
   "editor.arriving": "{name} arrive : téléchargement dans Home Assistant",
   "editor.help_balcony": "Tracez un rectangle pour un balcon (étages, avec un garde-corps sur les côtés ouverts) ou une terrasse (rez-de-chaussée). Échap : annuler.",
-  "editor.group_build": "Pièces, murs, garde-corps, balcons, séparations (R, W, G, B, X)",
+  "editor.group_build": "Pièces, murs, garde-corps, balcons, séparations, zones (R, W, G, B, X, A)",
   "editor.tool_railing": "Dessiner un garde-corps (G)",
   "editor.sub_rect": "Pièce",
   "editor.sub_wall": "Mur",
@@ -1786,5 +1786,15 @@
   "editor.tool_divide": "Diviser une pièce, sans mur (X)",
   "editor.sub_divide": "Séparation",
   "editor.help_divide": "Tracez une ligne à travers une pièce pour en faire deux pièces sans mur entre elles, p. ex. cuisine et coin repas. Chaque partie peut avoir sa propre zone Home Assistant. Échap : annuler.",
-  "editor.divide_missed": "Tracez la ligne à travers toute une pièce, d'un mur à l'autre."
+  "editor.divide_missed": "Tracez la ligne à travers toute une pièce, d'un mur à l'autre.",
+  "editor.tool_assign": "Donner leurs zones aux pièces (A)",
+  "editor.sub_assign": "Attribuer",
+  "editor.help_assign": "Glissez une zone Home Assistant du panneau sur une pièce, ou dans une forme fermée par vos murs : elle s'illumine avant de lâcher. Ou touchez une zone, puis une forme. Échap : terminé.",
+  "editor.assign_hint": "Glissez une zone sur une pièce ou une forme fermée ; la forme s'illumine. Ou touchez une zone, puis la forme.",
+  "editor.assign_missed": "Ni dans une pièce ni dans une forme fermée : fermez-la d'abord avec des murs.",
+  "editor.assign_new_room": "nouvelle pièce",
+  "editor.assign_replaces": "à la place de {area}",
+  "editor.assign_here": "ici",
+  "editor.assign_unplaced": "pas encore placée",
+  "editor.assign_no_areas": "Pas encore de zones dans Home Assistant : ajoutez-les sous Paramètres → Zones."
 }

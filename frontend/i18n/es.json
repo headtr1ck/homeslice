@@ -1773,7 +1773,7 @@
   "editor.add_roof": "Tejado",
   "editor.arriving": "{name} está en camino: descargando en Home Assistant",
   "editor.help_balcony": "Arrastra un rectángulo para un balcón (plantas altas, con barandilla en los lados abiertos) o una terraza (planta baja). Esc: cancelar.",
-  "editor.group_build": "Habitaciones, paredes, barandillas, balcones, divisiones (R, W, G, B, X)",
+  "editor.group_build": "Habitaciones, paredes, barandillas, balcones, divisiones, áreas (R, W, G, B, X, A)",
   "editor.tool_railing": "Dibujar una barandilla (G)",
   "editor.sub_rect": "Habitación",
   "editor.sub_wall": "Pared",
@@ -1786,5 +1786,15 @@
   "editor.tool_divide": "Dividir una habitación, sin pared (X)",
   "editor.sub_divide": "División",
   "editor.help_divide": "Arrastra una línea a través de una habitación para hacer dos sin pared entre ellas, p. ej. cocina y comedor. Cada parte puede tener su propia área de Home Assistant. Esc: cancelar.",
-  "editor.divide_missed": "Arrastra la línea a lo ancho de una habitación, de pared a pared."
+  "editor.divide_missed": "Arrastra la línea a lo ancho de una habitación, de pared a pared.",
+  "editor.tool_assign": "Dar a las habitaciones sus áreas (A)",
+  "editor.sub_assign": "Asignar",
+  "editor.help_assign": "Arrastra un área de Home Assistant del panel a una habitación, o a una forma cerrada por tus paredes: se ilumina antes de soltar. O toca un área y luego una forma. Esc: listo.",
+  "editor.assign_hint": "Arrastra un área a una habitación o a una forma cerrada; la forma se ilumina. O toca un área y luego la forma.",
+  "editor.assign_missed": "No está dentro de una habitación ni de una forma cerrada: ciérrala antes con paredes.",
+  "editor.assign_new_room": "habitación nueva",
+  "editor.assign_replaces": "en lugar de {area}",
+  "editor.assign_here": "aquí",
+  "editor.assign_unplaced": "sin colocar",
+  "editor.assign_no_areas": "Aún no hay áreas en Home Assistant: añádelas en Ajustes → Áreas."
 }

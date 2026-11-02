@@ -166,7 +166,7 @@ test.describe.serial("editor", () => {
     // one toolbar button for rooms, walls, railings and balconies: its sub-tools named over the plan
     await page.locator('homeslice-panel aside.tools button[data-group="build"]').click();
     const subs = await page.locator("homeslice-panel .sub-tools button").evaluateAll((els) => els.map((e) => `${e.querySelector("span").textContent} ${e.querySelector("kbd").textContent}`));
-    assert(JSON.stringify(subs) === JSON.stringify(["Room R", "Wall W", "Railing G", "Balcony B", "Divider X"]), `sub-tools: ${JSON.stringify(subs)}`);
+    assert(JSON.stringify(subs) === JSON.stringify(["Room R", "Wall W", "Railing G", "Balcony B", "Divider X", "Assign A"]), `sub-tools: ${JSON.stringify(subs)}`);
     await page.locator('homeslice-panel .sub-tools button[data-sub-tool="balcony"]').click();
     const hint = await page.locator("homeslice-panel .hint-bar").textContent();
     assert(hint.includes("Drag a rectangle for a balcony") && !hint.includes("editor."), `hint: ${hint}`);
@@ -234,6 +234,77 @@ test.describe.serial("editor", () => {
     assert(JSON.stringify(await model()) === before, "undo did not join the kitchen again");
     await page.keyboard.press("Escape");
     assert(await page.evaluate(() => window.panel._tool === "select"), "Esc did not leave the divider");
+  });
+
+  test("assign: an area dragged onto a room (lit up first), and tapped into a shape closed by walls", async () => {
+    const toScreen = (p) => page.evaluate((p) => {
+      const v = window.panel._view;
+      const r = window.panel.shadowRoot.querySelector("svg.plan").getBoundingClientRect();
+      return [r.left + p[0] * v.scale + v.ox, r.top + p[1] * v.scale + v.oy];
+    }, p);
+    const before = JSON.stringify(await model());
+    await page.keyboard.press("Escape");
+    await page.evaluate(() => (window.panel._view = { ...window.panel._view, scale: window.panel._view.scale * 0.6 }));
+    // four walls in the garden, east of the house, one after the other
+    await page.keyboard.press("w");
+    const corners = [[9.5, 1], [12, 1], [12, 3.5], [9.5, 3.5]];
+    for (let i = 0; i < 4; i++) {
+      const [ax, ay] = await toScreen(corners[i]);
+      const [bx, by] = await toScreen(corners[(i + 1) % 4]);
+      await page.mouse.move(ax, ay);
+      await page.mouse.down();
+      await page.mouse.move(bx, by, { steps: 6 });
+      await page.mouse.up();
+    }
+    assert((await model()).levels[0].walls.filter((w) => w.line).length >= 4, "walls not drawn");
+    await page.keyboard.press("Escape");
+    await page.keyboard.press("a");
+    const areas = await page.locator("homeslice-panel .assign-areas button[data-area]").evaluateAll((els) => els.map((e) => [e.dataset.area, e.querySelector(".where").textContent]));
+    assert(areas.length > 2, `areas: ${JSON.stringify(areas)}`);
+    const unplaced = areas.filter(([, w]) => w === "not placed yet").map(([a]) => a);
+    // dragged onto the hall: it lights up with the area's name, then the hall is that area
+    const area = unplaced[0] ?? areas.at(-1)[0];
+    const [hx, hy] = await toScreen([1.5, 2]);
+    const over = await page.evaluate(([area, x, y]) => {
+      const root = window.panel.shadowRoot;
+      const dt = new DataTransfer();
+      root.querySelector(`button[data-area="${area}"]`).dispatchEvent(new DragEvent("dragstart", { bubbles: true, composed: true, dataTransfer: dt }));
+      const plan = root.querySelector("svg.plan");
+      const ev = new DragEvent("dragover", { bubbles: true, composed: true, cancelable: true, dataTransfer: dt, clientX: x, clientY: y });
+      plan.dispatchEvent(ev);
+      return ev.defaultPrevented;
+    }, [area, hx, hy]);
+    assert(over, "the plan refused the area");
+    await page.locator('homeslice-panel g.assign-hover[data-assign-hover="hall"]').waitFor({ timeout: 2000 });
+    await shot(page, "editor-assign-hover");
+    await page.evaluate(([x, y]) => {
+      const plan = window.panel.shadowRoot.querySelector("svg.plan");
+      plan.dispatchEvent(new DragEvent("drop", { bubbles: true, composed: true, cancelable: true, dataTransfer: new DataTransfer(), clientX: x, clientY: y }));
+    }, [hx, hy]);
+    assert((await room("hall")).area_id === area, `hall: ${JSON.stringify(await room("hall"))}`);
+    assert(!(await page.locator("homeslice-panel g.assign-hover").count()), "the highlight stays");
+    // tapped: an area, then the shape the four walls close; it becomes a room, the walls its walls
+    const second = unplaced[1] ?? areas.at(-2)[0];
+    await page.locator(`homeslice-panel .assign-areas button[data-area="${second}"]`).click();
+    const [sx, sy] = await toScreen([10.7, 2.2]);
+    await page.mouse.move(sx, sy);
+    await page.locator('homeslice-panel g.assign-hover[data-assign-hover="new"]').waitFor({ timeout: 2000 });
+    await page.mouse.down();
+    await page.mouse.up();
+    const l = (await model()).levels[0];
+    const made = l.rooms.find((r) => r.area_id === second);
+    assert(made && JSON.stringify(made.rect) === "[9.5,1,2.5,2.5]", `new room: ${JSON.stringify(made)}`);
+    assert(!(l.walls ?? []).some((w) => w.line), `the walls stayed: ${JSON.stringify(l.walls)}`);
+    // a tap outside any shape: nothing, and why
+    await page.locator(`homeslice-panel .assign-areas button[data-area="${second}"]`).click();
+    const [ox, oy] = await toScreen([14, 8]);
+    await page.mouse.click(ox, oy);
+    assert((await page.locator("homeslice-panel .hint-bar").textContent()).includes("close it with walls first"), "no word on a missed tap");
+    await page.keyboard.press("Escape");
+    await page.keyboard.press("Escape");
+    for (let i = 0; i < 6; i++) await page.keyboard.press("Control+z");
+    assert(JSON.stringify(await model()) === before, `undo: ${JSON.stringify((await model()).levels[0])}`);
+    await page.evaluate(() => window.panel.fitView());
   });
 
   test("saving stores the model in HA", async () => {

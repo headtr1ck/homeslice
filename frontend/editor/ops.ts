@@ -1759,3 +1759,43 @@ export function divideRoom(model: HouseInput, levelId: string, roomId: string, a
   l.walls = [...walls, ...shared, { between: [roomId, id] }];
   return { model: m, ids: [roomId, id] };
 }
+
+/**
+ * Gives a Home Assistant area a place on this level: an existing room, or a closed shape
+ * (drawn with free-standing walls) that becomes a room. The area leaves the level's other
+ * rooms; walls along the new room's edges are its walls now and go as free-standing ones.
+ */
+export function assignArea(model: HouseInput, levelId: string, areaId: string, target: { room: string } | { polygon: Vec2[] }): { model: HouseInput; room: string } {
+  const m = clone(model);
+  const l = level(m, levelId);
+  for (const r of l.rooms) if (r.area_id === areaId && !("room" in target && r.id === target.room)) delete r.area_id;
+  if ("room" in target) {
+    const r = l.rooms.find((x) => x.id === target.room);
+    if (r) {
+      r.area_id = areaId;
+      // a placeholder name gives way to the area's
+      delete r.name;
+    }
+    return { model: m, room: target.room };
+  }
+  const poly = target.polygon;
+  const onEdge = (p: Vec2) => poly.some((a, i) => {
+    const b = poly[(i + 1) % poly.length];
+    const { distance, t, length } = project(p, a, b);
+    return distance < 0.01 && t > -0.01 && t < length + 0.01;
+  });
+  if (l.walls) {
+    l.walls = l.walls.filter((w) => {
+      if (!w.line || (w.type ?? "wall") !== "wall") return true;
+      const [a, b] = w.line.map(([x, y]) => [coord(m, x, "x"), coord(m, y, "y")] as Vec2);
+      return !(onEdge(a) && onEdge(b) && onEdge([(a[0] + b[0]) / 2, (a[1] + b[1]) / 2]));
+    });
+    if (!l.walls.length) delete l.walls;
+  }
+  const id = uniqueId(
+    l.rooms.map((r) => r.id),
+    slug(areaId, "room"),
+  );
+  const added = addRoom(m, levelId, normalizeOrientation(poly), { id, area_id: areaId });
+  return { model: added.model, room: added.id };
+}

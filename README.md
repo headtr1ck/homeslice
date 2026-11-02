@@ -116,8 +116,10 @@ repository itself doesn't contain the built frontend; build it with `npm run bui
      it (`R`). Walls appear by themselves; a wall between two rooms can be dragged on its
      own or switched to *open* (e.g. an open kitchen). Stairs: `S`. The rooms button holds
      more: room (`R`), free-standing wall (`W`), railing (`G`, galleries and stair edges),
-     balcony or terrace (`B`) and divider (`X`: a line across a room makes two rooms with no
-     wall between, e.g. kitchen and dining area, each with its own area). The roof is a level
+     balcony or terrace (`B`), divider (`X`: a line across a room makes two rooms with no
+     wall between, e.g. kitchen and dining area) and assign (`A`: drag a Home Assistant area
+     onto a room, or into a shape your walls close off, which becomes a room; it lights up
+     before you let go). The roof is a level
      of its own: **+ Roof** under the floors, then presets, more parts and solar panels.
      Select a room to give its floor and walls a finish (wood, tiles, stone, paint,
      acoustic panels, brick…), one wall a different one, and the outline for the facade.

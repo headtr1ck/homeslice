@@ -1773,7 +1773,7 @@
   "editor.add_roof": "Dak",
   "editor.arriving": "{name} komt eraan: wordt in Home Assistant gedownload",
   "editor.help_balcony": "Sleep een rechthoek voor een balkon (bovenverdiepingen, met een balustrade aan de open zijden) of een terras (begane grond). Esc: annuleren.",
-  "editor.group_build": "Ruimtes, wanden, balustrades, balkons, scheidingen (R, W, G, B, X)",
+  "editor.group_build": "Ruimtes, wanden, balustrades, balkons, scheidingen, toewijzen (R, W, G, B, X, A)",
   "editor.tool_railing": "Balustrade tekenen (G)",
   "editor.sub_rect": "Ruimte",
   "editor.sub_wall": "Wand",
@@ -1786,5 +1786,15 @@
   "editor.tool_divide": "Ruimte splitsen, zonder wand (X)",
   "editor.sub_divide": "Scheiding",
   "editor.help_divide": "Sleep een lijn door een ruimte om er twee ruimtes zonder wand tussen te maken, bv. keuken en eethoek. Elk deel kan een eigen Home Assistant-ruimte krijgen. Esc: annuleren.",
-  "editor.divide_missed": "Sleep de lijn helemaal door één ruimte, van wand tot wand."
+  "editor.divide_missed": "Sleep de lijn helemaal door één ruimte, van wand tot wand.",
+  "editor.tool_assign": "Ruimtes hun Home Assistant-ruimte geven (A)",
+  "editor.sub_assign": "Toewijzen",
+  "editor.help_assign": "Sleep een Home Assistant-ruimte uit het paneel op een ruimte, of in een vorm die je wanden afsluiten: die licht op voor je loslaat. Of tik een ruimte aan, dan een vorm. Esc: klaar.",
+  "editor.assign_hint": "Sleep een ruimte op een ruimte of een gesloten vorm; de vorm licht op. Of tik een ruimte aan, dan de vorm.",
+  "editor.assign_missed": "Niet in een ruimte of gesloten vorm: sluit die eerst af met wanden.",
+  "editor.assign_new_room": "nieuwe ruimte",
+  "editor.assign_replaces": "in plaats van {area}",
+  "editor.assign_here": "hier",
+  "editor.assign_unplaced": "nog niet geplaatst",
+  "editor.assign_no_areas": "Nog geen ruimtes in Home Assistant: voeg ze toe onder Instellingen → Ruimtes."
 }

@@ -1773,7 +1773,7 @@
   "editor.add_roof": "Dach",
   "editor.arriving": "{name} w drodze: pobieranie do Home Assistant",
   "editor.help_balcony": "Przeciągnij prostokąt, aby dodać balkon (wyższe piętra, z balustradą po otwartych stronach) lub taras (parter). Esc: anuluj.",
-  "editor.group_build": "Pomieszczenia, ściany, balustrady, balkony, podziały (R, W, G, B, X)",
+  "editor.group_build": "Pomieszczenia, ściany, balustrady, balkony, podziały, obszary (R, W, G, B, X, A)",
   "editor.tool_railing": "Narysuj balustradę (G)",
   "editor.sub_rect": "Pomieszczenie",
   "editor.sub_wall": "Ściana",
@@ -1786,5 +1786,15 @@
   "editor.tool_divide": "Podziel pomieszczenie, bez ściany (X)",
   "editor.sub_divide": "Podział",
   "editor.help_divide": "Przeciągnij linię przez pomieszczenie, aby zrobić dwa pomieszczenia bez ściany między nimi, np. kuchnię i jadalnię. Każda część może mieć własny obszar Home Assistant. Esc: anuluj.",
-  "editor.divide_missed": "Przeciągnij linię przez całe pomieszczenie, od ściany do ściany."
+  "editor.divide_missed": "Przeciągnij linię przez całe pomieszczenie, od ściany do ściany.",
+  "editor.tool_assign": "Przypisz pomieszczeniom obszary (A)",
+  "editor.sub_assign": "Przypisz",
+  "editor.help_assign": "Przeciągnij obszar Home Assistant z panelu na pomieszczenie albo do kształtu zamkniętego ścianami: podświetli się, zanim puścisz. Albo dotknij obszaru, a potem kształtu. Esc: gotowe.",
+  "editor.assign_hint": "Przeciągnij obszar na pomieszczenie lub zamknięty kształt; kształt się podświetli. Albo dotknij obszaru, a potem kształtu.",
+  "editor.assign_missed": "Nie w pomieszczeniu ani w zamkniętym kształcie: najpierw zamknij go ścianami.",
+  "editor.assign_new_room": "nowe pomieszczenie",
+  "editor.assign_replaces": "zamiast {area}",
+  "editor.assign_here": "tutaj",
+  "editor.assign_unplaced": "jeszcze nie umieszczony",
+  "editor.assign_no_areas": "Brak obszarów w Home Assistant: dodaj je w Ustawienia → Obszary."
 }

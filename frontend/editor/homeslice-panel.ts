@@ -14,6 +14,7 @@ import en from "../i18n/en.json";
 import de from "../i18n/de.json";
 import { DEFAULTS, LIGHT_TYPES, expandHouse } from "../model/expand";
 import { bbox, bendEdges, labelPoint, normalizeOrientation, pointInPolygon } from "../model/geometry";
+import { closedFaces, faceAt } from "./faces";
 import type { DormerInput, EnergyInput, LevelInput, RoofInput, RoofPartInput, RoofWindowInput, FurnitureInput, FurnitureMount, FurnitureType, HouseInput, Issue, LightType, OpeningInput, OpeningSource, OpeningType, PieceInput, RoomInput, ShapeInput, Side, Vec2, Vertical } from "../model/types";
 import { deriveWalls, innerPolygon, sideOfRoom, type Wall, type WallOpening } from "../model/walls";
 import { HouseRenderer } from "../render/scene";
@@ -85,6 +86,7 @@ import {
   movePieceToLevel,
   mergePieces,
   setPiece,
+  assignArea,
   bendEdge,
   divideRoom,
   shapeCorners,
@@ -143,7 +145,7 @@ import {
 } from "./ops";
 
 /** What a click on the plan does: select and drag, or add something. */
-type Tool = "select" | "rect" | "balcony" | "stairs" | "wall" | "railing" | "divide" | "opening" | "furniture" | "devices" | "measure";
+type Tool = "select" | "rect" | "balcony" | "stairs" | "wall" | "railing" | "divide" | "assign" | "opening" | "furniture" | "devices" | "measure";
 /** What the plan shows (visibility toggles below the tools). */
 type Layer = "dims" | "furniture" | "lights" | "devices" | "below";
 const LAYERS: { layer: Layer; icon: string }[] = [
@@ -174,6 +176,7 @@ const TOOLS: { tool: Tool; icon: string; key: string; group?: "build" | "opening
   { tool: "railing", icon: "mdi:fence", key: "G", group: "build" },
   { tool: "balcony", icon: "mdi:balcony", key: "B", group: "build" },
   { tool: "divide", icon: "mdi:vector-line", key: "X", group: "build" },
+  { tool: "assign", icon: "mdi:tag-outline", key: "A", group: "build" },
   { tool: "opening", icon: "mdi:window-closed-variant", key: "D", group: "openings" },
   { tool: "stairs", icon: "mdi:stairs", key: "S", group: "openings" },
   { tool: "furniture", icon: "mdi:sofa-outline", key: "F" },
@@ -362,6 +365,8 @@ export class HomeslicePanel extends LitElement {
     _arriving: { state: true },
     _toolMiss: { state: true },
     _flyout: { state: true },
+    _assignArea: { state: true },
+    _assignHover: { state: true },
     _levelDrag: { state: true },
     _wall: { state: true },
     _opening: { state: true },
@@ -433,6 +438,11 @@ export class HomeslicePanel extends LitElement {
   private _saved = "";
   private _error = "";
   private _rectPreview: Vec2[] | null = null;
+  /** The assign tool: the area picked (tap a shape next), the one being dragged, and the shape it would go to. */
+  private _assignArea: string | null = null;
+  private _assignedLast: string | null = null;
+  private assignDrag: string | null = null;
+  private _assignHover: { poly: Vec2[]; area: string; room?: string } | null = null;
   /** The toolbar button whose choices are open beside it, and where. */
   private _flyout: string | null = null;
   private _flyoutAt: { x: number; y: number } | null = null;
@@ -916,6 +926,94 @@ export class HomeslicePanel extends LitElement {
     </div>`;
   }
 
+  /**
+   * Where an area dropped at p would go: the room there, else the smallest shape that walls
+   * close off around p (free-standing walls, the outline, room edges) that no room fills yet.
+   */
+  private assignTarget(p: Vec2): { poly: Vec2[]; room?: string } | null {
+    const m = this._model!;
+    const rooms = (this.levelInput?.rooms ?? []).filter((r) => r.kind !== "void");
+    const room = rooms.find((r) => pointInPolygon(p, roomPolygon(m, r)));
+    if (room) return { poly: roomPolygon(m, room), room: room.id };
+    const segments: [Vec2, Vec2][] = [];
+    const ring = (poly: Vec2[]) => poly.forEach((a, i) => segments.push([a, poly[(i + 1) % poly.length]]));
+    for (const w of this.levelInput?.walls ?? [])
+      if (w.line && (w.type ?? "wall") === "wall" && w.line.every((q) => typeof q[0] === "number" && typeof q[1] === "number")) segments.push(w.line as [Vec2, Vec2]);
+    ring(outlineScope(m, this._level).poly);
+    for (const r of rooms) ring(roomPolygon(m, r));
+    const free = closedFaces(segments).filter((f) => !rooms.some((r) => pointInPolygon(labelPoint(f), roomPolygon(m, r))));
+    const face = faceAt(free, p);
+    return face ? { poly: face } : null;
+  }
+
+  /** Puts an area where it was dropped (or tapped): onto the room there, or a new room in the closed shape. */
+  private assignAt(area: string, p: Vec2) {
+    const target = this.assignTarget(p);
+    this._assignHover = null;
+    if (!target) {
+      this._toolMiss = this.t("editor.assign_missed");
+      return;
+    }
+    const { model, room } = assignArea(this._model!, this._level, area, target.room ? { room: target.room } : { polygon: target.poly });
+    this.commit(model);
+    this._assignArea = null;
+    this._room = null;
+    // the shape just given an area flashes in the list as placed
+    this._assignedLast = room;
+  }
+
+  private renderAssignHover() {
+    const h = this._assignHover;
+    if (!h) return nothing;
+    const pts = h.poly.map((p) => this.toScreen(p).join(",")).join(" ");
+    const [x, y] = this.toScreen(labelPoint(h.poly));
+    const r = h.room ? this.levelInput?.rooms.find((x) => x.id === h.room) : undefined;
+    const name = this._hass?.areas?.[h.area]?.name ?? h.area;
+    const what = !r ? this.t("editor.assign_new_room") : r.area_id && r.area_id !== h.area ? this.t("editor.assign_replaces", { area: this.roomName(r) }) : "";
+    return svg`<g class="assign-hover" data-assign-hover=${h.room ?? "new"}>
+      <polygon points=${pts}></polygon>
+      <text x=${x} y=${y} text-anchor="middle"><tspan x=${x} dy="0">${name}</tspan>${what ? svg`<tspan x=${x} dy="18" class="what">${what}</tspan>` : nothing}</text>
+    </g>`;
+  }
+
+  /** The assign tool's panel: Home Assistant's areas to drag onto rooms and closed shapes. */
+  private renderAssignPanel() {
+    const m = this._model!;
+    const areas = Object.values(this._hass?.areas ?? {});
+    const placed = new Map<string, { room: RoomInput; level: string }>();
+    for (const l of m.levels) for (const r of l.rooms) if (r.area_id && !placed.has(r.area_id)) placed.set(r.area_id, { room: r, level: l.id });
+    const floor = m.levels.find((l) => l.id === this._level)?.floor_id;
+    const order = (a: (typeof areas)[number]) => (placed.has(a.area_id) ? 2 : a.floor_id && a.floor_id !== floor ? 1 : 0);
+    const sorted = [...areas].sort((a, b) => order(a) - order(b) || a.name.localeCompare(b.name));
+    const levelName = (id: string) => {
+      const l = m.levels.find((x) => x.id === id);
+      return l ? this.levelName(l) : id;
+    };
+    return html`<h2>${this.t("editor.tool_assign").replace(/\s*\([^)]*\)$/, "")}</h2>
+      <p class="muted">${this.t("editor.assign_hint")}</p>
+      <div class="assign-areas">
+        ${sorted.map((a) => {
+          const at = placed.get(a.area_id);
+          const where = at ? (at.level === this._level ? this.t("editor.assign_here") : levelName(at.level)) : this.t("editor.assign_unplaced");
+          return html`<button class="area-chip ${this._assignArea === a.area_id ? "active" : ""} ${at ? "placed" : ""} ${this._assignedLast && at?.room.id === this._assignedLast && at.level === this._level ? "just" : ""}"
+            draggable="true" data-area=${a.area_id} aria-pressed=${this._assignArea === a.area_id}
+            @dragstart=${(e: DragEvent) => {
+              this.assignDrag = a.area_id;
+              e.dataTransfer?.setData("text/plain", a.area_id);
+              if (e.dataTransfer) e.dataTransfer.effectAllowed = "link";
+            }}
+            @dragend=${() => {
+              this.assignDrag = null;
+              this._assignHover = null;
+            }}
+            @click=${() => (this._assignArea = this._assignArea === a.area_id ? null : a.area_id)}>
+            <ha-icon icon=${a.icon || "mdi:texture-box"}></ha-icon><span class="name">${a.name}</span><span class="where">${where}</span>
+          </button>`;
+        })}
+      </div>
+      ${areas.length ? nothing : html`<p class="muted">${this.t("editor.assign_no_areas")}</p>`}`;
+  }
+
   /** Opens a toolbar button's choices beside it (below it when the toolbar is a row, on phones). */
   private openFlyout(key: string, button: HTMLElement) {
     const main = this.renderRoot.querySelector("main") as HTMLElement;
@@ -939,6 +1037,8 @@ export class HomeslicePanel extends LitElement {
 
   private setTool(tool: Tool) {
     this._flyout = null;
+    this._assignArea = null;
+    this._assignHover = null;
     const group = TOOLS.find((t) => t.tool === tool)?.group;
     if (group) this._lastInGroup = { ...this._lastInGroup, [group]: tool };
     // adding furniture or devices shows them
@@ -998,7 +1098,7 @@ export class HomeslicePanel extends LitElement {
         !!(this._room || this._wall || this._opening || this._stair || this._furn || this._energyPlace || this._robotPlace || this._robotCalib || this._settings || this._checklist) ||
         this._freeWall !== null || this._energySel !== null || this._robotSel !== null || !!this._measure || !!this._dimEdit || !!this._calib || !!this._straighten || this._underlayMove;
       // drawing walls or railings: one Escape is enough (the last one drawn stays selected meanwhile)
-      if (!busy || this._tool === "wall" || this._tool === "railing" || this._tool === "divide") this._tool = "select";
+      if (!busy || this._tool === "wall" || this._tool === "railing" || this._tool === "divide" || this._tool === "assign") this._tool = "select";
       this.clearSelection();
       this._checklist = false;
       this._pendingArea = null;
@@ -1299,6 +1399,11 @@ export class HomeslicePanel extends LitElement {
     this._energySel = null;
     this._robotSel = null;
     this._opening = null;
+    // assigning by tapping: the picked area goes to the shape tapped
+    if (this._tool === "assign" && this._assignArea) {
+      this.assignAt(this._assignArea, world);
+      return;
+    }
     // drawing walls: a press anywhere starts the next one (on another's end too)
     if (this._tool === "wall" || this._tool === "railing" || this._tool === "divide") {
       const ctx = this.snapContext();
@@ -1388,6 +1493,12 @@ export class HomeslicePanel extends LitElement {
 
   private onPlanMove(e: PointerEvent) {
     if (this._straighten?.a) this._straighten = { ...this._straighten, to: this.eventWorld(e) };
+    if (this._tool === "assign" && this._assignArea && !this._drag) {
+      const t = this.assignTarget(this.eventWorld(e));
+      const key = t ? `${t.room ?? ""}:${JSON.stringify(t.poly[0])}` : "";
+      const was = this._assignHover ? `${this._assignHover.room ?? ""}:${JSON.stringify(this._assignHover.poly[0])}` : "";
+      if (key !== was) this._assignHover = t ? { ...t, area: this._assignArea } : null;
+    }
     const drag = this._drag;
     if (!drag || !this._model) return;
     const world = this.eventWorld(e);
@@ -2458,6 +2569,7 @@ export class HomeslicePanel extends LitElement {
       ${selPoly.length ? this.renderHandles(selPoly, selected ? this.inner(selected, walls) : selPoly) : nothing}
       ${this._rectPreview ? svg`<polygon class="rect-preview" points=${pts(this._rectPreview)}></polygon>` : nothing}
       ${this.renderArriving()}
+      ${this.renderAssignHover()}
       ${this._linePreview ? svg`<polyline class="line-preview ${this._tool === "divide" ? "divide" : ""}" points=${pts(this._linePreview)}></polyline>` : nothing}
       ${this._opening ? this.renderOpeningDims(walls) : nothing}
       ${this._measure ? this.renderMeasure(this._measure) : nothing}
@@ -2473,11 +2585,31 @@ export class HomeslicePanel extends LitElement {
       @dblclick=${this.onPlanDoubleClick}
       @wheel=${this.onPlanWheel}
       @dragover=${(e: DragEvent) => {
+        if (this.assignDrag) {
+          // the shape the area would go to lights up
+          e.preventDefault();
+          const t = this.assignTarget(this.eventWorld(e as unknown as PointerEvent));
+          if (e.dataTransfer) e.dataTransfer.dropEffect = t ? "link" : "none";
+          const key = t ? `${t.room ?? ""}:${JSON.stringify(t.poly[0])}` : "";
+          const was = this._assignHover ? `${this._assignHover.room ?? ""}:${JSON.stringify(this._assignHover.poly[0])}` : "";
+          if (key !== was) this._assignHover = t ? { ...t, area: this.assignDrag } : null;
+          return;
+        }
         if (!this.libraryDrag && !this.openingDrag) return;
         e.preventDefault();
         if (e.dataTransfer) e.dataTransfer.dropEffect = "copy";
       }}
+      @dragleave=${(e: DragEvent) => {
+        if (this.assignDrag && !(e.currentTarget as Element).contains(e.relatedTarget as Node | null)) this._assignHover = null;
+      }}
       @drop=${(e: DragEvent) => {
+        if (this.assignDrag) {
+          e.preventDefault();
+          const area = this.assignDrag;
+          this.assignDrag = null;
+          this.assignAt(area, this.eventWorld(e as unknown as PointerEvent));
+          return;
+        }
         const preset = this.openingDrag;
         this.openingDrag = null;
         if (preset) {
@@ -3398,6 +3530,7 @@ export class HomeslicePanel extends LitElement {
     if (this._energySel !== null && this._model?.energy?.[this._energySel]) return this.renderEnergyInspector(this._energySel);
     if (this._robotSel !== null && this._model?.robots?.[this._robotSel]) return this.renderRobotInspector(this._robotSel);
     if (this._opening) return this.renderOpeningInspector(this._opening);
+    if (this._tool === "assign") return this.renderAssignPanel();
     if (this._tool === "opening")
       return html`<h2>${this.t("editor.tool_opening")}</h2>
         <p class="muted">${this.t("editor.opening_library_hint")}</p>
@@ -6079,7 +6212,8 @@ export class HomeslicePanel extends LitElement {
     svg.plan.tool-rect,
     svg.plan.tool-balcony,
     svg.plan.tool-wall,
-    svg.plan.tool-divide {
+    svg.plan.tool-divide,
+    svg.plan.tool-assign {
       cursor: crosshair;
     }
     .gridline {
@@ -6905,6 +7039,58 @@ export class HomeslicePanel extends LitElement {
     }
     .measure {
       pointer-events: none;
+    }
+    g.assign-hover polygon {
+      fill: color-mix(in srgb, var(--primary-color, #03a9f4) 28%, transparent);
+      stroke: var(--primary-color, #03a9f4);
+      stroke-width: 3;
+      pointer-events: none;
+    }
+    g.assign-hover text {
+      font-size: 15px;
+      font-weight: 600;
+      fill: var(--primary-text-color, #fff);
+      paint-order: stroke;
+      stroke: var(--card-background-color, #1c1c1c);
+      stroke-width: 4px;
+      pointer-events: none;
+    }
+    g.assign-hover text .what {
+      font-size: 12px;
+      font-weight: 400;
+    }
+    .assign-areas {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .area-chip {
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 10px;
+      text-align: left;
+      cursor: grab;
+    }
+    .area-chip .where {
+      font-size: 12px;
+      opacity: 0.7;
+    }
+    .area-chip.placed {
+      opacity: 0.75;
+    }
+    .area-chip.active {
+      border-color: var(--primary-color, #03a9f4);
+      box-shadow: 0 0 0 2px var(--primary-color, #03a9f4);
+    }
+    .area-chip.just {
+      animation: area-just 1.2s ease-out;
+    }
+    @keyframes area-just {
+      from {
+        background: color-mix(in srgb, var(--primary-color, #03a9f4) 40%, transparent);
+      }
     }
     .line-preview.divide {
       stroke-width: 3;

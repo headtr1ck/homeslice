@@ -1773,7 +1773,7 @@
   "editor.add_roof": "Roof",
   "editor.arriving": "{name} is on its way: downloading into Home Assistant",
   "editor.help_balcony": "Drag a rectangle for a balcony (upper floors, with a railing on its open sides) or a terrace (ground floor). Esc: cancel.",
-  "editor.group_build": "Rooms, walls, railings, balconies, dividers (R, W, G, B, X)",
+  "editor.group_build": "Rooms, walls, railings, balconies, dividers, areas (R, W, G, B, X, A)",
   "editor.tool_railing": "Draw a railing (G)",
   "editor.sub_rect": "Room",
   "editor.sub_wall": "Wall",
@@ -1786,5 +1786,15 @@
   "editor.tool_divide": "Divide a room, no wall between (X)",
   "editor.sub_divide": "Divider",
   "editor.help_divide": "Drag a line across a room to make two rooms with no wall between them, e.g. kitchen and dining area. Each part can get its own Home Assistant area. Esc: cancel.",
-  "editor.divide_missed": "Drag the line right across one room, from wall to wall."
+  "editor.divide_missed": "Drag the line right across one room, from wall to wall.",
+  "editor.tool_assign": "Give rooms their areas (A)",
+  "editor.sub_assign": "Assign",
+  "editor.help_assign": "Drag a Home Assistant area from the panel onto a room, or into a shape your walls close off: it lights up before you let go. Or tap an area, then a shape. Esc: done.",
+  "editor.assign_hint": "Drag an area onto a room or a closed shape; the shape lights up. Or tap an area, then the shape.",
+  "editor.assign_missed": "Not inside a room or a closed shape: close it with walls first.",
+  "editor.assign_new_room": "new room",
+  "editor.assign_replaces": "instead of {area}",
+  "editor.assign_here": "here",
+  "editor.assign_unplaced": "not placed yet",
+  "editor.assign_no_areas": "No areas in Home Assistant yet: add them under Settings → Areas."
 }

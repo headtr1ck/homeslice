@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { HouseInput, Vec2 } from "../model/types";
 import {
+  assignArea,
   bendEdge,
   divideRoom,
   mergePieces,
@@ -801,5 +802,49 @@ describe("divideRoom", () => {
     expect(l.rooms.find((r) => r.id === "kitchen")!.polygon).toBeDefined();
     expect(l.rooms.find((r) => r.id === "kitchen_2")!.polygon).toBeDefined();
     expect(divideRoom(house(), "g", "kitchen", [10, 0], [10, 4])).toBeNull();
+  });
+});
+
+describe("assignArea", () => {
+  const house = (): HouseInput => ({
+    schema: 1,
+    id: "h",
+    outline: { rect: [0, 0, 10, 6] },
+    levels: [
+      {
+        id: "g",
+        rooms: [
+          { id: "room_1", name: "Room 1", rect: [0, 0, 4, 6] },
+          { id: "living", area_id: "living_room", rect: [4, 0, 6, 3] },
+        ],
+        walls: [
+          { line: [[4, 3], [10, 3]] },
+          { line: [[10, 3], [10, 6]] },
+          { line: [[10, 6], [4, 6]] },
+          { line: [[4, 6], [4, 3]] },
+          { line: [[5, 4], [6, 5]] },
+          { line: [[4, 4.5], [10, 4.5]], type: "railing" },
+        ],
+      },
+    ],
+  });
+
+  it("onto a room: the area moves there from the level's other room; a placeholder name goes", () => {
+    const { model, room } = assignArea(house(), "g", "living_room", { room: "room_1" });
+    const rooms = model.levels[0].rooms;
+    expect(room).toBe("room_1");
+    expect(rooms[0]).toEqual({ id: "room_1", area_id: "living_room", rect: [0, 0, 4, 6] });
+    expect(rooms[1].area_id).toBeUndefined();
+  });
+
+  it("onto a closed shape: a new room; the walls along its edges go, others stay", () => {
+    const { model, room } = assignArea(house(), "g", "kitchen", { polygon: [[4, 3], [10, 3], [10, 6], [4, 6]] });
+    const l = model.levels[0];
+    expect(room).toBe("kitchen");
+    expect(l.rooms.at(-1)).toEqual({ id: "kitchen", area_id: "kitchen", rect: [4, 3, 6, 3] });
+    expect(l.walls).toEqual([
+      { line: [[5, 4], [6, 5]] },
+      { line: [[4, 4.5], [10, 4.5]], type: "railing" },
+    ]);
   });
 });

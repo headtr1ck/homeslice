@@ -1773,7 +1773,7 @@
   "editor.add_roof": "Dach",
   "editor.arriving": "{name} kommt: wird in Home Assistant heruntergeladen",
   "editor.help_balcony": "Rechteck ziehen für einen Balkon (obere Etagen, mit Geländer an den offenen Seiten) oder eine Terrasse (Erdgeschoss). Esc: abbrechen.",
-  "editor.group_build": "Räume, Wände, Geländer, Balkone, Teilungen (R, W, G, B, X)",
+  "editor.group_build": "Räume, Wände, Geländer, Balkone, Teilungen, Bereiche (R, W, G, B, X, A)",
   "editor.tool_railing": "Geländer zeichnen (G)",
   "editor.sub_rect": "Raum",
   "editor.sub_wall": "Wand",
@@ -1786,5 +1786,15 @@
   "editor.tool_divide": "Raum teilen, ohne Wand dazwischen (X)",
   "editor.sub_divide": "Teilung",
   "editor.help_divide": "Eine Linie quer durch einen Raum ziehen: zwei Räume ohne Wand dazwischen, z. B. Küche und Essbereich. Jeder Teil kann einen eigenen Home-Assistant-Bereich bekommen. Esc: abbrechen.",
-  "editor.divide_missed": "Die Linie ganz durch einen Raum ziehen, von Wand zu Wand."
+  "editor.divide_missed": "Die Linie ganz durch einen Raum ziehen, von Wand zu Wand.",
+  "editor.tool_assign": "Räumen ihre Bereiche geben (A)",
+  "editor.sub_assign": "Zuweisen",
+  "editor.help_assign": "Einen Home-Assistant-Bereich aus dem Panel auf einen Raum ziehen oder in eine von Wänden geschlossene Form: sie leuchtet auf, bevor du loslässt. Oder einen Bereich antippen, dann eine Form. Esc: fertig.",
+  "editor.assign_hint": "Einen Bereich auf einen Raum oder eine geschlossene Form ziehen; die Form leuchtet auf. Oder Bereich antippen, dann die Form.",
+  "editor.assign_missed": "Nicht in einem Raum oder einer geschlossenen Form: zuerst mit Wänden schließen.",
+  "editor.assign_new_room": "neuer Raum",
+  "editor.assign_replaces": "statt {area}",
+  "editor.assign_here": "hier",
+  "editor.assign_unplaced": "noch nicht platziert",
+  "editor.assign_no_areas": "Noch keine Bereiche in Home Assistant: unter Einstellungen → Bereiche anlegen."
 }

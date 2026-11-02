@@ -1773,7 +1773,7 @@
   "editor.add_roof": "Tetto",
   "editor.arriving": "{name} sta arrivando: download in Home Assistant",
   "editor.help_balcony": "Trascina un rettangolo per un balcone (piani superiori, con ringhiera sui lati aperti) o una terrazza (piano terra). Esc: annulla.",
-  "editor.group_build": "Stanze, pareti, ringhiere, balconi, divisioni (R, W, G, B, X)",
+  "editor.group_build": "Stanze, pareti, ringhiere, balconi, divisioni, aree (R, W, G, B, X, A)",
   "editor.tool_railing": "Disegna una ringhiera (G)",
   "editor.sub_rect": "Stanza",
   "editor.sub_wall": "Parete",
@@ -1786,5 +1786,15 @@
   "editor.tool_divide": "Dividi una stanza, senza parete (X)",
   "editor.sub_divide": "Divisione",
   "editor.help_divide": "Trascina una linea attraverso una stanza per farne due senza parete tra loro, ad es. cucina e zona pranzo. Ogni parte può avere la sua area di Home Assistant. Esc: annulla.",
-  "editor.divide_missed": "Trascina la linea attraverso tutta una stanza, da parete a parete."
+  "editor.divide_missed": "Trascina la linea attraverso tutta una stanza, da parete a parete.",
+  "editor.tool_assign": "Dare alle stanze le loro aree (A)",
+  "editor.sub_assign": "Assegna",
+  "editor.help_assign": "Trascina un'area di Home Assistant dal pannello su una stanza, o in una forma chiusa dalle pareti: si illumina prima di rilasciare. Oppure tocca un'area, poi una forma. Esc: fatto.",
+  "editor.assign_hint": "Trascina un'area su una stanza o una forma chiusa; la forma si illumina. Oppure tocca un'area, poi la forma.",
+  "editor.assign_missed": "Non è dentro una stanza né una forma chiusa: chiudila prima con le pareti.",
+  "editor.assign_new_room": "nuova stanza",
+  "editor.assign_replaces": "al posto di {area}",
+  "editor.assign_here": "qui",
+  "editor.assign_unplaced": "non ancora collocata",
+  "editor.assign_no_areas": "Nessuna area in Home Assistant: aggiungile in Impostazioni → Aree."
 }
