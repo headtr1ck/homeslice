@@ -493,6 +493,9 @@ def validate(house: Any) -> list[dict[str, str]]:
         include = get(li, "include_floors")
         if include is not MISSING and not (isinstance(include, list) and all(isinstance(f, str) for f in include)):
             err(f"{lp}.include_floors", "include_floors must be a list of Home Assistant floor ids.")
+        lelevation = get(li, "elevation")
+        if lelevation is not MISSING and not (isinstance(lelevation, (int, float)) and not isinstance(lelevation, bool) and -20 <= lelevation <= 100):
+            err(f"{lp}.elevation", f"elevation is the floor's height in metres (-20 to 100), got {stringify(lelevation)}.")
         lkind = nullish(get(li, "kind"), "floor")
         if lkind not in ("floor", "roof"):
             err(f"{lp}.kind", f"kind must be floor or roof, got {stringify(get(li, 'kind'))}.")

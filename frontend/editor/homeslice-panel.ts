@@ -4010,6 +4010,14 @@ export class HomeslicePanel extends LitElement {
         </label>
         ${this.cmInput(this.t("editor.slab"), l.slab, DEFAULTS.slab, (v) => set({ slab: v }))}
       </div>
+      <label>${this.t("editor.level_elevation")}
+        <input type="number" step="0.05" data-level-elevation placeholder=${this.t("editor.level_elevation_stacked")} .value=${l.elevation === undefined ? "" : String(l.elevation)} @change=${(e: Event) => {
+          const raw = (e.target as HTMLInputElement).value.trim();
+          const v = parseFloat(raw.replace(",", "."));
+          set({ elevation: raw === "" || !Number.isFinite(v) ? undefined : v });
+        }} />
+      </label>
+      <p class="muted">${this.t("editor.level_elevation_hint")}</p>
       <p class="muted">${this.t("editor.rooms_count", { count: l.rooms.length })} · ${this.t("editor.select_hint")}</p>
       ${unplaced.length
         ? html`<h3>${this.t("editor.unplaced_areas")}</h3>

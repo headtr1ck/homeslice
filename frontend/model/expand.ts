@@ -361,6 +361,8 @@ export function expandHouse(input: unknown): ExpandResult {
 
     if (li.include_floors !== undefined && !(Array.isArray(li.include_floors) && li.include_floors.every((f) => typeof f === "string")))
       err(`${lp}.include_floors`, "include_floors must be a list of Home Assistant floor ids.");
+    if (li.elevation !== undefined && !(typeof li.elevation === "number" && li.elevation >= -20 && li.elevation <= 100))
+      err(`${lp}.elevation`, `elevation is the floor's height in metres (-20 to 100), got ${JSON.stringify(li.elevation)}.`);
     const kind = li.kind ?? "floor";
     if (kind !== "floor" && kind !== "roof") err(`${lp}.kind`, `kind must be floor or roof, got ${JSON.stringify(li.kind)}.`);
     if (kind === "roof" && index !== h.levels.length - 1) err(`${lp}.kind`, "A roof level must be the top level.");
@@ -404,7 +406,7 @@ export function expandHouse(input: unknown): ExpandResult {
       floorId: li.floor_id,
       name: li.name ?? li.id,
       index,
-      elevation,
+      elevation: typeof li.elevation === "number" ? li.elevation : elevation,
       height,
       slab,
       outline: outline ?? [],
@@ -416,7 +418,8 @@ export function expandHouse(input: unknown): ExpandResult {
       railings,
       thickBoundaries,
     });
-    elevation += height + slab;
+    // (a split level at its own elevation leaves the stack as it is)
+    if (typeof li.elevation !== "number") elevation += height + slab;
   });
 
   // façade openings: placed on each listed level in the room behind that stretch of wall

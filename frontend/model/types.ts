@@ -260,6 +260,11 @@ export interface LevelInput {
   name?: string;
   height?: number;
   slab?: number;
+  /**
+   * A split level: its floor this many metres up (a garage half a storey lower, a
+   * mezzanine). It sits exactly there; the other floors stack as if it weren't there.
+   */
+  elevation?: number;
   outline?: ShapeInput;
   party_walls?: Side[];
   rooms: RoomInput[];

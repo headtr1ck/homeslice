@@ -32,6 +32,13 @@ const expand = (input: HouseInput) => {
 };
 
 describe("expandHouse", () => {
+  it("puts a split level at its own elevation and stacks the others without it", () => {
+    const input = twoRooms();
+    input.levels.push({ id: "garage", elevation: -1.3, rooms: [{ id: "g", rect: [0, 0, 4, 8] }] });
+    input.levels.push({ id: "first", rooms: [{ id: "a", rect: [0, 0, 10, 8] }] });
+    expect(expand(input).levels.map((l) => l.elevation)).toEqual([0, -1.3, 2.85]);
+  });
+
   it("stacks levels and fills defaults", () => {
     const input = twoRooms();
     input.levels.push({ id: "first", height: 2.5, rooms: [{ id: "a", rect: [0, 0, 10, 8] }] });

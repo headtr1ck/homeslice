@@ -54,6 +54,7 @@ levels:                       # bottom to top
   - id: ground
     floor_id: ground_floor    # the Home Assistant floor (see the context)
     height: 2.6               # optional, storey height in metres (default 2.6)
+    elevation: -1.3           # optional, a split level: its floor exactly here (others stack without it)
     # outline: {rect: …}      # only if this level differs from the house outline
     # include_floors: [outside]  # more HA floors whose areas are on this level
     rooms:
