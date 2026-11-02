@@ -13,7 +13,7 @@ import { formatNumber, loadLanguage, localize, texts, type StringKey } from "../
 import en from "../i18n/en.json";
 import de from "../i18n/de.json";
 import { DEFAULTS, LIGHT_TYPES, expandHouse } from "../model/expand";
-import { bbox, bendEdges, labelPoint, normalizeOrientation, pointInPolygon } from "../model/geometry";
+import { bbox, bendEdges, labelPoint, normalizeOrientation, pointInPolygon, signedArea } from "../model/geometry";
 import { closedFaces, faceAt } from "./faces";
 import type { DormerInput, EnergyInput, LevelInput, RoofInput, RoofPartInput, RoofWindowInput, FurnitureInput, FurnitureMount, FurnitureType, HouseInput, Issue, LightType, OpeningInput, OpeningSource, OpeningType, PieceInput, RoomInput, ShapeInput, Side, Vec2, Vertical } from "../model/types";
 import { deriveWalls, innerPolygon, sideOfRoom, type Wall, type WallOpening } from "../model/walls";
@@ -167,6 +167,9 @@ function readLayers(): Record<Layer, boolean> {
 
 /** The furniture library's sources, shown as the furniture tool's sub-tools. */
 const LIBRARY_ICONS: Record<LibrarySource, string> = { builtin: "mdi:shape-outline", polyhaven: "mdi:image-filter-hdr", sketchfab: "mdi:cube-scan", custom: "mdi:upload-outline" };
+
+/** A shape walls close off that no room fills: outside every room, or cut off a room (its host keeps `keep`). */
+type FreeShape = { poly: Vec2[]; host?: { room: string; keep: Vec2[] } };
 
 /** The tools: tool, icon, shortcut, and the toolbar button they share (its sub-tools, shown in a bar over the plan). */
 const TOOLS: { tool: Tool; icon: string; key: string; group?: "build" | "openings" | "devices" }[] = [
@@ -931,28 +934,36 @@ export class HomeslicePanel extends LitElement {
    * Where an area dropped at p would go: the room there, else the smallest shape that walls
    * close off around p (free-standing walls, the outline, room edges) that no room fills yet.
    */
-  private assignTarget(p: Vec2): { poly: Vec2[]; room?: string } | null {
+  private assignTarget(p: Vec2): { poly: Vec2[]; room?: string; host?: { room: string; keep: Vec2[] } } | null {
     const m = this._model!;
     const rooms = (this.levelInput?.rooms ?? []).filter((r) => r.kind !== "void");
+    // a part walls cut off a room, else the room, else a shape walls close outside any room
+    const shapes = this.freeShapes();
+    const hosted = faceAt(shapes.filter((x) => x.host).map((x) => x.poly), p);
+    if (hosted) {
+      const x = shapes.find((y) => y.poly === hosted)!;
+      return { poly: x.poly, host: x.host };
+    }
     const room = rooms.find((r) => pointInPolygon(p, roomPolygon(m, r)));
     if (room) return { poly: roomPolygon(m, room), room: room.id };
-    const face = faceAt(this.freeShapes(), p);
-    return face ? { poly: face } : null;
+    const face = faceAt(shapes.filter((x) => !x.host).map((x) => x.poly), p);
+    if (face) return { poly: face };
+    return null;
   }
 
-  private freeShapesMemo: { model: HouseInput; level: string; faces: Vec2[][] } | null = null;
+  private freeShapesMemo: { model: HouseInput; level: string; faces: FreeShape[] } | null = null;
 
   /**
    * Shapes closed off by walls (free-standing ones, with the outline and room edges) that no
    * room fills: rooms in all but name, waiting for an area.
    */
-  private freeShapes(): Vec2[][] {
+  private freeShapes(): FreeShape[] {
     const m = this._model!;
     if (this.freeShapesMemo?.model === m && this.freeShapesMemo.level === this._level) return this.freeShapesMemo.faces;
     // voids (stairwells, shafts) take their space too
     const rooms = this.levelInput?.rooms ?? [];
     const lines = (this.levelInput?.walls ?? []).filter((w) => w.line && (w.type ?? "wall") === "wall" && w.line.every((q) => typeof q[0] === "number" && typeof q[1] === "number"));
-    let faces: Vec2[][] = [];
+    let faces: FreeShape[] = [];
     // only free-standing walls close new shapes: without them, nothing to look for
     if (lines.length) {
       const segments: [Vec2, Vec2][] = lines.map((w) => w.line as [Vec2, Vec2]);
@@ -969,10 +980,23 @@ export class HomeslicePanel extends LitElement {
             const len = Math.hypot(b[0] - a[0], b[1] - a[1]);
             const t = len ? ((mid[0] - a[0]) * (b[0] - a[0]) + (mid[1] - a[1]) * (b[1] - a[1])) / len : 0;
             const d = len ? Math.abs((mid[0] - a[0]) * (b[1] - a[1]) - (mid[1] - a[1]) * (b[0] - a[0])) / len : Infinity;
-            return d < 0.002 && t > -0.002 && t < len + 0.002;
+            return d < 0.03 && t > -0.06 && t < len + 0.06;
           });
         });
-      faces = closedFaces(segments).filter((f) => byWall(f) && !rooms.some((r) => pointInPolygon(labelPoint(f), roomPolygon(m, r))));
+      const all = closedFaces(segments);
+      const hostOf = (f: Vec2[]) => rooms.find((r) => pointInPolygon(labelPoint(f), roomPolygon(m, r)));
+      // outside every room: a room in all but name
+      faces = all.filter((f) => !hostOf(f) && byWall(f)).map((poly) => ({ poly }));
+      // a room the walls cut up: the parts away from its name are rooms in all but name, the
+      // room keeping the part with its name
+      for (const r of rooms) {
+        if (r.kind === "void") continue;
+        const inside = all.filter((f) => hostOf(f) === r);
+        if (inside.length < 2) continue;
+        const centre = labelPoint(roomPolygon(m, r));
+        const keep = inside.find((f) => pointInPolygon(centre, f)) ?? inside.reduce((a, b) => (Math.abs(signedArea(a)) >= Math.abs(signedArea(b)) ? a : b));
+        for (const f of inside) if (f !== keep && byWall(f)) faces.push({ poly: f, host: { room: r.id, keep } });
+      }
     }
     this.freeShapesMemo = { model: m, level: this._level, faces };
     return faces;
@@ -1001,7 +1025,7 @@ export class HomeslicePanel extends LitElement {
       this._toolMiss = this.t("editor.assign_missed");
       return;
     }
-    const { model, room } = assignArea(this._model!, this._level, area, target.room ? { room: target.room } : { polygon: target.poly });
+    const { model, room } = assignArea(this._model!, this._level, area, target.room ? { room: target.room } : { polygon: target.poly, host: target.host });
     this.commit(model);
     this._assignArea = null;
     this._room = null;
@@ -1349,6 +1373,25 @@ export class HomeslicePanel extends LitElement {
       return;
     }
     this._dimEdit = null;
+    // the button of an unassigned room or shape: the assign tool
+    if (target.closest("[data-assign-open]") && this._tool !== "assign") {
+      this.setTool("assign");
+      this.clearSelection();
+      return;
+    }
+    // assigning by tapping: the picked area goes to the shape tapped
+    if (this._tool === "assign" && this._assignArea) {
+      this.assignAt(this._assignArea, world);
+      return;
+    }
+    // drawing walls: a press anywhere starts the next one (on another's end, a door or a lamp too)
+    if (this._tool === "wall" || this._tool === "railing" || this._tool === "divide") {
+      const ctx = this.snapContext();
+      const p = snap(world, ctx).p;
+      this._linePreview = [p, p];
+      this._drag = { kind: "freewall", ctx };
+      return;
+    }
     if (this._tool === "measure") {
       const ctx = this.snapContext();
       const p = snap(world, ctx).p;
@@ -1467,25 +1510,6 @@ export class HomeslicePanel extends LitElement {
     this._energySel = null;
     this._robotSel = null;
     this._opening = null;
-    // the button of an unassigned room or shape: the assign tool
-    if (target.closest("[data-assign-open]") && this._tool !== "assign") {
-      this.setTool("assign");
-      this.clearSelection();
-      return;
-    }
-    // assigning by tapping: the picked area goes to the shape tapped
-    if (this._tool === "assign" && this._assignArea) {
-      this.assignAt(this._assignArea, world);
-      return;
-    }
-    // drawing walls: a press anywhere starts the next one (on another's end too)
-    if (this._tool === "wall" || this._tool === "railing" || this._tool === "divide") {
-      const ctx = this.snapContext();
-      const p = snap(world, ctx).p;
-      this._linePreview = [p, p];
-      this._drag = { kind: "freewall", ctx };
-      return;
-    }
     const freeEnd = target.closest("[data-freeend]") as SVGElement | null;
     if (freeEnd && this._freeWall !== null) {
       this._drag = { kind: "freewall-end", origin: clone(this._model), index: this._freeWall, end: Number(freeEnd.dataset.freeend) as 0 | 1, ctx: this.snapContext() };
@@ -2617,7 +2641,7 @@ export class HomeslicePanel extends LitElement {
           <text class="room-area" x=${at[0]} y=${top + lines.length * 14 + badge + 10} text-anchor="middle">${this.n(area(poly), 1)} m²</text></g>
 `;
       })}
-      ${this.freeShapes().map((f) => svg`<g class="free-shape"><polygon points=${pts(f)}></polygon></g>`)}
+      ${this.freeShapes().map((f) => svg`<g class="free-shape"><polygon points=${pts(f.poly)}></polygon></g>`)}
       ${(house?.vertical ?? [])
         // the hole where a stair arrives; where a flight starts, its footprint and the way up
         .filter((v) => idx >= v.from && idx <= v.to)
@@ -2645,7 +2669,7 @@ export class HomeslicePanel extends LitElement {
       ${this.renderArriving()}
       ${
         // rooms and shapes without an area: on top of everything, so their button can be pressed
-        [...unassignedAt.map(([id, at]) => this.renderUnassignedBadge(at, id)), ...this.freeShapes().map((f) => this.renderUnassignedBadge(this.toScreen(labelPoint(f)), "shape"))]
+        [...unassignedAt.map(([id, at]) => this.renderUnassignedBadge(at, id)), ...this.freeShapes().map((f) => this.renderUnassignedBadge(this.toScreen(labelPoint(f.poly)), f.host ? `shape:${f.host.room}` : "shape"))]
       }
       ${this.renderAssignHover()}
       ${this._linePreview ? svg`<polyline class="line-preview ${this._tool === "divide" ? "divide" : ""}" points=${pts(this._linePreview)}></polyline>` : nothing}

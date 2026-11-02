@@ -46,4 +46,18 @@ describe("closedFaces", () => {
     ];
     expect(closedFaces(walls).map(area)).toEqual([12]);
   });
+
+  it("walls stopping a little short of another, or ending on its middle, still close the shape", () => {
+    const walls: [Vec2, Vec2][] = [
+      [[0, 0], [4, 0]],
+      [[4, 0], [4, 3]],
+      [[4, 3], [0, 3]],
+      [[0, 3], [0, 0]],
+      // across the middle, 3 cm short at the top and 2 cm past the bottom
+      [[2, 0.03], [2, 3.02]],
+    ];
+    expect(closedFaces(walls).map(area).sort()).toEqual([6, 6]);
+    // 10 cm short is a gap, not a wall meeting another
+    expect(closedFaces([...walls.slice(0, 4), [[2, 0.1], [2, 3]]]).map(area)).toEqual([12]);
+  });
 });

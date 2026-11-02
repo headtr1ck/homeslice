@@ -847,4 +847,26 @@ describe("assignArea", () => {
       { line: [[4, 4.5], [10, 4.5]], type: "railing" },
     ]);
   });
+
+  it("carved out of a room the walls cut up: the room keeps the rest, with what stands there", () => {
+    const h = house();
+    h.levels[0].rooms[0].furniture = [{ type: "bed", at: [1, 4] }, { type: "desk", at: [3, 1] }];
+    h.levels[0].openings = [{ room: "room_1", side: "north", at: 2.5, width: 1 }, { room: "room_1", side: "south", at: 1, width: 1 }];
+    // walls cut the north-east corner (x 2–4, y 0–2) out of room_1 (x 0–4, y 0–6)
+    h.levels[0].walls = [{ line: [[2, 0], [2, 2]] }, { line: [[2, 2], [4, 2]] }];
+    const keep: Vec2[] = [[0, 0], [2, 0], [2, 2], [4, 2], [4, 6], [0, 6]];
+    const { model, room } = assignArea(h, "g", "office", { polygon: [[2, 0], [4, 0], [4, 2], [2, 2]], host: { room: "room_1", keep } });
+    const l = model.levels[0];
+    const host = l.rooms.find((r) => r.id === "room_1")!;
+    const office = l.rooms.find((r) => r.id === room)!;
+    expect(office).toMatchObject({ id: "office", area_id: "office", rect: [2, 0, 2, 2], furniture: [{ type: "desk", at: [1, 1] }] });
+    expect(host.polygon).toBeDefined();
+    expect(host.furniture).toEqual([{ type: "bed", at: [1, 4] }]);
+    expect(l.openings).toEqual([
+      { room: "office", side: "north", at: 0.5, width: 1 },
+      { room: "room_1", side: "south", at: 1, width: 1 },
+    ]);
+    // the drawn walls are the rooms' walls now
+    expect(l.walls?.filter((w) => w.line) ?? []).toEqual([]);
+  });
 });

@@ -360,6 +360,53 @@ test.describe.serial("editor", () => {
     await page.evaluate(() => window.panel.fitView());
   });
 
+  test("walls drawn inside a room: the part they cut off is an unassigned room; an area carves it out", async () => {
+    const toScreen = (p) => page.evaluate((p) => {
+      const v = window.panel._view;
+      const r = window.panel.shadowRoot.querySelector("svg.plan").getBoundingClientRect();
+      return [r.left + p[0] * v.scale + v.ox, r.top + p[1] * v.scale + v.oy];
+    }, p);
+    const before = JSON.stringify(await model());
+    await page.keyboard.press("Escape");
+    // clear of the hint bar at the plan's top
+    await page.evaluate(() => (window.panel._view = { ...window.panel._view, oy: window.panel._view.oy + 160 }));
+    await page.keyboard.press("w");
+    // the kitchen's north-east corner (x 6–8, y 0–2) walled off
+    for (const [a, b] of [[[6, 0], [6, 2]], [[6, 2], [8, 2]]]) {
+      const [ax, ay] = await toScreen(a);
+      const [bx, by] = await toScreen(b);
+      await page.mouse.move(ax, ay);
+      await page.mouse.down();
+      await page.mouse.move(bx, by, { steps: 6 });
+      await page.mouse.up();
+    }
+    await page.keyboard.press("Escape");
+    const badge = page.locator('homeslice-panel g.unassigned[data-unassigned="shape:kitchen"]');
+    await badge.waitFor({ timeout: 2000 });
+    await shot(page, "editor-unassigned-in-room");
+    const button = await badge.locator("[data-assign-open]").boundingBox();
+    await page.mouse.click(button.x + button.width / 2, button.y + button.height / 2);
+    const area = await page.evaluate(() => Object.keys(window.panel._hass.areas).find((a) => !window.panel._model.levels[0].rooms.some((r) => r.area_id === a)) ?? Object.keys(window.panel._hass.areas)[0]);
+    await page.locator(`homeslice-panel .assign-areas button[data-area="${area}"]`).click();
+    const [sx, sy] = await toScreen([7, 1]);
+    await page.mouse.move(sx, sy);
+    await page.locator('homeslice-panel g.assign-hover[data-assign-hover="new"]').waitFor({ timeout: 2000 });
+    await page.mouse.down();
+    await page.mouse.up();
+    const l = (await model()).levels[0];
+    const carved = l.rooms.find((r) => r.area_id === area && r.id !== "kitchen");
+    const kitchen = l.rooms.find((r) => r.id === "kitchen");
+    assert(carved && JSON.stringify(carved.rect) === "[6,0,2,2]", `carved: ${JSON.stringify(carved)}`);
+    assert(kitchen.polygon?.some(([x, y]) => x === 6 && y === 2) && !kitchen.polygon.some(([x, y]) => x === 8 && y === 0), `kitchen: ${JSON.stringify(kitchen)}`);
+    assert(!(l.walls ?? []).some((w) => w.line), `drawn walls stayed: ${JSON.stringify(l.walls)}`);
+    assert(!(await badge.count()), "the corner is still unassigned");
+    await page.keyboard.press("Escape");
+    await page.keyboard.press("Escape");
+    for (let i = 0; i < 3; i++) await page.keyboard.press("Control+z");
+    assert(JSON.stringify(await model()) === before, "undo did not put the kitchen back");
+    await page.evaluate(() => window.panel.fitView());
+  });
+
   test("saving stores the model in HA", async () => {
     await page.locator("homeslice-panel button.save").click();
     const saved = await page.evaluate(() => window.panel.hass.saved.length);

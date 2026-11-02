@@ -31,8 +31,12 @@ function onSegment(p: Vec2, a: Vec2, b: Vec2): number | null {
   return Math.hypot(q[0] - p[0], q[1] - p[1]) < 1 / KEY ? t : null;
 }
 
-/** The bounded faces the segments close off (dangling ends ignored), largest first not guaranteed. */
-export function closedFaces(segments: [Vec2, Vec2][], minArea = 0.25): Vec2[][] {
+/**
+ * The bounded faces the segments close off (dangling ends ignored). An end that stops short
+ * of another segment, or just past it, by up to `gap` metres counts as meeting it.
+ */
+export function closedFaces(input: [Vec2, Vec2][], minArea = 0.25, gap = 0.05): Vec2[][] {
+  const segments = closeGaps(input, gap);
   // cut every segment where another touches or crosses it
   const pieces: [Vec2, Vec2][] = [];
   segments.forEach(([a, b], i) => {
@@ -116,6 +120,53 @@ export function closedFaces(segments: [Vec2, Vec2][], minArea = 0.25): Vec2[][] 
     }
   }
   return faces;
+}
+
+/** Ends within `gap` of another segment (but not on it) moved onto it, along their own line where possible. */
+function closeGaps(segments: [Vec2, Vec2][], gap: number): [Vec2, Vec2][] {
+  if (!gap) return segments;
+  return segments.map(([a, b], i) => {
+    const fix = (p: Vec2, other: Vec2): Vec2 => {
+      let best: Vec2 = p;
+      let bestD = gap;
+      segments.forEach(([c, d], j) => {
+        if (i === j) return;
+        // already on it
+        if (onSegment(p, c, d) !== null) {
+          bestD = 0;
+          best = p;
+          return;
+        }
+        // its own line carried on (or cut back) to meet the other segment
+        const l = Math.hypot(p[0] - other[0], p[1] - other[1]);
+        if (l > 1e-9) {
+          const far: Vec2 = [p[0] + ((p[0] - other[0]) / l) * gap, p[1] + ((p[1] - other[1]) / l) * gap];
+          const t = crossAt(other, far, c, d);
+          if (t !== null) {
+            const q: Vec2 = [other[0] + t * (far[0] - other[0]), other[1] + t * (far[1] - other[1])];
+            const dq = Math.hypot(q[0] - p[0], q[1] - p[1]);
+            if (dq < bestD) {
+              bestD = dq;
+              best = q;
+            }
+          }
+        }
+        // else straight onto it
+        const l2 = (d[0] - c[0]) ** 2 + (d[1] - c[1]) ** 2;
+        if (l2 > 1e-12) {
+          const t = Math.max(0, Math.min(1, ((p[0] - c[0]) * (d[0] - c[0]) + (p[1] - c[1]) * (d[1] - c[1])) / l2));
+          const q: Vec2 = [c[0] + t * (d[0] - c[0]), c[1] + t * (d[1] - c[1])];
+          const dq = Math.hypot(q[0] - p[0], q[1] - p[1]);
+          if (dq < bestD - 1e-6) {
+            bestD = dq;
+            best = q;
+          }
+        }
+      });
+      return best;
+    };
+    return [fix(a, b), fix(b, a)];
+  });
 }
 
 /** The smallest of the faces holding p. */
