@@ -244,7 +244,7 @@ async def test_sketchfab_token_search_and_fetch(hass: HomeAssistant, setup, hass
     aioclient_mock.get(f"{api}/me", json={"username": "someone"})
     aioclient_mock.get(
         f"{api}/search",
-        json={"results": [{"uid": "abc123", "name": "Sofa", "user": {"displayName": "Ann"}, "license": {"slug": "by-nc", "label": "CC Attribution-NonCommercial"}, "archives": {"glb": {"size": 1000}}, "thumbnails": {"images": [{"url": "https://t/1.jpg", "width": 256}]}}], "cursors": {"next": None}},
+        json={"results": [{"uid": "abc123", "name": "Sofa", "user": {"displayName": "Ann"}, "license": {"uid": "x", "label": "CC Attribution-NonCommercial"}, "archives": {"glb": {"size": 1000}}, "thumbnails": {"images": [{"url": "https://t/1.jpg", "width": 256}]}}], "cursors": {"next": None}},
     )
     aioclient_mock.get(f"{api}/models/abc123", json={"name": "Sofa", "user": {"displayName": "Ann", "profileUrl": "https://sketchfab.com/ann"}, "license": {"slug": "by-nc", "label": "CC Attribution-NonCommercial", "url": "https://cc/by-nc"}, "viewerUrl": "https://sketchfab.com/3d-models/sofa-abc123"})
     aioclient_mock.get(f"{api}/models/abc123/download", json={"glb": {"url": files, "size": 100}})
@@ -268,6 +268,8 @@ async def test_sketchfab_token_search_and_fetch(hass: HomeAssistant, setup, hass
     await client.send_json_auto_id({"type": "homeslice/sketchfab/fetch", "uid": "abc123"})
     stored = (await client.receive_json())["result"]
     assert stored["source"] == "sketchfab" and stored["author"] == "Ann" and stored["licence"]["slug"] == "by-nc" and stored["shareable"]
+    # served by Home Assistant (its Sketchfab page is kept apart)
+    assert stored["url"] == f"/homeslice_assets/custom/{stored['id']}.glb" and stored["page"].startswith("https://sketchfab.com/")
     assert (tmp_path / "homeslice" / "assets" / "custom" / f"{stored['id']}.glb").read_bytes().startswith(b"glTF")
     file_calls = [c for c in aioclient_mock.mock_calls if str(c[1]).startswith(files)]
     assert file_calls and not (file_calls[0][3] or {}).get("Authorization")

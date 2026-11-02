@@ -92,6 +92,8 @@ export interface CustomAsset {
   source?: "sketchfab";
   author?: string | null;
   author_url?: string | null;
+  /** Its page on Sketchfab. */
+  page?: string | null;
   licence?: Licence;
   /** May be passed on (as its licence says); bought ones are for this home only. */
   shareable?: boolean;

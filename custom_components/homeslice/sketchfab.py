@@ -30,12 +30,29 @@ STORE_KEY = "homeslice.sketchfab"
 SHAREABLE = {"cc0", "by", "by-sa", "by-nd", "by-nc", "by-nc-sa", "by-nc-nd"}
 
 
+# search results name a licence by its label only (a model's own page has the slug too)
+SLUGS = {
+    "cc0 public domain": "cc0",
+    "cc attribution": "by",
+    "cc attribution-sharealike": "by-sa",
+    "cc attribution-noderivs": "by-nd",
+    "cc attribution-noncommercial": "by-nc",
+    "cc attribution-noncommercial-sharealike": "by-nc-sa",
+    "cc attribution-noncommercial-noderivs": "by-nc-nd",
+    "free standard": "free-st",
+    "standard": "st",
+    "editorial": "ed",
+}
+
+
 def licence_of(model: dict[str, Any]) -> dict[str, Any]:
-    """The licence of a model as the API gives it: slug, label, link; store models have none."""
+    """The licence of a model as the API gives it: slug, label, link; a model with none was bought in the store."""
     lic = model.get("license") or {}
-    if not isinstance(lic, dict) or not lic.get("slug"):
+    label = str(lic.get("label") or "") if isinstance(lic, dict) else ""
+    slug = (lic.get("slug") if isinstance(lic, dict) else None) or SLUGS.get(label.lower())
+    if not slug and not label:
         return {"slug": "store", "label": "Bought on Sketchfab", "url": None}
-    return {"slug": str(lic["slug"]), "label": str(lic.get("label") or lic["slug"]), "url": lic.get("url")}
+    return {"slug": str(slug or "other"), "label": label or str(slug), "url": lic.get("url") if isinstance(lic, dict) else None}
 
 
 class Sketchfab:
@@ -137,7 +154,8 @@ class Sketchfab:
             "uid": uid,
             "author": user.get("displayName") or user.get("username"),
             "author_url": user.get("profileUrl"),
-            "url": model.get("viewerUrl"),
+            # its page on Sketchfab (url is where Home Assistant serves the file)
+            "page": model.get("viewerUrl"),
             "licence": lic,
             # bought ones are for this home only; CC ones may be passed on as their licence says
             "shareable": lic["slug"] in SHAREABLE,
