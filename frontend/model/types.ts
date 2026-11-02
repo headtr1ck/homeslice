@@ -393,6 +393,8 @@ export interface RoofInput {
   finish?: string;
   /** Windows in the slopes, optionally with an outside roller shutter (`cover`) and a contact. */
   windows?: RoofWindowInput[];
+  /** Roof terraces cut into the slopes (see RoofPartInput.terraces). */
+  terraces?: RoofTerraceInput[];
 }
 
 /**
@@ -417,6 +419,11 @@ export interface RoofPartInput extends ShapeInput {
   finish?: string;
   dormers?: DormerInput[];
   windows?: RoofWindowInput[];
+  /**
+   * Roof terraces cut into a slope: `side` (the slope's side), `at` (metres along the ridge, its
+   * middle), `width` and `depth` (metres into the roof from the wall), a railing at the eave.
+   */
+  terraces?: RoofTerraceInput[];
   /** Pieces on it, e.g. solar panels (`modern:solar_panel`): `at` from its north-west corner; they lie on the slope (or stand tilted on a flat roof). */
   furniture?: FurnitureInput[];
 }
@@ -435,6 +442,14 @@ export interface RoofWindowInput {
   cover?: string;
   /** Open (tilted) while on. */
   contact?: string;
+}
+
+export interface RoofTerraceInput {
+  side: Side;
+  at: number;
+  width?: number;
+  depth?: number;
+  railing?: "glass" | "metal" | "wood";
 }
 
 export interface DormerInput {
@@ -610,6 +625,7 @@ export interface RoofPart {
   finish: string;
   dormers: Required<DormerInput>[];
   windows: House["roof"]["windows"];
+  terraces: Required<RoofTerraceInput>[];
   furniture: Room["furniture"];
 }
 
@@ -657,7 +673,7 @@ export interface House {
   walls: WallThickness;
   levels: Level[];
   vertical: Vertical[];
-  roof: Required<Omit<RoofInput, "dormers" | "windows" | "high">> & { high: Side; dormers: Required<DormerInput>[]; windows: (Required<Omit<RoofWindowInput, "cover" | "contact">> & { cover?: string; contact?: string })[] };
+  roof: Required<Omit<RoofInput, "dormers" | "windows" | "high" | "terraces">> & { high: Side; dormers: Required<DormerInput>[]; terraces: Required<RoofTerraceInput>[]; windows: (Required<Omit<RoofWindowInput, "cover" | "contact">> & { cover?: string; contact?: string })[] };
   energy: Energy[];
   invertedCovers: string[];
   facade?: string;

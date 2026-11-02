@@ -1058,6 +1058,30 @@ if (selected()) {
     await act(page, () => page.evaluate(() => window.card.hass.pushModel(window.__demoModel)));
   });
 
+  await test("a roof terrace cut into the slope: a floor, walls and a railing in the recess", async () => {
+    await act(page, () =>
+      page.evaluate(() => {
+        const m = structuredClone(window.__demoModel);
+        m.roof = { ...(m.roof ?? {}), terraces: [{ side: "west", at: 5, width: 3, depth: 2 }] };
+        window.card.hass.pushModel(m);
+      }),
+    );
+    const found = await page.evaluate(() => {
+      let deck = 0;
+      let rails = 0;
+      window.card.renderer.object.traverse((o) => {
+        if (o.userData.terrace) deck++;
+        if (o.userData.railing) rails++;
+      });
+      return { deck, rails };
+    });
+    assert(found.deck === 1 && found.rails >= 1, JSON.stringify(found));
+    await page.evaluate(() => window.card.renderer.turnTo(250, 30));
+    await page.waitForTimeout(600);
+    await shot(page, "demo-roof-terrace");
+    await act(page, () => page.evaluate(() => window.card.hass.pushModel(window.__demoModel)));
+  });
+
   await test("a gallery railing drawn along its line", async () => {
     await act(page, () =>
       page.evaluate(() => {

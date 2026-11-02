@@ -324,6 +324,25 @@ def validate(house: Any) -> list[dict[str, str]]:
             if dshape is not MISSING and dshape not in ("gable", "shed"):
                 err(f"{dp}.shape", "shape must be gable or shed.")
 
+    def check_terraces(list_in: Any, path: str) -> None:
+        for i, t in enumerate(items(list_in)):
+            tp = f"{path}.{i}"
+            if get(t, "side") not in SIDES or not is_num(get(t, "at")):
+                err(tp, "A roof terrace needs side (north, south, east or west) and at (metres along the ridge).")
+                continue
+            bad = False
+            for k, lo, hi in (("width", 1, 12), ("depth", 1, 6)):
+                v = get(t, k)
+                if v is not MISSING and not (is_num(v) and lo <= v <= hi):
+                    err(f"{tp}.{k}", f"{k} must be in metres ({lo}–{hi}).")
+                    bad = True
+                    break
+            if bad:
+                continue
+            railing = get(t, "railing")
+            if railing is not MISSING and railing not in ("glass", "metal", "wood"):
+                err(f"{tp}.railing", f"railing must be glass, metal or wood, got {stringify(railing)}.")
+
     def check_windows(list_in: Any, path: str) -> None:
         for i, w in enumerate(items(list_in)):
             wp = f"{path}.{i}"
@@ -609,6 +628,7 @@ def validate(house: Any) -> list[dict[str, str]]:
                     continue
                 check_dormers(get(ri, "dormers"), f"{rp}.dormers")
                 check_windows(get(ri, "windows"), f"{rp}.windows")
+                check_terraces(get(ri, "terraces"), f"{rp}.terraces")
                 check_furniture(get(ri, "furniture"), rp)
         levels.append({"id": lid, "index": index})
 
@@ -686,6 +706,7 @@ def validate(house: Any) -> list[dict[str, str]]:
     if roof_finish is not MISSING and not finish_ok(roof_finish, catalog()["roof_finishes"]):
         err("roof.finish", f"finish must be {ROOF_HINT}, got {stringify(roof_finish)}.")
     check_windows(get(roof, "windows"), "roof.windows")
+    check_terraces(get(roof, "terraces"), "roof.terraces")
 
     energy: list[dict[str, Any]] = []
     energy_in = items(get(h, "energy"))

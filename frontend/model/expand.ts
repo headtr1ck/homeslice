@@ -13,6 +13,7 @@ const MODEL_REF = /^(builtin|(kenney|polyhaven|custom|modern|piece):[A-Za-z0-9_-
 export const LIGHT_TYPES: LightType[] = ["lamp", "spot", "strip", "indirect"];
 import type {
   DormerInput,
+  RoofTerraceInput,
   RoofPart,
   RoofWindowInput,
   FurnitureInput,
@@ -226,6 +227,18 @@ export function expandHouse(input: unknown): ExpandResult {
       if (w.cover !== undefined && !(typeof w.cover === "string" && w.cover.startsWith("cover."))) return err(`${wp}.cover`, "cover must be a cover entity, e.g. cover.….");
       if (w.contact !== undefined && !(typeof w.contact === "string" && w.contact.includes("."))) return err(`${wp}.contact`, "contact must be an entity id, e.g. binary_sensor.….");
       out.push({ side: w.side, at: w.at, up: w.up ?? 1.2, width: w.width ?? 0.78, height: w.height ?? 1.18, ...(w.cover ? { cover: w.cover } : {}), ...(w.contact ? { contact: w.contact } : {}) });
+    });
+    return out;
+  };
+  const parseTerraces = (list: RoofTerraceInput[] | undefined, path: string) => {
+    const out: Required<RoofTerraceInput>[] = [];
+    (list ?? []).forEach((t, i) => {
+      const tp = `${path}.${i}`;
+      if (!t || !SIDES.includes(t.side) || typeof t.at !== "number") return err(tp, "A roof terrace needs side (north, south, east or west) and at (metres along the ridge).");
+      for (const [k, lo, hi] of [["width", 1, 12], ["depth", 1, 6]] as const)
+        if (t[k] !== undefined && !(typeof t[k] === "number" && t[k]! >= lo && t[k]! <= hi)) return err(`${tp}.${k}`, `${k} must be in metres (${lo}–${hi}).`);
+      if (t.railing !== undefined && !["glass", "metal", "wood"].includes(t.railing)) return err(`${tp}.railing`, `railing must be glass, metal or wood, got ${JSON.stringify(t.railing)}.`);
+      out.push({ side: t.side, at: t.at, width: t.width ?? 3, depth: t.depth ?? 2, railing: t.railing ?? "glass" });
     });
     return out;
   };
@@ -443,6 +456,7 @@ export function expandHouse(input: unknown): ExpandResult {
           finish: ri.finish ?? "roof_clay",
           dormers: parseDormers(ri.dormers, `${rp}.dormers`),
           windows: parseWindows(ri.windows, `${rp}.windows`),
+          terraces: parseTerraces(ri.terraces, `${rp}.terraces`),
           furniture: parseFurniture(ri.furniture, rp, bbox(polygon).min),
         });
       });
@@ -563,6 +577,7 @@ export function expandHouse(input: unknown): ExpandResult {
   if (r.high !== undefined && !SIDES.includes(r.high)) err("roof.high", `high must be one of ${SIDES.join(", ")}.`);
   if (r.finish !== undefined && !finishOk(r.finish, ROOF_FINISHES)) err("roof.finish", `finish must be ${ROOF_HINT}, got ${JSON.stringify(r.finish)}.`);
   const windows = parseWindows(r.windows, "roof.windows");
+  const terraces = parseTerraces(r.terraces, "roof.terraces");
   const ridge = r.ridge ?? (tb.max[0] - tb.min[0] >= tb.max[1] - tb.min[1] ? "east_west" : "north_south");
   const roof: House["roof"] = {
     shape: r.shape && ROOF_SHAPES.includes(r.shape) ? r.shape : "gable",
@@ -573,6 +588,7 @@ export function expandHouse(input: unknown): ExpandResult {
     high: r.high ?? (ridge === "east_west" ? "south" : "east"),
     dormers,
     windows,
+    terraces,
   };
 
   const energy: Energy[] = [];
