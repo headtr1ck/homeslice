@@ -1817,5 +1817,11 @@
   "editor.sketchfab_download": "In Home Assistant herunterladen",
   "editor.sketchfab_have": "Schon heruntergeladen",
   "editor.sketchfab_downloaded": "Heruntergeladen",
-  "editor.sketchfab_results": "Suchergebnisse"
+  "editor.sketchfab_results": "Suchergebnisse",
+  "editor.robot_rooms": "Räume aus der Roboterkarte",
+  "editor.robot_rooms_hint": "Die Räume, die der Roboter kennt, aus den Farben seiner Karte gelesen und dort platziert, wo die Karte liegt: die Karte zuerst an ihren Platz ziehen. Bereiche mit den Raumnamen des Roboters werden gleich zugewiesen.",
+  "editor.robot_rooms_import": "Räume aus dieser Karte",
+  "editor.robot_rooms_none": "Keine Räume auf dieser Karte gefunden (sie braucht die Raumfarben des Roboters).",
+  "editor.robot_rooms_done": "{count} Räume hinzugefügt, {named} davon benannt. Über der Karte prüfen; Wände verschieben, wo die Karte des Roboters ungenau ist.",
+  "editor.robot_rooms_changed": "Die Karte des Roboters hat sich geändert, seit sie platziert wurde: sie erneut als Grundrissbild verwenden, an ihren Platz ziehen, dann die Räume lesen."
 }

@@ -1817,5 +1817,11 @@
   "editor.sketchfab_download": "Scarica in Home Assistant",
   "editor.sketchfab_have": "Già scaricato",
   "editor.sketchfab_downloaded": "Scaricati",
-  "editor.sketchfab_results": "Risultati"
+  "editor.sketchfab_results": "Risultati",
+  "editor.robot_rooms": "Stanze dalla mappa del robot",
+  "editor.robot_rooms_hint": "Le stanze che il robot conosce, lette dai colori della sua mappa e messe dove sta la mappa: prima metti la mappa al suo posto. Le aree con i nomi delle stanze del robot vengono assegnate subito.",
+  "editor.robot_rooms_import": "Stanze da questa mappa",
+  "editor.robot_rooms_none": "Nessuna stanza trovata su questa mappa (servono i colori delle stanze del robot).",
+  "editor.robot_rooms_done": "Aggiunte {count} stanze, {named} con nome. Controllale sulla mappa; sposta le pareti dove la mappa del robot è imprecisa.",
+  "editor.robot_rooms_changed": "La mappa del robot è cambiata da quando è stata posizionata: usala di nuovo come immagine della pianta, mettila al suo posto, poi leggi le stanze."
 }

@@ -190,13 +190,15 @@ async def ws_underlay_get(hass: HomeAssistant, connection: websocket_api.ActiveC
         vol.Optional("image"): str,
         vol.Optional("place"): PLACE,
         vol.Optional("opacity"): vol.All(vol.Coerce(float), vol.Range(min=0, max=1)),
+        # the robot's map picture it came from (rooms can be read off it later)
+        vol.Optional("source"): vol.Any(None, vol.Match(r"^image\.[a-z0-9_]+$")),
     }
 )
 @websocket_api.require_admin
 @websocket_api.async_response
 async def ws_underlay_set(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
     """Store a level's floor plan image and/or its placement (admins only)."""
-    patch = {k: msg[k] for k in ("image", "place", "opacity") if k in msg}
+    patch = {k: msg[k] for k in ("image", "place", "opacity", "source") if k in msg}
     try:
         stored = await _underlays(hass).async_set(msg["house"], msg["level"], patch)
     except UnderlayError as err:

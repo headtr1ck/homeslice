@@ -35,7 +35,20 @@ been opened (e.g. Roborock Q10): start a short clean, or open the app, then reco
 
 **The robot's map as a floor plan.** A robot vacuum's map is true to scale (12.5 mm a
 pixel): the editor can use it as the floor plan image, to drag into place over the house
-and trace the rooms on it. Importing rooms straight from a robot's map is in progress.
+and trace the rooms on it.
+
+**Rooms from the robot's map.** Once the map lies in place, *Rooms from this map* reads the
+rooms off its colours (the cleaning path, furniture and the robot drawn over them are
+filled in, the outlines straightened) and adds them as rooms over the plan, each taking its
+space from the rooms already there. With Roborock, the robot's room names come along
+(`roborock.get_maps`, the map matching the picture's floor), and a Home Assistant area with
+the same name is given at once; the others say *Unassigned room!*. The robot's map is never
+perfect: check the rooms over it and move walls where it is rough. If the map has changed
+since it was placed (the robot mapped more), use it as the floor plan image again first.
+
+Older Xiaomi robots in the *Xiaomi Miio* integration report neither a position nor a map;
+the *Xiaomi Cloud Map Extractor* (HACS) adds both: its camera's `vacuum_position` attribute
+works as a live position source.
 
 ## In YAML
 

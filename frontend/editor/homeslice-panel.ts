@@ -265,6 +265,8 @@ interface Underlay {
   /** `ruler`: the line the scale was set on (image pixels), shown as a measuring line. */
   place: { origin: Vec2; scale: number; rotation: number; ruler?: { a: Vec2; b: Vec2 } };
   opacity: number;
+  /** A robot's map picture it was taken from (`image.*`): its rooms can be read off it. */
+  source?: string;
 }
 
 /** A stored house, as the integration lists it (with the version a restore brings back). */
@@ -374,6 +376,8 @@ export class HomeslicePanel extends LitElement {
     _rectPreview: { state: true },
     _arriving: { state: true },
     _toolMiss: { state: true },
+    _robotRoomsBusy: { state: true },
+    _robotRoomsNote: { state: true },
     _flyout: { state: true },
     _assignArea: { state: true },
     _assignHover: { state: true },
@@ -2227,14 +2231,14 @@ export class HomeslicePanel extends LitElement {
     this._calib = null;
     this._underlayMove = false;
     try {
-      const got = await this._hass!.callWS<{ image: string; place?: Underlay["place"]; opacity?: number } | null>({
+      const got = await this._hass!.callWS<{ image: string; place?: Underlay["place"]; opacity?: number; source?: string | null } | null>({
         type: "homeslice/underlay/get",
         house: this._house,
         level: this._level,
       });
       if (!got || this.underlayRequest !== key) return;
       const { width, height } = await imageSize(got.image);
-      this._underlay = { level: this._level, image: got.image, width, height, place: got.place ?? { origin: [0, 0], scale: 0.01, rotation: 0 }, opacity: got.opacity ?? 0.5 };
+      this._underlay = { level: this._level, image: got.image, width, height, place: got.place ?? { origin: [0, 0], scale: 0.01, rotation: 0 }, opacity: got.opacity ?? 0.5, ...(got.source ? { source: got.source } : {}) };
     } catch {
       // no image (or an older backend): nothing to show
     }
@@ -2268,7 +2272,7 @@ export class HomeslicePanel extends LitElement {
     else void send();
   }
 
-  private async uploadUnderlay(file: File | Blob, metresPerPixel?: number) {
+  private async uploadUnderlay(file: File | Blob, metresPerPixel?: number, source?: string) {
     const level = this._level;
     try {
       const image = await shrinkImage(file as File, 2400);
@@ -2278,8 +2282,8 @@ export class HomeslicePanel extends LitElement {
       const { min, max } = outline.length ? bbox(outline) : { min: [0, 0] as Vec2, max: [10, 8] as Vec2 };
       const scale = metresPerPixel ?? Math.max(0.001, (max[0] - min[0]) / width);
       const place = { origin: [min[0], min[1]] as Vec2, scale, rotation: 0 };
-      await this._hass!.callWS({ type: "homeslice/underlay/set", house: this._house, level, image, place, opacity: 0.5 });
-      this._underlay = { level, image, width, height, place, opacity: 0.5 };
+      await this._hass!.callWS({ type: "homeslice/underlay/set", house: this._house, level, image, place, opacity: 0.5, source: source ?? null });
+      this._underlay = { level, image, width, height, place, opacity: 0.5, ...(source ? { source } : {}) };
       this._underlayHidden = false;
       // first straighten the scan (a robot's map is straight), then set its scale
       if (metresPerPixel) this._calib = {};
@@ -2405,7 +2409,7 @@ export class HomeslicePanel extends LitElement {
               if (!url) return;
               const blob = await (await fetch(url)).blob();
               // Roborock draws its maps at 12.5 mm per pixel
-              await this.uploadUnderlay(blob, 0.0125);
+              await this.uploadUnderlay(blob, 0.0125, id);
             }}>${this.t("editor.underlay_robot_map", { map: this.entityName(id) })}</button>`,
           )}
         </div>
@@ -2468,6 +2472,12 @@ export class HomeslicePanel extends LitElement {
               ${this.t("editor.underlay_ruler")}</label>`
           : nothing}
       </div>
+      ${u.source
+        ? html`<h4>${this.t("editor.robot_rooms")}</h4>
+            <p class="muted">${this.t("editor.robot_rooms_hint")}</p>
+            <button data-robot-rooms ?disabled=${this._robotRoomsBusy} @click=${() => void this.importRobotRooms(u)}>${this.t("editor.robot_rooms_import")}</button>
+            ${this._robotRoomsNote ? html`<p class="notice">${this._robotRoomsNote}</p>` : nothing}`
+        : nothing}
       <div class="row">
         ${fileInput}
         <button class="danger" @click=${async () => {
@@ -2477,7 +2487,84 @@ export class HomeslicePanel extends LitElement {
           this._calib = null;
           this._underlayMove = false;
         }}>${this.t("editor.underlay_remove")}</button>
-      </div>`;
+      </div>
+      ${mapButtons}`;
+  }
+
+  private _robotRoomsBusy = false;
+  private _robotRoomsNote = "";
+
+  /**
+   * The rooms on the robot's map this floor plan image came from: read off its colours,
+   * placed where the image lies, named after the robot's rooms (a Home Assistant area of that
+   * name is given at once). Each is drawn like a room over others (taking its space).
+   */
+  private async importRobotRooms(u: Underlay) {
+    const hass = this._hass!;
+    const source = u.source!;
+    const url = hass.states[source]?.attributes.entity_picture as string | undefined;
+    if (!url) return;
+    this._robotRoomsBusy = true;
+    this._robotRoomsNote = "";
+    try {
+      // the map as it is now, in its own colours (the stored floor plan image may be re-encoded)
+      const bitmap = await createImageBitmap(await (await fetch(url)).blob());
+      const canvas = document.createElement("canvas");
+      canvas.width = bitmap.width;
+      canvas.height = bitmap.height;
+      const ctx = canvas.getContext("2d", { willReadFrequently: true })!;
+      ctx.drawImage(bitmap, 0, 0);
+      const { roomsFromMap } = await import("../import/robotmap");
+      const found = roomsFromMap(ctx.getImageData(0, 0, bitmap.width, bitmap.height)).sort((a, b) => b.area - a.area);
+      if (!found.length) {
+        this._robotRoomsNote = this.t("editor.robot_rooms_none");
+        return;
+      }
+      const names = await this.robotRoomNames(source);
+      const areas = Object.values(hass.areas ?? {});
+      // the image may have been stored smaller than the map; a map that grew since was placed differently
+      const k = u.width / bitmap.width;
+      if (Math.abs(k - u.height / bitmap.height) > 0.01 || (k !== 1 && Math.max(bitmap.width, bitmap.height) <= 2400)) {
+        this._robotRoomsNote = this.t("editor.robot_rooms_changed");
+        return;
+      }
+      let m = this._model!;
+      let named = 0;
+      for (const room of found) {
+        const poly = room.polygon.map(([x, y]) => this.underlayToPlan(u, [x * k, y * k])).map(([x, y]) => [Math.round(x * 100) / 100, Math.round(y * 100) / 100] as Vec2);
+        const name = names[room.number];
+        const area = name ? areas.find((a) => a.name.trim().toLowerCase() === name.trim().toLowerCase()) : undefined;
+        if (area || name) named++;
+        const taken = (m.levels.find((l) => l.id === this._level)?.rooms ?? []).map((r) => r.id);
+        const props: Partial<RoomInput> = area ? { id: uniqueId(taken, slug(area.area_id, "room")), area_id: area.area_id } : name ? { name } : {};
+        m = drawRoomOver(m, this._level, poly, props).model;
+      }
+      this.commit(m);
+      this._robotRoomsNote = this.t("editor.robot_rooms_done", { count: found.length, named });
+    } catch (err) {
+      this._robotRoomsNote = String((err as { message?: string }).message ?? err);
+    } finally {
+      this._robotRoomsBusy = false;
+    }
+  }
+
+  /** The robot's room names by room number, for the map picture `image` (Roborock: `roborock.get_maps`). */
+  private async robotRoomNames(image: string): Promise<Record<number, string>> {
+    const hass = this._hass!;
+    if (!hass.services?.roborock?.get_maps) return {};
+    const device = hass.entities?.[image]?.device_id;
+    const vacuum = Object.values(hass.entities ?? {}).find((e) => e.entity_id.startsWith("vacuum.") && e.device_id === device)?.entity_id;
+    if (!vacuum) return {};
+    try {
+      const res = (await hass.callService("roborock", "get_maps", {}, { entity_id: vacuum }, false, true)) as { response?: Record<string, { maps?: { name?: string; rooms?: Record<string, string> }[] }> };
+      const maps = res?.response?.[vacuum]?.maps ?? [];
+      // the map whose name the picture's entity carries ("…_ground_floor" ↔ "Ground Floor"), else the only one
+      const key = (t: string) => t.toLowerCase().replace(/[^a-z0-9]+/g, "_");
+      const map = maps.find((x) => x.name && image.includes(key(x.name))) ?? (maps.length === 1 ? maps[0] : undefined);
+      return Object.fromEntries(Object.entries(map?.rooms ?? {}).map(([n, name]) => [Number(n), name]));
+    } catch {
+      return {};
+    }
   }
 
   private previewTouched = false;

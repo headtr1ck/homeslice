@@ -1817,5 +1817,11 @@
   "editor.sketchfab_download": "Pobierz do Home Assistant",
   "editor.sketchfab_have": "Już pobrany",
   "editor.sketchfab_downloaded": "Pobrane",
-  "editor.sketchfab_results": "Wyniki wyszukiwania"
+  "editor.sketchfab_results": "Wyniki wyszukiwania",
+  "editor.robot_rooms": "Pomieszczenia z mapy robota",
+  "editor.robot_rooms_hint": "Pomieszczenia, które zna robot, odczytane z kolorów jego mapy i umieszczone tam, gdzie leży mapa: najpierw ustaw mapę. Obszary o nazwach pomieszczeń robota są od razu przypisywane.",
+  "editor.robot_rooms_import": "Pomieszczenia z tej mapy",
+  "editor.robot_rooms_none": "Nie znaleziono pomieszczeń na tej mapie (potrzebne są kolory pomieszczeń robota).",
+  "editor.robot_rooms_done": "Dodano {count} pomieszczeń, z czego {named} z nazwą. Sprawdź je na mapie; przesuń ściany tam, gdzie mapa robota jest niedokładna.",
+  "editor.robot_rooms_changed": "Mapa robota zmieniła się od czasu jej umieszczenia: użyj jej ponownie jako obrazu planu, ustaw ją, a potem odczytaj pomieszczenia."
 }

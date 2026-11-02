@@ -1817,5 +1817,11 @@
   "editor.sketchfab_download": "Descargar en Home Assistant",
   "editor.sketchfab_have": "Ya descargado",
   "editor.sketchfab_downloaded": "Descargados",
-  "editor.sketchfab_results": "Resultados"
+  "editor.sketchfab_results": "Resultados",
+  "editor.robot_rooms": "Habitaciones del mapa del robot",
+  "editor.robot_rooms_hint": "Las habitaciones que conoce el robot, leídas de los colores de su mapa y colocadas donde está el mapa: coloca primero el mapa. Las áreas con los nombres de habitación del robot se asignan enseguida.",
+  "editor.robot_rooms_import": "Habitaciones de este mapa",
+  "editor.robot_rooms_none": "No hay habitaciones en este mapa (necesita los colores de habitación del robot).",
+  "editor.robot_rooms_done": "{count} habitaciones añadidas, {named} con nombre. Revísalas sobre el mapa; mueve paredes donde el mapa del robot sea impreciso.",
+  "editor.robot_rooms_changed": "El mapa del robot ha cambiado desde que se colocó: úsalo de nuevo como imagen del plano, colócalo y luego lee sus habitaciones."
 }

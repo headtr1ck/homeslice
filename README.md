@@ -38,7 +38,7 @@ lights, blinds, doors, climate, energy flows and people live on it. Free and ope
   battery and grid flows, people and pets in their rooms, weather and the real sun.
 - **Robots on the plan.** Robot vacuums and lawn mowers drive around with their live
   position and show what their dock needs; their map can be the floor plan you trace.
-  Importing rooms straight from a robot's map is in progress.
+  With Roborock, the rooms come straight from the robot's map, named after its rooms.
 - **3D, 2.5D and 2D from one house.** Exploded 3D, tilted plan, flat plan, all floors side
   by side; day, night, white model or blueprint look — switch per card, not per drawing.
 - **400+ furniture pieces, plus whole libraries.** Built-in pieces resize sensibly and

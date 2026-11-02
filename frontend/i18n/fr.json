@@ -1817,5 +1817,11 @@
   "editor.sketchfab_download": "Télécharger dans Home Assistant",
   "editor.sketchfab_have": "Déjà téléchargé",
   "editor.sketchfab_downloaded": "Téléchargés",
-  "editor.sketchfab_results": "Résultats"
+  "editor.sketchfab_results": "Résultats",
+  "editor.robot_rooms": "Pièces de la carte du robot",
+  "editor.robot_rooms_hint": "Les pièces que le robot connaît, lues dans les couleurs de sa carte et placées là où se trouve la carte : placez d'abord la carte. Les zones portant les noms des pièces du robot sont attribuées aussitôt.",
+  "editor.robot_rooms_import": "Pièces de cette carte",
+  "editor.robot_rooms_none": "Aucune pièce trouvée sur cette carte (il faut les couleurs de pièces du robot).",
+  "editor.robot_rooms_done": "{count} pièces ajoutées, dont {named} nommées. Vérifiez-les sur la carte ; déplacez les murs là où la carte du robot est approximative.",
+  "editor.robot_rooms_changed": "La carte du robot a changé depuis qu'elle a été placée : reprenez-la comme image de plan, placez-la, puis lisez ses pièces."
 }

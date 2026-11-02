@@ -190,9 +190,14 @@ async def test_underlays_are_stored_per_level_admin_only(
         {"type": "homeslice/underlay/set", "house": "home", "level": "ground", "place": {"origin": [1, 2], "scale": 0.02, "ruler": {"a": [1, 2]}}}
     )
     assert not (await client.receive_json())["success"]
+    # the robot's map picture it came from (an image entity, nothing else)
+    await client.send_json_auto_id({"type": "homeslice/underlay/set", "house": "home", "level": "ground", "source": "image.saros_map"})
+    assert (await client.receive_json())["result"]["source"] == "image.saros_map"
+    await client.send_json_auto_id({"type": "homeslice/underlay/set", "house": "home", "level": "ground", "source": "camera.front"})
+    assert not (await client.receive_json())["success"]
     await client.send_json_auto_id({"type": "homeslice/underlay/get", "house": "home", "level": "ground"})
     got = (await client.receive_json())["result"]
-    assert got["image"] == PNG and got["opacity"] == 0.5
+    assert got["image"] == PNG and got["opacity"] == 0.5 and got["source"] == "image.saros_map"
     await client.send_json_auto_id({"type": "homeslice/underlay/get", "house": "home"})
     assert (await client.receive_json())["result"] == {"levels": ["ground"]}
 

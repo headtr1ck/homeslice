@@ -1817,5 +1817,11 @@
   "editor.sketchfab_download": "Downloaden in Home Assistant",
   "editor.sketchfab_have": "Al gedownload",
   "editor.sketchfab_downloaded": "Gedownload",
-  "editor.sketchfab_results": "Zoekresultaten"
+  "editor.sketchfab_results": "Zoekresultaten",
+  "editor.robot_rooms": "Ruimtes uit de robotkaart",
+  "editor.robot_rooms_hint": "De ruimtes die de robot kent, gelezen uit de kleuren van zijn kaart en geplaatst waar de kaart ligt: zet de kaart eerst op zijn plek. Ruimtes met de ruimtenamen van de robot worden meteen toegewezen.",
+  "editor.robot_rooms_import": "Ruimtes uit deze kaart",
+  "editor.robot_rooms_none": "Geen ruimtes gevonden op deze kaart (die heeft de ruimtekleuren van de robot nodig).",
+  "editor.robot_rooms_done": "{count} ruimtes toegevoegd, {named} met naam. Controleer ze op de kaart; verplaats wanden waar de kaart van de robot ruw is.",
+  "editor.robot_rooms_changed": "De kaart van de robot is veranderd sinds hij is geplaatst: gebruik hem opnieuw als plattegrondafbeelding, zet hem op zijn plek en lees dan de ruimtes."
 }
