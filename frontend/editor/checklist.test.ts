@@ -70,4 +70,11 @@ describe("checklist", () => {
     // once linked, they are off the list
     expect(checklist(fixed, hass, areas).filter((i) => i.kind === "cover" || i.kind === "contact").map((i) => "entity" in i && i.entity)).toEqual(["cover.loose", "cover.living_east"]);
   });
+  it("counts inside blinds and roof windows as linked", () => {
+    const m = model();
+    m.levels[0].openings![0].blind = "cover.living_south";
+    m.roof = { windows: [{ side: "south", at: 2, cover: "cover.living_west", contact: "binary_sensor.front_door" }] };
+    const linked = checklist(m, hass, areas).filter((i) => "entity" in i).map((i) => "entity" in i && i.entity);
+    expect(linked).toEqual(["cover.loose", "cover.living_east"]);
+  });
 });

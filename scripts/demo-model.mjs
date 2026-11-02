@@ -109,3 +109,119 @@ export function showcase(f) {
   return f;
 }
 
+
+// Pieces with a Modern model but no size get the catalogue's size, height and mount (as the
+// editor places them), so the houses' YAML only gives what differs.
+export function sized(model) {
+  const fill = (f) => {
+    const k = f.model && CATALOG.find((x) => x.model === f.model);
+    if (!k) return f;
+    return { size: [k.size[0], k.size[1]], height: k.size[2], ...(k.mount ? { mount: k.mount, ...(k.elevation !== undefined ? { elevation: k.elevation } : {}) } : {}), ...f };
+  };
+  for (const l of model.levels) {
+    for (const r of l.rooms ?? []) if (r.furniture) r.furniture = r.furniture.map(fill);
+    for (const p of l.roofs ?? []) if (p.furniture) p.furniture = p.furniture.map(fill);
+  }
+  return model;
+}
+
+// The other demo houses of the site's picker: each a YAML in examples/houses/ and a
+// pretend Home Assistant with its floors, areas and entities (lights on, blinds half open).
+const light = (name, rgb) => ["on", { friendly_name: name, brightness: 220, ...(rgb ? { rgb_color: rgb, color_mode: "rgb" } : {}) }];
+const cover = (name, position, device_class = "shutter") => [position > 0 ? "open" : "closed", { friendly_name: name, device_class, current_position: position }];
+const sensor = (name, value, unit, device_class) => [value, { friendly_name: name, unit_of_measurement: unit, device_class }];
+const tv = (name) => ["playing", { friendly_name: name, supported_features: 149949, volume_level: 0.3, media_title: "Nature documentary", source_list: ["Live TV", "Netflix", "HDMI 1"], source: "Live TV" }];
+const heating = (name, now, target, mode = "heat") => [mode, { friendly_name: name, current_temperature: now, temperature: target, hvac_action: mode === "cool" ? "cooling" : "heating", hvac_modes: ["off", "heat", "cool", "auto"] }];
+const binary = (name, on, device_class) => [on ? "on" : "off", { friendly_name: name, device_class }];
+const WARM = [255, 190, 120];
+
+const HOUSES = {
+  detached: {
+    floors: { ground_floor: "Ground floor", first_floor: "First floor" },
+    areas: {
+      kitchen: ["Kitchen", "ground_floor"], hall: ["Hall", "ground_floor"], guest_wc: ["Guest WC", "ground_floor"], utility: ["Utility room", "ground_floor"],
+      living_room: ["Living room", "ground_floor"], garage: ["Garage", "ground_floor"], terrace: ["Terrace", "ground_floor"], garden: ["Garden", "ground_floor"],
+      front_garden: ["Front garden", "ground_floor"], ensuite: ["Ensuite", "first_floor"], bedroom: ["Bedroom", "first_floor"], landing: ["Landing", "first_floor"],
+      office: ["Office", "first_floor"], bathroom: ["Bathroom", "first_floor"], kids_room: ["Kids room", "first_floor"], roof_terrace: ["Roof terrace", "first_floor"],
+    },
+    entities: {
+      "light.kitchen": ["kitchen", ...light("Kitchen")], "light.kitchen_island": ["kitchen", ...light("Island pendants", WARM)], "light.hall": ["hall", ...light("Hall")],
+      "light.guest_wc": ["guest_wc", "off", { friendly_name: "WC light" }], "light.utility": ["utility", "off", { friendly_name: "Utility light" }],
+      "light.living_room": ["living_room", ...light("Living room")], "light.dining": ["living_room", ...light("Dining pendant", WARM)], "light.reading_lamp": ["living_room", ...light("Reading lamp", [255, 170, 100])],
+      "light.garage": ["garage", "off", { friendly_name: "Garage light" }], "light.terrace": ["terrace", ...light("Terrace light", WARM)], "light.garden": ["garden", ...light("Garden lights", [255, 196, 120])],
+      "light.front_garden": ["front_garden", ...light("Path lights", [255, 196, 120])], "light.ensuite": ["ensuite", ...light("Ensuite")], "light.bedroom": ["bedroom", ...light("Bedroom", [255, 160, 110])],
+      "light.landing": ["landing", ...light("Landing")], "light.office": ["office", ...light("Office")], "light.bathroom": ["bathroom", ...light("Bathroom")],
+      "light.kids_room": ["kids_room", ...light("Kids room", [140, 170, 255])], "light.roof_terrace": ["roof_terrace", ...light("Terrace lanterns", WARM)],
+      "cover.kitchen": ["kitchen", ...cover("Kitchen blind", 100)], "cover.living_terrace": ["living_room", ...cover("Terrace door shutter", 100)], "cover.living_south": ["living_room", ...cover("Living room shutter", 60)],
+      "cover.bedroom": ["bedroom", ...cover("Bedroom shutter", 20)], "cover.kids_room": ["kids_room", ...cover("Kids room shutter", 100)], "cover.office": ["office", ...cover("Office blind", 70)],
+      "cover.terrace_awning": ["terrace", ...cover("Awning", 70, "awning")], "cover.garage_door": ["garage", ...cover("Garage door", 0, "garage")],
+      "climate.living_room": ["living_room", ...heating("Living room", 21.2, 21.5)], "climate.bedroom_ac": ["bedroom", ...heating("Bedroom AC", 23.5, 21, "cool")],
+      "media_player.living_room_tv": ["living_room", ...tv("TV")], "switch.fireplace": ["living_room", "on", { friendly_name: "Fireplace" }],
+      "switch.sprinkler": ["garden", "on", { friendly_name: "Sprinkler" }], "switch.pool_pump": ["garden", "on", { friendly_name: "Pool pump" }],
+      "lock.front_door": ["hall", "locked", { friendly_name: "Front door" }], "binary_sensor.front_door": ["hall", ...binary("Front door", false, "door")],
+      "binary_sensor.terrace_door": ["living_room", ...binary("Terrace door", true, "door")], "binary_sensor.mailbox": ["front_garden", ...binary("Mailbox", true)],
+      "device_tracker.car": [null, "home", { friendly_name: "Car" }], "sensor.car_battery": [null, ...sensor("Car battery", "64", "%", "battery")],
+      "sensor.wallbox_power": ["garage", ...sensor("Wallbox", "11", "kW", "power")], "sensor.washer_remaining": ["utility", ...sensor("Washer", "35", "min", "duration")],
+      "sensor.living_room_temperature": ["living_room", ...sensor("Living room temperature", "21.2", "°C", "temperature")],
+      "sensor.bedroom_temperature": ["bedroom", ...sensor("Bedroom temperature", "23.5", "°C", "temperature")], "lawn_mower.mower": [null, "mowing", { friendly_name: "Mower" }],
+    },
+  },
+  apartment: {
+    floors: { third_floor: "Third floor" },
+    areas: {
+      hall: ["Hall", "third_floor"], bedroom: ["Bedroom", "third_floor"], bathroom: ["Bathroom", "third_floor"], office: ["Office", "third_floor"],
+      living_room: ["Living room", "third_floor"], kitchen: ["Kitchen", "third_floor"], balcony: ["Balcony", "third_floor"],
+    },
+    entities: {
+      "light.hall": ["hall", ...light("Hall")], "light.bedroom": ["bedroom", "off", { friendly_name: "Bedroom light" }], "light.bedside": ["bedroom", ...light("Bedside lamp", [255, 160, 110])],
+      "light.bathroom": ["bathroom", ...light("Bathroom")], "light.office": ["office", ...light("Office")], "light.desk_lamp": ["office", ...light("Desk lamp")],
+      "light.living_room": ["living_room", ...light("Living room", WARM)], "light.floor_lamp": ["living_room", ...light("Floor lamp", [255, 170, 100])], "light.dining": ["living_room", ...light("Dining pendant", WARM)],
+      "light.kitchen": ["kitchen", ...light("Kitchen")], "light.kitchen_island": ["kitchen", ...light("Island pendants", WARM)], "light.balcony": ["balcony", ...light("Balcony lantern", WARM)],
+      "cover.bedroom": ["bedroom", ...cover("Bedroom blind", 30)], "cover.office": ["office", ...cover("Office blind", 80, "blind")], "cover.living_room": ["living_room", ...cover("Living room blinds", 100)],
+      "cover.balcony_door": ["living_room", ...cover("Balcony door blind", 100)], "cover.kitchen": ["kitchen", ...cover("Kitchen blind", 70)],
+      "climate.living_room": ["living_room", ...heating("Living room", 21.0, 21.5)], "media_player.living_room_tv": ["living_room", ...tv("TV")],
+      "lock.front_door": ["hall", "locked", { friendly_name: "Front door" }], "binary_sensor.front_door": ["hall", ...binary("Front door", false, "door")],
+      "binary_sensor.balcony_door": ["living_room", ...binary("Balcony door", true, "door")], "sensor.washer_remaining": ["bathroom", ...sensor("Washer", "20", "min", "duration")],
+      "sensor.living_room_temperature": ["living_room", ...sensor("Living room temperature", "21.0", "°C", "temperature")],
+      "sensor.bedroom_temperature": ["bedroom", ...sensor("Bedroom temperature", "19.4", "°C", "temperature")], "vacuum.robo": [null, "cleaning", { friendly_name: "Robot vacuum" }],
+    },
+  },
+  terraced: {
+    floors: { ground_floor: "Ground floor", first_floor: "First floor", attic: "Loft" },
+    areas: {
+      living_room: ["Living room", "ground_floor"], hall: ["Hall", "ground_floor"], kitchen: ["Kitchen", "ground_floor"], garden: ["Garden", "ground_floor"],
+      front_yard: ["Front yard", "ground_floor"], bedroom: ["Bedroom", "first_floor"], landing: ["Landing", "first_floor"], bathroom: ["Bathroom", "first_floor"],
+      kids_room: ["Kids room", "first_floor"], studio: ["Studio", "attic"], shower_room: ["Shower room", "attic"],
+    },
+    entities: {
+      "light.living_room": ["living_room", ...light("Living room", WARM)], "light.floor_lamp": ["living_room", ...light("Floor lamp", [255, 170, 100])], "light.hall": ["hall", ...light("Hall")],
+      "light.kitchen": ["kitchen", ...light("Kitchen")], "light.dining": ["kitchen", ...light("Dining pendant", WARM)], "light.garden": ["garden", ...light("Patio lights", [255, 196, 120])],
+      "light.front_yard": ["front_yard", ...light("Front light", WARM)], "light.bedroom": ["bedroom", ...light("Bedroom", [255, 160, 110])], "light.landing": ["landing", ...light("Landing")],
+      "light.bathroom": ["bathroom", ...light("Bathroom")], "light.kids_room": ["kids_room", ...light("Kids room", [140, 170, 255])], "light.studio": ["studio", ...light("Studio")],
+      "light.shower_room": ["shower_room", "off", { friendly_name: "Shower room light" }],
+      "cover.living_room": ["living_room", ...cover("Living room blind", 100)], "cover.kitchen": ["kitchen", ...cover("Kitchen blind", 60)], "cover.bedroom": ["bedroom", ...cover("Bedroom blind", 20)],
+      "cover.kids_room": ["kids_room", ...cover("Kids room blind", 100)], "cover.roof_window": ["studio", ...cover("Roof window shutter", 100)],
+      "binary_sensor.roof_window": ["studio", ...binary("Roof window", true, "window")], "binary_sensor.garden_door": ["kitchen", ...binary("Garden door", false, "door")],
+      "lock.front_door": ["hall", "unlocked", { friendly_name: "Front door" }], "binary_sensor.front_door": ["hall", ...binary("Front door", false, "door")],
+      "climate.living_room": ["living_room", ...heating("Living room", 20.6, 21)], "media_player.living_room_tv": ["living_room", ...tv("TV")],
+      "switch.sprinkler": ["garden", "off", { friendly_name: "Sprinkler" }], "sensor.bin_pickup": ["front_yard", ...sensor("Bin pickup", "1", "d")],
+      "sensor.living_room_temperature": ["living_room", ...sensor("Living room temperature", "20.6", "°C", "temperature")],
+    },
+  },
+};
+
+const pretend = (id) => {
+  const spec = HOUSES[id];
+  const now = new Date().toISOString();
+  const f = { floors: {}, areas: {}, devices: {}, entities: {}, states: {}, model: sized(parse(readFileSync(join(root, `examples/houses/${id}.yaml`), "utf8"))) };
+  Object.entries(spec.floors).forEach(([floor_id, name], level) => (f.floors[floor_id] = { floor_id, name, level }));
+  for (const [area_id, [name, floor_id]] of Object.entries(spec.areas)) f.areas[area_id] = { area_id, name, floor_id };
+  for (const [entity_id, [area_id, state, attributes]] of Object.entries(spec.entities)) {
+    f.entities[entity_id] = { entity_id, area_id };
+    f.states[entity_id] = { entity_id, state, attributes, last_changed: now };
+  }
+  return f;
+};
+
+/** The other demo houses by id, each a fixture for the pretend Home Assistant. */
+export const houses = Object.fromEntries(Object.keys(HOUSES).map((id) => [id, () => pretend(id)]));

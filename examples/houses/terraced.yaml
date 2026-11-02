@@ -1,0 +1,189 @@
+# A narrow mid-terrace house for the demo site: neighbours behind the east and west walls,
+# the front door on the street (north), a through living room and kitchen onto a long back
+# garden, two bedrooms and a bathroom upstairs, a studio in the loft under a steep roof with
+# a dormer and roof windows. Pieces without a size take the catalogue's (scripts/demo-model.mjs).
+schema: 1
+id: terraced
+name: Terraced house
+outline: { rect: [0, 0, 5.5, 10] }
+party_walls: [east, west]
+facade: brick_red
+vertical:
+  # up along the hall's east wall to the landing, then back north along the west wall to the loft
+  - { id: stairs, rect: [4.2, 3.4, 1.0, 2.8], from: ground, to: first, up: south }
+  - { id: loft_stairs, rect: [0.3, 3.4, 1.0, 2.8], from: first, to: loft, up: north }
+levels:
+  - id: ground
+    floor_id: ground_floor
+    rooms:
+      - id: living
+        area_id: living_room
+        rect: [0, 0, 3.6, 6.4]
+        floor: oak_chevron
+        wall: paint_warm
+        wall_sides: { west: brick_white }
+        furniture:
+          - { type: sofa, model: "modern:sofa_midcentury", at: [0.67, 3.2], rotation: 270 }
+          - { type: shelf, model: "modern:tv_board", at: [3.34, 3.4], rotation: 90 }
+          - { type: tv, model: "modern:tv_wall", at: [3.51, 3.4], rotation: 90, entity: media_player.living_room_tv }
+          - { type: rug, model: "modern:rug_persian", at: [1.9, 3.2], rotation: 90, size: [2.2, 1.6] }
+          - { type: coffee_table, model: "modern:coffee_table", at: [1.95, 3.2], rotation: 90 }
+          - { type: armchair, model: "modern:lounge_chair", at: [1.0, 1.05], rotation: 150 }
+          - { type: floor_lamp, model: "modern:floor_lamp_drum", at: [0.5, 4.65], entity: light.floor_lamp }
+          - { type: plant, model: "modern:rubber_tree", at: [3.1, 0.75] }
+      - id: hall
+        area_id: hall
+        rect: [3.6, 0, 1.9, 6.4]
+        floor: tile_checker
+        furniture:
+          - { type: item, model: "modern:coat_hooks", at: [0.12, 1.0], rotation: 270 }
+          - { type: shelf, model: "modern:shoe_cabinet", at: [0.18, 2.95], rotation: 270 }
+          - { type: rug, model: "modern:rug_runner", at: [0.9, 1.9], size: [0.8, 2.0] }
+      - id: kitchen
+        area_id: kitchen
+        rect: [0, 6.4, 5.5, 3.6]
+        floor: tile_hex
+        wall: tile_zellige
+        furniture:
+          - { type: kitchen, model: "modern:kitchen", at: [4.95, 1.65], rotation: 90, size: [2.6, 0.62] }
+          - { type: kitchen_upper, model: "modern:kitchen_upper_open", at: [5.135, 1.65], rotation: 90, size: [1.6, 0.25] }
+          - { type: fridge, model: "modern:fridge_freestanding", at: [4.3, 0.39] }
+          - { type: table, model: "modern:dining_table_legs", at: [2.0, 1.4], size: [1.8, 0.9] }
+          - { type: chair, model: "modern:chair_spindle", at: [1.6, 0.6] }
+          - { type: chair, model: "modern:chair_spindle", at: [2.4, 0.6] }
+          - { type: chair, model: "modern:chair_spindle", at: [1.6, 2.2], rotation: 180 }
+          - { type: chair, model: "modern:chair_spindle", at: [2.4, 2.2], rotation: 180 }
+          - { type: ceiling_lamp, model: "modern:pendant_dome", at: [2.0, 1.4], entity: light.dining }
+      - id: patio
+        area_id: garden
+        kind: outdoor
+        rect: [0, 10, 5.5, 3]
+        floor: paving
+        furniture:
+          - { type: table, model: "modern:bistro_set", at: [3.8, 1.6] }
+          - { type: item, model: "modern:bbq_kettle", at: [0.7, 2.3] }
+          - { type: plant, model: "modern:planter_tall", at: [0.4, 1.6] }
+          - { type: item, model: "modern:string_lights", at: [2.75, 2.9], size: [5.3, 0.1], entity: light.garden }
+      - id: garden
+        area_id: garden
+        kind: outdoor
+        rect: [0, 13, 5.5, 7]
+        furniture:
+          - { type: garden_path, model: "modern:path_stepping", at: [2.75, 1.4], size: [0.6, 2.4] }
+          - { type: tree_small, model: "modern:tree_fruit", at: [1.6, 3.4] }
+          - { type: flower_bed, model: "modern:raised_bed", at: [4.3, 3.2], rotation: 90 }
+          - { type: item, model: "modern:garden_shed", at: [3.9, 5.8], size: [2.2, 1.8] }
+          - { type: item, model: "modern:compost_bin", at: [0.7, 6.3] }
+          - { type: item, model: "modern:sprinkler", at: [3.4, 1.2], entity: switch.sprinkler }
+          - { type: fence, model: "modern:fence_planks", at: [0.05, 3.5], rotation: 90, size: [7, 0.1] }
+          - { type: fence, model: "modern:fence_planks", at: [5.45, 3.5], rotation: 90, size: [7, 0.1] }
+          - { type: fence, model: "modern:fence_planks", at: [2.75, 6.95], size: [5.5, 0.1] }
+      # the front yard on the street: the bins, a low hedge, the path to the door
+      - id: front
+        area_id: front_yard
+        kind: outdoor
+        rect: [0, -2.5, 5.5, 2.5]
+        floor: gravel
+        furniture:
+          - { type: garden_path, model: "modern:path_paving", at: [4.5, 1.25], size: [1.2, 2.5] }
+          - { type: item, model: "modern:wheelie_bin", at: [0.6, 1.8], entity: sensor.bin_pickup }
+          - { type: item, model: "modern:wheelie_bin", at: [1.3, 1.8] }
+          - { type: hedge, model: "modern:hedge_trimmed", at: [1.75, 0.35], size: [3.3, 0.5], height: 0.8 }
+          - { type: floor_lamp, model: "modern:garden_light", at: [3.7, 0.5], entity: light.front_yard }
+    walls:
+      - { between: [living, kitchen] }   # a through room
+    openings:
+      - { room: hall, side: north, at: 0.4, width: 1.0, type: door, style: entrance_sidelight, lock: lock.front_door, contact: binary_sensor.front_door }
+      - { room: living, side: east, at: 1.6, width: 0.8, type: door }
+      - { room: living, side: north, at: 0.6, width: 2.2, style: triple, cover: cover.living_room }
+      - { room: kitchen, side: south, at: 0.6, width: 2.0, type: door, style: glass_double, contact: binary_sensor.garden_door }
+      - { room: kitchen, side: south, at: 3.2, width: 1.2, sill: 1.0, height: 1.2, cover: cover.kitchen }
+  - id: first
+    floor_id: first_floor
+    rooms:
+      - id: bedroom
+        area_id: bedroom
+        rect: [0, 0, 5.5, 3.3]
+        floor: oak_grey
+        wall_sides: { west: paint_navy }
+        furniture:
+          - { type: bed, model: "modern:bed_storage", at: [1.29, 1.8], rotation: 270 }
+          - { type: nightstand, model: "modern:nightstand", at: [0.43, 0.75], rotation: 270 }
+          - { type: nightstand, model: "modern:nightstand", at: [0.43, 2.85], rotation: 270 }
+          - { type: wardrobe, model: "modern:wardrobe_3door", at: [4.96, 1.8], rotation: 90 }
+          - { type: armchair, model: "modern:armchair_wingback", at: [3.6, 0.85] }
+      - id: landing
+        area_id: landing
+        rect: [0, 3.3, 5.5, 3.7]
+        furniture:
+          - { type: shelf, model: "modern:bookshelf_low", at: [1.95, 0.21], size: [1.2, 0.3] }
+      - id: bath
+        area_id: bathroom
+        rect: [0, 7, 2.4, 3]
+        floor: tile_white
+        wall: tile_subway
+        furniture:
+          - { type: bathtub, model: "modern:bathtub", at: [1.14, 2.24], rotation: 180 }
+          - { type: toilet, model: "modern:toilet_wall", at: [0.515, 0.6], rotation: 270 }
+          - { type: sink, model: "modern:vanity", at: [2.105, 1.3], rotation: 90 }
+      - id: kids
+        area_id: kids_room
+        rect: [2.4, 7, 3.1, 3]
+        floor: carpet_grey
+        wall: paint_ochre
+        furniture:
+          - { type: bed_single, model: "modern:bed_single", at: [2.41, 1.085] }
+          - { type: desk, model: "modern:desk", at: [0.9, 2.34], rotation: 180, size: [1.2, 0.6] }
+          - { type: chair, model: "modern:chair_office", at: [0.9, 1.65] }
+          - { type: rug, model: "modern:rug_round", at: [1.0, 0.9], size: [1.2, 1.2] }
+    openings:
+      - { room: bedroom, side: north, at: 1.0, width: 1.8, cover: cover.bedroom }
+      - { room: bedroom, side: south, at: 2.6, width: 0.8, type: door }
+      - { room: bath, side: north, at: 1.5, width: 0.7, type: door }
+      - { room: bath, side: south, at: 0.7, width: 0.8, sill: 1.3, height: 0.9 }
+      - { room: kids, side: north, at: 0.3, width: 0.8, type: door }
+      - { room: kids, side: south, at: 0.6, width: 1.4, cover: cover.kids_room }
+  # the loft: knee walls front and back, cut along the roof
+  - id: loft
+    floor_id: attic
+    rooms:
+      - id: studio
+        area_id: studio
+        polygon: [[0, 0], [5.5, 0], [5.5, 10], [2.6, 10], [2.6, 6.6], [0, 6.6]]
+        floor: oak_light
+        furniture:
+          - { type: bed, model: "modern:bed_platform", at: [3.2, 1.46] }
+          - { type: nightstand, model: "modern:nightstand", at: [1.95, 0.55] }
+          - { type: nightstand, model: "modern:nightstand", at: [4.45, 0.55] }
+          - { type: shelf, model: "modern:dresser", at: [0.9, 0.6], size: [1.2, 0.48] }
+          - { type: desk, model: "modern:desk", at: [4.91, 7.8], rotation: 90 }
+          - { type: chair, model: "modern:chair_office", at: [4.25, 7.8], rotation: 270 }
+          - { type: armchair, model: "modern:bean_bag", at: [3.3, 9.0] }
+          - { type: rug, model: "modern:rug", at: [3.2, 4.4], size: [2.0, 1.6] }
+          - { type: plant, model: "modern:yucca", at: [4.8, 5.4] }
+      - id: shower
+        name: Shower room
+        area_id: shower_room
+        rect: [0, 6.6, 2.6, 3.4]
+        floor: tile_hex
+        furniture:
+          - { type: shower, model: "modern:shower_corner", at: [0.69, 0.51] }
+          - { type: toilet, model: "modern:toilet_wall", at: [1.8, 2.765], rotation: 180 }
+          - { type: sink, model: "modern:sink_wall", at: [0.47, 1.8], rotation: 270 }
+    openings:
+      - { room: shower, side: north, at: 1.4, width: 0.7, type: door }
+  - id: roof
+    kind: roof
+    name: Roof
+    rooms: []
+    roofs:
+      - id: main
+        rect: [0, 0, 5.5, 10]
+        shape: gable
+        pitch: 45
+        offset: -1.4
+        finish: roof_slate
+        dormers: [{ side: south, at: 4.0, width: 1.6, shape: shed }]
+        windows:
+          - { side: north, at: 3.2, up: 1.6, cover: cover.roof_window, contact: binary_sensor.roof_window }
+          - { side: south, at: 1.3, up: 1.4 }

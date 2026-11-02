@@ -44,8 +44,10 @@ export function checklist(model: HouseInput, hass: Hass, levelAreas: (levelId: s
 
   // 2. blinds and contacts not linked: suggest a free window of a room in their area
   const openings = house.levels.flatMap((level) => level.openings.map((o) => ({ level: level.id, o, areaId: level.rooms.find((r) => r.id === o.room)?.areaId })));
-  const usedCovers = new Set([...openings.map((x) => x.o.cover), ...house.levels.flatMap((l) => l.rooms.map((r) => r.awning))].filter(Boolean));
-  const usedContacts = new Set(openings.map((x) => x.o.contact).filter(Boolean));
+  // (inside blinds and roof windows' shutters and contacts are linked too)
+  const roofWindows = [...house.roof.windows, ...house.levels.flatMap((l) => l.roofs.flatMap((p) => p.windows))];
+  const usedCovers = new Set([...openings.flatMap((x) => [x.o.cover, x.o.blind]), ...house.levels.flatMap((l) => l.rooms.map((r) => r.awning)), ...roofWindows.map((w) => w.cover)].filter(Boolean));
+  const usedContacts = new Set([...openings.map((x) => x.o.contact), ...roofWindows.map((w) => w.contact)].filter(Boolean));
   const taken = new Set<string>();
   const link = (kind: "cover" | "contact", entity: string) => {
     const name = String(hass.states[entity]?.attributes.friendly_name ?? entity);

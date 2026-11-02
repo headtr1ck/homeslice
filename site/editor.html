@@ -15,18 +15,22 @@
 <script type="module" src="stand-ins.js"></script>
 </head>
 <body>
-<div id="bar">Homeslice editor demo — draw, furnish and link the demo house. Nothing is saved. <a href="index.html">Back to the card</a></div>
+<div id="bar">Homeslice editor demo — draw, furnish and link the demo house. Nothing is saved. <a href="index.html" id="back">Back to the card</a></div>
 <div id="root"></div>
 <script type="module">
   import { makeHass } from "./fake-hass.js";
   await import("./stand-ins.js");
   await import("./frontend/homeslice-editor.js");
-  const fixture = await (await fetch("demo.json")).json();
+  // the house picked on the card's page (?house=detached), else the showcase
+  const asked = new URLSearchParams(location.search).get("house");
+  const house = /^[a-z]+$/.test(asked ?? "") ? asked : null;
+  const fixture = await (await fetch(house ? `houses/${house}.json` : "demo.json")).json();
   await customElements.whenDefined("homeslice-panel");
   const panel = document.createElement("homeslice-panel");
   panel.style.cssText = "display:flex;height:calc(100vh - 30px)";
   document.getElementById("root").append(panel);
   panel.hass = makeHass(fixture, (h) => (panel.hass = h));
+  if (house) document.getElementById("back").href = `index.html?house=${house}`;
 </script>
 </body>
 </html>

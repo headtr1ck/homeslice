@@ -29,23 +29,34 @@
 <body>
 <header>
   <h1>Homeslice <small>a 3D floor plan for Home Assistant — live demo</small></h1>
-  <nav><a href="editor.html">Open the editor</a> · <a href="https://github.com/headtr1ck/homeslice">GitHub</a></nav>
+  <nav><a href="editor.html" id="editor">Open the editor</a> · <a href="https://github.com/headtr1ck/homeslice">GitHub</a></nav>
 </header>
 <main>
+  <div class="controls" id="houses"></div>
   <div class="controls" id="controls"></div>
   <div id="card"></div>
-  <p class="note">A demo house on a pretend Home Assistant: tap a room, switch lamps (drag to dim), turn the house, pick a floor. Nothing here is saved or sent anywhere.</p>
+  <p class="note">Demo houses on a pretend Home Assistant: tap a room, switch lamps (drag to dim), turn the house, pick a floor. Nothing here is saved or sent anywhere.</p>
 </main>
 <script type="module">
   import { makeHass } from "./fake-hass.js";
   await import("./stand-ins.js");
   await import("./frontend/homeslice-app.js");
-  const fixture = await (await fetch("demo.json")).json();
+  // the houses to pick from: their file and how the camera first looks at them
+  const houses = {
+    showcase: ["Showcase", "demo.json", {}],
+    detached: ["Detached house", "houses/detached.json", { roof: true }],
+    apartment: ["Apartment", "houses/apartment.json", {}],
+    terraced: ["Terraced house", "houses/terraced.json", { azimuth: 240, roof: true }],
+  };
+  let house = new URLSearchParams(location.search).get("house");
+  if (!houses[house]) house = "showcase";
+  const load = async (id) => (await fetch(houses[id][1])).json();
+  let fixture = await load(house);
   await customElements.whenDefined("homeslice-card");
   let card;
   let hass;
   const base = { type: "custom:homeslice-card", interactive: true, weather: "weather.home", view: { azimuth: 200, elevation: 38, furniture: "detailed" } };
-  let config = { ...base };
+  let config = { ...base, view: { ...base.view, ...houses[house][2] } };
   const mount = () => {
     const el = document.createElement("homeslice-card");
     el.setConfig(config);
@@ -76,6 +87,28 @@
       ["Snow", () => setState("weather.home", "snowy")],
     ] },
   ];
+  // the house picker: a new pretend Home Assistant with that house, the look and view kept
+  const picker = document.getElementById("houses");
+  const editorLink = document.getElementById("editor");
+  const pick = async (id) => {
+    house = id;
+    for (const b of picker.querySelectorAll("button")) b.classList.toggle("on", b.dataset.house === id);
+    editorLink.href = id === "showcase" ? "editor.html" : `editor.html?house=${id}`;
+    history.replaceState(null, "", id === "showcase" ? location.pathname : `?house=${id}`);
+    fixture = await load(id);
+    hass = undefined;
+    card = undefined;
+    config = { ...config, level: undefined, view: { ...base.view, ...houses[id][2] } };
+    mount();
+    if (config.look === "night") setState("sun.sun", "below_horizon", { elevation: -15 });
+  };
+  for (const [id, [label]] of Object.entries(houses)) {
+    const b = Object.assign(document.createElement("button"), { textContent: label, onclick: () => id !== house && pick(id) });
+    b.dataset.house = id;
+    b.classList.toggle("on", id === house);
+    picker.append(b);
+  }
+  if (house !== "showcase") editorLink.href = `editor.html?house=${house}`;
   const controls = document.getElementById("controls");
   groups.forEach((g, gi) => {
     if (gi) controls.append(Object.assign(document.createElement("span"), { className: "sep" }));
