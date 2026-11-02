@@ -1771,5 +1771,6 @@
   "editor.tool_balcony": "Disegna un balcone o una terrazza (B)",
   "editor.tool_railing": "Disegna una ringhiera (G)",
   "editor.terrace": "Terrazza",
-  "editor.add_roof": "Tetto"
+  "editor.add_roof": "Tetto",
+  "editor.arriving": "{name} sta arrivando: download in Home Assistant"
 }

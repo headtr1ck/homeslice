@@ -1771,5 +1771,6 @@
   "editor.tool_balcony": "Balkon of terras tekenen (B)",
   "editor.tool_railing": "Balustrade tekenen (G)",
   "editor.terrace": "Terras",
-  "editor.add_roof": "Dak"
+  "editor.add_roof": "Dak",
+  "editor.arriving": "{name} komt eraan: wordt in Home Assistant gedownload"
 }

@@ -1771,5 +1771,6 @@
   "editor.tool_balcony": "Narysuj balkon lub taras (B)",
   "editor.tool_railing": "Narysuj balustradę (G)",
   "editor.terrace": "Taras",
-  "editor.add_roof": "Dach"
+  "editor.add_roof": "Dach",
+  "editor.arriving": "{name} w drodze: pobieranie do Home Assistant"
 }

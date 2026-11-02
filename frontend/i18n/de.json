@@ -1771,5 +1771,6 @@
   "editor.tool_balcony": "Balkon oder Terrasse zeichnen (B)",
   "editor.tool_railing": "Geländer zeichnen (G)",
   "editor.terrace": "Terrasse",
-  "editor.add_roof": "Dach"
+  "editor.add_roof": "Dach",
+  "editor.arriving": "{name} kommt: wird in Home Assistant heruntergeladen"
 }

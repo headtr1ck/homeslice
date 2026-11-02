@@ -1771,5 +1771,6 @@
   "editor.tool_balcony": "Dessiner un balcon ou une terrasse (B)",
   "editor.tool_railing": "Dessiner un garde-corps (G)",
   "editor.terrace": "Terrasse",
-  "editor.add_roof": "Toit"
+  "editor.add_roof": "Toit",
+  "editor.arriving": "{name} arrive : téléchargement dans Home Assistant"
 }

@@ -955,10 +955,14 @@ test.describe.serial("editor", () => {
       return "ok";
     }, { x: target.x + target.width / 2, y: target.y + target.height / 2 });
     assert(dropped === "ok", "the plan refused the drop");
+    // on its way: a placeholder where it was dropped, with the download size, until it is placed
+    const arriving = await page.locator("homeslice-panel g[data-arriving] text").textContent({ timeout: 2000 });
+    assert(arriving.includes("2.5 MB"), `placeholder: ${arriving}`);
     await page.waitForFunction(() => {
       const id = window.panel._customModels?.find((m) => m.uid === "free1")?.id;
       return id && window.panel._model.levels.some((l) => l.rooms.some((r) => (r.furniture ?? []).some((f) => f.model === "custom:" + id)));
     }, null, { timeout: 10000 });
+    assert((await page.locator("homeslice-panel g[data-arriving]").count()) === 0, "the placeholder stays");
     // the backup still downloads, and says the bought model is for this home only
     await page.evaluate(() => (window.panel._room = null));
     await page.locator("homeslice-panel header button[aria-label='House settings']").click();

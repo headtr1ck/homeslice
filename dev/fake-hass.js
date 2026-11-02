@@ -148,6 +148,8 @@ export function makeHass(fixture, onChange) {
         return { results: [hit("free1", `${msg.query} (free)`, "by-nc", "CC Attribution-NonCommercial"), hit("bought1", `${msg.query} (bought)`, "store", "Bought on Sketchfab")], next: null };
       }
       if (msg.type === "homeslice/sketchfab/fetch") {
+        // a download takes a moment (the editor shows a placeholder meanwhile)
+        await new Promise((resolve) => setTimeout(resolve, 600));
         const free = msg.uid === "free1";
         const added = { id: `m${uploads.length + 1}`, name: free ? "Free sofa" : "Bought sofa", url: `/homeslice_assets/custom/m${uploads.length + 1}.glb`, bytes: 1000, source: "sketchfab", uid: msg.uid, author: "Ann", licence: free ? { slug: "by-nc", label: "CC Attribution-NonCommercial", url: null } : { slug: "store", label: "Bought on Sketchfab", url: null }, shareable: free };
         uploads.push(added);

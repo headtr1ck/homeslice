@@ -1771,5 +1771,6 @@
   "editor.tool_balcony": "Draw a balcony or terrace (B)",
   "editor.tool_railing": "Draw a railing (G)",
   "editor.terrace": "Terrace",
-  "editor.add_roof": "Roof"
+  "editor.add_roof": "Roof",
+  "editor.arriving": "{name} is on its way: downloading into Home Assistant"
 }

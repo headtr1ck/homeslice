@@ -1771,5 +1771,6 @@
   "editor.tool_balcony": "Dibujar un balcón o una terraza (B)",
   "editor.tool_railing": "Dibujar una barandilla (G)",
   "editor.terrace": "Terraza",
-  "editor.add_roof": "Tejado"
+  "editor.add_roof": "Tejado",
+  "editor.arriving": "{name} está en camino: descargando en Home Assistant"
 }

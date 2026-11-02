@@ -353,6 +353,7 @@ export class HomeslicePanel extends LitElement {
     _saved: { state: true },
     _error: { state: true },
     _rectPreview: { state: true },
+    _arriving: { state: true },
     _levelDrag: { state: true },
     _wall: { state: true },
     _opening: { state: true },
@@ -424,6 +425,8 @@ export class HomeslicePanel extends LitElement {
   private _saved = "";
   private _error = "";
   private _rectPreview: Vec2[] | null = null;
+  /** A piece on its way (downloading into Home Assistant, then loading): where it will land, and what it is. */
+  private _arriving: { at: Vec2; size: Vec2; name: string; bytes?: number } | null = null;
   /** Level being dragged in the level list (display indexes, top first). */
   private _levelDrag: { id: string; from: number; over: number; startY: number; dy: number; step: number; moved: boolean } | null = null;
   /** Selected wall between two rooms: the rooms and its side as seen from `a`. */
@@ -2315,6 +2318,7 @@ export class HomeslicePanel extends LitElement {
       ${this._show.devices ? this.renderRobotMarkers() : nothing}
       ${selPoly.length ? this.renderHandles(selPoly, selected ? this.inner(selected, walls) : selPoly) : nothing}
       ${this._rectPreview ? svg`<polygon class="rect-preview" points=${pts(this._rectPreview)}></polygon>` : nothing}
+      ${this.renderArriving()}
       ${this._linePreview ? svg`<polyline class="line-preview" points=${pts(this._linePreview)}></polyline>` : nothing}
       ${this._opening ? this.renderOpeningDims(walls) : nothing}
       ${this._measure ? this.renderMeasure(this._measure) : nothing}
@@ -4836,6 +4840,38 @@ export class HomeslicePanel extends LitElement {
 
   /** Adds a piece where it was dropped (wall pieces go against the nearest wall) and selects it. */
   private async addFurnitureAt(item: LibraryItem, world: Vec2, roomId?: string) {
+    // a model still to download or load: a placeholder where it will land meanwhile
+    const remote = /^(sketchfab|polyhaven|custom):/.test(item.model);
+    if (remote) {
+      if (this._arriving) return;
+      const hit = item.model.startsWith("sketchfab:") ? this._sfResults?.results.find((h) => h.uid === item.model.slice(10)) : undefined;
+      this._arriving = { at: world, size: item.size ?? [0.8, 0.8], name: item.name ?? "", bytes: hit?.bytes ?? undefined };
+    }
+    try {
+      await this.placeFurniture(item, world, roomId);
+    } finally {
+      if (remote) this._arriving = null;
+    }
+  }
+
+  /** The placeholder of a piece on its way: its footprint (or a guess), a spinner, its name and download size. */
+  private renderArriving() {
+    const a = this._arriving;
+    if (!a) return nothing;
+    const [x, y] = this.toScreen(a.at);
+    const w = Math.max(24, a.size[0] * this._view.scale);
+    const h = Math.max(24, a.size[1] * this._view.scale);
+    const r = Math.min(w, h, 40) / 3;
+    const label = a.bytes ? `${a.name} · ${(a.bytes / 1e6).toFixed(1)} MB` : a.name;
+    return svg`<g class="arriving" data-arriving>
+      <rect x=${x - w / 2} y=${y - h / 2} width=${w} height=${h} rx="4"></rect>
+      <circle class="spinner" cx=${x} cy=${y} r=${r} style=${`transform-origin: ${x}px ${y}px`}></circle>
+      <text x=${x} y=${y + h / 2 + 14} text-anchor="middle">${label}</text>
+      <title>${this.t("editor.arriving", { name: a.name })}</title>
+    </g>`;
+  }
+
+  private async placeFurniture(item: LibraryItem, world: Vec2, roomId?: string) {
     // a Sketchfab model: into Home Assistant first (once), then placed like an upload
     if (item.model.startsWith("sketchfab:")) {
       const stored = await this.sketchfabModel(item.model.slice(10));
@@ -5879,6 +5915,32 @@ export class HomeslicePanel extends LitElement {
       touch-action: none;
       user-select: none;
       cursor: grab;
+    }
+    g.arriving rect {
+      fill: color-mix(in srgb, var(--primary-color) 12%, transparent);
+      stroke: var(--primary-color);
+      stroke-width: 1.5;
+      stroke-dasharray: 5 4;
+    }
+    g.arriving .spinner {
+      fill: none;
+      stroke: var(--primary-color);
+      stroke-width: 3;
+      stroke-linecap: round;
+      stroke-dasharray: 40 100;
+      animation: arriving-spin 0.9s linear infinite;
+    }
+    g.arriving text {
+      font-size: 12px;
+      fill: var(--primary-text-color);
+      paint-order: stroke;
+      stroke: var(--card-background-color, #fff);
+      stroke-width: 3px;
+    }
+    @keyframes arriving-spin {
+      to {
+        transform: rotate(360deg);
+      }
     }
     svg.plan.tool-rect,
     svg.plan.tool-balcony,
