@@ -155,6 +155,33 @@ export function makeHass(fixture, onChange) {
         uploads.push(added);
         return structuredClone(added);
       }
+      // the start screen kept "in Home Assistant", and maps caught live (a picture fetched when the map shows)
+      if (msg.type?.startsWith("homeslice/start")) {
+        const st = (fixture.start ??= { state: null, captures: {}, watches: {} });
+        const grab = async (floor, map) => {
+          const blob = await (await fetch(states[map].attributes.entity_picture)).blob();
+          const data = await new Promise((r) => {
+            const f = new FileReader();
+            f.onload = () => r(String(f.result));
+            f.readAsDataURL(blob);
+          });
+          st.captures[floor] = { source: map, data, at: Date.now() / 1000, done: false };
+        };
+        fixture.startGrab = grab;
+        if (msg.type === "homeslice/start/set") st.state = structuredClone(msg.state);
+        else if (msg.type === "homeslice/start/clear") fixture.start = { state: null, captures: {}, watches: {} };
+        else if (msg.type === "homeslice/start/watch") {
+          st.watches[msg.floor] = { map: msg.map, robot: null, since: Date.now() / 1000 };
+          if (!["unknown", "unavailable"].includes(states[msg.map]?.state)) await grab(msg.floor, msg.map);
+        } else if (msg.type === "homeslice/start/stop") {
+          delete st.watches[msg.floor];
+          if (msg.drop) delete st.captures[msg.floor];
+        } else if (msg.type === "homeslice/start/capture") {
+          await grab(msg.floor, msg.map);
+          st.captures[msg.floor].done = true;
+        }
+        return structuredClone(fixture.start);
+      }
       if (msg.type === "homeslice/assets/custom") return structuredClone(uploads);
       if (msg.type === "homeslice/assets/custom/upload") {
         if (!msg.data.startsWith("data:")) throw new Error("Upload a .glb file (binary glTF)");
@@ -254,6 +281,8 @@ export function makeHass(fixture, onChange) {
     /** Demo and test helper: what an entity's state changing in HA does. */
     setState(id, state, attributes = {}) {
       states = { ...states, [id]: { entity_id: id, ...states[id], state, attributes: { ...states[id]?.attributes, ...attributes } } };
+      // a map being watched shows: its picture is caught (as the integration does)
+      for (const [floor, w] of Object.entries(fixture.start?.watches ?? {})) if (w.map === id && !["unknown", "unavailable"].includes(state)) void fixture.startGrab?.(floor, id);
       onChange(snapshot());
     },
   };

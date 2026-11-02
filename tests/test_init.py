@@ -625,3 +625,59 @@ async def test_backup_is_admin_only(hass: HomeAssistant, setup, hass_ws_client, 
     client = await hass_ws_client(hass, hass_read_only_access_token)
     await client.send_json_auto_id({"type": "homeslice/backup"})
     assert not (await client.receive_json())["success"]
+
+
+async def test_start_screen_kept_and_a_robot_map_caught_live(hass: HomeAssistant, setup, hass_ws_client, hass_read_only_access_token, monkeypatch: pytest.MonkeyPatch) -> None:
+    from homeassistant.components.image import Image
+    from homeassistant.helpers import device_registry as dr, entity_registry as er
+
+    client = await hass_ws_client(hass)
+    # the start screen as it was left: back as it was (after the user went elsewhere)
+    await client.send_json_auto_id({"type": "homeslice/start/set", "state": {"name": "Home", "open": "robot"}})
+    assert (await client.receive_json())["success"]
+    await client.send_json_auto_id({"type": "homeslice/start"})
+    assert (await client.receive_json())["result"]["state"] == {"name": "Home", "open": "robot"}
+
+    # a robot with a map that shows only while it works
+    robo = MockConfigEntry(domain="roborock")
+    robo.add_to_hass(hass)
+    device = dr.async_get(hass).async_get_or_create(config_entry_id=robo.entry_id, identifiers={("roborock", "q10")}, name="Q10")
+    reg = er.async_get(hass)
+    reg.async_get_or_create("vacuum", "roborock", "q10", device_id=device.id, suggested_object_id="q10")
+    reg.async_get_or_create("image", "roborock", "q10_map", device_id=device.id, suggested_object_id="q10_map")
+    hass.states.async_set("vacuum.q10", "docked")
+    hass.states.async_set("image.q10_map", "unknown")
+    pictures = iter([b"\x89PNG first", b"\x89PNG second", b"\x89PNG last"])
+
+    async def fake_get_image(hass: HomeAssistant, entity_id: str, timeout: int = 10) -> Image:
+        assert entity_id == "image.q10_map"
+        return Image("image/png", next(pictures))
+
+    monkeypatch.setattr("homeassistant.components.image.async_get_image", fake_get_image)
+    await client.send_json_auto_id({"type": "homeslice/start/watch", "floor": "first_floor", "map": "image.q10_map"})
+    got = (await client.receive_json())["result"]
+    assert got["watches"]["first_floor"]["robot"] == "vacuum.q10" and "first_floor" not in got["captures"]
+    # it sets off: its map shows and grows; each new picture is kept (a moment after it changes)
+    hass.states.async_set("vacuum.q10", "cleaning")
+    hass.states.async_set("image.q10_map", "2026-11-02T10:00:00")
+    async_fire_time_changed(hass, dt_util.utcnow() + timedelta(seconds=6))
+    await hass.async_block_till_done()
+    await client.send_json_auto_id({"type": "homeslice/start"})
+    got = (await client.receive_json())["result"]
+    assert got["captures"]["first_floor"]["data"] == "data:image/png;base64," + base64.b64encode(b"\x89PNG first").decode() and not got["captures"]["first_floor"]["done"]
+    # home again: its last picture is the floor's map; the watch ends, the map going away changes nothing
+    hass.states.async_set("vacuum.q10", "docked")
+    await hass.async_block_till_done()
+    hass.states.async_set("image.q10_map", "unknown")
+    await client.send_json_auto_id({"type": "homeslice/start"})
+    got = (await client.receive_json())["result"]
+    assert got["watches"] == {} and got["captures"]["first_floor"]["done"]
+    assert base64.b64decode(got["captures"]["first_floor"]["data"].split(",", 1)[1]) == b"\x89PNG second"
+    # admins only; the house made: all of it goes
+    viewer = await hass_ws_client(hass, hass_read_only_access_token)
+    await viewer.send_json_auto_id({"type": "homeslice/start"})
+    assert not (await viewer.receive_json())["success"]
+    await client.send_json_auto_id({"type": "homeslice/start/clear"})
+    assert (await client.receive_json())["success"]
+    await client.send_json_auto_id({"type": "homeslice/start"})
+    assert (await client.receive_json())["result"] == {"state": None, "captures": {}, "watches": {}}

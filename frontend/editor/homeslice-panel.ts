@@ -277,14 +277,22 @@ interface StartState {
   open: "ai" | "robot" | "file" | null;
   images: { name: string; data: string }[];
   withMaps: boolean;
-  /** Robot map picture → the floor it shows. */
-  mapFloors: Record<string, string>;
+  /** Floor → the robot map picture its rooms come from ("" none). */
+  floorMaps: Record<string, string>;
+  /** The floor whose live map catching is shown. */
+  capture: { floor: string; map: string } | null;
   aiEntity: string;
   busy: boolean;
   paste: string;
   problems: string[];
   note: string;
   copied: boolean;
+}
+
+/** What Home Assistant keeps of a start: robot maps caught (by floor), the watches running. */
+interface StartKept {
+  captures: Record<string, { source: string; data: string; at: number; done: boolean }>;
+  watches: Record<string, { map: string; robot: string | null; since: number }>;
 }
 
 /** A stored house, as the integration lists it (with the version a restore brings back). */
@@ -406,6 +414,7 @@ export class HomeslicePanel extends LitElement {
     _loupe: { state: true },
     _create: { state: true },
     _start: { state: true },
+    _startKept: { state: true },
     _startNext: { state: true },
     _pendingArea: { state: true },
     _stair: { state: true },
@@ -507,6 +516,10 @@ export class HomeslicePanel extends LitElement {
   private _create: { name: string; width: number; depth: number; floors: string[]; rooms: boolean; merges: Record<string, string> } | null = null;
   /** The start screen (a new house, or starting this one over): its choices and what they hold. */
   private _start: StartState | null = null;
+  /** What Home Assistant keeps of the start: maps caught (by floor) and the watches running. */
+  private _startKept: StartKept = { captures: {}, watches: {} };
+  private startSaveTimer?: number;
+  private startPollTimer?: number;
   /** After a start: the next step, shown over the plan until dismissed. */
   private _startNext: string | null = null;
   /** The current level's floor plan image (loaded from HA), if any. */
@@ -674,6 +687,9 @@ export class HomeslicePanel extends LitElement {
 
   override disconnectedCallback() {
     super.disconnectedCallback();
+    // leaving the editor: the start is kept as it is right now
+    if (this.startSaveTimer !== undefined) this.saveStart();
+    clearTimeout(this.startPollTimer);
     window.removeEventListener("beforeunload", this.onBeforeUnload);
     window.removeEventListener("keydown", this.onKey);
     clearTimeout(this.hassRefresh);
@@ -691,8 +707,11 @@ export class HomeslicePanel extends LitElement {
     try {
       this._houses = await this._hass!.callWS<HouseSummary[]>({ type: "homeslice/houses" });
       this.housesLoaded = true;
+      // a start left half way (gone to Settings to reload the robot's integration, say): back where it was
+      const kept = await this.loadStart();
       if (this._houses.length) await this.openHouse(this._houses[0].id);
-      else this._start = this.newStart(false);
+      if (kept?.state) this._start = { ...this.newStart(!!kept.state.replace), ...kept.state, busy: false, note: "", problems: [], copied: false } as StartState;
+      else if (!this._houses.length) this._start = this.newStart(false);
     } catch (e) {
       this._error = String((e as { message?: string }).message ?? e);
     }
@@ -710,7 +729,8 @@ export class HomeslicePanel extends LitElement {
       open: null,
       images: [],
       withMaps: maps.length > 0,
-      mapFloors: Object.fromEntries(maps.filter((m) => m.floor).map((m) => [m.id, m.floor!])),
+      floorMaps: Object.fromEntries(this.haFloors().map((f) => [f.floor_id, maps.find((m) => m.live && m.scale && m.floor === f.floor_id)?.id ?? ""])),
+      capture: null,
       aiEntity: this.aiEntities()[0]?.id ?? "",
       busy: false,
       paste: "",
@@ -722,6 +742,40 @@ export class HomeslicePanel extends LitElement {
 
   private setStart(patch: Partial<StartState>) {
     this._start = { ...(this._start ?? this.newStart(false)), ...patch };
+    // kept in Home Assistant, so the start goes on where it was left (any page, any device)
+    clearTimeout(this.startSaveTimer);
+    this.startSaveTimer = window.setTimeout(() => this.saveStart(), 600);
+  }
+
+  private saveStart() {
+    clearTimeout(this.startSaveTimer);
+    this.startSaveTimer = undefined;
+    const st = this._start;
+    if (!st) return;
+    const { busy: _b, note: _n, problems: _p, copied: _c, ...keep } = st;
+    void this._hass?.callWS({ type: "homeslice/start/set", state: keep }).catch(() => undefined);
+  }
+
+  /** What Home Assistant keeps of the start; polled while a robot's map is being watched. */
+  private async loadStart(): Promise<{ state: Partial<StartState> | null } | null> {
+    try {
+      const got = await this._hass!.callWS<{ state: Partial<StartState> | null } & StartKept>({ type: "homeslice/start" });
+      this._startKept = { captures: got.captures ?? {}, watches: got.watches ?? {} };
+      clearTimeout(this.startPollTimer);
+      if (Object.keys(this._startKept.watches).length) this.startPollTimer = window.setTimeout(() => void this.loadStart(), this._start ? 5000 : 30000);
+      return got;
+    } catch {
+      return null;
+    }
+  }
+
+  /** The start is over (a house made, or cancelled): nothing of it is kept. */
+  private endStart() {
+    clearTimeout(this.startSaveTimer);
+    this.startSaveTimer = undefined;
+    clearTimeout(this.startPollTimer);
+    this._startKept = { captures: {}, watches: {} };
+    void this._hass?.callWS({ type: "homeslice/start/clear" }).catch(() => undefined);
   }
 
   /** AI Task entities (an AI connected to Home Assistant), those taking pictures first. */
@@ -734,11 +788,27 @@ export class HomeslicePanel extends LitElement {
   }
 
   /** Robot map pictures: their robot, scale (if known) and the floor they seem to show. */
-  private startMaps(): { id: string; name: string; scale: number | null; floor?: string }[] {
+  private startMaps(): { id: string; name: string; scale: number | null; floor?: string; live: boolean }[] {
     const floors = this.haFloors();
+    const states = this._hass?.states ?? {};
     return this.robotMaps().map((id) => {
       const name = this.entityName(id);
-      return { id, name, scale: mapScale(this._hass?.entities?.[id]?.platform), floor: mapFloor(`${name} ${id.replace(/_/g, " ")}`, floors) };
+      // some robots show their map only while they work (it is "unknown" in between)
+      const live = !["unknown", "unavailable"].includes(states[id]?.state ?? "unknown");
+      return { id, name, scale: mapScale(this._hass?.entities?.[id]?.platform), floor: mapFloor(`${name} ${id.replace(/_/g, " ")}`, floors), live };
+    });
+  }
+
+  /** A map picture as it is now, in its own colours (a data URL). */
+  private async grabMap(id: string): Promise<string> {
+    const url = this._hass?.states[id]?.attributes.entity_picture as string | undefined;
+    if (!url) throw new Error(this.t("editor.start_capture_none"));
+    const blob = await (await fetch(url)).blob();
+    return await new Promise<string>((resolve, reject) => {
+      const r = new FileReader();
+      r.onload = () => resolve(String(r.result));
+      r.onerror = () => reject(r.error);
+      r.readAsDataURL(blob);
     });
   }
 
@@ -772,6 +842,7 @@ export class HomeslicePanel extends LitElement {
     this._model = null;
     this._saved = "";
     this._start = null;
+    this.endStart();
     await this.openHouse(id);
     this._startNext = next;
     return id;
@@ -788,11 +859,17 @@ export class HomeslicePanel extends LitElement {
   private async startPrompt(st: StartState, attached: boolean): Promise<string> {
     const { guide } = await this._hass!.callWS<{ guide: string }>({ type: "homeslice/guide" });
     const notes: MapNote[] = [];
-    if (st.withMaps)
-      for (const m of this.startMaps()) {
-        const floor = st.mapFloors[m.id] ?? m.floor;
-        notes.push({ name: m.name, ...(floor ? { floor } : {}), scale: m.scale, rooms: await this.robotRoomNames(m.id) });
+    if (st.withMaps) {
+      const maps = this.startMaps();
+      for (const [floor, id] of Object.entries(st.floorMaps)) {
+        const m = maps.find((x) => x.id === id && x.live);
+        if (m) notes.push({ name: m.name, floor, scale: m.scale, rooms: await this.robotRoomNames(m.id) });
       }
+      for (const [floor, c] of Object.entries(this._startKept.captures)) {
+        const m = maps.find((x) => x.id === c.source);
+        notes.push({ name: this.entityName(c.source), floor, scale: m?.scale ?? null, rooms: await this.robotRoomNames(c.source) });
+      }
+    }
     const pictures = st.images.length || (st.withMaps && notes.length);
     return [
       this.t("editor.ai_prompt_intro"),
@@ -842,7 +919,11 @@ export class HomeslicePanel extends LitElement {
     try {
       const attachments: { media_content_id: string; media_content_type: string }[] = [];
       for (const img of st.images) attachments.push({ media_content_id: await this.uploadMedia(img.name, img.data), media_content_type: img.data.slice(5, img.data.indexOf(";")) || "image/jpeg" });
-      if (st.withMaps) for (const m of this.startMaps()) attachments.push({ media_content_id: `media-source://image/${m.id}`, media_content_type: "image/png" });
+      if (st.withMaps) {
+        const live = new Set(this.startMaps().filter((m) => m.live).map((m) => m.id));
+        for (const id of Object.values(st.floorMaps)) if (id && live.has(id)) attachments.push({ media_content_id: `media-source://image/${id}`, media_content_type: "image/png" });
+        for (const c of Object.values(this._startKept.captures)) attachments.push({ media_content_id: await this.uploadMedia(`${c.source}.png`, c.data), media_content_type: "image/png" });
+      }
       const instructions = await this.startPrompt(st, true);
       const res = (await this._hass!.callService("ai_task", "generate_data", { task_name: "Homeslice house", entity_id: st.aiEntity, instructions, ...(attachments.length ? { attachments } : {}) }, undefined, false, true)) as { response?: { data?: unknown } };
       const data = res?.response?.data;
@@ -858,8 +939,18 @@ export class HomeslicePanel extends LitElement {
   private async startFromMaps(st: StartState) {
     this.setStart({ busy: true, note: this.t("editor.start_maps_working"), problems: [] });
     try {
-      const maps = this.startMaps().filter((m) => m.scale && (st.mapFloors[m.id] ?? m.floor));
-      const floorOf = (m: (typeof maps)[number]) => st.mapFloors[m.id] ?? m.floor!;
+      const all = this.startMaps();
+      // per floor: a map caught live, else the map picture chosen for it
+      const caught = this._startKept.captures;
+      const maps = Object.keys({ ...st.floorMaps, ...caught })
+        .map((floor) => {
+          const c = caught[floor];
+          const id = c?.source ?? st.floorMaps[floor];
+          const m = all.find((x) => x.id === id);
+          return m?.scale && (c || m.live) ? { ...m, floor, data: c?.data } : null;
+        })
+        .filter((m): m is NonNullable<typeof m> => !!m);
+      const floorOf = (m: (typeof maps)[number]) => m.floor!;
       const mapped = new Set(maps.map(floorOf));
       const model = newHouse("home", "", [10, 8], this.floorSeeds((f) => !mapped.has(f)));
       const { roomsFromMap } = await import("../import/robotmap");
@@ -870,8 +961,7 @@ export class HomeslicePanel extends LitElement {
         const level = m.levels.find((l) => l.floor_id === floorOf(map) || l.include_floors?.includes(floorOf(map)));
         if (!level) continue;
         level.rooms = [];
-        const url = this._hass!.states[map.id]?.attributes.entity_picture as string;
-        const blob = await (await fetch(url)).blob();
+        const blob = await (await fetch(map.data ?? (await this.grabMap(map.id)))).blob();
         const bitmap = await createImageBitmap(blob);
         const canvas = document.createElement("canvas");
         canvas.width = bitmap.width;
@@ -963,7 +1053,6 @@ export class HomeslicePanel extends LitElement {
     const areas = Object.keys(this._hass?.areas ?? {}).length;
     const ai = this.aiEntities();
     const maps = this.startMaps();
-    const usable = maps.filter((m) => m.scale);
     const box = (key: string, icon: string, badge: string, found: unknown, body: unknown, act: () => void, open = false, grey = false) => html`<section class="start-box ${open ? "open" : ""} ${grey ? "grey" : ""}" data-start=${key}>
         <button class="start-head" ?disabled=${grey || st.busy} @click=${act} aria-expanded=${open}>
           <ha-icon icon=${icon}></ha-icon>
@@ -1019,18 +1108,90 @@ export class HomeslicePanel extends LitElement {
       <textarea class="yaml" rows="6" spellcheck="false" data-start-paste .value=${st.paste} @input=${(e: Event) => this.setStart({ paste: (e.target as HTMLTextAreaElement).value, problems: [] })}></textarea>
       ${problems}
       <button class="primary" data-start-paste-use ?disabled=${!st.paste.trim() || st.busy} @click=${() => void this.startFromYaml(st.paste)}>${this.t("editor.start_ai_use")}</button>`;
+    const ready = maps.filter((m) => m.live && m.scale);
+    const liveOnly = maps.filter((m) => !m.live && m.scale);
+    const robotName = (m: (typeof maps)[number]) => this.entityName(Object.values(this._hass?.entities ?? {}).find((e) => e.entity_id.startsWith("vacuum.") && e.device_id === this._hass?.entities?.[m.id]?.device_id)?.entity_id ?? m.id);
+    const kept = this._startKept;
+    const chosen = (f: string) => !!kept.captures[f] || !!st.floorMaps[f];
+    const cap = st.capture;
+    const capMap = cap ? maps.find((m) => m.id === cap.map) : undefined;
+    const floorName = (id: string) => floors.find((f) => f.floor_id === id)?.name ?? id;
     const robotBody = html`
-      ${maps.map(
-        (m) => html`<label class="start-map">${m.name}
-          <select data-start-map=${m.id} ?disabled=${!m.scale} @change=${(e: Event) => this.setStart({ mapFloors: { ...st.mapFloors, [m.id]: (e.target as HTMLSelectElement).value } })}>
-            <option value="">${this.t("editor.start_map_skip")}</option>
-            ${floors.map((f) => html`<option value=${f.floor_id} ?selected=${(st.mapFloors[m.id] ?? m.floor) === f.floor_id}>${f.name}</option>`)}
-          </select>
-          ${m.scale ? nothing : html`<span class="muted">${this.t("editor.start_map_scale_unknown")}</span>`}
-        </label>`,
-      )}
+      <p class="muted">${this.t("editor.start_robot_floors")}</p>
+      ${floors.map((f) => {
+        const c = kept.captures[f.floor_id];
+        const watching = kept.watches[f.floor_id];
+        return html`<div class="start-floor" data-start-floor=${f.floor_id}>
+          <span class="start-floor-name">${f.name}</span>
+          ${watching
+            ? html`<span class="start-floor-map"><ha-icon icon="mdi:radar"></ha-icon>${this.t("editor.start_capture_watching", { robot: this.entityName(watching.robot ?? watching.map) })}
+                <button class="link" @click=${() => this.setStart({ capture: { floor: f.floor_id, map: watching.map } })}>${this.t("editor.start_capture_show")}</button></span>`
+            : c
+            ? html`<span class="start-floor-map"><ha-icon icon="mdi:check"></ha-icon>${this.t("editor.start_capture_kept", { map: this.entityName(c.source) })}
+                <button class="link" @click=${async () => {
+                  await this._hass!.callWS({ type: "homeslice/start/stop", floor: f.floor_id, drop: true });
+                  await this.loadStart();
+                }}>${this.t("editor.light_remove")}</button></span>`
+            : html`<select data-start-map=${f.floor_id} @change=${(e: Event) => this.setStart({ floorMaps: { ...st.floorMaps, [f.floor_id]: (e.target as HTMLSelectElement).value } })}>
+                <option value="">${this.t("editor.start_map_none")}</option>
+                ${ready.map((m) => html`<option value=${m.id} ?selected=${st.floorMaps[f.floor_id] === m.id}>${m.name}</option>`)}
+              </select>`}
+          ${chosen(f.floor_id)
+            ? nothing
+            : html`<div class="start-floor-help muted">
+                ${ready.length ? html`<span>${this.t("editor.start_floor_carry", { robot: robotName(ready[0]), floor: f.name })}</span>` : nothing}
+                ${liveOnly.map(
+                  (m) => html`<button data-start-capture=${f.floor_id} @click=${async () => {
+                    // Home Assistant watches the map from now on (with the editor closed too)
+                    await this._hass!.callWS({ type: "homeslice/start/watch", floor: f.floor_id, map: m.id });
+                    await this.loadStart();
+                    this.setStart({ capture: { floor: f.floor_id, map: m.id } });
+                  }}>
+                    ${this.t("editor.start_capture_start", { robot: robotName(m) })}</button>`,
+                )}
+              </div>`}
+        </div>`;
+      })}
+      ${cap && capMap
+        ? html`<div class="start-capture" data-start-capture-panel>
+            <h4>${this.t("editor.start_capture_title", { robot: robotName(capMap), floor: floorName(cap.floor) })}</h4>
+            <ol>
+              <li>${this.t("editor.start_capture_1", { floor: floorName(cap.floor) })}</li>
+              <li>${this.t("editor.start_capture_2")}</li>
+              <li>${this.t("editor.start_capture_3")}</li>
+            </ol>
+            <p class="muted">${this.t("editor.start_capture_away")}</p>
+            ${kept.captures[cap.floor]
+              ? html`<img class="start-live" alt="" src=${kept.captures[cap.floor].data} />
+                  <p class="muted">${this.t("editor.start_capture_latest", { time: new Date(kept.captures[cap.floor].at * 1000).toLocaleTimeString() })}</p>`
+              : capMap.live
+                ? html`<img class="start-live" alt="" src=${String(this._hass?.states[capMap.id]?.attributes.entity_picture ?? "")} />`
+                : html`<p class="notice">${this.t("editor.start_capture_waiting", { robot: robotName(capMap) })}</p>`}
+            <div class="row">
+              <button class="primary" data-start-capture-keep ?disabled=${(!capMap.live && !kept.captures[cap.floor]) || st.busy} @click=${async () => {
+                try {
+                  // done: as it is now (if it is showing), else the last picture caught
+                  if (capMap.live) await this._hass!.callWS({ type: "homeslice/start/capture", floor: cap.floor, map: capMap.id });
+                  await this._hass!.callWS({ type: "homeslice/start/stop", floor: cap.floor });
+                  await this.loadStart();
+                  this.setStart({ capture: null });
+                } catch (e) {
+                  this.setStart({ note: String((e as { message?: string }).message ?? e) });
+                }
+              }}>${this.t("editor.start_capture_keep")}</button>
+              <button @click=${async () => {
+                await this._hass!.callWS({ type: "homeslice/start/stop", floor: cap.floor, drop: !kept.captures[cap.floor]?.done });
+                await this.loadStart();
+                this.setStart({ capture: null });
+              }}>${this.t("editor.start_capture_stop")}</button>
+              <button @click=${() => this.setStart({ capture: null })}>${this.t("editor.start_capture_hide")}</button>
+            </div>
+          </div>`
+        : nothing}
+      ${ready.length ? html`<p class="muted">${this.t("editor.start_recheck")}</p>` : nothing}
+      ${maps.some((m) => !m.scale) ? html`<p class="muted">${this.t("editor.start_map_scale_unknown")}</p>` : nothing}
       <p class="muted">${this.t("editor.start_robot_after")}</p>
-      <button class="primary" data-start-maps-run ?disabled=${st.busy || !usable.some((m) => st.mapFloors[m.id] ?? m.floor)} @click=${() => void this.startFromMaps(st)}>${this.t("editor.start_robot_run")}</button>`;
+      <button class="primary" data-start-maps-run ?disabled=${st.busy || !floors.some((f) => chosen(f.floor_id))} @click=${() => void this.startFromMaps(st)}>${this.t("editor.start_robot_run")}</button>`;
     const fileBody = html`<label class="file">${this.t("editor.start_file_pick")}<input type="file" accept=".zip,.yaml,.yml,.json,.sh3d,.svg" data-start-file @change=${(e: Event) => {
         const f = (e.target as HTMLInputElement).files?.[0];
         (e.target as HTMLInputElement).value = "";
@@ -1050,7 +1211,7 @@ export class HomeslicePanel extends LitElement {
         robotBody,
         toggle("robot"),
         st.open === "robot",
-        !usable.length,
+        !maps.some((m) => m.scale),
       )}
       ${box("file", "mdi:file-import-outline", "", this.t("editor.start_file_found"), fileBody, toggle("file"), st.open === "file")}
       ${box("floors", "mdi:home-floor-1", "", floors.length ? this.t("editor.start_floors_found", { floors: floors.length, areas }) : this.t("editor.no_ha_floors"), nothing, () => {
@@ -1060,7 +1221,12 @@ export class HomeslicePanel extends LitElement {
       ${box("trace", "mdi:image-outline", "", this.t("editor.start_trace_found"), nothing, () => void this.startEmpty(true))}
       ${box("empty", "mdi:pencil-ruler", this.t("editor.start_badge_control"), "", nothing, () => void this.startEmpty(false))}
       ${st.note ? html`<p class="notice" data-start-note>${st.note}</p>` : nothing}
-      ${this._model ? html`<div class="row end"><button @click=${() => (this._start = null)}>${this.t("editor.cancel")}</button></div>` : nothing}
+      ${this._model
+        ? html`<div class="row end"><button data-start-cancel @click=${() => {
+            this._start = null;
+            this.endStart();
+          }}>${this.t("editor.cancel")}</button></div>`
+        : nothing}
     </div>`;
   }
 
@@ -3044,6 +3210,13 @@ export class HomeslicePanel extends LitElement {
             }}>✓${open ? html`<span class="badge">${open}</span>` : nothing}</button>`;
         })()}
         <span class="spacer"></span>
+        ${Object.entries(this._startKept.watches).map(
+          ([floor, w]) => html`<button class="mapping-chip" data-mapping=${floor} @click=${async () => {
+            // back to the start, where it was left
+            const kept = await this.loadStart();
+            this._start = { ...this.newStart(false), ...(kept?.state ?? {}), open: "robot", capture: { floor, map: w.map }, busy: false, note: "", problems: [], copied: false } as StartState;
+          }}><ha-icon icon="mdi:radar"></ha-icon>${this.t("editor.header_mapping", { robot: this.entityName(w.robot ?? w.map), floor: this._hass?.floors?.[floor]?.name ?? floor })}</button>`,
+        )}
         <span class="spacer"></span>
         <button class="icon" title=${this.t("editor.undo")} aria-label=${this.t("editor.undo")} ?disabled=${!this.history.canUndo} @click=${() => this.undo()}>↶</button>
         <button class="icon" title=${this.t("editor.redo")} aria-label=${this.t("editor.redo")} ?disabled=${!this.history.canRedo} @click=${() => this.redo()}>↷</button>
@@ -7983,6 +8156,58 @@ export class HomeslicePanel extends LitElement {
       object-fit: cover;
       border-radius: 8px;
       display: block;
+    }
+    .mapping-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      border-radius: 16px;
+      padding: 4px 12px;
+      --mdc-icon-size: 18px;
+      border-color: var(--primary-color, #03a9f4);
+    }
+    .start-floor {
+      display: grid;
+      grid-template-columns: minmax(110px, 1fr) 2fr;
+      align-items: center;
+      gap: 6px 10px;
+      padding: 6px 0;
+      border-top: 1px solid var(--divider-color, #333);
+    }
+    .start-floor-name {
+      font-weight: 500;
+    }
+    .start-floor-map {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      --mdc-icon-size: 18px;
+    }
+    .start-floor-help {
+      grid-column: 1 / -1;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+    }
+    .start-capture {
+      border: 1px solid var(--primary-color, #03a9f4);
+      border-radius: 10px;
+      padding: 10px 12px;
+    }
+    .start-capture h4 {
+      margin: 0 0 4px;
+    }
+    .start-capture ol {
+      margin: 0 0 8px;
+      padding-left: 20px;
+    }
+    .start-live {
+      max-width: 100%;
+      max-height: 320px;
+      border-radius: 8px;
+      background: #fff;
     }
     .start-map {
       display: grid;

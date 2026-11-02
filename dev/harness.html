@@ -77,7 +77,8 @@
     panel.narrow = !!options.narrow;
     panel.style.cssText = "display:flex;height:100vh";
     document.getElementById("root").append(panel);
-    panel.hass = makeHass(fixture, (h) => (panel.hass = h));
+    // (updates go to whichever editor is open, as in Home Assistant)
+    panel.hass = makeHass(fixture, (h) => (window.panel.hass = h));
     window.panel = panel;
     await new Promise((r) => {
       const wait = () => (panel.shadowRoot?.querySelector(fixture.model ? "svg.plan .room" : ".empty button") ? r() : setTimeout(wait, 50));

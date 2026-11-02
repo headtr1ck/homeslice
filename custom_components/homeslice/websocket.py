@@ -12,6 +12,7 @@ from homeassistant.core import Event, HomeAssistant, callback
 
 from .assets import AssetError, Assets
 from .sketchfab import Sketchfab
+from .start import Start, StartError
 from .backup import BackupError, async_backup, async_restore
 from .const import DEFAULT_HOUSE, DOMAIN, SHOW_EVENT
 from .store import HomesliceStore, ModelError
@@ -34,10 +35,14 @@ def _sketchfab(hass: HomeAssistant) -> Sketchfab:
     return hass.data[DOMAIN]["sketchfab"]
 
 
+def _start(hass: HomeAssistant) -> Start:
+    return hass.data[DOMAIN]["start"]
+
+
 @callback
 def async_register_websocket(hass: HomeAssistant) -> None:
     """Register the websocket commands."""
-    for command in (ws_list, ws_get_model, ws_subscribe, ws_save, ws_delete, ws_import_files, ws_underlay_get, ws_underlay_set, ws_underlay_delete, ws_polyhaven_catalog, ws_polyhaven_fetch, ws_texture_catalog, ws_texture_fetch, ws_custom_list, ws_custom_upload, ws_custom_delete, ws_sketchfab_status, ws_sketchfab_token, ws_sketchfab_search, ws_sketchfab_fetch, ws_guide, ws_validate, ws_restore, ws_show_subscribe, ws_backup, ws_backup_restore):
+    for command in (ws_list, ws_get_model, ws_subscribe, ws_save, ws_delete, ws_import_files, ws_underlay_get, ws_underlay_set, ws_underlay_delete, ws_polyhaven_catalog, ws_polyhaven_fetch, ws_texture_catalog, ws_texture_fetch, ws_custom_list, ws_custom_upload, ws_custom_delete, ws_sketchfab_status, ws_sketchfab_token, ws_sketchfab_search, ws_sketchfab_fetch, ws_start_get, ws_start_set, ws_start_clear, ws_start_watch, ws_start_stop, ws_start_capture, ws_guide, ws_validate, ws_restore, ws_show_subscribe, ws_backup, ws_backup_restore):
         websocket_api.async_register_command(hass, command)
 
 
@@ -296,6 +301,71 @@ async def ws_custom_delete(hass: HomeAssistant, connection: websocket_api.Active
         connection.send_error(msg["id"], "invalid_id", str(err))
         return
     connection.send_result(msg["id"])
+
+
+# ----- the start screen (admins only): its choices, and robot maps caught live -----
+
+
+@websocket_api.websocket_command({vol.Required("type"): "homeslice/start"})
+@websocket_api.require_admin
+@websocket_api.async_response
+async def ws_start_get(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
+    """The start screen as it was left, the maps caught, the watches running."""
+    connection.send_result(msg["id"], await _start(hass).async_get())
+
+
+@websocket_api.websocket_command({vol.Required("type"): "homeslice/start/set", vol.Required("state"): vol.Any(dict, None)})
+@websocket_api.require_admin
+@websocket_api.async_response
+async def ws_start_set(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
+    try:
+        await _start(hass).async_set_state(msg["state"])
+    except StartError as err:
+        connection.send_error(msg["id"], "too_large", str(err))
+        return
+    connection.send_result(msg["id"])
+
+
+@websocket_api.websocket_command({vol.Required("type"): "homeslice/start/clear"})
+@websocket_api.require_admin
+@websocket_api.async_response
+async def ws_start_clear(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
+    await _start(hass).async_clear()
+    connection.send_result(msg["id"])
+
+
+FLOOR = vol.All(str, vol.Length(min=1, max=100))
+MAP = vol.Match(r"^image\.[a-z0-9_]+$")
+
+
+@websocket_api.websocket_command({vol.Required("type"): "homeslice/start/watch", vol.Required("floor"): FLOOR, vol.Required("map"): MAP})
+@websocket_api.require_admin
+@websocket_api.async_response
+async def ws_start_watch(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
+    """Keeps every new picture of a robot's map for a floor, until the robot is home."""
+    try:
+        connection.send_result(msg["id"], await _start(hass).async_watch(msg["floor"], msg["map"]))
+    except StartError as err:
+        connection.send_error(msg["id"], "invalid_map", str(err))
+
+
+@websocket_api.websocket_command({vol.Required("type"): "homeslice/start/stop", vol.Required("floor"): FLOOR, vol.Optional("drop", default=False): bool})
+@websocket_api.require_admin
+@websocket_api.async_response
+async def ws_start_stop(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
+    await _start(hass).async_stop(msg["floor"], msg["drop"])
+    connection.send_result(msg["id"], await _start(hass).async_get())
+
+
+@websocket_api.websocket_command({vol.Required("type"): "homeslice/start/capture", vol.Required("floor"): FLOOR, vol.Required("map"): MAP})
+@websocket_api.require_admin
+@websocket_api.async_response
+async def ws_start_capture(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
+    """Keeps a robot's map picture as it is now, for a floor."""
+    try:
+        connection.send_result(msg["id"], await _start(hass).async_capture(msg["floor"], msg["map"]))
+    except StartError as err:
+        connection.send_error(msg["id"], "no_map", str(err))
 
 
 # ----- Sketchfab, with the user's own token (admins only; the token never leaves Home Assistant) -----

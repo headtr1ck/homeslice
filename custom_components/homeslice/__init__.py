@@ -20,6 +20,7 @@ from homeassistant.helpers.start import async_at_started
 
 from .assets import ASSETS_URL, Assets
 from .sketchfab import Sketchfab
+from .start import Start
 from .rest_api import async_register_views
 from .llm import async_register_llm_api
 from .const import DOMAIN, FRONTEND_FILE, FRONTEND_URL, PANEL_FILE, SHOW_EVENT
@@ -46,6 +47,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     await hass.async_add_executor_job(assets.ensure_dirs)
     data["assets"] = assets
     data["sketchfab"] = Sketchfab(hass, assets)
+    # the editor's start screen, and robot maps caught live (watches go on after a restart)
+    if "start" not in data:
+        data["start"] = Start(hass)
+        await data["start"].async_setup()
     # Phase 1 kept houses as YAML files; import them on first start.
     if not store.houses:
         imported = await store.async_import_files()
