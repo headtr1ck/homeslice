@@ -1284,6 +1284,9 @@ export class HouseRenderer {
     // unit height, scaled to the closed part
     const mesh = this.wallBox(w, o.start, o.end, 0, 1, 0.06, material);
     g.add(mesh);
+    // a tap opens or closes it (or, with only a contact, shows it)
+    mesh.userData.entity = o.cover ?? o.contact;
+    this.linked.push(mesh);
     const view: CoverView = { shutter: { mesh, top, height: top - o.sill }, strip: { mesh: strip, material: strip.material as THREE.MeshLambertMaterial }, normal: w.normal, cuttable: false, closed: 1, byContact: !o.cover };
     this.covers.set(o.id, view);
     this.setCover(o.id, null);
@@ -1306,6 +1309,11 @@ export class HouseRenderer {
       const mesh = this.wallBox(w, o.start, o.end, 0, 1, SHUTTER_DEPTH, this.lambert(COLORS.shutter), outside);
       mesh.visible = false;
       g.add(mesh);
+      // a closed shutter is tapped to open it
+      if (o.cover) {
+        mesh.userData.entity = o.cover;
+        this.linked.push(mesh);
+      }
       shutter = { mesh, top, height: o.height };
     }
     this.covers.set(o.id, { shutter, strip: { mesh: strip, material: stripMaterial }, normal: w.normal, cuttable, closed: 0 });

@@ -3380,6 +3380,12 @@ export class HomesliceCard extends LitElement {
       pointer-events: none;
       animation: note-in 0.18s ease-out;
     }
+    @keyframes note-in-top {
+      from {
+        opacity: 0;
+        transform: translateY(-6px);
+      }
+    }
     @keyframes note-in {
       from {
         opacity: 0;
@@ -3659,6 +3665,16 @@ export class HomesliceCard extends LitElement {
       }
       .weather.below-clock {
         top: 100px;
+      }
+      /* what a tap did: top left, below the floors, clear of the house and the controls */
+      .note {
+        left: 8px;
+        top: 60px;
+        bottom: auto;
+        /* the clock and the weather are on the right */
+        max-width: 58%;
+        transform: none;
+        animation: note-in-top 0.18s ease-out;
       }
       .levels {
         position: static;

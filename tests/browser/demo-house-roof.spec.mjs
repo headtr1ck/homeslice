@@ -546,6 +546,19 @@ test.describe.serial("demo house, roof (2)", () => {
     assert((await door()).shutterVisible && height > 0.5 && height < 1.5, `half-open garage door: ${JSON.stringify(await door())}`);
     await act(page, () => page.evaluate(() => window.card.hass.callService("cover", "close_cover", {}, { entity_id: "cover.kitchen" })));
     assert(Math.abs((await door()).shutterHeight - 2 * height) < 0.01, `closed garage door: ${JSON.stringify(await door())}`);
+    // a tap on the closed door is a tap on its cover (the ground floor shown, nothing above it)
+    await act(page, () => page.locator("homeslice-card nav.levels button", { hasText: "Ground Floor" }).click());
+    const picked = await page.evaluate(() => {
+      const r = window.card.renderer;
+      const mesh = r.linked.find((o) => o.userData.entity === "cover.kitchen" && o.visible);
+      if (!mesh) return "no door mesh";
+      mesh.updateMatrixWorld(true);
+      mesh.geometry.computeBoundingBox();
+      const p = mesh.geometry.boundingBox.getCenter(mesh.position.clone()).applyMatrix4(mesh.matrixWorld).project(r.camera);
+      return r.pickEntity(((p.x + 1) / 2) * r.size.width, ((1 - p.y) / 2) * r.size.height);
+    });
+    assert(picked === "cover.kitchen", `picked at the garage door: ${picked}`);
+    await act(page, () => page.locator("homeslice-card nav.levels button", { hasText: "Ground Floor" }).click());
     await act(page, () => page.evaluate(() => window.card.hass.callService("cover", "open_cover", {}, { entity_id: "cover.kitchen" })));
     assert(!(await door()).shutterVisible, "open garage door still shown");
     await shot(page, "demo-garage-open");
