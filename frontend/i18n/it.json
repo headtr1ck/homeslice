@@ -1808,5 +1808,8 @@
   "editor.sub_devices": "Energia",
   "editor.sub_robots": "Robot",
   "editor.help_robots": "Aggiungi un robot dal pannello, fai clic dov'è la sua base, poi collega la sua mappa. Trascinalo per spostare la base.",
-  "editor.robots_none": "Nessun robot aspirapolvere o tosaerba in Home Assistant."
+  "editor.robots_none": "Nessun robot aspirapolvere o tosaerba in Home Assistant.",
+  "editor.same_room": "Separata da pareti, ma una stanza sola con:",
+  "editor.same_room_inside": "Dentro un'altra stanza. Un'unica stanza con essa per Home Assistant?",
+  "editor.same_room_as": "Stessa stanza di {room}"
 }

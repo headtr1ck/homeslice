@@ -1808,5 +1808,8 @@
   "editor.sub_devices": "Energia",
   "editor.sub_robots": "Roboty",
   "editor.help_robots": "Dodaj robota w panelu, kliknij miejsce jego stacji, potem połącz jego mapę. Przeciągnij, aby przesunąć stację.",
-  "editor.robots_none": "Brak robotów sprzątających i kosiarek w Home Assistant."
+  "editor.robots_none": "Brak robotów sprzątających i kosiarek w Home Assistant.",
+  "editor.same_room": "Oddzielone ścianą, ale jedno pomieszczenie z:",
+  "editor.same_room_inside": "Wewnątrz innego pomieszczenia. Dla Home Assistant jedno z nim?",
+  "editor.same_room_as": "To samo pomieszczenie co {room}"
 }

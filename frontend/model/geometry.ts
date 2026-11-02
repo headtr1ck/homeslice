@@ -199,3 +199,21 @@ export function bendEdges(pts: Vec2[], curves: { edge: number; bulge: number }[]
   });
   return out;
 }
+
+/** Whether `inner` lies wholly within `outer` (its corners inside or on the edges) and is smaller. */
+export function within(inner: Vec2[], outer: Vec2[]): boolean {
+  if (Math.abs(signedArea(inner)) >= Math.abs(signedArea(outer)) - 1e-6) return false;
+  return inner.every((p) => pointInPolygon(p, outer) || edgeDistance(p, outer) < 1e-3);
+}
+
+/** The rooms (polygons) lying inside this one: holes in its floor. */
+export function nestedIn<R extends { polygon: Vec2[] }>(room: R, rooms: R[]): R[] {
+  return rooms.filter((r) => r !== room && within(r.polygon, room.polygon));
+}
+
+/** The innermost of the polygons holding p. */
+export function innermost<R extends { polygon: Vec2[] }>(rooms: R[], p: Vec2): R | undefined {
+  let best: R | undefined;
+  for (const r of rooms) if (pointInPolygon(p, r.polygon) && (!best || Math.abs(signedArea(r.polygon)) < Math.abs(signedArea(best.polygon)))) best = r;
+  return best;
+}

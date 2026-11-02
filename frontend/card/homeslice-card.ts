@@ -6,7 +6,7 @@ import { labelPoint } from "../model/geometry";
 import { walkStep } from "../model/walk";
 import type { FurnitureMount, FurnitureType, House, Issue, Room, Vec2 } from "../model/types";
 import { defaultKind, kindTags, type Tag } from "../model/modern";
-import { listedLights, placeLights, type PlacedLight } from "../model/lights";
+import { areaLightRooms, listedLights, placeLights, type PlacedLight } from "../model/lights";
 import { deriveWalls, innerPolygon, type Wall } from "../model/walls";
 import { formatPower, readEnergy, type EnergyPrefs, type EnergyReading } from "../ha/energy";
 import { pollPosition, polledPositions, readRobot, robotAlerts, robotStatus, type RobotReading, type RobotStatus } from "../ha/robots";
@@ -2049,15 +2049,16 @@ export class HomesliceCard extends LitElement {
   private syncLamps(hass: Hass) {
     if (!this.house) return;
     const listed = listedLights(this.house);
-    const lamps = this.house.levels.flatMap((level) =>
-      level.rooms
+    const lamps = this.house.levels.flatMap((level) => {
+      const lit = areaLightRooms(level.rooms);
+      return level.rooms
         .filter((room) => room.kind !== "void")
         .flatMap((room) => {
           const floor = room.kind === "room" ? innerPolygon(room.polygon, this.walls.get(level.id) ?? []) : room.polygon;
           // indirect light washes the walls of the room's floor
-          return placeLights(level.id, room, floor, room.areaId ? areaEntities(hass, room.areaId, "light") : [], listed).map((l) => (l.type === "indirect" ? { ...l, outline: floor } : l));
-        }),
-    );
+          return placeLights(level.id, room, floor, room.areaId && lit.has(room.id) ? areaEntities(hass, room.areaId, "light") : [], listed).map((l) => (l.type === "indirect" ? { ...l, outline: floor } : l));
+        });
+    });
     const signature = JSON.stringify(lamps);
     if (signature === this.lampSignature) return;
     this.lampSignature = signature;

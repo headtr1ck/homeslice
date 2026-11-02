@@ -120,7 +120,8 @@ repository itself doesn't contain the built frontend; build it with `npm run bui
      wall between, e.g. kitchen and dining area) and assign (`A`: drag a Home Assistant area
      onto a room, or into a shape your walls close off, which becomes a room; it lights up
      before you let go). Walls that close a shape make it a room at once (cut
-     out of the room they stand in, if any); rooms without an area say **Unassigned room!**,
+     out of the room they stand in, or a hole in it when wholly inside, like a closet; its
+     panel offers *Same room as …* when Home Assistant counts it as part of that room); rooms without an area say **Unassigned room!**,
      with a button that opens the assign tool. The roof is a level
      of its own: **+ Roof** under the floors, then presets, more parts and solar panels.
      Select a room to give its floor and walls a finish (wood, tiles, stone, paint,

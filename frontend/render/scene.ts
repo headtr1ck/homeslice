@@ -17,7 +17,7 @@ import { LineSegments2 } from "three/examples/jsm/lines/LineSegments2.js";
 import { LineSegmentsGeometry } from "three/examples/jsm/lines/LineSegmentsGeometry.js";
 import type { RoofPart, Room, House, Level, LightType, PieceInput, Side, Vec2, Vertical } from "../model/types";
 import { innerPolygon, type Wall, type WallOpening } from "../model/walls";
-import { bbox, labelPoint, overlap, pointInPolygon } from "../model/geometry";
+import { bbox, innermost, labelPoint, nestedIn, overlap, pointInPolygon } from "../model/geometry";
 import { stairFrame, stairHole } from "../model/stairs";
 
 /** `isometric`: parallel lines stay parallel; `perspective`: walls lean, like a photo. */
@@ -746,6 +746,8 @@ export class HouseRenderer {
       const floorPoly = room.kind === "room" ? innerPolygon(room.polygon, walls) : room.polygon;
       // the stairwell's part inside this room (it may reach into it only partly)
       const inside = holes.map((h) => overlap(h, floorPoly)).filter((h): h is Vec2[] => !!h);
+      // a room inside this one (a closet, a shaft) is a hole in its floor: it has its own
+      for (const n of nestedIn(room, level.rooms)) inside.push(n.polygon);
       const geo = new THREE.ShapeGeometry(shapeOf(floorPoly, inside));
       geo.rotateX(-Math.PI / 2);
       // a terrace inside the house (under the roof) is a floor of this storey; gardens lie on the ground
@@ -798,7 +800,7 @@ export class HouseRenderer {
     /** The finish of a wall face looking along n from the wall's middle. */
     const faceFinish = (w: Wall, n: Vec2): string | undefined => {
       const mid: Vec2 = [(w.a[0] + w.b[0]) / 2 + n[0] * (w.thickness / 2 + 0.05), (w.a[1] + w.b[1]) / 2 + n[1] * (w.thickness / 2 + 0.05)];
-      const room = rooms.find((r) => pointInPolygon(mid, r.polygon));
+      const room = innermost(rooms, mid);
       if (!room) return w.type === "exterior" ? this.facade : undefined;
       // the room's wall on its north side faces south, and so on
       const side: Side = Math.abs(n[0]) > Math.abs(n[1]) ? (n[0] > 0 ? "west" : "east") : n[1] > 0 ? "north" : "south";

@@ -1808,5 +1808,8 @@
   "editor.sub_devices": "Energy",
   "editor.sub_robots": "Robots",
   "editor.help_robots": "Add a robot from the panel, click where its dock is, then link its map. Drag it to move its dock.",
-  "editor.robots_none": "No robot vacuums or lawn mowers in Home Assistant yet."
+  "editor.robots_none": "No robot vacuums or lawn mowers in Home Assistant yet.",
+  "editor.same_room": "Walled off, but one room with:",
+  "editor.same_room_inside": "Inside another room. One room with it to Home Assistant?",
+  "editor.same_room_as": "Same room as {room}"
 }

@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { expandHouse } from "./expand";
-import { bbox, signedArea } from "./geometry";
+import { bbox, innermost, nestedIn, signedArea, within } from "./geometry";
 import { misalignedWalls } from "./checks";
-import { placeLights } from "./lights";
+import { areaLightRooms, placeLights } from "./lights";
 import { stairHole } from "./stairs";
-import type { HouseInput, Room } from "./types";
+import type { HouseInput, Room, Vec2 } from "./types";
 import { deriveWalls, type Wall } from "./walls";
 
 // A 10 × 8 m house with two rooms side by side and a shared wall on the west.
@@ -470,5 +470,25 @@ describe("stairwells in floors", () => {
     // an L-shaped room and a rectangular stairwell
     const l: [number, number][] = [[0, 0], [4, 0], [4, 2], [2, 2], [2, 4], [0, 4]];
     expect(overlap([[1, 1], [3, 1], [3, 3], [1, 3]], l)!.length).toBeGreaterThanOrEqual(5);
+  });
+});
+
+describe("rooms inside rooms", () => {
+  const sq = (x: number, y: number, w: number, d: number): Vec2[] => [[x, y], [x + w, y], [x + w, y + d], [x, y + d]];
+  it("a room wholly inside another is nested in it; one touching its edge from inside too; one beside it isn't", () => {
+    const big = { id: "big", polygon: sq(0, 0, 10, 8) };
+    const closet = { id: "closet", polygon: sq(4, 3, 2, 2) };
+    const alcove = { id: "alcove", polygon: sq(0, 0, 2, 2) };
+    const next = { id: "next", polygon: sq(10, 0, 3, 3) };
+    expect(nestedIn(big, [big, closet, alcove, next]).map((r) => r.id)).toEqual(["closet", "alcove"]);
+    expect(innermost([big, closet], [5, 4])?.id).toBe("closet");
+    expect(innermost([closet, big], [1, 1])?.id).toBe("big");
+    expect(within(big.polygon, big.polygon)).toBe(false);
+  });
+
+  it("an area's unplaced lamps go to its largest room on the level only", () => {
+    const room = (id: string, areaId: string | undefined, polygon: Vec2[]) => ({ id, areaId, kind: "room", polygon }) as unknown as Room;
+    const rooms = [room("living", "living_room", sq(0, 0, 6, 5)), room("nook", "living_room", sq(6, 0, 2, 2)), room("hall", "hall", sq(0, 5, 3, 2)), room("store", undefined, sq(3, 5, 2, 2))];
+    expect([...areaLightRooms(rooms)].sort()).toEqual(["hall", "living"]);
   });
 });

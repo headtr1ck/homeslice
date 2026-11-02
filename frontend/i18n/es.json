@@ -1808,5 +1808,8 @@
   "editor.sub_devices": "Energía",
   "editor.sub_robots": "Robots",
   "editor.help_robots": "Añade un robot desde el panel, haz clic donde está su base y vincula su mapa. Arrástralo para mover la base.",
-  "editor.robots_none": "Aún no hay robots aspiradores ni cortacéspedes en Home Assistant."
+  "editor.robots_none": "Aún no hay robots aspiradores ni cortacéspedes en Home Assistant.",
+  "editor.same_room": "Separada por paredes, pero una sola habitación con:",
+  "editor.same_room_inside": "Dentro de otra habitación. ¿Una sola con ella para Home Assistant?",
+  "editor.same_room_as": "Misma habitación que {room}"
 }

@@ -415,6 +415,48 @@ test.describe.serial("editor", () => {
     await page.evaluate(() => window.panel.fitView());
   });
 
+  test("a closet walled off inside a room: a room of its own (a hole in the other), or the same room to Home Assistant", async () => {
+    const toScreen = (p) => page.evaluate((p) => {
+      const v = window.panel._view;
+      const r = window.panel.shadowRoot.querySelector("svg.plan").getBoundingClientRect();
+      return [r.left + p[0] * v.scale + v.ox, r.top + p[1] * v.scale + v.oy];
+    }, p);
+    const before = JSON.stringify(await model());
+    const living = JSON.stringify(await room("living"));
+    await page.keyboard.press("Escape");
+    await page.keyboard.press("w");
+    const corners = [[1, 7], [2.5, 7], [2.5, 8.5], [1, 8.5]];
+    for (let i = 0; i < 4; i++) {
+      const [ax, ay] = await toScreen(corners[i]);
+      const [bx, by] = await toScreen(corners[(i + 1) % 4]);
+      await page.mouse.move(ax, ay);
+      await page.mouse.down();
+      await page.mouse.move(bx, by, { steps: 6 });
+      await page.mouse.up();
+    }
+    await page.keyboard.press("Escape");
+    const l = (await model()).levels[0];
+    const closet = l.rooms.find((r) => JSON.stringify(r.rect) === "[1,7,1.5,1.5]");
+    assert(closet && !closet.area_id, `closet: ${JSON.stringify(l.rooms.map((r) => [r.id, r.rect ?? r.polygon, r.area_id]))}`);
+    assert(JSON.stringify(await room("living")) === living, `the living room changed: ${JSON.stringify(await room("living"))}`);
+    assert(!(l.walls ?? []).some((w) => w.line), "the drawn walls stayed");
+    // drawn over the living room, whose area leaves it out
+    const order = await page.locator("homeslice-panel svg.plan g[data-room]").evaluateAll((els) => els.map((e) => e.dataset.room));
+    assert(order.indexOf(closet.id) > order.indexOf("living"), `drawing order: ${order}`);
+    // the same room to Home Assistant: one click
+    await page.evaluate((id) => (window.panel._room = id), closet.id);
+    const same = page.locator("homeslice-panel [data-same-room] button[data-same-as=living]");
+    assert((await same.textContent()).includes("Same room as Living Room"), "no same-room button");
+    await same.click();
+    assert((await model()).levels[0].rooms.find((r) => r.id === closet.id).area_id === "living_room", "the closet did not get the living room's area");
+    assert(!(await page.locator(`homeslice-panel g.unassigned[data-unassigned="${closet.id}"]`).count()), "still unassigned");
+    await page.evaluate(() => window.panel.shadowRoot.activeElement?.blur());
+    await page.keyboard.press("Escape");
+    // four walls, the room they completed, the area
+    for (let i = 0; i < 6; i++) await page.keyboard.press("Control+z");
+    assert(JSON.stringify(await model()) === before, "undo did not take the closet away");
+  });
+
   test("saving stores the model in HA", async () => {
     await page.locator("homeslice-panel button.save").click();
     const saved = await page.evaluate(() => window.panel.hass.saved.length);

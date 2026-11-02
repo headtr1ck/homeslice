@@ -13,7 +13,7 @@ import { formatNumber, loadLanguage, localize, texts, type StringKey } from "../
 import en from "../i18n/en.json";
 import de from "../i18n/de.json";
 import { DEFAULTS, LIGHT_TYPES, expandHouse } from "../model/expand";
-import { bbox, bendEdges, labelPoint, normalizeOrientation, pointInPolygon, signedArea } from "../model/geometry";
+import { bbox, bendEdges, edgeDistance, labelPoint, normalizeOrientation, pointInPolygon, project, signedArea, within } from "../model/geometry";
 import { closedFaces, faceAt } from "./faces";
 import type { DormerInput, EnergyInput, LevelInput, RoofInput, RoofPartInput, RoofWindowInput, FurnitureInput, FurnitureMount, FurnitureType, HouseInput, Issue, LightType, OpeningInput, OpeningSource, OpeningType, PieceInput, RoomInput, ShapeInput, Side, Vec2, Vertical } from "../model/types";
 import { deriveWalls, innerPolygon, sideOfRoom, type Wall, type WallOpening } from "../model/walls";
@@ -42,7 +42,7 @@ import {
   type PolyhavenAsset,
   type PolyhavenTexture,
 } from "./library";
-import { listedLights, placeLights, type PlacedLight } from "../model/lights";
+import { areaLightRooms, listedLights, placeLights, type PlacedLight } from "../model/lights";
 import { prefsSensors, type EnergyPrefs } from "../ha/energy";
 import { applyAll, checklist, type CheckItem } from "./checklist";
 import { pollPosition, rawPosition, readRobot } from "../ha/robots";
@@ -88,6 +88,8 @@ import {
   setPiece,
   assignArea,
   bendEdge,
+  hostRoom,
+  roomAt,
   divideRoom,
   shapeCorners,
   addEnergy,
@@ -169,7 +171,7 @@ function readLayers(): Record<Layer, boolean> {
 const LIBRARY_ICONS: Record<LibrarySource, string> = { builtin: "mdi:shape-outline", polyhaven: "mdi:image-filter-hdr", sketchfab: "mdi:cube-scan", custom: "mdi:upload-outline" };
 
 /** A shape walls close off that no room fills: outside every room, or cut off a room (its host keeps `keep`). */
-type FreeShape = { poly: Vec2[]; host?: { room: string; keep: Vec2[] } };
+type FreeShape = { poly: Vec2[]; host?: { room: string; keep?: Vec2[] } };
 
 /** The tools: tool, icon, shortcut, and the toolbar button they share (its sub-tools, shown in a bar over the plan). */
 const TOOLS: { tool: Tool; icon: string; key: string; group?: "build" | "openings" | "devices" }[] = [
@@ -934,7 +936,7 @@ export class HomeslicePanel extends LitElement {
    * Where an area dropped at p would go: the room there, else the smallest shape that walls
    * close off around p (free-standing walls, the outline, room edges) that no room fills yet.
    */
-  private assignTarget(p: Vec2): { poly: Vec2[]; room?: string; host?: { room: string; keep: Vec2[] } } | null {
+  private assignTarget(p: Vec2): { poly: Vec2[]; room?: string; host?: { room: string; keep?: Vec2[] } } | null {
     const m = this._model!;
     const rooms = (this.levelInput?.rooms ?? []).filter((r) => r.kind !== "void");
     // a part walls cut off a room, else the room, else a shape walls close outside any room
@@ -944,7 +946,7 @@ export class HomeslicePanel extends LitElement {
       const x = shapes.find((y) => y.poly === hosted)!;
       return { poly: x.poly, host: x.host };
     }
-    const room = rooms.find((r) => pointInPolygon(p, roomPolygon(m, r)));
+    const room = roomAt(m, rooms, p);
     if (room) return { poly: roomPolygon(m, room), room: room.id };
     const face = faceAt(shapes.filter((x) => !x.host).map((x) => x.poly), p);
     if (face) return { poly: face };
@@ -984,18 +986,26 @@ export class HomeslicePanel extends LitElement {
           });
         });
       const all = closedFaces(segments);
-      const hostOf = (f: Vec2[]) => rooms.find((r) => pointInPolygon(labelPoint(f), roomPolygon(m, r)));
+      const hostOf = (f: Vec2[]) => roomAt(m, rooms, labelPoint(f));
       // outside every room: a room in all but name
       faces = all.filter((f) => !hostOf(f) && byWall(f)).map((poly) => ({ poly }));
       // a room the walls cut up: the parts away from its name are rooms in all but name, the
       // room keeping the part with its name
       for (const r of rooms) {
         if (r.kind === "void") continue;
-        const inside = all.filter((f) => hostOf(f) === r);
-        if (inside.length < 2) continue;
-        const centre = labelPoint(roomPolygon(m, r));
-        const keep = inside.find((f) => pointInPolygon(centre, f)) ?? inside.reduce((a, b) => (Math.abs(signedArea(a)) >= Math.abs(signedArea(b)) ? a : b));
-        for (const f of inside) if (f !== keep && byWall(f)) faces.push({ poly: f, host: { room: r.id, keep } });
+        const poly = roomPolygon(m, r);
+        const size = Math.abs(signedArea(poly));
+        // the room's own face (whole, when the walls stand free inside it) is no new shape
+        const inside = all.filter((f) => hostOf(f) === r && Math.abs(Math.abs(signedArea(f)) - size) > 0.01);
+        // wholly inside, its edges clear of the room's: a room of its own, a hole in this one
+        const clear = (f: Vec2[]) => f.every((p) => edgeDistance(p, poly) > 0.01);
+        for (const f of inside) if (clear(f) && byWall(f) && !rooms.some((x) => x !== r && within(roomPolygon(m, x), poly) && Math.abs(Math.abs(signedArea(roomPolygon(m, x))) - Math.abs(signedArea(f))) < 0.01)) faces.push({ poly: f, host: { room: r.id } });
+        // cut into parts reaching its edges: the part with its name stays the room
+        const parts = inside.filter((f) => !clear(f));
+        if (parts.length < 2) continue;
+        const centre = labelPoint(poly);
+        const keep = parts.find((f) => pointInPolygon(centre, f)) ?? parts.reduce((a, b) => (Math.abs(signedArea(a)) >= Math.abs(signedArea(b)) ? a : b));
+        for (const f of parts) if (f !== keep && byWall(f)) faces.push({ poly: f, host: { room: r.id, keep } });
       }
     }
     this.freeShapesMemo = { model: m, level: this._level, faces };
@@ -1018,13 +1028,21 @@ export class HomeslicePanel extends LitElement {
   }
 
   /** Every shape the drawn walls close off becomes a room without an area (it then says so). */
-  private completeRooms() {
+  private completeRooms(line: [Vec2, Vec2]) {
     const walled = this._model!;
     let m = walled;
     let made = 0;
+    // shapes this wall closes (others were left as they are on purpose)
+    const along = (f: Vec2[]) =>
+      f.some((p, i) => {
+        const q = f[(i + 1) % f.length];
+        const mid: Vec2 = [(p[0] + q[0]) / 2, (p[1] + q[1]) / 2];
+        const { distance, t, length } = project(mid, line[0], line[1]);
+        return distance < 0.03 && t > -0.06 && t < length + 0.06;
+      });
     // one at a time: a carve changes the shapes left
     for (let guard = 0; guard < 20; guard++) {
-      const shape = this.freeShapes()[0];
+      const shape = this.freeShapes().find((x) => along(x.poly));
       if (!shape) break;
       m = assignArea(m, this._level, undefined, { polygon: shape.poly, host: shape.host }).model;
       this._model = m;
@@ -1064,6 +1082,30 @@ export class HomeslicePanel extends LitElement {
       <polygon points=${pts}></polygon>
       <text x=${x} y=${y} text-anchor="middle"><tspan x=${x} dy="0">${name}</tspan>${what ? svg`<tspan x=${x} dy="18" class="what">${what}</tspan>` : nothing}</text>
     </g>`;
+  }
+
+  /**
+   * A room walled off inside or beside another (an alcove behind an opening, a walk-in
+   * wardrobe) may be the same room to Home Assistant: one click gives it that room's area.
+   */
+  private renderSameRoom(r: RoomInput) {
+    const m = this._model!;
+    const host = hostRoom(m, this._level, r.id);
+    const touching = this.levelWalls()
+      .filter((w) => w.rooms.includes(r.id) && w.rooms.length > 1)
+      .flatMap((w) => w.rooms.filter((x) => x !== r.id));
+    const ids = [...new Set([...(host ? [host.id] : []), ...touching])];
+    const others = ids
+      .map((id) => this.levelInput?.rooms.find((x) => x.id === id))
+      .filter((x): x is RoomInput => !!x && !!x.area_id && x.area_id !== r.area_id && x.kind !== "void")
+      .slice(0, 4);
+    if (!others.length) return nothing;
+    return html`<div class="same-room" data-same-room>
+      <span class="muted">${this.t(host && others[0].id === host.id ? "editor.same_room_inside" : "editor.same_room")}</span>
+      ${others.map(
+        (o) => html`<button data-same-as=${o.id} @click=${() => this.commit(updateRoom(m, this._level, r.id, { area_id: o.area_id }))}>${this.t("editor.same_room_as", { room: this.roomName(o) })}</button>`,
+      )}
+    </div>`;
   }
 
   /** The assign tool's panel: Home Assistant's areas to drag onto rooms and closed shapes. */
@@ -1657,7 +1699,7 @@ export class HomeslicePanel extends LitElement {
       if (!drag.moved && Math.hypot(p[0] - drag.centre[0], p[1] - drag.centre[1]) * this._view.scale < 4) return;
       drag.moved = true;
       const rooms = (this.levelInput?.rooms ?? []).filter((r) => r.kind !== "void");
-      const into = rooms.find((r) => pointInPolygon(p, roomPolygon(this._model!, r)))?.id ?? drag.room;
+      const into = roomAt(this._model!, rooms, p)?.id ?? drag.room;
       const piece = drag.origin.levels.find((l) => l.id === this._level)?.rooms.find((r) => r.id === drag.room)?.furniture?.[drag.index];
       const target = rooms.find((r) => r.id === into);
       if (!piece || !target) return;
@@ -1737,7 +1779,7 @@ export class HomeslicePanel extends LitElement {
         return;
       }
       const rooms = (this.levelInput?.rooms ?? []).filter((r) => r.kind !== "void");
-      const room = rooms.find((r) => pointInPolygon(s.p, roomPolygon(this._model!, r))) ?? rooms.find((r) => r.id === drag.room);
+      const room = roomAt(this._model!, rooms, s.p) ?? rooms.find((r) => r.id === drag.room);
       if (!room) return;
       const { min } = bbox(roomPolygon(this._model!, room));
       this._guides = { x: s.alignX, y: s.alignY, ring: s.target };
@@ -1898,7 +1940,7 @@ export class HomeslicePanel extends LitElement {
       if (this._tool === "divide") {
         // a line across a room: two rooms, open to each other
         const mid: Vec2 = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
-        const room = (this.levelInput?.rooms ?? []).find((r) => pointInPolygon(mid, roomPolygon(this._model!, r)));
+        const room = roomAt(this._model!, this.levelInput?.rooms ?? [], mid);
         const out = room && Math.hypot(b[0] - a[0], b[1] - a[1]) >= 0.2 ? divideRoom(this._model, this._level, room.id, a, b) : null;
         if (out) {
           this.commit(out.model);
@@ -1916,7 +1958,7 @@ export class HomeslicePanel extends LitElement {
         this._freeWall = index;
         this._room = null;
         // a wall that closes a shape completes a room there (no area yet); undo takes back just that
-        if (this._tool === "wall") this.completeRooms();
+        if (this._tool === "wall") this.completeRooms([a, b]);
         // the tool stays: the next wall can start where this one ended (Esc or V to stop)
       }
       return;
@@ -2630,7 +2672,10 @@ export class HomeslicePanel extends LitElement {
       ${this.renderUnderlay()}
       ${below && this._show.below ? below.rooms.map((r) => svg`<polygon class="ghost" points=${pts(roomPolygon(m, r))}></polygon>`) : nothing}
       ${l?.kind === "roof" ? this.renderRoofParts(l, pts) : nothing}
-      ${l?.rooms.map((r) => {
+      ${[...(l?.rooms ?? [])]
+        // a room inside another is drawn over it
+        .sort((a, b) => Math.abs(signedArea(roomPolygon(m, b))) - Math.abs(signedArea(roomPolygon(m, a))))
+        .map((r) => {
         const poly = this.inner(r, walls);
         return svg`<g data-room=${r.id}>
           <polygon class="room ${r.kind ?? "room"} ${r.id === this._room ? "selected" : ""}" points=${pts(poly)} fill=${planColor(r.floor ?? (r.kind === "outdoor" ? "lawn" : "wood"))}></polygon>
@@ -2659,7 +2704,7 @@ export class HomeslicePanel extends LitElement {
         if (unassigned) unassignedAt.push([r.id, [at[0], top + lines.length * 14 + 11]]);
         return svg`<g class="room-label">
           <text class="room-name" x=${at[0]} y=${top + 11} text-anchor="middle">${lines.map((line, i) => svg`<tspan x=${at[0]} dy=${i ? 14 : 0}>${line}</tspan>`)}</text>
-          <text class="room-area" x=${at[0]} y=${top + lines.length * 14 + badge + 10} text-anchor="middle">${this.n(area(poly), 1)} m²</text></g>
+          <text class="room-area" x=${at[0]} y=${top + lines.length * 14 + badge + 10} text-anchor="middle">${this.n(area(poly) - (l?.rooms ?? []).filter((x) => x !== r && within(roomPolygon(m, x), roomPolygon(m, r))).reduce((n, x) => n + Math.abs(signedArea(roomPolygon(m, x))), 0), 1)} m²</text></g>
 `;
       })}
       ${this.freeShapes().map((f) => svg`<g class="free-shape"><polygon points=${pts(f.poly)}></polygon></g>`)}
@@ -2765,10 +2810,11 @@ export class HomeslicePanel extends LitElement {
     const walls = deriveWalls(level, house.walls, []);
     const listed = listedLights(house);
     const hass = this._hass;
+    const lit = areaLightRooms(level.rooms);
     return level.rooms
       .filter((r) => r.kind !== "void")
       .flatMap((r) =>
-        placeLights(level.id, r, r.kind === "room" ? innerPolygon(r.polygon, walls) : r.polygon, r.areaId && hass ? areaEntities(hass, r.areaId, "light") : [], listed),
+        placeLights(level.id, r, r.kind === "room" ? innerPolygon(r.polygon, walls) : r.polygon, r.areaId && hass && lit.has(r.id) ? areaEntities(hass, r.areaId, "light") : [], listed),
       );
   }
 
@@ -3709,6 +3755,7 @@ export class HomeslicePanel extends LitElement {
           ${areas.map((a) => html`<option value=${a.area_id} ?selected=${a.area_id === r.area_id}>${a.name}</option>`)}
         </select>
       </label>
+      ${this.renderSameRoom(r)}
       <label>${this.t("editor.room_id")}
         <input .value=${r.id} @change=${(e: Event) => {
           const id = (e.target as HTMLInputElement).value.trim().toLowerCase().replace(/[^a-z0-9_]+/g, "_");
@@ -5296,7 +5343,7 @@ export class HomeslicePanel extends LitElement {
     }
     const m = this._model!;
     const rooms = (this.levelInput?.rooms ?? []).filter((r) => r.kind !== "void");
-    const room = rooms.find((r) => r.id === roomId) ?? rooms.find((r) => pointInPolygon(world, this.inner(r))) ?? rooms.find((r) => pointInPolygon(world, roomPolygon(m, r)));
+    const room = rooms.find((r) => r.id === roomId) ?? roomAt(m, rooms, world);
     if (!room) return;
     const { min } = bbox(roomPolygon(m, room));
     const def = FURNITURE[type];
@@ -7222,6 +7269,13 @@ export class HomeslicePanel extends LitElement {
       display: inline;
       padding: 0;
       margin-left: 4px;
+    }
+    .same-room {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 6px;
+      margin: 4px 0 10px;
     }
     .assign-areas {
       display: flex;

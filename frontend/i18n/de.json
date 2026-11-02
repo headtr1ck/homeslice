@@ -1808,5 +1808,8 @@
   "editor.sub_devices": "Energie",
   "editor.sub_robots": "Roboter",
   "editor.help_robots": "Einen Roboter im Panel hinzufügen, auf seine Station klicken, dann seine Karte verknüpfen. Ziehen verschiebt die Station.",
-  "editor.robots_none": "Noch keine Saugroboter oder Mähroboter in Home Assistant."
+  "editor.robots_none": "Noch keine Saugroboter oder Mähroboter in Home Assistant.",
+  "editor.same_room": "Abgetrennt, aber ein Raum mit:",
+  "editor.same_room_inside": "In einem anderen Raum. Für Home Assistant ein Raum mit ihm?",
+  "editor.same_room_as": "Gleicher Raum wie {room}"
 }

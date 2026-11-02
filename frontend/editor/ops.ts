@@ -1061,7 +1061,7 @@ export function movePieceToLevel(model: HouseInput, fromId: string, roomId: stri
   if (!room || !piece || fromId === toId || !to.rooms.length) return { model: m, roomId: null };
   const origin = bbox(roomPolygon(m, room)).min;
   const spot: Vec2 = [origin[0] + piece.at[0], origin[1] + piece.at[1]];
-  const target = to.rooms.find((r) => pointInPolygon(spot, roomPolygon(m, r))) ?? to.rooms[0];
+  const target = roomAt(m, to.rooms, spot) ?? to.rooms[0];
   const there = bbox(roomPolygon(m, target)).min;
   room.furniture = room.furniture!.filter((_, i) => i !== index);
   if (!room.furniture.length) delete room.furniture;
@@ -1791,7 +1791,7 @@ export function assignArea(
   model: HouseInput,
   levelId: string,
   areaId: string | undefined,
-  target: { room: string } | { polygon: Vec2[]; host?: { room: string; keep: Vec2[] } },
+  target: { room: string } | { polygon: Vec2[]; host?: { room: string; keep?: Vec2[] } },
 ): { model: HouseInput; room: string } {
   const m = clone(model);
   const l = level(m, levelId);
@@ -1826,12 +1826,51 @@ export function assignArea(
   );
   const props = areaId ? { id, area_id: areaId } : { id };
   // carved out of a room the walls cut up: the room keeps the rest, with what stands there
-  const host = target.host && l.rooms.find((r) => r.id === target.host!.room);
+  // (a shape wholly inside the room needs no carving: the new room is a hole in it)
+  const host = target.host?.keep && l.rooms.find((r) => r.id === target.host!.room);
   if (host) {
     const { area_id: _a, name: _n, furniture: _f, lights: _l, cameras: _c, roof_windows: _w, railing: _r, ...finishes } = host;
-    splitInto(m, l, host.id, normalizeOrientation(target.host!.keep), [{ poly: normalizeOrientation(poly), room: { ...finishes, ...props } }]);
+    splitInto(m, l, host.id, normalizeOrientation(target.host!.keep!), [{ poly: normalizeOrientation(poly), room: { ...finishes, ...props } }]);
     return { model: m, room: id };
   }
   const added = addRoom(m, levelId, normalizeOrientation(poly), props);
   return { model: added.model, room: added.id };
+}
+
+/** The innermost room at p (a room inside another is a hole in it, so it wins). */
+export function roomAt<R extends RoomInput>(model: HouseInput, rooms: R[], p: Vec2): R | undefined {
+  let best: R | undefined;
+  let bestArea = Infinity;
+  for (const r of rooms) {
+    const poly = roomPolygon(model, r);
+    if (!pointInPolygon(p, poly)) continue;
+    const a = Math.abs(signedArea(poly));
+    if (a < bestArea) {
+      bestArea = a;
+      best = r;
+    }
+  }
+  return best;
+}
+
+/** The room `roomId` lies inside (wholly, its edges on or within the other's), if any: the smallest such. */
+export function hostRoom(model: HouseInput, levelId: string, roomId: string): RoomInput | undefined {
+  const l = level(model, levelId);
+  const room = l.rooms.find((r) => r.id === roomId);
+  if (!room) return undefined;
+  const poly = roomPolygon(model, room);
+  const a = Math.abs(signedArea(poly));
+  let best: RoomInput | undefined;
+  let bestArea = Infinity;
+  for (const r of l.rooms) {
+    if (r === room || r.kind === "void") continue;
+    const outer = roomPolygon(model, r);
+    const oa = Math.abs(signedArea(outer));
+    if (oa <= a + 1e-6 || oa >= bestArea) continue;
+    if (poly.every((p) => pointInPolygon(p, outer) || outer.some((q, i) => project(p, q, outer[(i + 1) % outer.length]).distance < 1e-3))) {
+      best = r;
+      bestArea = oa;
+    }
+  }
+  return best;
 }

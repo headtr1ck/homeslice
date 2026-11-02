@@ -1808,5 +1808,8 @@
   "editor.sub_devices": "Energie",
   "editor.sub_robots": "Robots",
   "editor.help_robots": "Voeg een robot toe in het paneel, klik waar zijn station staat en koppel dan zijn kaart. Sleep hem om het station te verplaatsen.",
-  "editor.robots_none": "Nog geen robotstofzuigers of robotmaaiers in Home Assistant."
+  "editor.robots_none": "Nog geen robotstofzuigers of robotmaaiers in Home Assistant.",
+  "editor.same_room": "Afgescheiden, maar één ruimte met:",
+  "editor.same_room_inside": "Binnen een andere ruimte. Voor Home Assistant één ruimte ermee?",
+  "editor.same_room_as": "Zelfde ruimte als {room}"
 }

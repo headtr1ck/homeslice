@@ -1,7 +1,7 @@
 // Where each light of a room sits: placed ones where the model says, the rest of the
 // area's lights spread evenly over the room.
 
-import { bbox, labelPoint, pointInPolygon } from "./geometry";
+import { bbox, labelPoint, pointInPolygon, signedArea } from "./geometry";
 import type { House, LightType, Room, Vec2 } from "./types";
 
 export interface PlacedLight {
@@ -54,6 +54,21 @@ export function spread(polygon: Vec2[], n: number): Vec2[] {
  * listed anywhere in the house. Without `at`, lights are spread over `polygon` (the
  * room's floor inside the walls).
  */
+/**
+ * The rooms that get their area's unplaced lights: one per area and level, the largest (an
+ * alcove sharing the living room's area doesn't get every living room lamp a second time).
+ */
+export function areaLightRooms(rooms: Room[]): Set<string> {
+  const best = new Map<string, { id: string; size: number }>();
+  for (const r of rooms) {
+    if (!r.areaId || r.kind === "void") continue;
+    const size = Math.abs(signedArea(r.polygon));
+    const b = best.get(r.areaId);
+    if (!b || size > b.size) best.set(r.areaId, { id: r.id, size });
+  }
+  return new Set([...best.values()].map((b) => b.id));
+}
+
 export function placeLights(levelId: string, room: Room, polygon: Vec2[], areaLights: string[], listed: Set<string>): PlacedLight[] {
   const own = new Set(room.lights.map((l) => l.entity));
   const entries = [

@@ -1808,5 +1808,8 @@
   "editor.sub_devices": "Énergie",
   "editor.sub_robots": "Robots",
   "editor.help_robots": "Ajoutez un robot depuis le panneau, cliquez sur sa base, puis liez sa carte. Glissez-le pour déplacer sa base.",
-  "editor.robots_none": "Pas encore de robot aspirateur ni de tondeuse dans Home Assistant."
+  "editor.robots_none": "Pas encore de robot aspirateur ni de tondeuse dans Home Assistant.",
+  "editor.same_room": "Séparée par un mur, mais une seule pièce avec :",
+  "editor.same_room_inside": "Dans une autre pièce. Une seule pièce avec elle pour Home Assistant ?",
+  "editor.same_room_as": "Même pièce que {room}"
 }

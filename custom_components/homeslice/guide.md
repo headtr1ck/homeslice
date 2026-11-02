@@ -28,6 +28,10 @@ previous version, so a save can be undone in the editor (⚙ → Restore previou
   [[x, y], …]` for L-shapes (any order of points, at least 3).
 - Rooms are measured on **wall centre lines**: neighbouring rooms share an edge exactly
   (no gaps for walls). Walls are generated from the rooms; you never draw them.
+- A room lying wholly inside another (a walk-in wardrobe, a shaft, a closet in the middle of
+  a room) is a **hole** in it: it gets its own walls and floor, the outer room keeps its
+  shape. Two rooms may share one `area_id` (an alcove behind an opening that Home Assistant
+  counts as part of the living room); the area's lights then go to the larger one.
 - `outline` is the outer face of the exterior walls; exterior walls grow inwards from it.
   Rooms along the outside go right up to the outline.
 - Positions inside a room (lights, furniture) are metres east and south of the room's
