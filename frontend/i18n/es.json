@@ -503,10 +503,10 @@
   "editor.key_modes": "Habitaciones y paredes / puertas y ventanas / objetos",
   "editor.tool_opening": "Puertas y ventanas (D)",
   "editor.tool_furniture": "Muebles (F)",
-  "editor.tool_devices": "Energía y robots (E)",
+  "editor.tool_devices": "Energía: solar, batería, red, aparatos (E)",
   "editor.help_opening": "Haz clic en una pared para añadir una ventana, arrastra una puerta o ventana a lo largo de su pared; Supr la elimina.",
   "editor.help_furniture": "Arrastra una pieza de la biblioteca a una habitación, o selecciona una habitación y haz clic en una pieza.",
-  "editor.help_devices": "Coloca solar, batería, red, dispositivos y robots, y conecta sus líneas.",
+  "editor.help_devices": "Coloca solar, batería, red y aparatos, y conecta sus líneas.",
   "editor.furniture_add": "Añadir mueble…",
   "editor.key_opening": "Puertas y ventanas",
   "editor.key_furniture": "Muebles",
@@ -1802,5 +1802,11 @@
   "editor.assign_unlinked": "«{level}» no está vinculada a una planta de Home Assistant, así que sus áreas no pueden ir primero.",
   "editor.assign_link_floor": "Vincularla a una planta",
   "editor.unassigned_room": "¡Habitación sin área!",
-  "editor.unassigned_open": "Darle un área (Asignar)"
+  "editor.unassigned_open": "Darle un área (Asignar)",
+  "editor.group_devices": "Energía y robots (E, O)",
+  "editor.tool_robots": "Robots: aspiradores y cortacéspedes (O)",
+  "editor.sub_devices": "Energía",
+  "editor.sub_robots": "Robots",
+  "editor.help_robots": "Añade un robot desde el panel, haz clic donde está su base y vincula su mapa. Arrástralo para mover la base.",
+  "editor.robots_none": "Aún no hay robots aspiradores ni cortacéspedes en Home Assistant."
 }

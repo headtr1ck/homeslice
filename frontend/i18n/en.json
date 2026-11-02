@@ -503,10 +503,10 @@
   "editor.key_modes": "Rooms & walls / doors & windows / objects",
   "editor.tool_opening": "Doors & windows (D)",
   "editor.tool_furniture": "Furniture (F)",
-  "editor.tool_devices": "Energy & robots (E)",
+  "editor.tool_devices": "Energy: solar, battery, grid, devices (E)",
   "editor.help_opening": "Click a wall to add a window, drag a door or window along its wall, Delete removes it.",
   "editor.help_furniture": "Drag a piece from the library onto a room, or select a room and click a piece.",
-  "editor.help_devices": "Place solar, battery, grid, devices and robots, and connect their lines.",
+  "editor.help_devices": "Place solar, battery, grid and devices, and connect their lines.",
   "editor.furniture_add": "Add furniture…",
   "editor.key_opening": "Doors & windows",
   "editor.key_furniture": "Furniture",
@@ -1802,5 +1802,11 @@
   "editor.assign_unlinked": "“{level}” isn't linked to a Home Assistant floor, so its areas can't be listed first.",
   "editor.assign_link_floor": "Link it to a floor",
   "editor.unassigned_room": "Unassigned room!",
-  "editor.unassigned_open": "Give it an area (assign tool)"
+  "editor.unassigned_open": "Give it an area (assign tool)",
+  "editor.group_devices": "Energy and robots (E, O)",
+  "editor.tool_robots": "Robots: vacuums and mowers (O)",
+  "editor.sub_devices": "Energy",
+  "editor.sub_robots": "Robots",
+  "editor.help_robots": "Add a robot from the panel, click where its dock is, then link its map. Drag it to move its dock.",
+  "editor.robots_none": "No robot vacuums or lawn mowers in Home Assistant yet."
 }

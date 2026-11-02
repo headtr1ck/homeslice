@@ -503,10 +503,10 @@
   "editor.key_modes": "Stanze e pareti / porte e finestre / oggetti",
   "editor.tool_opening": "Porte e finestre (D)",
   "editor.tool_furniture": "Mobili (F)",
-  "editor.tool_devices": "Energia e robot (E)",
+  "editor.tool_devices": "Energia: solare, batteria, rete, dispositivi (E)",
   "editor.help_opening": "Clicca su una parete per aggiungere una finestra, trascina una porta o una finestra lungo la sua parete, Canc la rimuove.",
   "editor.help_furniture": "Trascina un elemento dalla libreria su una stanza, oppure seleziona una stanza e clicca su un elemento.",
-  "editor.help_devices": "Posiziona solare, batteria, rete, dispositivi e robot e collega le loro linee.",
+  "editor.help_devices": "Posiziona solare, batteria, rete e dispositivi, e collega le loro linee.",
   "editor.furniture_add": "Aggiungi mobili…",
   "editor.key_opening": "Porte e finestre",
   "editor.key_furniture": "Mobili",
@@ -1802,5 +1802,11 @@
   "editor.assign_unlinked": "“{level}” non è collegato a un piano di Home Assistant, quindi le sue aree non possono stare in cima.",
   "editor.assign_link_floor": "Collegalo a un piano",
   "editor.unassigned_room": "Stanza senza area!",
-  "editor.unassigned_open": "Dalle un'area (Assegna)"
+  "editor.unassigned_open": "Dalle un'area (Assegna)",
+  "editor.group_devices": "Energia e robot (E, O)",
+  "editor.tool_robots": "Robot: aspirapolvere e tosaerba (O)",
+  "editor.sub_devices": "Energia",
+  "editor.sub_robots": "Robot",
+  "editor.help_robots": "Aggiungi un robot dal pannello, fai clic dov'è la sua base, poi collega la sua mappa. Trascinalo per spostare la base.",
+  "editor.robots_none": "Nessun robot aspirapolvere o tosaerba in Home Assistant."
 }

@@ -503,10 +503,10 @@
   "editor.key_modes": "Räume & Wände / Türen & Fenster / Objekte",
   "editor.tool_opening": "Türen & Fenster (D)",
   "editor.tool_furniture": "Möbel (F)",
-  "editor.tool_devices": "Energie & Roboter (E)",
+  "editor.tool_devices": "Energie: Solar, Akku, Netz, Geräte (E)",
   "editor.help_opening": "Auf eine Wand klicken, um ein Fenster hinzuzufügen; Türen und Fenster entlang der Wand ziehen; Entf entfernt sie.",
   "editor.help_furniture": "Ein Möbelstück aus der Bibliothek auf einen Raum ziehen, oder einen Raum auswählen und ein Stück anklicken.",
-  "editor.help_devices": "Solar, Batterie, Netz, Geräte und Roboter platzieren und ihre Leitungen verbinden.",
+  "editor.help_devices": "Solar, Akku, Netz und Geräte platzieren und ihre Linien verbinden.",
   "editor.furniture_add": "Möbel hinzufügen…",
   "editor.key_opening": "Türen & Fenster",
   "editor.key_furniture": "Möbel",
@@ -1802,5 +1802,11 @@
   "editor.assign_unlinked": "„{level}“ ist mit keiner Home-Assistant-Etage verknüpft, daher können ihre Bereiche nicht zuerst stehen.",
   "editor.assign_link_floor": "Mit einer Etage verknüpfen",
   "editor.unassigned_room": "Raum ohne Bereich!",
-  "editor.unassigned_open": "Einen Bereich geben (Zuweisen)"
+  "editor.unassigned_open": "Einen Bereich geben (Zuweisen)",
+  "editor.group_devices": "Energie und Roboter (E, O)",
+  "editor.tool_robots": "Roboter: Sauger und Mäher (O)",
+  "editor.sub_devices": "Energie",
+  "editor.sub_robots": "Roboter",
+  "editor.help_robots": "Einen Roboter im Panel hinzufügen, auf seine Station klicken, dann seine Karte verknüpfen. Ziehen verschiebt die Station.",
+  "editor.robots_none": "Noch keine Saugroboter oder Mähroboter in Home Assistant."
 }

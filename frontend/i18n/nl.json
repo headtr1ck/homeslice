@@ -503,10 +503,10 @@
   "editor.key_modes": "Kamers & muren / deuren & ramen / objecten",
   "editor.tool_opening": "Deuren & ramen (D)",
   "editor.tool_furniture": "Meubels (F)",
-  "editor.tool_devices": "Energie & robots (E)",
+  "editor.tool_devices": "Energie: zon, accu, net, apparaten (E)",
   "editor.help_opening": "Klik op een muur om een raam toe te voegen, sleep een deur of raam langs de muur, Delete verwijdert het.",
   "editor.help_furniture": "Sleep een stuk uit de bibliotheek op een kamer, of selecteer een kamer en klik op een stuk.",
-  "editor.help_devices": "Plaats zon, batterij, net, apparaten en robots en verbind hun lijnen.",
+  "editor.help_devices": "Plaats zon, accu, net en apparaten en verbind hun lijnen.",
   "editor.furniture_add": "Meubels toevoegen…",
   "editor.key_opening": "Deuren & ramen",
   "editor.key_furniture": "Meubels",
@@ -1802,5 +1802,11 @@
   "editor.assign_unlinked": "“{level}” is niet gekoppeld aan een Home Assistant-verdieping, dus de ruimtes ervan kunnen niet bovenaan staan.",
   "editor.assign_link_floor": "Koppelen aan een verdieping",
   "editor.unassigned_room": "Ruimte zonder toewijzing!",
-  "editor.unassigned_open": "Een ruimte toewijzen (Toewijzen)"
+  "editor.unassigned_open": "Een ruimte toewijzen (Toewijzen)",
+  "editor.group_devices": "Energie en robots (E, O)",
+  "editor.tool_robots": "Robots: stofzuigers en maaiers (O)",
+  "editor.sub_devices": "Energie",
+  "editor.sub_robots": "Robots",
+  "editor.help_robots": "Voeg een robot toe in het paneel, klik waar zijn station staat en koppel dan zijn kaart. Sleep hem om het station te verplaatsen.",
+  "editor.robots_none": "Nog geen robotstofzuigers of robotmaaiers in Home Assistant."
 }

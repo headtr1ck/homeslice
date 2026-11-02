@@ -1320,7 +1320,8 @@ test.describe.serial("editor", () => {
 
   test("robots: place a mower's dock, show it live from GPS after two calibration spots", async () => {
     await page.keyboard.press("Escape");
-    await page.locator('homeslice-panel aside.tools button.tool[data-tool="devices"]').click();
+    await page.locator('homeslice-panel aside.tools button[data-group="devices"]').click();
+    await page.locator('homeslice-panel .flyout button[data-sub-tool="robots"]').click();
     await page.locator("homeslice-panel .inspector ul.lights li", { hasText: "Mower" }).locator("button").click();
     assert((await page.locator("homeslice-panel .hint-bar").textContent()).includes("Click where the dock of Mower is"), "no placing hint");
     const dockAt = await toPage([6, 9.3]);
@@ -1356,7 +1357,8 @@ test.describe.serial("editor", () => {
 
   test("objects mode: place energy items from HA's energy settings", async () => {
     await page.keyboard.press("Escape");
-    await page.locator('homeslice-panel aside.tools button.tool[data-tool="devices"]').click();
+    await page.locator('homeslice-panel aside.tools button[data-group="devices"]').click();
+    await page.locator('homeslice-panel .flyout button[data-sub-tool="devices"]').click();
     const offers = await page.locator("homeslice-panel .inspector ul.offers li .name").allTextContents();
     assert(["Solar", "Battery", "Grid", "Inverter", "Heat pump"].every((n) => offers.includes(n)), `offers: ${offers}`);
     await page.locator("homeslice-panel .inspector ul.offers li", { hasText: "Battery" }).locator("button").click();
@@ -1378,13 +1380,15 @@ test.describe.serial("editor", () => {
     assert((await page.locator("homeslice-panel .inspector h2").textContent()) === "Battery", "battery not selected");
     assert(await page.locator("homeslice-panel .inspector label", { hasText: "Charge sensor" }).count(), "no charge sensor for the battery");
     await page.keyboard.press("Escape");
-    await page.locator('homeslice-panel aside.tools button.tool[data-tool="devices"]').click();
+    await page.locator('homeslice-panel aside.tools button[data-group="devices"]').click();
+    await page.locator('homeslice-panel .flyout button[data-sub-tool="devices"]').click();
     await page.locator("homeslice-panel .inspector ul.offers li", { hasText: "Solar" }).locator("button").click();
     assert((await model()).energy[1].kind === "solar", "solar not added");
     // a heat pump and a grid meter; the heat pump's line goes to the battery (the hub) by itself
     const placeAt = async (name, x, y) => {
       await page.keyboard.press("Escape");
-    await page.locator('homeslice-panel aside.tools button.tool[data-tool="devices"]').click();
+    await page.locator('homeslice-panel aside.tools button[data-group="devices"]').click();
+    await page.locator('homeslice-panel .flyout button[data-sub-tool="devices"]').click();
       await page.locator("homeslice-panel .inspector ul.offers li", { hasText: name }).locator("button").click();
       await page.mouse.click(plan.x + ox + x * scale, plan.y + oy + y * scale);
     };
@@ -1409,7 +1413,8 @@ test.describe.serial("editor", () => {
     assert((await page.locator("homeslice-panel svg.plan line.energy-link").count()) >= 2, "lines not drawn on the plan");
     await shot(page, "editor-energy");
     await page.keyboard.press("Escape");
-    await page.locator('homeslice-panel aside.tools button.tool[data-tool="devices"]').click();
+    await page.locator('homeslice-panel aside.tools button[data-group="devices"]').click();
+    await page.locator('homeslice-panel .flyout button[data-sub-tool="devices"]').click();
     await page.locator("homeslice-panel .inspector ul.energy li", { hasText: "Battery" }).locator("button:not(.link)").click();
     assert((await model()).energy.length === 3, "battery not removed");
     assert((await model()).energy.every((e) => e.to === undefined), "lines to the removed battery should go back to the hub");

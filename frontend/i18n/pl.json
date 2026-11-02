@@ -503,10 +503,10 @@
   "editor.key_modes": "Pokoje i ściany / drzwi i okna / obiekty",
   "editor.tool_opening": "Drzwi i okna (D)",
   "editor.tool_furniture": "Meble (F)",
-  "editor.tool_devices": "Energia i roboty (E)",
+  "editor.tool_devices": "Energia: fotowoltaika, bateria, sieć, urządzenia (E)",
   "editor.help_opening": "Kliknij ścianę, aby dodać okno, przeciągnij drzwi lub okno wzdłuż ściany, Delete je usuwa.",
   "editor.help_furniture": "Przeciągnij element z biblioteki na pokój albo zaznacz pokój i kliknij element.",
-  "editor.help_devices": "Umieść fotowoltaikę, baterię, sieć, urządzenia i roboty oraz połącz ich linie.",
+  "editor.help_devices": "Umieść fotowoltaikę, baterię, sieć i urządzenia oraz połącz ich linie.",
   "editor.furniture_add": "Dodaj meble…",
   "editor.key_opening": "Drzwi i okna",
   "editor.key_furniture": "Meble",
@@ -1802,5 +1802,11 @@
   "editor.assign_unlinked": "„{level}” nie jest połączone z piętrem Home Assistant, więc jego obszary nie mogą być na początku.",
   "editor.assign_link_floor": "Połącz z piętrem",
   "editor.unassigned_room": "Pomieszczenie bez obszaru!",
-  "editor.unassigned_open": "Przypisz obszar (Przypisz)"
+  "editor.unassigned_open": "Przypisz obszar (Przypisz)",
+  "editor.group_devices": "Energia i roboty (E, O)",
+  "editor.tool_robots": "Roboty: odkurzacze i kosiarki (O)",
+  "editor.sub_devices": "Energia",
+  "editor.sub_robots": "Roboty",
+  "editor.help_robots": "Dodaj robota w panelu, kliknij miejsce jego stacji, potem połącz jego mapę. Przeciągnij, aby przesunąć stację.",
+  "editor.robots_none": "Brak robotów sprzątających i kosiarek w Home Assistant."
 }

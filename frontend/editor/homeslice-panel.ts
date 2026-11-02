@@ -145,7 +145,7 @@ import {
 } from "./ops";
 
 /** What a click on the plan does: select and drag, or add something. */
-type Tool = "select" | "rect" | "balcony" | "stairs" | "wall" | "railing" | "divide" | "assign" | "opening" | "furniture" | "devices" | "measure";
+type Tool = "select" | "rect" | "balcony" | "stairs" | "wall" | "railing" | "divide" | "assign" | "opening" | "furniture" | "devices" | "robots" | "measure";
 /** What the plan shows (visibility toggles below the tools). */
 type Layer = "dims" | "furniture" | "lights" | "devices" | "below";
 const LAYERS: { layer: Layer; icon: string }[] = [
@@ -169,7 +169,7 @@ function readLayers(): Record<Layer, boolean> {
 const LIBRARY_ICONS: Record<LibrarySource, string> = { builtin: "mdi:shape-outline", polyhaven: "mdi:image-filter-hdr", sketchfab: "mdi:cube-scan", custom: "mdi:upload-outline" };
 
 /** The tools: tool, icon, shortcut, and the toolbar button they share (its sub-tools, shown in a bar over the plan). */
-const TOOLS: { tool: Tool; icon: string; key: string; group?: "build" | "openings" }[] = [
+const TOOLS: { tool: Tool; icon: string; key: string; group?: "build" | "openings" | "devices" }[] = [
   { tool: "select", icon: "mdi:cursor-default-outline", key: "V" },
   { tool: "rect", icon: "mdi:vector-square-plus", key: "R", group: "build" },
   { tool: "wall", icon: "mdi:wall", key: "W", group: "build" },
@@ -180,7 +180,8 @@ const TOOLS: { tool: Tool; icon: string; key: string; group?: "build" | "opening
   { tool: "opening", icon: "mdi:window-closed-variant", key: "D", group: "openings" },
   { tool: "stairs", icon: "mdi:stairs", key: "S", group: "openings" },
   { tool: "furniture", icon: "mdi:sofa-outline", key: "F" },
-  { tool: "devices", icon: "mdi:lightning-bolt-outline", key: "E" },
+  { tool: "devices", icon: "mdi:lightning-bolt-outline", key: "E", group: "devices" },
+  { tool: "robots", icon: "mdi:robot-vacuum", key: "O", group: "devices" },
   { tool: "measure", icon: "mdi:tape-measure", key: "M" },
 ];
 
@@ -1110,7 +1111,7 @@ export class HomeslicePanel extends LitElement {
     if (group) this._lastInGroup = { ...this._lastInGroup, [group]: tool };
     // adding furniture or devices shows them
     if (tool === "furniture" && !this._show.furniture) this.toggleLayer("furniture", true);
-    if (tool === "devices" && !this._show.devices) this.toggleLayer("devices", true);
+    if ((tool === "devices" || tool === "robots") && !this._show.devices) this.toggleLayer("devices", true);
     this._tool = tool;
     this._pendingArea = tool === "rect" ? this._pendingArea : null;
   }
@@ -3634,7 +3635,12 @@ export class HomeslicePanel extends LitElement {
       const room = l.rooms.find((x) => x.id === this._room) ?? null;
       return html`<h2>${this.t("editor.furniture")}</h2>${this.renderLibrary(room)}`;
     }
-    if (this._tool === "devices") return this.renderDevicesInspector();
+    if (this._tool === "devices")
+      return html`<h2>${this.t("editor.sub_devices")}</h2>
+        ${this.renderEnergySection()}`;
+    if (this._tool === "robots")
+      return html`<h2>${this.t("editor.sub_robots")}</h2>
+        ${this.renderRobotSection() === nothing ? html`<p class="muted">${this.t("editor.robots_none")}</p>` : this.renderRobotSection()}`;
     if (this._stair) return this.renderStairInspector(this._stair);
     if (this._freeWall !== null) return this.renderFreeWallInspector(this._freeWall);
     if (this._room === OUTLINE) return this.renderOutlineInspector();
@@ -4652,12 +4658,6 @@ export class HomeslicePanel extends LitElement {
   }
 
   /** The devices tool: energy items and robots. */
-  private renderDevicesInspector() {
-    return html`<h2>${this.t("editor.tool_devices")}</h2>
-      ${this.renderEnergySection()}
-      ${this.renderRobotSection()}`;
-  }
-
   /** A room's cameras: where each looks and how wide, its motion sensor; add or remove. */
   private renderRoomCameras(r: RoomInput) {
     const m = this._model!;

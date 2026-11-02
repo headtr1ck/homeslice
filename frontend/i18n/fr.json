@@ -503,10 +503,10 @@
   "editor.key_modes": "Pièces et murs / portes et fenêtres / objets",
   "editor.tool_opening": "Portes et fenêtres (D)",
   "editor.tool_furniture": "Meubles (F)",
-  "editor.tool_devices": "Énergie et robots (E)",
+  "editor.tool_devices": "Énergie : solaire, batterie, réseau, appareils (E)",
   "editor.help_opening": "Cliquez sur un mur pour ajouter une fenêtre, glissez une porte ou une fenêtre le long de son mur, Suppr la supprime.",
   "editor.help_furniture": "Glissez un élément de la bibliothèque sur une pièce, ou sélectionnez une pièce et cliquez sur un élément.",
-  "editor.help_devices": "Placez solaire, batterie, réseau, appareils et robots, et reliez leurs lignes.",
+  "editor.help_devices": "Placez solaire, batterie, réseau et appareils, et reliez leurs lignes.",
   "editor.furniture_add": "Ajouter un meuble…",
   "editor.key_opening": "Portes et fenêtres",
   "editor.key_furniture": "Meubles",
@@ -1802,5 +1802,11 @@
   "editor.assign_unlinked": "« {level} » n'est lié à aucun étage de Home Assistant : ses zones ne peuvent pas être listées en premier.",
   "editor.assign_link_floor": "Le lier à un étage",
   "editor.unassigned_room": "Pièce sans zone !",
-  "editor.unassigned_open": "Lui donner une zone (Attribuer)"
+  "editor.unassigned_open": "Lui donner une zone (Attribuer)",
+  "editor.group_devices": "Énergie et robots (E, O)",
+  "editor.tool_robots": "Robots : aspirateurs et tondeuses (O)",
+  "editor.sub_devices": "Énergie",
+  "editor.sub_robots": "Robots",
+  "editor.help_robots": "Ajoutez un robot depuis le panneau, cliquez sur sa base, puis liez sa carte. Glissez-le pour déplacer sa base.",
+  "editor.robots_none": "Pas encore de robot aspirateur ni de tondeuse dans Home Assistant."
 }
