@@ -1802,5 +1802,7 @@
   "editor.assign_here_in": "hier: {room}",
   "editor.assign_placed_title": "Al geplaatst: ergens anders neerzetten verplaatst hem",
   "editor.assign_unlinked": "“{level}” is niet gekoppeld aan een Home Assistant-verdieping, dus de ruimtes ervan kunnen niet bovenaan staan.",
-  "editor.assign_link_floor": "Koppelen aan een verdieping"
+  "editor.assign_link_floor": "Koppelen aan een verdieping",
+  "editor.unassigned_room": "Ruimte zonder toewijzing!",
+  "editor.unassigned_open": "Een ruimte toewijzen (Toewijzen)"
 }

@@ -1802,5 +1802,7 @@
   "editor.assign_here_in": "hier: {room}",
   "editor.assign_placed_title": "Schon platziert: woanders ablegen verschiebt ihn",
   "editor.assign_unlinked": "„{level}“ ist mit keiner Home-Assistant-Etage verknüpft, daher können ihre Bereiche nicht zuerst stehen.",
-  "editor.assign_link_floor": "Mit einer Etage verknüpfen"
+  "editor.assign_link_floor": "Mit einer Etage verknüpfen",
+  "editor.unassigned_room": "Raum ohne Bereich!",
+  "editor.unassigned_open": "Einen Bereich geben (Zuweisen)"
 }

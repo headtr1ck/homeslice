@@ -1802,5 +1802,7 @@
   "editor.assign_here_in": "qui: {room}",
   "editor.assign_placed_title": "Già collocata: rilasciarla altrove la sposta",
   "editor.assign_unlinked": "“{level}” non è collegato a un piano di Home Assistant, quindi le sue aree non possono stare in cima.",
-  "editor.assign_link_floor": "Collegalo a un piano"
+  "editor.assign_link_floor": "Collegalo a un piano",
+  "editor.unassigned_room": "Stanza senza area!",
+  "editor.unassigned_open": "Dalle un'area (Assegna)"
 }

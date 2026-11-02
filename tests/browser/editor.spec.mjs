@@ -226,6 +226,7 @@ test.describe.serial("editor", () => {
     assert(parts.length === 2 && parts.every((r) => r.rect), `parts: ${JSON.stringify(parts)}`);
     assert(l.walls.some((w) => JSON.stringify(w.between) === JSON.stringify(["kitchen", "kitchen_2"]) && !w.type), `walls: ${JSON.stringify(l.walls)}`);
     assert(await page.evaluate(() => window.panel._room === "kitchen_2"), "the new part is not selected");
+    assert(await page.locator('homeslice-panel g.unassigned[data-unassigned="kitchen_2"]').count(), "the new part has no unassigned badge");
     // no wall is built between them
     const walls = await page.evaluate(() => window.panel.levelWalls().filter((w) => w.rooms?.includes?.("kitchen_2") && w.rooms?.includes?.("kitchen")).map((w) => w.type));
     assert(walls.length && walls.every((t) => t === "open"), `built walls: ${JSON.stringify(walls)}`);
@@ -257,6 +258,14 @@ test.describe.serial("editor", () => {
       await page.mouse.up();
     }
     assert((await model()).levels[0].walls.filter((w) => w.line).length >= 4, "walls not drawn");
+    // the walls close a shape: it says it is a room without an area, its button opens the assign tool
+    const badge = page.locator('homeslice-panel g.unassigned[data-unassigned="shape"]');
+    await badge.waitFor({ timeout: 2000 });
+    assert((await badge.textContent()).includes("Unassigned room!"), "badge text");
+    await shot(page, "editor-unassigned-shape");
+    const button = await badge.locator("[data-assign-open]").boundingBox();
+    await page.mouse.click(button.x + button.width / 2, button.y + button.height / 2);
+    assert(await page.evaluate(() => window.panel._tool === "assign"), "the badge did not open the assign tool");
     await page.keyboard.press("Escape");
     await page.keyboard.press("a");
     const areas = await page.locator("homeslice-panel .assign-areas button[data-area]").evaluateAll((els) => els.map((e) => [e.dataset.area, e.querySelector(".where").textContent]));
@@ -323,6 +332,7 @@ test.describe.serial("editor", () => {
     const made = l.rooms.find((r) => r.area_id === second);
     assert(made && JSON.stringify(made.rect) === "[9.5,1,2.5,2.5]", `new room: ${JSON.stringify(made)}`);
     assert(!(l.walls ?? []).some((w) => w.line), `the walls stayed: ${JSON.stringify(l.walls)}`);
+    assert(!(await page.locator('homeslice-panel g.unassigned[data-unassigned="shape"]').count()), "the shape is still unassigned");
     // a tap outside any shape: nothing, and why
     await page.locator(`homeslice-panel .assign-areas button[data-area="${second}"]`).click();
     const [ox, oy] = await toScreen([14, 8]);

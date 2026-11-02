@@ -935,15 +935,61 @@ export class HomeslicePanel extends LitElement {
     const rooms = (this.levelInput?.rooms ?? []).filter((r) => r.kind !== "void");
     const room = rooms.find((r) => pointInPolygon(p, roomPolygon(m, r)));
     if (room) return { poly: roomPolygon(m, room), room: room.id };
-    const segments: [Vec2, Vec2][] = [];
-    const ring = (poly: Vec2[]) => poly.forEach((a, i) => segments.push([a, poly[(i + 1) % poly.length]]));
-    for (const w of this.levelInput?.walls ?? [])
-      if (w.line && (w.type ?? "wall") === "wall" && w.line.every((q) => typeof q[0] === "number" && typeof q[1] === "number")) segments.push(w.line as [Vec2, Vec2]);
-    ring(outlineScope(m, this._level).poly);
-    for (const r of rooms) ring(roomPolygon(m, r));
-    const free = closedFaces(segments).filter((f) => !rooms.some((r) => pointInPolygon(labelPoint(f), roomPolygon(m, r))));
-    const face = faceAt(free, p);
+    const face = faceAt(this.freeShapes(), p);
     return face ? { poly: face } : null;
+  }
+
+  private freeShapesMemo: { model: HouseInput; level: string; faces: Vec2[][] } | null = null;
+
+  /**
+   * Shapes closed off by walls (free-standing ones, with the outline and room edges) that no
+   * room fills: rooms in all but name, waiting for an area.
+   */
+  private freeShapes(): Vec2[][] {
+    const m = this._model!;
+    if (this.freeShapesMemo?.model === m && this.freeShapesMemo.level === this._level) return this.freeShapesMemo.faces;
+    // voids (stairwells, shafts) take their space too
+    const rooms = this.levelInput?.rooms ?? [];
+    const lines = (this.levelInput?.walls ?? []).filter((w) => w.line && (w.type ?? "wall") === "wall" && w.line.every((q) => typeof q[0] === "number" && typeof q[1] === "number"));
+    let faces: Vec2[][] = [];
+    // only free-standing walls close new shapes: without them, nothing to look for
+    if (lines.length) {
+      const segments: [Vec2, Vec2][] = lines.map((w) => w.line as [Vec2, Vec2]);
+      const ring = (poly: Vec2[]) => poly.forEach((a, i) => segments.push([a, poly[(i + 1) % poly.length]]));
+      ring(outlineScope(m, this._level).poly);
+      for (const r of rooms) ring(roomPolygon(m, r));
+      const drawn = segments.slice(0, lines.length);
+      // a shape some drawn wall helps close (space left between rooms on purpose isn't one)
+      const byWall = (f: Vec2[]) =>
+        f.some((p, i) => {
+          const q = f[(i + 1) % f.length];
+          const mid: Vec2 = [(p[0] + q[0]) / 2, (p[1] + q[1]) / 2];
+          return drawn.some(([a, b]) => {
+            const len = Math.hypot(b[0] - a[0], b[1] - a[1]);
+            const t = len ? ((mid[0] - a[0]) * (b[0] - a[0]) + (mid[1] - a[1]) * (b[1] - a[1])) / len : 0;
+            const d = len ? Math.abs((mid[0] - a[0]) * (b[1] - a[1]) - (mid[1] - a[1]) * (b[0] - a[0])) / len : Infinity;
+            return d < 0.002 && t > -0.002 && t < len + 0.002;
+          });
+        });
+      faces = closedFaces(segments).filter((f) => byWall(f) && !rooms.some((r) => pointInPolygon(labelPoint(f), roomPolygon(m, r))));
+    }
+    this.freeShapesMemo = { model: m, level: this._level, faces };
+    return faces;
+  }
+
+  /** A shape or room without an area: says so, with a button that opens the assign tool. */
+  private renderUnassignedBadge(at: Vec2, key: string) {
+    const label = this.t("editor.unassigned_room");
+    const w = label.length * 6.6 + 34;
+    return svg`<g class="unassigned" data-unassigned=${key}>
+      <rect class="pill" x=${at[0] - w / 2} y=${at[1] - 11} width=${w} height="22" rx="11"></rect>
+      <text x=${at[0] - w / 2 + 10} y=${at[1] + 4}>${label}</text>
+      <g class="open-assign" data-assign-open=${key} role="button" aria-label=${this.t("editor.unassigned_open")}>
+        <title>${this.t("editor.unassigned_open")}</title>
+        <circle cx=${at[0] + w / 2 - 12} cy=${at[1]} r="9"></circle>
+        <path d=${`M ${at[0] + w / 2 - 16} ${at[1] - 3} h 5 l 3 3 l -3 3 h -5 z`}></path>
+      </g>
+    </g>`;
   }
 
   /** Puts an area where it was dropped (or tapped): onto the room there, or a new room in the closed shape. */
@@ -1420,6 +1466,12 @@ export class HomeslicePanel extends LitElement {
     this._energySel = null;
     this._robotSel = null;
     this._opening = null;
+    // the button of an unassigned room or shape: the assign tool
+    if (target.closest("[data-assign-open]") && this._tool !== "assign") {
+      this.setTool("assign");
+      this.clearSelection();
+      return;
+    }
     // assigning by tapping: the picked area goes to the shape tapped
     if (this._tool === "assign" && this._assignArea) {
       this.assignAt(this._assignArea, world);
@@ -2526,6 +2578,8 @@ export class HomeslicePanel extends LitElement {
     const grid = this._view.scale >= 20 ? 1 : 5;
     this.dimTargets.clear();
     // also shown magnified around the finger on touch screens
+    // rooms without an area (filled in while drawing the labels), badged at the end
+    const unassignedAt: [string, Vec2][] = [];
     const content = svg`      <defs>
         <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
           <path d="M 0 0 L 10 5 L 0 10 z" class="arrowhead"></path>
@@ -2561,10 +2615,13 @@ export class HomeslicePanel extends LitElement {
         const lampThere = this._show.lights && lamps.some((x) => x.roomId === r.id && Math.hypot(x.at[0] - centre[0], x.at[1] - centre[1]) * this._view.scale < 18);
         const height = lines.length * 14 + 13;
         const top = lampThere ? at[1] + 16 : at[1] - height / 2;
+        if (!r.area_id && (r.kind ?? "room") === "room") unassignedAt.push([r.id, [at[0], top + lines.length * 14 + 30]]);
         return svg`<g class="room-label">
           <text class="room-name" x=${at[0]} y=${top + 11} text-anchor="middle">${lines.map((line, i) => svg`<tspan x=${at[0]} dy=${i ? 14 : 0}>${line}</tspan>`)}</text>
-          <text class="room-area" x=${at[0]} y=${top + lines.length * 14 + 10} text-anchor="middle">${this.n(area(poly), 1)} m²</text></g>`;
+          <text class="room-area" x=${at[0]} y=${top + lines.length * 14 + 10} text-anchor="middle">${this.n(area(poly), 1)} m²</text></g>
+`;
       })}
+      ${this.freeShapes().map((f) => svg`<g class="free-shape"><polygon points=${pts(f)}></polygon></g>`)}
       ${(house?.vertical ?? [])
         // the hole where a stair arrives; where a flight starts, its footprint and the way up
         .filter((v) => idx >= v.from && idx <= v.to)
@@ -2590,6 +2647,10 @@ export class HomeslicePanel extends LitElement {
       ${selPoly.length ? this.renderHandles(selPoly, selected ? this.inner(selected, walls) : selPoly) : nothing}
       ${this._rectPreview ? svg`<polygon class="rect-preview" points=${pts(this._rectPreview)}></polygon>` : nothing}
       ${this.renderArriving()}
+      ${
+        // rooms and shapes without an area: on top of everything, so their button can be pressed
+        [...unassignedAt.map(([id, at]) => this.renderUnassignedBadge(at, id)), ...this.freeShapes().map((f) => this.renderUnassignedBadge(this.toScreen(labelPoint(f)), "shape"))]
+      }
       ${this.renderAssignHover()}
       ${this._linePreview ? svg`<polyline class="line-preview ${this._tool === "divide" ? "divide" : ""}" points=${pts(this._linePreview)}></polyline>` : nothing}
       ${this._opening ? this.renderOpeningDims(walls) : nothing}
@@ -7059,6 +7120,37 @@ export class HomeslicePanel extends LitElement {
       fill: #ff4fa3;
     }
     .measure {
+      pointer-events: none;
+    }
+    g.free-shape polygon {
+      fill: color-mix(in srgb, var(--warning-color, #ffa600) 10%, transparent);
+      stroke: var(--warning-color, #ffa600);
+      stroke-width: 1.5;
+      stroke-dasharray: 6 5;
+      pointer-events: none;
+    }
+    g.unassigned .pill {
+      fill: color-mix(in srgb, var(--warning-color, #ffa600) 22%, var(--card-background-color, #1c1c1c));
+      stroke: var(--warning-color, #ffa600);
+      stroke-width: 1;
+    }
+    g.unassigned text {
+      font-size: 11px;
+      font-weight: 600;
+      fill: var(--primary-text-color, #fff);
+      pointer-events: none;
+    }
+    g.unassigned .open-assign {
+      cursor: pointer;
+    }
+    g.unassigned .open-assign circle {
+      fill: var(--warning-color, #ffa600);
+    }
+    g.unassigned .open-assign:hover circle {
+      fill: var(--primary-color, #03a9f4);
+    }
+    g.unassigned .open-assign path {
+      fill: var(--card-background-color, #1c1c1c);
       pointer-events: none;
     }
     g.assign-hover polygon {

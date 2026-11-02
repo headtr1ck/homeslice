@@ -1802,5 +1802,7 @@
   "editor.assign_here_in": "aquí: {room}",
   "editor.assign_placed_title": "Ya colocada: soltarla en otro sitio la mueve",
   "editor.assign_unlinked": "«{level}» no está vinculada a una planta de Home Assistant, así que sus áreas no pueden ir primero.",
-  "editor.assign_link_floor": "Vincularla a una planta"
+  "editor.assign_link_floor": "Vincularla a una planta",
+  "editor.unassigned_room": "¡Habitación sin área!",
+  "editor.unassigned_open": "Darle un área (Asignar)"
 }

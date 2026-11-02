@@ -1802,5 +1802,7 @@
   "editor.assign_here_in": "here: {room}",
   "editor.assign_placed_title": "Already placed: dropping it elsewhere moves it",
   "editor.assign_unlinked": "“{level}” isn't linked to a Home Assistant floor, so its areas can't be listed first.",
-  "editor.assign_link_floor": "Link it to a floor"
+  "editor.assign_link_floor": "Link it to a floor",
+  "editor.unassigned_room": "Unassigned room!",
+  "editor.unassigned_open": "Give it an area (assign tool)"
 }

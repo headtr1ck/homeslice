@@ -1802,5 +1802,7 @@
   "editor.assign_here_in": "ici : {room}",
   "editor.assign_placed_title": "Déjà placée : la déposer ailleurs la déplace",
   "editor.assign_unlinked": "« {level} » n'est lié à aucun étage de Home Assistant : ses zones ne peuvent pas être listées en premier.",
-  "editor.assign_link_floor": "Le lier à un étage"
+  "editor.assign_link_floor": "Le lier à un étage",
+  "editor.unassigned_room": "Pièce sans zone !",
+  "editor.unassigned_open": "Lui donner une zone (Attribuer)"
 }

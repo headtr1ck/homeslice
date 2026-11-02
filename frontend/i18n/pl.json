@@ -1802,5 +1802,7 @@
   "editor.assign_here_in": "tutaj: {room}",
   "editor.assign_placed_title": "Już umieszczony: upuszczenie gdzie indziej go przenosi",
   "editor.assign_unlinked": "„{level}” nie jest połączone z piętrem Home Assistant, więc jego obszary nie mogą być na początku.",
-  "editor.assign_link_floor": "Połącz z piętrem"
+  "editor.assign_link_floor": "Połącz z piętrem",
+  "editor.unassigned_room": "Pomieszczenie bez obszaru!",
+  "editor.unassigned_open": "Przypisz obszar (Przypisz)"
 }
