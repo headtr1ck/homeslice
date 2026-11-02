@@ -140,7 +140,7 @@ test.describe.serial("editor", () => {
     assert((await room("room")).area_id === "garden", "area not linked");
   });
 
-  test("a room drawn outside the house on an upper floor is a balcony with a railing", async () => {
+  test("balconies come from the balcony tool; the room tool makes rooms, outside the house too", async () => {
     await page.keyboard.press("Escape");
     const level = await page.evaluate(() => window.panel._level);
     await page.evaluate(() => (window.panel._level = window.panel._model.levels[1].id));
@@ -154,6 +154,18 @@ test.describe.serial("editor", () => {
     await page.evaluate(() => (window.panel._view = { ...window.panel._view, scale: window.panel._view.scale * 0.6 }));
     const [x0, y0] = await toScreen([1, 10.4]);
     const [x1, y1] = await toScreen([4, 11.8]);
+    const roomsBefore = await page.evaluate(() => window.panel._model.levels[1].rooms.length);
+    await page.mouse.move(x0, y0);
+    await page.mouse.down();
+    await page.mouse.move(x1, y1, { steps: 8 });
+    await page.mouse.up();
+    // the room tool, outside the house on an upper floor: still a room
+    const roomOutside = await page.evaluate(() => window.panel._model.levels[1].rooms.at(-1));
+    assert((await page.evaluate(() => window.panel._model.levels[1].rooms.length)) === roomsBefore + 1, "no room drawn");
+    assert(roomOutside && (roomOutside.kind ?? "room") === "room" && !roomOutside.railing, `room outside: ${JSON.stringify(roomOutside)}`);
+    await page.evaluate(() => window.panel.shadowRoot.activeElement?.blur());
+    await page.keyboard.press("Control+z");
+    await page.keyboard.press("b");
     await page.mouse.move(x0, y0);
     await page.mouse.down();
     await page.mouse.move(x1, y1, { steps: 8 });

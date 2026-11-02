@@ -1897,18 +1897,12 @@ export class HomeslicePanel extends LitElement {
         const props: Partial<RoomInput> = pending ? { id: uniqueId(this.levelInput!.rooms.map((r) => r.id), slug(pending, "room")), area_id: pending } : {};
         this._pendingArea = null;
         const rect: Vec2[] = [[Math.min(x0, x1), Math.min(y0, y1)], [Math.max(x0, x1), Math.min(y0, y1)], [Math.max(x0, x1), Math.max(y0, y1)], [Math.min(x0, x1), Math.max(y0, y1)]];
-        // drawn outside the house on an upper floor: a balcony, with a railing on its free edges
-        const outline = outlineScope(this._model, this._level).poly;
+        // the balcony tool: outdoors, with a railing on its free edges on upper floors (a terrace
+        // on the ground floor); the room tool always makes a room
         const upper = this._model.levels.findIndex((l) => l.id === this._level) > 0;
-        const middle: Vec2 = [(rect[0][0] + rect[2][0]) / 2, (rect[0][1] + rect[2][1]) / 2];
-        // the balcony tool: always outdoors (a terrace on the ground floor, with no railing)
-        const balcony = this._tool === "balcony";
-        if (balcony && !upper) {
-          Object.assign(props, { kind: "outdoor" });
-          if (!props.id) props.id = uniqueId(this.levelInput!.rooms.map((r) => r.id), "terrace");
-        } else if (balcony || (upper && outline.length && !pointInPolygon(middle, outline))) {
-          Object.assign(props, { kind: "outdoor", railing: "metal" });
-          if (!props.id) props.id = uniqueId(this.levelInput!.rooms.map((r) => r.id), "balcony");
+        if (this._tool === "balcony") {
+          Object.assign(props, upper ? { kind: "outdoor", railing: "metal" } : { kind: "outdoor" });
+          if (!props.id) props.id = uniqueId(this.levelInput!.rooms.map((r) => r.id), upper ? "balcony" : "terrace");
         }
         const { model, id } = addRoom(this._model, this._level, rect, props);
         this.commit(model);
