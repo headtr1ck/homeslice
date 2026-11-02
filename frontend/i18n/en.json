@@ -1813,5 +1813,9 @@
   "editor.same_room_inside": "Inside another room. One room with it to Home Assistant?",
   "editor.same_room_as": "Same room as {room}",
   "editor.outline_auto": "Follow the rooms (automatic)",
-  "editor.outline_auto_hint": "The outside walls run round this floor's rooms and move with them. Curving one, or unticking this, fixes the outline where it is."
+  "editor.outline_auto_hint": "The outside walls run round this floor's rooms and move with them. Curving one, or unticking this, fixes the outline where it is.",
+  "editor.sketchfab_download": "Download into Home Assistant",
+  "editor.sketchfab_have": "Downloaded already",
+  "editor.sketchfab_downloaded": "Downloaded",
+  "editor.sketchfab_results": "Search results"
 }

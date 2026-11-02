@@ -1325,6 +1325,15 @@ test.describe.serial("editor", () => {
       return id && window.panel._model.levels.some((l) => l.rooms.some((r) => (r.furniture ?? []).some((f) => f.model === "custom:" + id)));
     }, null, { timeout: 10000 });
     assert((await page.locator("homeslice-panel g[data-arriving]").count()) === 0, "the placeholder stays");
+    // both are in Home Assistant now: listed under the search, their results ticked
+    await page.evaluate(() => {
+      window.panel._furn = null;
+      window.panel._room = null;
+    });
+    await page.locator("homeslice-panel .sketchfab-downloaded button.piece").first().waitFor({ timeout: 3000 });
+    assert((await page.locator("homeslice-panel .sketchfab-downloaded button.piece").count()) === 2, "downloaded list");
+    const ticks = await page.locator("homeslice-panel button[data-sketchfab-download]").evaluateAll((els) => els.map((e) => e.classList.contains("have")));
+    assert(ticks.length === 2 && ticks.every(Boolean), `download buttons: ${JSON.stringify(ticks)}`);
     // the backup still downloads, and says the bought model is for this home only
     await page.evaluate(() => (window.panel._room = null));
     await page.locator("homeslice-panel header button[aria-label='House settings']").click();

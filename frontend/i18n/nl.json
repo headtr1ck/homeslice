@@ -1813,5 +1813,9 @@
   "editor.same_room_inside": "Binnen een andere ruimte. Voor Home Assistant één ruimte ermee?",
   "editor.same_room_as": "Zelfde ruimte als {room}",
   "editor.outline_auto": "De ruimtes volgen (automatisch)",
-  "editor.outline_auto_hint": "De buitenmuren lopen om de ruimtes van deze verdieping en bewegen mee. Een muur buigen, of dit uitvinken, legt de omtrek vast zoals hij is."
+  "editor.outline_auto_hint": "De buitenmuren lopen om de ruimtes van deze verdieping en bewegen mee. Een muur buigen, of dit uitvinken, legt de omtrek vast zoals hij is.",
+  "editor.sketchfab_download": "Downloaden in Home Assistant",
+  "editor.sketchfab_have": "Al gedownload",
+  "editor.sketchfab_downloaded": "Gedownload",
+  "editor.sketchfab_results": "Zoekresultaten"
 }

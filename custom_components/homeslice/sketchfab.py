@@ -149,6 +149,7 @@ class Sketchfab:
         check_links(glb_json(blob))
         lic = licence_of(model)
         user = model.get("user") or {}
+        thumbs = sorted((model.get("thumbnails") or {}).get("images", []), key=lambda t: abs(t.get("width", 0) - 256))
         meta = {
             "source": "sketchfab",
             "uid": uid,
@@ -156,6 +157,8 @@ class Sketchfab:
             "author_url": user.get("profileUrl"),
             # its page on Sketchfab (url is where Home Assistant serves the file)
             "page": model.get("viewerUrl"),
+            # its picture in the editor's list (from Sketchfab, like the search results')
+            "thumbnail": thumbs[0].get("url") if thumbs else None,
             "licence": lic,
             # bought ones are for this home only; CC ones may be passed on as their licence says
             "shareable": lic["slug"] in SHAREABLE,

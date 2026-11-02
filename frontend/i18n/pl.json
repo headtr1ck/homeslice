@@ -1813,5 +1813,9 @@
   "editor.same_room_inside": "Wewnątrz innego pomieszczenia. Dla Home Assistant jedno z nim?",
   "editor.same_room_as": "To samo pomieszczenie co {room}",
   "editor.outline_auto": "Podążaj za pomieszczeniami (automatycznie)",
-  "editor.outline_auto_hint": "Ściany zewnętrzne biegną wokół pomieszczeń tego piętra i przesuwają się razem z nimi. Wygięcie ściany lub odznaczenie tego utrwala obrys w obecnym kształcie."
+  "editor.outline_auto_hint": "Ściany zewnętrzne biegną wokół pomieszczeń tego piętra i przesuwają się razem z nimi. Wygięcie ściany lub odznaczenie tego utrwala obrys w obecnym kształcie.",
+  "editor.sketchfab_download": "Pobierz do Home Assistant",
+  "editor.sketchfab_have": "Już pobrany",
+  "editor.sketchfab_downloaded": "Pobrane",
+  "editor.sketchfab_results": "Wyniki wyszukiwania"
 }

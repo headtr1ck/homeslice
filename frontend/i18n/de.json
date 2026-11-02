@@ -1813,5 +1813,9 @@
   "editor.same_room_inside": "In einem anderen Raum. Für Home Assistant ein Raum mit ihm?",
   "editor.same_room_as": "Gleicher Raum wie {room}",
   "editor.outline_auto": "Den Räumen folgen (automatisch)",
-  "editor.outline_auto_hint": "Die Außenwände laufen um die Räume dieser Etage und bewegen sich mit ihnen. Eine Wand biegen oder dies abwählen legt den Umriss fest, wie er ist."
+  "editor.outline_auto_hint": "Die Außenwände laufen um die Räume dieser Etage und bewegen sich mit ihnen. Eine Wand biegen oder dies abwählen legt den Umriss fest, wie er ist.",
+  "editor.sketchfab_download": "In Home Assistant herunterladen",
+  "editor.sketchfab_have": "Schon heruntergeladen",
+  "editor.sketchfab_downloaded": "Heruntergeladen",
+  "editor.sketchfab_results": "Suchergebnisse"
 }

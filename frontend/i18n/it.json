@@ -1813,5 +1813,9 @@
   "editor.same_room_inside": "Dentro un'altra stanza. Un'unica stanza con essa per Home Assistant?",
   "editor.same_room_as": "Stessa stanza di {room}",
   "editor.outline_auto": "Segui le stanze (automatico)",
-  "editor.outline_auto_hint": "Le pareti esterne girano attorno alle stanze di questo piano e si muovono con esse. Curvarne una, o deselezionare questo, fissa il contorno com'è."
+  "editor.outline_auto_hint": "Le pareti esterne girano attorno alle stanze di questo piano e si muovono con esse. Curvarne una, o deselezionare questo, fissa il contorno com'è.",
+  "editor.sketchfab_download": "Scarica in Home Assistant",
+  "editor.sketchfab_have": "Già scaricato",
+  "editor.sketchfab_downloaded": "Scaricati",
+  "editor.sketchfab_results": "Risultati"
 }

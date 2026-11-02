@@ -5194,7 +5194,7 @@ export class HomeslicePanel extends LitElement {
 
   /** A Sketchfab model in Home Assistant: downloaded once (null when that fails: the reason is shown). */
   private async sketchfabModel(uid: string): Promise<CustomAsset | null> {
-    const known = this._customModels?.find((m) => m.source === "sketchfab" && (m as { uid?: string }).uid === uid);
+    const known = this._customModels?.find((m) => m.source === "sketchfab" && m.uid === uid);
     if (known) return known;
     if (this._sfBusy) return null;
     this._sfBusy = uid;
@@ -5257,6 +5257,8 @@ export class HomeslicePanel extends LitElement {
       <input type="search" class="sketchfab-search" placeholder=${this.t("editor.sketchfab_search")} aria-label=${this.t("editor.sketchfab_search")} .value=${res?.query ?? ""}
         @keydown=${(e: KeyboardEvent) => e.key === "Enter" && void this.sketchfabSearch((e.target as HTMLInputElement).value.trim())} />
       ${this._sfError ? html`<p class="muted">${this._sfError}</p>` : nothing}
+      ${this.renderSketchfabDownloaded(room)}
+      ${res ? html`<h4>${this.t("editor.sketchfab_results")}</h4>` : nothing}
       <div class="library">
         ${(res?.results ?? []).map(
           (hit) => html`<div class="piece-wrap">
@@ -5273,12 +5275,52 @@ export class HomeslicePanel extends LitElement {
               <span>${hit.name}</span>
               <small class="muted">${[hit.licence.label, mb(hit.bytes)].filter(Boolean).join(" · ")}</small>
             </button>
+            ${this.sketchfabDownloadButton(hit)}
           </div>`,
         )}
       </div>
       ${res?.next ? html`<button @click=${() => void this.sketchfabSearch(res.query, true)}>${this.t("editor.sketchfab_more")}</button>` : nothing}
       ${res && !res.results.length ? html`<p class="muted">${this.t("editor.library_none")}</p>` : nothing}
     </div>`;
+  }
+
+  /** On a result: download it into Home Assistant without placing it (or: it is there already). */
+  private sketchfabDownloadButton(hit: SketchfabHit) {
+    const have = this._customModels?.some((m) => m.source === "sketchfab" && m.uid === hit.uid);
+    const busy = this._sfBusy === hit.uid;
+    const label = this.t(have ? "editor.sketchfab_have" : "editor.sketchfab_download");
+    return html`<button class="fetch-model ${have ? "have" : ""}" data-sketchfab-download=${hit.uid} title=${label} aria-label=${label} ?disabled=${have || !!this._sfBusy}
+      @click=${() => void this.sketchfabModel(hit.uid)}>
+      <ha-icon icon=${busy ? "mdi:progress-download" : have ? "mdi:check" : "mdi:download"}></ha-icon>
+    </button>`;
+  }
+
+  /** The Sketchfab models in Home Assistant already: placed like any piece, or removed. */
+  private renderSketchfabDownloaded(room: RoomInput | null) {
+    const mine = (this._customModels ?? []).filter((m) => m.source === "sketchfab");
+    if (!mine.length) return nothing;
+    const [group] = customGroups(mine, []);
+    return html`<h4>${this.t("editor.sketchfab_downloaded")}</h4>
+      <div class="library sketchfab-downloaded">
+        ${group.items.map((item) => {
+          const name = item.name ?? "";
+          return html`<div class="piece-wrap">
+            <button class="piece ${this._placing === item.key ? "placing" : ""}" draggable="true" title=${item.credit ? `${name} — ${item.credit}` : name} data-key=${item.key}
+              @dragstart=${(e: DragEvent) => {
+                this.libraryDrag = item;
+                e.dataTransfer?.setData("text/plain", item.key);
+                if (e.dataTransfer) e.dataTransfer.effectAllowed = "copy";
+              }}
+              @dragend=${() => (this.libraryDrag = null)}
+              @click=${() => room && this.addFurnitureAt(item, labelPoint(this.inner(room)), room.id)}>
+              ${item.thumb ? html`<img src=${item.thumb} alt="" loading="lazy" draggable="false" />` : html`<span class="no-thumb"><ha-icon icon="mdi:cube-outline"></ha-icon></span>`}
+              <span>${name}</span>
+            </button>
+            <button class="remove-model" title=${this.t("editor.library_delete_model")} aria-label=${this.t("editor.library_delete_model")}
+              @click=${() => this.deleteModel(item.model.slice(7), name)}>×</button>
+          </div>`;
+        })}
+      </div>`;
   }
 
   private loadCustomModels() {
@@ -6945,6 +6987,24 @@ export class HomeslicePanel extends LitElement {
       justify-content: center;
       --mdc-icon-size: 32px;
       opacity: 0.6;
+    }
+    .fetch-model {
+      position: absolute;
+      top: 2px;
+      right: 2px;
+      min-width: 0;
+      width: 26px;
+      height: 26px;
+      padding: 0;
+      display: grid;
+      place-items: center;
+      border-radius: 50%;
+      --mdc-icon-size: 16px;
+      background: var(--card-background-color, #1c1c1c);
+    }
+    .fetch-model.have {
+      color: var(--success-color, #43a047);
+      opacity: 1;
     }
     .remove-model {
       position: absolute;

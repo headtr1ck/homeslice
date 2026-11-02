@@ -97,6 +97,10 @@ export interface CustomAsset {
   licence?: Licence;
   /** May be passed on (as its licence says); bought ones are for this home only. */
   shareable?: boolean;
+  /** Sketchfab's picture of it. */
+  thumbnail?: string | null;
+  /** Its Sketchfab id. */
+  uid?: string;
 }
 
 /** A model's credit line: "Ann · CC Attribution", or nothing for the user's own uploads. */
@@ -229,7 +233,7 @@ export function customGroups(models: CustomAsset[], pieces: PieceInput[] = []): 
   return [
     // the house's own pieces (built from shapes), at their own size
     ...(pieces.length ? [{ id: "house_pieces", items: pieces.map((p) => ({ key: `piece:${p.id}`, type: "item" as const, model: `piece:${p.id}`, name: p.name ?? p.id, thumb: "", size: [p.size[0], p.size[1]] as [number, number], height: p.size[2] })) }] : []),
-    ...(models.length ? [{ id: "uploaded", items: models.map((m) => ({ key: `custom:${m.id}`, type: "item" as const, model: `custom:${m.id}`, name: m.name, thumb: "", ...(m.source ? { credit: credit(m) } : {}) })) }] : []),
+    ...(models.length ? [{ id: "uploaded", items: models.map((m) => ({ key: `custom:${m.id}`, type: "item" as const, model: `custom:${m.id}`, name: m.name, thumb: m.thumbnail ?? "", ...(m.source ? { credit: credit(m) } : {}) })) }] : []),
   ];
 }
 

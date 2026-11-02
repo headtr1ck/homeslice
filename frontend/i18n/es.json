@@ -1813,5 +1813,9 @@
   "editor.same_room_inside": "Dentro de otra habitación. ¿Una sola con ella para Home Assistant?",
   "editor.same_room_as": "Misma habitación que {room}",
   "editor.outline_auto": "Seguir las habitaciones (automático)",
-  "editor.outline_auto_hint": "Las paredes exteriores rodean las habitaciones de esta planta y se mueven con ellas. Curvar una, o desmarcar esto, fija el contorno tal como está."
+  "editor.outline_auto_hint": "Las paredes exteriores rodean las habitaciones de esta planta y se mueven con ellas. Curvar una, o desmarcar esto, fija el contorno tal como está.",
+  "editor.sketchfab_download": "Descargar en Home Assistant",
+  "editor.sketchfab_have": "Ya descargado",
+  "editor.sketchfab_downloaded": "Descargados",
+  "editor.sketchfab_results": "Resultados"
 }
