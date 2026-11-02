@@ -88,6 +88,8 @@ interface Piece {
 const fmt = (p: Vec2) => `${p[0].toFixed(3)},${p[1].toFixed(3)}`;
 const pieceKey = (p: Vec2, q: Vec2) => [fmt(p), fmt(q)].sort().join("|");
 const roomsKey = (s: Set<string>) => [...s].sort().join(",");
+// a party wall may lean this much off its side (sin of about 10°)
+const PARTY_SLANT = 0.17;
 
 export function deriveWalls(level: Level, thickness: WallThickness, issues: Issue[] = []): Wall[] {
   const path = `levels.${level.id}`;
@@ -149,7 +151,8 @@ export function deriveWalls(level: Level, thickness: WallThickness, issues: Issu
       const inside: Vec2 = [(a[0] + b[0]) / 2 - n[0] * 0.05, (a[1] + b[1]) / 2 - n[1] * 0.05];
       if (outdoorInside.some((r) => pointInPolygon(inside, r.polygon))) return "open";
     }
-    const side = sideOf(outwardNormal(...piece.outline));
+    // a side a little off square (a corner dragged a few centimetres) is still that side
+    const side = sideOf(outwardNormal(...piece.outline), PARTY_SLANT);
     return side && partyWalls.has(side) ? "party" : "exterior";
   };
 

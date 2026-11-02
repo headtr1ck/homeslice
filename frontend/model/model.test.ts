@@ -148,6 +148,19 @@ describe("deriveWalls", () => {
     expect(shared.thickness).toBe(0.12);
   });
 
+  it("keeps a party wall a party wall when it leans a little (a corner dragged a few centimetres)", () => {
+    const input = twoRooms();
+    input.outline = { polygon: [[0.1, 0], [10, 0], [10, 8], [0, 8]] };
+    input.levels[0].rooms = [
+      { id: "left", polygon: [[0.1, 0], [5, 0], [5, 8], [0, 8]] },
+      { id: "right", rect: [5, 0, 5, 8] },
+    ];
+    const { house } = expandHouse(input);
+    const party = deriveWalls(house.levels[0], house.walls).filter((x) => x.type === "party");
+    expect(party).toHaveLength(1);
+    expect(party[0].thickness).toBe(0.24);
+  });
+
   it("grows exterior walls inwards from the outline", () => {
     const north = walls().find((x) => x.side === "north" && x.rooms[0] === "left")!;
     expect(north.a[1]).toBeCloseTo(0.18);

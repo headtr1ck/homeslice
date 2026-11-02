@@ -36,11 +36,11 @@ export function outwardNormal(a: Vec2, b: Vec2): Vec2 {
   return [d[1] / l, -d[0] / l];
 }
 
-/** Compass side an outward normal points to; null for diagonal edges. */
-export function sideOf(normal: Vec2): Side | null {
+/** Compass side an outward normal points to (within `slant`); null for diagonal edges. */
+export function sideOf(normal: Vec2, slant = 1e-3): Side | null {
   const [x, y] = normal;
-  if (Math.abs(x) < 1e-3) return y < 0 ? "north" : "south";
-  if (Math.abs(y) < 1e-3) return x > 0 ? "east" : "west";
+  if (Math.abs(x) < slant) return y < 0 ? "north" : "south";
+  if (Math.abs(y) < slant) return x > 0 ? "east" : "west";
   return null;
 }
 
