@@ -24,7 +24,8 @@ test.describe.serial("editor, phone", () => {
     const plan = await page.locator("homeslice-panel svg.plan").boundingBox();
     assert(plan.height > 360 && plan.width > 370, `plan ${JSON.stringify(plan)}`);
     // tools explain themselves on a phone too; the stairs tool says why it can't work on the top floor
-    await page.locator('homeslice-panel aside.tools button.tool[data-tool="stairs"]').click();
+    await page.locator('homeslice-panel aside.tools button[data-group="openings"]').click();
+    await page.locator('homeslice-panel .sub-tools button[data-sub-tool="stairs"]').click();
     assert((await page.locator("homeslice-panel .hint-bar").textContent()).includes("Drag a rectangle where the stairwell is"), "no stairs hint");
     await page.locator("homeslice-panel aside.levels button.level", { hasText: "First Floor" }).click();
     assert((await page.locator("homeslice-panel .hint-bar").textContent()).includes("this is the top floor"), "no top-floor explanation");

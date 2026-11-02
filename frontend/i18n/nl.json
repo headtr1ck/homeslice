@@ -1779,5 +1779,8 @@
   "editor.sub_wall": "Wand",
   "editor.sub_railing": "Balustrade",
   "editor.sub_balcony": "Balkon",
-  "editor.help_railing": "Sleep van het ene eind van de balustrade naar het andere: langs een vide, een traprand of een dakterras; lijnt recht of op 45° uit. Alt: niet uitlijnen. Esc: annuleren."
+  "editor.help_railing": "Sleep van het ene eind van de balustrade naar het andere: langs een vide, een traprand of een dakterras; lijnt recht of op 45° uit. Alt: niet uitlijnen. Esc: annuleren.",
+  "editor.group_openings": "Deuren, ramen, trappen (D, S)",
+  "editor.sub_opening": "Deuren & ramen",
+  "editor.sub_stairs": "Trap"
 }

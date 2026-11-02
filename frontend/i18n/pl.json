@@ -1779,5 +1779,8 @@
   "editor.sub_wall": "Ściana",
   "editor.sub_railing": "Balustrada",
   "editor.sub_balcony": "Balkon",
-  "editor.help_railing": "Przeciągnij od jednego końca balustrady do drugiego: wzdłuż antresoli, krawędzi schodów lub tarasu na dachu; przyciąga prosto lub pod 45°. Alt: bez przyciągania. Esc: anuluj."
+  "editor.help_railing": "Przeciągnij od jednego końca balustrady do drugiego: wzdłuż antresoli, krawędzi schodów lub tarasu na dachu; przyciąga prosto lub pod 45°. Alt: bez przyciągania. Esc: anuluj.",
+  "editor.group_openings": "Drzwi, okna, schody (D, S)",
+  "editor.sub_opening": "Drzwi i okna",
+  "editor.sub_stairs": "Schody"
 }

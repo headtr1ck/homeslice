@@ -1779,5 +1779,8 @@
   "editor.sub_wall": "Pared",
   "editor.sub_railing": "Barandilla",
   "editor.sub_balcony": "Balcón",
-  "editor.help_railing": "Arrastra de un extremo de la barandilla al otro: junto a una galería, el borde de una escalera o una azotea; se ajusta recta o a 45°. Alt: sin ajuste. Esc: cancelar."
+  "editor.help_railing": "Arrastra de un extremo de la barandilla al otro: junto a una galería, el borde de una escalera o una azotea; se ajusta recta o a 45°. Alt: sin ajuste. Esc: cancelar.",
+  "editor.group_openings": "Puertas, ventanas, escaleras (D, S)",
+  "editor.sub_opening": "Puertas y ventanas",
+  "editor.sub_stairs": "Escalera"
 }

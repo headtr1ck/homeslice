@@ -1779,5 +1779,8 @@
   "editor.sub_wall": "Wand",
   "editor.sub_railing": "Geländer",
   "editor.sub_balcony": "Balkon",
-  "editor.help_railing": "Von einem Ende des Geländers zum anderen ziehen: an einer Galerie, einer Treppenkante oder einer Dachterrasse; rastet gerade oder auf 45° ein. Alt: ohne Einrasten. Esc: abbrechen."
+  "editor.help_railing": "Von einem Ende des Geländers zum anderen ziehen: an einer Galerie, einer Treppenkante oder einer Dachterrasse; rastet gerade oder auf 45° ein. Alt: ohne Einrasten. Esc: abbrechen.",
+  "editor.group_openings": "Türen, Fenster, Treppen (D, S)",
+  "editor.sub_opening": "Türen & Fenster",
+  "editor.sub_stairs": "Treppe"
 }

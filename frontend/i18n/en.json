@@ -1779,5 +1779,8 @@
   "editor.sub_wall": "Wall",
   "editor.sub_railing": "Railing",
   "editor.sub_balcony": "Balcony",
-  "editor.help_railing": "Drag from one end of the railing to the other: along a gallery, a stair edge or a roof terrace; it snaps straight or to 45°. Alt: no snapping. Esc: cancel."
+  "editor.help_railing": "Drag from one end of the railing to the other: along a gallery, a stair edge or a roof terrace; it snaps straight or to 45°. Alt: no snapping. Esc: cancel.",
+  "editor.group_openings": "Doors, windows, stairs (D, S)",
+  "editor.sub_opening": "Doors & windows",
+  "editor.sub_stairs": "Stairs"
 }

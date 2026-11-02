@@ -1779,5 +1779,8 @@
   "editor.sub_wall": "Mur",
   "editor.sub_railing": "Garde-corps",
   "editor.sub_balcony": "Balcon",
-  "editor.help_railing": "Glissez d'un bout du garde-corps à l'autre : le long d'une mezzanine, d'un bord d'escalier ou d'un toit-terrasse ; aimanté droit ou à 45°. Alt : sans aimantation. Échap : annuler."
+  "editor.help_railing": "Glissez d'un bout du garde-corps à l'autre : le long d'une mezzanine, d'un bord d'escalier ou d'un toit-terrasse ; aimanté droit ou à 45°. Alt : sans aimantation. Échap : annuler.",
+  "editor.group_openings": "Portes, fenêtres, escaliers (D, S)",
+  "editor.sub_opening": "Portes et fenêtres",
+  "editor.sub_stairs": "Escalier"
 }

@@ -312,7 +312,8 @@ test.describe.serial("editor", () => {
   });
 
   test("doors & windows: the distances to the corners and the width can be typed", async () => {
-    await page.locator('homeslice-panel aside.tools button.tool[data-tool="opening"]').click();
+    await page.locator('homeslice-panel aside.tools button[data-group="openings"]').click();
+    await page.locator('homeslice-panel .sub-tools button[data-sub-tool="opening"]').click();
     const hit = await page.evaluate(() => {
       const l = [...window.panel.shadowRoot.querySelectorAll("svg.plan line.opening-hit")].find((x) => JSON.parse(x.dataset.opening).room === "hall");
       const r = l.getBoundingClientRect();
@@ -396,7 +397,8 @@ test.describe.serial("editor", () => {
 
   test("doors & windows library: pick a double door, add it to a wall, see how it opens; change its kind", async () => {
     await page.keyboard.press("Escape");
-    await page.locator('homeslice-panel aside.tools button.tool[data-tool="opening"]').click();
+    await page.locator('homeslice-panel aside.tools button[data-group="openings"]').click();
+    await page.locator('homeslice-panel .sub-tools button[data-sub-tool="opening"]').click();
     await page.locator('homeslice-panel .inspector .library button[data-preset="door_double"]').click();
     // the wall between hall and kitchen
     const hit = await page.evaluate(() => {
@@ -441,7 +443,8 @@ test.describe.serial("editor", () => {
 
   test("doors & windows: house-wide defaults for sill and height", async () => {
     await page.keyboard.press("Escape");
-    await page.locator('homeslice-panel aside.tools button.tool[data-tool="opening"]').click();
+    await page.locator('homeslice-panel aside.tools button[data-group="openings"]').click();
+    await page.locator('homeslice-panel .sub-tools button[data-sub-tool="opening"]').click();
     const sill = page.locator('homeslice-panel .inspector input[aria-label="Window Sill (m)"]');
     await sill.fill("0");
     await sill.dispatchEvent("change");
@@ -659,7 +662,8 @@ test.describe.serial("editor", () => {
 
   test("doors & windows: click a wall to add a window, drag it, link a blind, delete it", async () => {
     await page.keyboard.press("Escape");
-    await page.locator('homeslice-panel aside.tools button.tool[data-tool="opening"]').click();
+    await page.locator('homeslice-panel aside.tools button[data-group="openings"]').click();
+    await page.locator('homeslice-panel .sub-tools button[data-sub-tool="opening"]').click();
     await page.locator('homeslice-panel .inspector .library button[data-preset="window"]').click();
     const before = (await model()).levels[0].openings.length;
     // a free stretch of the kitchen's north wall (x = 6.8; an earlier step moved the kitchen to x = 3.5 … 8)
@@ -783,7 +787,7 @@ test.describe.serial("editor", () => {
     await page.mouse.click(kb.x + kb.width * 0.8, kb.y + kb.height * 0.85);
     // the room's inspector offers furniture: the furniture tool's library, for this room
     await page.locator("homeslice-panel .inspector button", { hasText: "Add furniture" }).click();
-    await page.locator('homeslice-panel .inspector .library-sources button[data-source="builtin"]').click();
+    await page.locator('homeslice-panel .sub-tools button[data-source="builtin"]').click();
     await page.locator('homeslice-panel .inspector .library button[data-key="modern:dining_table"]').click();
     assert((await room("kitchen")).furniture?.[0]?.type === "table", `kitchen: ${JSON.stringify((await room("kitchen")).furniture)}`);
     assert((await page.locator("homeslice-panel .inspector h2").textContent()) === "Table", "new table not selected");
@@ -814,7 +818,7 @@ test.describe.serial("editor", () => {
   test("furniture library: grouped with pictures; drag pieces onto rooms, wall pieces go against a wall", async () => {
     await page.keyboard.press("Escape");
     await page.locator('homeslice-panel aside.tools button.tool[data-tool="furniture"]').click();
-    await page.locator('homeslice-panel .inspector .library-sources button[data-source="builtin"]').click();
+    await page.locator('homeslice-panel .sub-tools button[data-source="builtin"]').click();
     const groups = await page.locator("homeslice-panel .inspector h4").allTextContents();
     assert(groups[0] === "Living" && groups.includes("Bathroom") && groups.includes("Lighting") && groups.includes("Cars & bikes"), `groups: ${groups.join(", ")}`);
     // searching narrows the library down
@@ -923,7 +927,7 @@ test.describe.serial("editor", () => {
     const spot = [living.x + living.width * 0.5, living.y + living.height * 0.4];
     const count = async () => (await room("living")).furniture?.length ?? 0;
     const last = async () => (await room("living")).furniture.at(-1);
-    const source = (s) => page.locator(`homeslice-panel .inspector .library-sources button[data-source="${s}"]`).click();
+    const source = (s) => page.locator(`homeslice-panel .sub-tools button[data-source="${s}"]`).click();
     const start = await count();
 
     await source("builtin");
@@ -980,7 +984,7 @@ test.describe.serial("editor", () => {
     await page.route("**/homeslice_assets/**", (route) => route.fulfill({ contentType: "model/gltf-binary", body: readFileSync(join(root, "dev/fixtures/chair.glb")) }));
     await page.keyboard.press("Escape");
     await page.keyboard.press("f");
-    await page.locator("homeslice-panel .library-sources button[data-source=sketchfab]").click();
+    await page.locator("homeslice-panel .sub-tools button[data-source=sketchfab]").click();
     const token = page.locator("homeslice-panel input[data-sketchfab-token]");
     await token.fill("wrong");
     await token.locator("xpath=..").locator("xpath=following-sibling::button").click();
@@ -1049,7 +1053,7 @@ test.describe.serial("editor", () => {
     const lb = await page.locator('homeslice-panel svg.plan g[data-room="living"] polygon').boundingBox();
     await page.mouse.click(lb.x + lb.width * 0.85, lb.y + lb.height * 0.9);
     await page.locator("homeslice-panel .inspector button", { hasText: "Add furniture" }).click();
-    await page.locator('homeslice-panel .inspector .library-sources button[data-source="builtin"]').click();
+    await page.locator('homeslice-panel .sub-tools button[data-source="builtin"]').click();
     await page.locator('homeslice-panel .inspector .library button[data-key="modern:floor_lamp_tripod"]').click();
     const lampMarkers = () => page.locator('homeslice-panel svg.plan [data-light*="light.reading_lamp"]').count();
     assert((await lampMarkers()) === 1, "the reading lamp should have its marker before linking");

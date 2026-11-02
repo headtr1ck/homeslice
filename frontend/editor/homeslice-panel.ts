@@ -162,15 +162,18 @@ function readLayers(): Record<Layer, boolean> {
   }
 }
 
+/** The furniture library's sources, shown as the furniture tool's sub-tools. */
+const LIBRARY_ICONS: Record<LibrarySource, string> = { builtin: "mdi:shape-outline", polyhaven: "mdi:image-filter-hdr", sketchfab: "mdi:cube-scan", custom: "mdi:upload-outline" };
+
 /** The tools: tool, icon, shortcut, and the toolbar button they share (its sub-tools, shown in a bar over the plan). */
-const TOOLS: { tool: Tool; icon: string; key: string; group?: "build" }[] = [
+const TOOLS: { tool: Tool; icon: string; key: string; group?: "build" | "openings" }[] = [
   { tool: "select", icon: "mdi:cursor-default-outline", key: "V" },
   { tool: "rect", icon: "mdi:vector-square-plus", key: "R", group: "build" },
   { tool: "wall", icon: "mdi:wall", key: "W", group: "build" },
   { tool: "railing", icon: "mdi:fence", key: "G", group: "build" },
   { tool: "balcony", icon: "mdi:balcony", key: "B", group: "build" },
-  { tool: "stairs", icon: "mdi:stairs", key: "S" },
-  { tool: "opening", icon: "mdi:window-closed-variant", key: "D" },
+  { tool: "opening", icon: "mdi:window-closed-variant", key: "D", group: "openings" },
+  { tool: "stairs", icon: "mdi:stairs", key: "S", group: "openings" },
   { tool: "furniture", icon: "mdi:sofa-outline", key: "F" },
   { tool: "devices", icon: "mdi:lightning-bolt-outline", key: "E" },
   { tool: "measure", icon: "mdi:tape-measure", key: "M" },
@@ -878,6 +881,18 @@ export class HomeslicePanel extends LitElement {
 
   /** While a sub-tool is in use: its siblings, named, over the plan. */
   private renderSubTools() {
+    // furniture: where the library's pieces come from
+    if (this._tool === "furniture")
+      return html`<div class="sub-tools" role="tablist" aria-label=${this.t("editor.tool_furniture")}>
+        ${LIBRARY_SOURCES.map(
+          (src) => html`<button role="tab" class=${src === this._librarySource ? "active" : ""} aria-selected=${src === this._librarySource} data-source=${src}
+            @click=${() => {
+              this._librarySource = src;
+              this._libraryError = "";
+              writePref("homeslice-library", src);
+            }}><ha-icon icon=${LIBRARY_ICONS[src]}></ha-icon><span>${this.t(`editor.library_${src}` as StringKey)}</span></button>`,
+        )}
+      </div>`;
     const group = TOOLS.find((t) => t.tool === this._tool)?.group;
     if (!group) return nothing;
     return html`<div class="sub-tools" role="toolbar" aria-label=${this.t(`editor.group_${group}` as StringKey)}>
@@ -2177,6 +2192,8 @@ export class HomeslicePanel extends LitElement {
             }}>✓${open ? html`<span class="badge">${open}</span>` : nothing}</button>`;
         })()}
         <span class="spacer"></span>
+        ${this.renderSubTools()}
+        <span class="spacer"></span>
         <button class="icon" title=${this.t("editor.undo")} aria-label=${this.t("editor.undo")} ?disabled=${!this.history.canUndo} @click=${() => this.undo()}>↶</button>
         <button class="icon" title=${this.t("editor.redo")} aria-label=${this.t("editor.redo")} ?disabled=${!this.history.canRedo} @click=${() => this.redo()}>↷</button>
         <button class="save ${this.dirty ? "dirty" : ""}" ?disabled=${!this.dirty} @click=${() => this.save()}>
@@ -2257,7 +2274,7 @@ export class HomeslicePanel extends LitElement {
           ${this._hint
             ? html`<div class="hint" style="left:${this._hint.x + 16}px;top:${this._hint.y + 16}px">${this._hint.lines.map((l) => html`<div>${l}</div>`)}</div>`
             : nothing}
-          <div class="plan-top">${this.renderSubTools()} ${this.renderHint()}</div>
+          <div class="plan-top">${this.renderHint()}</div>
         </section>
         <div class="side-handle" role="separator" aria-orientation="vertical" aria-label=${this.t("editor.side_resize")} title=${this.t("editor.side_resize")}
           @pointerdown=${this.onSideDown} @pointermove=${this.onSideMove} @pointerup=${this.onSideUp} @pointercancel=${this.onSideUp}
@@ -4652,17 +4669,7 @@ export class HomeslicePanel extends LitElement {
       source === "polyhaven"
         ? html`<p class="muted credit">${this.t("editor.library_polyhaven_credit")} <a href="https://polyhaven.com" target="_blank" rel="noopener">polyhaven.com</a></p>`
         : nothing;
-    return html`<div class="library-sources" role="tablist">
-        ${LIBRARY_SOURCES.map(
-          (s) => html`<button role="tab" class=${s === source ? "active" : ""} aria-selected=${s === source} data-source=${s}
-            @click=${() => {
-              this._librarySource = s;
-              this._libraryError = "";
-              writePref("homeslice-library", s);
-            }}>${this.t(`editor.library_${s}` as StringKey)}</button>`,
-        )}
-      </div>
-      ${credit}
+    return html`${credit}
       <p class="muted">${this.t(room ? "editor.library_hint_room" : "editor.library_hint", { room: room ? this.roomName(room) : "" })}</p>
       ${this.renderSnapPieces()}
       ${source === "custom"
@@ -6951,15 +6958,14 @@ export class HomeslicePanel extends LitElement {
     .plan-top > * {
       pointer-events: auto;
     }
+    /* the sub-tools of the tool in use, in the header: never over the plan */
     .sub-tools {
       display: flex;
       flex-wrap: wrap;
       gap: 4px;
-      padding: 4px;
+      padding: 3px;
       border-radius: 10px;
-      background: color-mix(in srgb, var(--card-background-color, #1c1c1c) 92%, transparent);
       border: 1px solid var(--divider-color, #444);
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
     }
     .sub-tools button {
       display: flex;
