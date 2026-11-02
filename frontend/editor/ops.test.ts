@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { HouseInput, Vec2 } from "../model/types";
 import {
   mergePieces,
+  setPiece,
   duplicateLevel,
   moveRoomToLevel,
   movePieceToLevel,
@@ -369,6 +370,14 @@ describe("houses and levels", () => {
     expect(again.added).toEqual(["unit_2"]);
     m = again.model;
     expect(m.pieces!.map((p) => p.id)).toEqual(["unit", "unit_2"]);
+  });
+
+  it("removing a piece in use leaves its places as their own type", () => {
+    let m = mergePieces(house(), [{ id: "unit", size: [1, 0.4, 0.5], parts: [{ shape: "box", size: [1, 0.4, 0.5] }] }]).model;
+    m.levels[0].rooms[0].furniture = [{ type: "shelf", at: [1, 1], model: "piece:unit" }];
+    m = setPiece(m, "unit", null);
+    expect(m.pieces).toBeUndefined();
+    expect(m.levels[0].rooms[0].furniture).toEqual([{ type: "shelf", at: [1, 1] }]);
   });
 
   it("makes ids from names", () => {

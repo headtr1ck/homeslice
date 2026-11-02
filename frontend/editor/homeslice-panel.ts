@@ -14,7 +14,7 @@ import en from "../i18n/en.json";
 import de from "../i18n/de.json";
 import { DEFAULTS, LIGHT_TYPES, expandHouse } from "../model/expand";
 import { bbox, labelPoint, pointInPolygon } from "../model/geometry";
-import type { DormerInput, EnergyInput, LevelInput, RoofInput, RoofPartInput, RoofWindowInput, FurnitureInput, FurnitureMount, FurnitureType, HouseInput, Issue, LightType, OpeningInput, OpeningSource, OpeningType, RoomInput, Side, Vec2, Vertical } from "../model/types";
+import type { DormerInput, EnergyInput, LevelInput, RoofInput, RoofPartInput, RoofWindowInput, FurnitureInput, FurnitureMount, FurnitureType, HouseInput, Issue, LightType, OpeningInput, OpeningSource, OpeningType, PieceInput, RoomInput, Side, Vec2, Vertical } from "../model/types";
 import { deriveWalls, innerPolygon, sideOfRoom, type Wall, type WallOpening } from "../model/walls";
 import { HouseRenderer } from "../render/scene";
 import { stairFrame, stairHole } from "../model/stairs";
@@ -82,6 +82,7 @@ import {
   moveRoomToLevel,
   movePieceToLevel,
   mergePieces,
+  setPiece,
   addEnergy,
   deleteEnergy,
   updateEnergy,
@@ -4061,6 +4062,52 @@ export class HomeslicePanel extends LitElement {
       }}>${this.t("editor.delete_level")}</button>`;
   }
 
+  /** One own piece: its name and size, and a row per part (shape, size, place, finish). */
+  private renderPieceEditor(p: PieceInput) {
+    const m = this._model!;
+    const save = (next: PieceInput) => this.commit(setPiece(this._model!, p.id, next));
+    const num = (v: string, fallback: number) => {
+      const n = parseFloat(v.replace(",", "."));
+      return Number.isFinite(n) ? Math.round(n * 1000) / 1000 : fallback;
+    };
+    const triple = (label: string, value: [number, number, number], set: (v: [number, number, number]) => void, min = 0.01) =>
+      html`<span class="triple" title=${label}>${value.map(
+        (v, k) => html`<input type="number" step="0.01" min=${min} .value=${String(v)} aria-label=${`${label} ${k + 1}`}
+          @change=${(e: Event) => {
+            const next = [...value] as [number, number, number];
+            next[k] = Math.max(min, num((e.target as HTMLInputElement).value, v));
+            set(next);
+          }} />`,
+      )}</span>`;
+    return html`<details class="piece-editor" data-piece=${p.id}>
+      <summary>${p.name ?? p.id} <span class="muted">piece:${p.id}</span></summary>
+      <label>${this.t("editor.piece_name")}<input .value=${p.name ?? ""} @change=${(e: Event) => save({ ...p, name: (e.target as HTMLInputElement).value || undefined })} /></label>
+      <label>${this.t("editor.piece_size")} ${triple(this.t("editor.piece_size"), p.size, (size) => save({ ...p, size }))}</label>
+      ${p.parts.map(
+        (part, j) => html`<div class="piece-part" data-part=${j}>
+          <select aria-label=${this.t("editor.piece_shape")} @change=${(e: Event) => save({ ...p, parts: p.parts.map((x, k) => (k === j ? { ...x, shape: (e.target as HTMLSelectElement).value as typeof x.shape } : x)) })}>
+            ${(["box", "cylinder", "taper", "sphere"] as const).map((s) => html`<option value=${s} ?selected=${part.shape === s}>${this.t(`editor.piece_shape_${s}`)}</option>`)}
+          </select>
+          ${triple(this.t("editor.piece_size"), part.size, (size) => save({ ...p, parts: p.parts.map((x, k) => (k === j ? { ...x, size } : x)) }))}
+          ${triple(this.t("editor.piece_at"), part.at ?? [0, 0, 0], (at) => save({ ...p, parts: p.parts.map((x, k) => (k === j ? { ...x, at } : x)) }), -50)}
+          <input class="finish" list="piece-finishes" .value=${part.finish ?? ""} placeholder=${this.t("editor.piece_finish")} aria-label=${this.t("editor.piece_finish")}
+            @change=${(e: Event) => save({ ...p, parts: p.parts.map((x, k) => (k === j ? { ...x, finish: (e.target as HTMLInputElement).value || undefined } : x)) })} />
+          <button title=${this.t("editor.piece_part_delete")} aria-label=${this.t("editor.piece_part_delete")} ?disabled=${p.parts.length < 2}
+            @click=${() => save({ ...p, parts: p.parts.filter((_, k) => k !== j) })}>×</button>
+        </div>`,
+      )}
+      <datalist id="piece-finishes">${Object.keys(FINISHES).map((f) => html`<option value=${f}></option>`)}</datalist>
+      <div class="row">
+        <button data-part-add @click=${() => save({ ...p, parts: [...p.parts, { shape: "box", size: [0.2, 0.2, 0.2], at: [0, 0, p.size[2]] }] })}>${this.t("editor.piece_part_add")}</button>
+        <button class="danger" @click=${() => {
+          const used = m.levels.some((l) => l.rooms.some((r) => (r.furniture ?? []).some((f) => f.model === `piece:${p.id}`)));
+          if (used && !confirm(this.t("editor.piece_delete_used"))) return;
+          this.commit(setPiece(m, p.id, null));
+        }}>${this.t("editor.piece_delete")}</button>
+      </div>
+    </details>`;
+  }
+
   /** "Move to floor…": the other floors (not the roof). */
   private moveToFloor(onPick: (levelId: string) => void) {
     const others = (this._model?.levels ?? []).filter((l) => l.id !== this._level && l.kind !== "roof");
@@ -4371,7 +4418,7 @@ export class HomeslicePanel extends LitElement {
       else groups = polyhavenGroups(c);
     } else {
       if (!this._customModels) this.loadCustomModels();
-      groups = customGroups(this._customModels ?? []);
+      groups = customGroups(this._customModels ?? [], this._model?.pieces ?? []);
     }
     groups = filterGroups(groups, this._libraryFilter, typeName);
     const credit =
@@ -4756,6 +4803,11 @@ export class HomeslicePanel extends LitElement {
       <button class="primary" ?disabled=${!st.paste?.trim()} @click=${applyPaste}>${this.t("editor.yaml_apply")}</button>
       <h3>${this.t("editor.pieces")}</h3>
       <p class="muted">${this.t("editor.pieces_hint", { count: m.pieces?.length ?? 0 })}</p>
+      ${(m.pieces ?? []).map((p) => this.renderPieceEditor(p))}
+      <button data-piece-new @click=${() => {
+        const id = uniqueId((m.pieces ?? []).map((p) => p.id), "piece");
+        this.commit(setPiece(m, id, { id, name: this.t("editor.piece_new_name"), size: [0.6, 0.4, 0.8], parts: [{ shape: "box", size: [0.6, 0.4, 0.8], finish: "oak" }] }));
+      }}>${this.t("editor.piece_new")}</button>
       <div class="row">
         <button data-pieces-download ?disabled=${!m.pieces?.length} @click=${() => {
           const a = document.createElement("a");
@@ -6378,6 +6430,32 @@ export class HomeslicePanel extends LitElement {
       stroke-linecap: round;
       opacity: 0.7;
       pointer-events: none;
+    }
+    .piece-editor {
+      border: 1px solid var(--line, rgba(127, 127, 127, 0.3));
+      border-radius: 8px;
+      padding: 6px 8px;
+      margin: 6px 0;
+    }
+    .piece-editor summary {
+      cursor: pointer;
+    }
+    .piece-part {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      align-items: center;
+      margin: 4px 0;
+    }
+    .triple {
+      display: inline-flex;
+      gap: 2px;
+    }
+    .triple input {
+      width: 58px;
+    }
+    .piece-part input.finish {
+      width: 96px;
     }
     .railing-line {
       stroke: var(--primary-text-color, #333);

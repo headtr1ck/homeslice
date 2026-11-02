@@ -1583,3 +1583,20 @@ export function mergePieces(model: HouseInput, pieces: PieceInput[]): { model: H
   if (!list.length) delete m.pieces;
   return { model: m, added };
 }
+
+/** Changes, adds (no id yet in the house) or with null removes one of the house's own pieces. */
+export function setPiece(model: HouseInput, id: string, piece: PieceInput | null): HouseInput {
+  const m = clone(model);
+  const list = m.pieces ?? [];
+  const i = list.findIndex((p) => p.id === id);
+  if (piece === null) {
+    list.splice(i, 1);
+    // pieces placed in the house become their type's own again
+    for (const l of m.levels) for (const r of l.rooms) for (const f of r.furniture ?? []) if (f.model === `piece:${id}`) delete f.model;
+  }
+  else if (i >= 0) list[i] = clone(piece);
+  else list.push(clone(piece));
+  if (list.length) m.pieces = list;
+  else delete m.pieces;
+  return m;
+}

@@ -5,7 +5,7 @@
 
 import { FURNITURE, FURNITURE_GROUPS } from "../model/furniture";
 import { MODERN_GROUPS, defaultKind } from "../model/modern";
-import type { FurnitureMount, FurnitureType } from "../model/types";
+import type { FurnitureMount, FurnitureType, PieceInput } from "../model/types";
 
 export type LibrarySource = "builtin" | "polyhaven" | "custom";
 export const LIBRARY_SOURCES: LibrarySource[] = ["builtin", "polyhaven", "custom"];
@@ -192,8 +192,12 @@ export function polyhavenGroups(catalog: PolyhavenAsset[]): LibraryGroup[] {
   return [...groups].filter(([, items]) => items.length).map(([id, items]) => ({ id, items }));
 }
 
-export function customGroups(models: CustomAsset[]): LibraryGroup[] {
-  return models.length ? [{ id: "uploaded", items: models.map((m) => ({ key: `custom:${m.id}`, type: "item" as const, model: `custom:${m.id}`, name: m.name, thumb: "" })) }] : [];
+export function customGroups(models: CustomAsset[], pieces: PieceInput[] = []): LibraryGroup[] {
+  return [
+    // the house's own pieces (built from shapes), at their own size
+    ...(pieces.length ? [{ id: "house_pieces", items: pieces.map((p) => ({ key: `piece:${p.id}`, type: "item" as const, model: `piece:${p.id}`, name: p.name ?? p.id, thumb: "", size: [p.size[0], p.size[1]] as [number, number], height: p.size[2] })) }] : []),
+    ...(models.length ? [{ id: "uploaded", items: models.map((m) => ({ key: `custom:${m.id}`, type: "item" as const, model: `custom:${m.id}`, name: m.name, thumb: "" })) }] : []),
+  ];
 }
 
 /** Items matching a search (name, type, tags). */

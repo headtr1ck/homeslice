@@ -3824,8 +3824,23 @@ if (selected()) {
     await page.locator("homeslice-panel input[data-pieces-add]").setInputFiles({ name: "bad.yaml", mimeType: "text/yaml", buffer: Buffer.from(broken) });
     await page.waitForFunction(() => window.panel._settings?.problems?.some((p) => p.includes("shape must be")), null, { timeout: 5000 });
     assert(!(await page.evaluate(() => window.panel._model.pieces.some((p) => p.id === "bad"))), "a broken piece was taken");
+    // a new one from the builder: a part more, its height changed
+    await page.locator("homeslice-panel button[data-piece-new]").click();
+    const editor = page.locator('homeslice-panel details.piece-editor[data-piece="piece"]');
+    await editor.locator("summary").click();
+    await editor.locator("button[data-part-add]").click();
+    await editor.locator('.piece-part[data-part="1"] select').selectOption("sphere");
+    const height = editor.locator('label .triple input').nth(2);
+    await height.fill("1.2");
+    await height.press("Enter");
+    const built = await page.evaluate(() => window.panel._model.pieces.find((p) => p.id === "piece"));
+    assert(built.parts.length === 2 && built.parts[1].shape === "sphere" && built.size[2] === 1.2, `built: ${JSON.stringify(built)}`);
+    await shot(page, "editor-piece-builder");
     await page.keyboard.press("Escape");
-    await page.keyboard.press("Control+z");
+    // back to before the pack (each change is a step; a focused field would take the keys)
+    await page.evaluate(() => window.panel.shadowRoot.activeElement?.blur());
+    for (let i = 0; i < 8 && (await page.evaluate(() => window.panel._model.pieces?.length)); i++) await page.keyboard.press("Control+z");
+    assert(!(await page.evaluate(() => window.panel._model.pieces?.length)), "pieces left after undo");
     await page.locator("homeslice-panel header button[aria-label='House settings']").click();
   });
 
