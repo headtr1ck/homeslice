@@ -1894,5 +1894,11 @@
   "editor.start_capture_stop": "Abbrechen",
   "editor.start_capture_hide": "Schließen",
   "editor.header_mapping": "{robot} kartiert {floor}…",
-  "editor.start_floor_or": "oder, mit einem Roboter, der seine Karte nur beim Arbeiten zeigt:"
+  "editor.start_floor_or": "oder, mit einem Roboter, der seine Karte nur beim Arbeiten zeigt:",
+  "editor.floor_turn": "Diese Etage drehen oder verschieben",
+  "editor.floor_turn_hint": "Alles darauf geht mit: Räume samt Inhalt, Türen und Fenster, Wände, ihr Grundrissbild. Um die Roboterkarte dieser Etage an den anderen auszurichten (jede Karte hat ihre eigene Richtung).",
+  "editor.floor_turn_left": "90° nach links drehen",
+  "editor.floor_turn_right": "90° nach rechts drehen",
+  "editor.floor_move": "Diese Etage verschieben",
+  "editor.floor_move_hint": "Irgendwo auf dem Plan ziehen: die ganze Etage verschiebt sich (in 5-cm-Schritten; Alt: frei). Die Etage darunter scheint zum Ausrichten durch. Escape oder nochmal der Knopf: fertig."
 }

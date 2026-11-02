@@ -1894,5 +1894,11 @@
   "editor.start_capture_stop": "Stoppen",
   "editor.start_capture_hide": "Sluiten",
   "editor.header_mapping": "{robot} brengt {floor} in kaart…",
-  "editor.start_floor_or": "of, met een robot die zijn kaart alleen toont terwijl hij werkt:"
+  "editor.start_floor_or": "of, met een robot die zijn kaart alleen toont terwijl hij werkt:",
+  "editor.floor_turn": "Deze verdieping draaien of verplaatsen",
+  "editor.floor_turn_hint": "Alles erop gaat mee: ruimtes met inhoud, deuren en ramen, wanden, de plattegrondafbeelding. Om de robotkaart van deze verdieping op de andere af te stemmen (elke kaart heeft zijn eigen richting).",
+  "editor.floor_turn_left": "90° naar links draaien",
+  "editor.floor_turn_right": "90° naar rechts draaien",
+  "editor.floor_move": "Deze verdieping verplaatsen",
+  "editor.floor_move_hint": "Sleep ergens op de plattegrond: de hele verdieping verschuift (in stappen van 5 cm; Alt: vrij). De verdieping eronder schijnt door om op uit te lijnen. Escape of nogmaals de knop: klaar."
 }

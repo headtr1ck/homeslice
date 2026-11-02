@@ -1894,5 +1894,11 @@
   "editor.start_capture_stop": "Detener",
   "editor.start_capture_hide": "Cerrar",
   "editor.header_mapping": "{robot} está mapeando {floor}…",
-  "editor.start_floor_or": "o, con un robot que solo muestra su mapa mientras trabaja:"
+  "editor.start_floor_or": "o, con un robot que solo muestra su mapa mientras trabaja:",
+  "editor.floor_turn": "Girar o mover esta planta",
+  "editor.floor_turn_hint": "Todo lo que hay en ella la acompaña: habitaciones y su contenido, puertas y ventanas, paredes, su imagen del plano. Para alinear el mapa de un robot de esta planta con las demás (cada mapa tiene su propia orientación).",
+  "editor.floor_turn_left": "Girar 90° a la izquierda",
+  "editor.floor_turn_right": "Girar 90° a la derecha",
+  "editor.floor_move": "Mover esta planta",
+  "editor.floor_move_hint": "Arrastra en cualquier parte del plano: toda la planta se mueve (en pasos de 5 cm; Alt: libremente). La planta de abajo se ve en transparencia para alinearla. Esc o el botón otra vez: listo."
 }

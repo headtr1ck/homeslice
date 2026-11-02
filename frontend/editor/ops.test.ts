@@ -4,6 +4,7 @@ import { bbox } from "../model/geometry";
 import {
   assignArea,
   bendEdge,
+  transformLevel,
   uncoveredPieces,
   drawRoomOver,
   houseOutlinePolygon,
@@ -991,6 +992,49 @@ describe("uncoveredPieces", () => {
     expect(uncoveredPieces([2, 0], [9, 0], walls)).toEqual([[[4, 0], [6, 0]], [[7, 0], [9, 0]]]);
     expect(uncoveredPieces([1, 2], [5, 2], walls)).toEqual([]);
     expect(uncoveredPieces([1, 1], [5, 1], walls)).toEqual([[[1, 1], [5, 1]]]);
+  });
+});
+
+describe("turning and moving a floor", () => {
+  const h = (): HouseInput => ({
+    schema: 1,
+    id: "t",
+    outline: "auto",
+    levels: [
+      {
+        id: "b",
+        rooms: [{ id: "a", area_id: "x", rect: [0, 0, 4, 2], furniture: [{ type: "sofa", at: [1, 1] }], wall_sides: { north: "brick_red" } }],
+        openings: [{ room: "a", side: "north", at: 1, width: 1, type: "door" }],
+        walls: [{ line: [[0, 3], [4, 3]] }],
+      },
+    ],
+    robots: [{ entity: "vacuum.r", level: "b", dock: [3, 1] }],
+  });
+
+  it("a quarter turn: the room on its side, the door on the wall it faces now, in the same place; furniture turned with it", () => {
+    const m = transformLevel(h(), "b", { turn: 90, about: [2, 1], by: [0, 0] });
+    const l = m.levels[0];
+    expect(l.rooms[0].rect).toEqual([1, -1, 2, 4]);
+    expect(l.rooms[0].furniture).toEqual([{ type: "sofa", at: [1, 1], rotation: 90 }]);
+    expect(l.rooms[0].wall_sides).toEqual({ east: "brick_red" });
+    expect(l.openings).toEqual([{ room: "a", side: "east", at: 1, width: 1, type: "door" }]);
+    expect(l.walls?.[0].line).toEqual([[0, -1], [0, 3]]);
+    expect(m.robots?.[0].dock).toEqual([2, 2]);
+    // the house as built: no complaints
+    expect(expandHouse(m).issues.filter((i) => i.severity === "error")).toEqual([]);
+  });
+
+  it("four quarter turns: as it was; a move moves everything", () => {
+    let m = h();
+    for (let i = 0; i < 4; i++) m = transformLevel(m, "b", { turn: 90, about: [2, 1], by: [0, 0] });
+    const back = m.levels[0];
+    expect(back.rooms[0].rect).toEqual([0, 0, 4, 2]);
+    expect(back.openings).toEqual(h().levels[0].openings);
+    expect(back.rooms[0].furniture?.[0].at).toEqual([1, 1]);
+    const moved = transformLevel(h(), "b", { turn: 0, about: [0, 0], by: [1.5, -2] });
+    expect(moved.levels[0].rooms[0].rect).toEqual([1.5, -2, 4, 2]);
+    expect(moved.levels[0].openings).toEqual(h().levels[0].openings);
+    expect(moved.levels[0].rooms[0].furniture).toEqual([{ type: "sofa", at: [1, 1] }]);
   });
 });
 

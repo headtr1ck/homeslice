@@ -1894,5 +1894,11 @@
   "editor.start_capture_stop": "Zatrzymaj",
   "editor.start_capture_hide": "Zamknij",
   "editor.header_mapping": "{robot} mapuje: {floor}…",
-  "editor.start_floor_or": "albo, z robotem, który pokazuje mapę tylko podczas pracy:"
+  "editor.start_floor_or": "albo, z robotem, który pokazuje mapę tylko podczas pracy:",
+  "editor.floor_turn": "Obróć lub przesuń to piętro",
+  "editor.floor_turn_hint": "Wszystko na nim przesuwa się razem: pomieszczenia z zawartością, drzwi i okna, ściany, obraz planu. Aby dopasować mapę robota z tego piętra do pozostałych (każda mapa ma własny kierunek).",
+  "editor.floor_turn_left": "Obróć o 90° w lewo",
+  "editor.floor_turn_right": "Obróć o 90° w prawo",
+  "editor.floor_move": "Przesuń to piętro",
+  "editor.floor_move_hint": "Przeciągnij w dowolnym miejscu planu: przesuwa się całe piętro (co 5 cm; Alt: dowolnie). Piętro poniżej prześwituje, aby je wyrównać. Escape lub ponownie przycisk: gotowe."
 }

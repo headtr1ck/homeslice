@@ -1894,5 +1894,11 @@
   "editor.start_capture_stop": "Interrompi",
   "editor.start_capture_hide": "Chiudi",
   "editor.header_mapping": "{robot} sta mappando {floor}…",
-  "editor.start_floor_or": "oppure, con un robot che mostra la mappa solo mentre lavora:"
+  "editor.start_floor_or": "oppure, con un robot che mostra la mappa solo mentre lavora:",
+  "editor.floor_turn": "Ruotare o spostare questo piano",
+  "editor.floor_turn_hint": "Tutto ciò che c'è sopra segue: stanze e contenuto, porte e finestre, pareti, l'immagine della pianta. Per allineare la mappa di un robot di questo piano con le altre (ogni mappa ha il proprio orientamento).",
+  "editor.floor_turn_left": "Ruota di 90° a sinistra",
+  "editor.floor_turn_right": "Ruota di 90° a destra",
+  "editor.floor_move": "Sposta questo piano",
+  "editor.floor_move_hint": "Trascina ovunque sulla pianta: si sposta tutto il piano (a passi di 5 cm; Alt: liberamente). Il piano sottostante traspare per allinearlo. Esc o di nuovo il pulsante: fatto."
 }

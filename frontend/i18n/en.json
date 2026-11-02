@@ -1894,5 +1894,11 @@
   "editor.start_capture_stop": "Stop",
   "editor.start_capture_hide": "Close",
   "editor.header_mapping": "{robot} is mapping {floor}…",
-  "editor.start_floor_or": "or, with a robot that shows its map only while it works:"
+  "editor.start_floor_or": "or, with a robot that shows its map only while it works:",
+  "editor.floor_turn": "Turn or move this floor",
+  "editor.floor_turn_hint": "Everything on it goes along: rooms and what is in them, doors and windows, walls, its floor plan image. To line up a robot's map of this floor with the others (each map has its own direction).",
+  "editor.floor_turn_left": "Turn left by 90°",
+  "editor.floor_turn_right": "Turn right by 90°",
+  "editor.floor_move": "Move this floor",
+  "editor.floor_move_hint": "Drag anywhere on the plan: the whole floor moves (in 5 cm steps; Alt: freely). The floor below shows faintly to line it up with. Escape or the button again: done."
 }

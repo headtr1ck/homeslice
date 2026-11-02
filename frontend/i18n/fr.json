@@ -1894,5 +1894,11 @@
   "editor.start_capture_stop": "Arrêter",
   "editor.start_capture_hide": "Fermer",
   "editor.header_mapping": "{robot} cartographie {floor}…",
-  "editor.start_floor_or": "ou, avec un robot qui ne montre sa carte que pendant qu'il travaille :"
+  "editor.start_floor_or": "ou, avec un robot qui ne montre sa carte que pendant qu'il travaille :",
+  "editor.floor_turn": "Tourner ou déplacer cet étage",
+  "editor.floor_turn_hint": "Tout ce qui s'y trouve suit : pièces et leur contenu, portes et fenêtres, murs, l'image du plan. Pour aligner la carte d'un robot de cet étage sur les autres (chaque carte a sa propre orientation).",
+  "editor.floor_turn_left": "Tourner de 90° à gauche",
+  "editor.floor_turn_right": "Tourner de 90° à droite",
+  "editor.floor_move": "Déplacer cet étage",
+  "editor.floor_move_hint": "Glissez n'importe où sur le plan : tout l'étage se déplace (par pas de 5 cm ; Alt : librement). L'étage du dessous apparaît en transparence pour l'aligner. Échap ou le bouton à nouveau : terminé."
 }

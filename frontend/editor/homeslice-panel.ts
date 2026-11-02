@@ -89,6 +89,7 @@ import {
   setPiece,
   assignArea,
   bendEdge,
+  transformLevel,
   drawRoomOver,
   uncoveredPieces,
   snapValue,
@@ -309,6 +310,7 @@ interface HouseSummary {
 type Drag =
   | { kind: "pan"; start: Vec2; offset: Vec2 }
   | { kind: "underlay"; start: Vec2; origin: Vec2 }
+  | { kind: "floor-move"; start: Vec2; origin: HouseInput; place: Underlay["place"] | null }
   | { kind: "vertex"; origin: HouseInput; from: Vec2; ctx: SnapContext }
   | { kind: "edge"; origin: HouseInput; a: Vec2; b: Vec2; startWorld: Vec2; normal: Vec2; ctx: SnapContext; faces: number[] }
   | { kind: "rect"; start: Vec2; ctx: SnapContext }
@@ -434,6 +436,7 @@ export class HomeslicePanel extends LitElement {
     _straighten: { state: true },
     _rulerHidden: { state: true },
     _underlayMove: { state: true },
+    _floorMove: { state: true },
     _show: { state: true },
     _dimEdit: { state: true },
     _measure: { state: true },
@@ -534,6 +537,8 @@ export class HomeslicePanel extends LitElement {
   private _rulerHidden = false;
   /** Dragging moves the image instead of editing the plan. */
   private _underlayMove = false;
+  /** Moving the whole floor (rooms, everything in them, its floor plan image) by dragging. */
+  private _floorMove = false;
   private underlayRequest = "";
   private underlaySaveTimer = 0;
   private _shortcuts = false;
@@ -2058,6 +2063,10 @@ export class HomeslicePanel extends LitElement {
       this._drag = { kind: "underlay", start: world, origin: u.place.origin };
       return;
     }
+    if (this._floorMove) {
+      this._drag = { kind: "floor-move", start: world, origin: clone(this._model), place: u ? { ...u.place } : null };
+      return;
+    }
     // a length that can be typed
     const dimHit = target.closest("[data-dimedit]") as SVGElement | null;
     const dim = dimHit ? this.dimTargets.get(dimHit.dataset.dimedit!) : undefined;
@@ -2307,6 +2316,16 @@ export class HomeslicePanel extends LitElement {
     // a finger hides what it drags: show it magnified
     this._loupe = e.pointerType !== "mouse" && drag.kind !== "pan" && drag.kind !== "underlay" ? { x: screen[0], y: screen[1] } : null;
     const snapped = (p: Vec2, ctx: SnapContext): Snapped => (free ? { p, kind: "free" } : snap(p, ctx));
+    if (drag.kind === "floor-move") {
+      // in 5 cm steps (Alt: freely)
+      const step = (v: number) => (free ? v : Math.round(v / 0.05) * 0.05);
+      const by: Vec2 = [step(world[0] - drag.start[0]), step(world[1] - drag.start[1])];
+      this._model = transformLevel(drag.origin, this._level, { turn: 0, about: [0, 0], by });
+      const u = this._underlay;
+      if (u && drag.place && u.level === this._level) this._underlay = { ...u, place: { ...drag.place, origin: [drag.place.origin[0] + by[0], drag.place.origin[1] + by[1]] } };
+      this._hint = { x: screen[0], y: screen[1], lines: [this.moveReadout(by)] };
+      return;
+    }
     if (drag.kind === "underlay") {
       const u = this._underlay;
       if (u) this._underlay = { ...u, place: { ...u.place, origin: [drag.origin[0] + world[0] - drag.start[0], drag.origin[1] + world[1] - drag.start[1]] } };
@@ -2593,6 +2612,11 @@ export class HomeslicePanel extends LitElement {
     }
     if (drag.kind === "underlay" && this._underlay) {
       this.saveUnderlay({ place: this._underlay.place });
+      return;
+    }
+    if (drag.kind === "floor-move") {
+      if (JSON.stringify(drag.origin) !== JSON.stringify(this._model)) this.commit(this._model, drag.origin);
+      if (this._underlay && drag.place && this._underlay.level === this._level) this.saveUnderlay({ place: this._underlay.place });
       return;
     }
     if (drag.kind === "freewall" && this._linePreview) {
@@ -5279,6 +5303,25 @@ export class HomeslicePanel extends LitElement {
 
   private _solar = { rows: 2, columns: 4 };
 
+  /** Turns the floor, its floor plan image along, around the middle of its rooms (else of its image). */
+  private turnFloor(turn: 90 | 180 | 270) {
+    const m = this._model!;
+    const pts = (this.levelInput?.rooms ?? []).flatMap((r) => roomPolygon(m, r));
+    const u = this._underlay?.level === this._level ? this._underlay : null;
+    const box = pts.length ? bbox(pts) : u ? bbox([this.underlayToPlan(u, [0, 0]), this.underlayToPlan(u, [u.width, u.height])]) : null;
+    if (!box) return;
+    // on the 5 cm grid, so turned corners stay on it
+    const about: Vec2 = [Math.round(((box.min[0] + box.max[0]) / 2) * 20) / 20, Math.round(((box.min[1] + box.max[1]) / 2) * 20) / 20];
+    this.commit(transformLevel(m, this._level, { turn, about, by: [0, 0] }));
+    if (u) {
+      // the image turns around the same point
+      const k = turn / 90;
+      let [dx, dy] = [u.place.origin[0] - about[0], u.place.origin[1] - about[1]];
+      for (let i = 0; i < k; i++) [dx, dy] = [-dy, dx];
+      this.saveUnderlay({ place: { ...u.place, origin: [about[0] + dx, about[1] + dy], rotation: (u.place.rotation + turn) % 360 } });
+    }
+  }
+
   private renderLevelInspector() {
     const m = this._model!;
     const l = this.levelInput!;
@@ -5355,6 +5398,18 @@ export class HomeslicePanel extends LitElement {
           }}>${this.t("editor.copy_below")}</button>
           <p class="muted">${this.t("editor.copy_below_hint")}</p>`
         : nothing}
+      <h3>${this.t("editor.floor_turn")}</h3>
+      <p class="muted">${this.t("editor.floor_turn_hint")}</p>
+      <div class="row wrap">
+        <button data-floor-turn="270" title=${this.t("editor.floor_turn_left")} @click=${() => this.turnFloor(270)}>⟲ 90°</button>
+        <button data-floor-turn="90" title=${this.t("editor.floor_turn_right")} @click=${() => this.turnFloor(90)}>⟳ 90°</button>
+        <button data-floor-turn="180" @click=${() => this.turnFloor(180)}>180°</button>
+        <button data-floor-move class=${this._floorMove ? "active" : ""} aria-pressed=${this._floorMove} @click=${() => {
+          this._floorMove = !this._floorMove;
+          this._underlayMove = false;
+        }}>${this.t("editor.floor_move")}</button>
+      </div>
+      ${this._floorMove ? html`<p class="notice">${this.t("editor.floor_move_hint")}</p>` : nothing}
       ${this.renderUnderlayInspector()}
       <div class="row">
         <button @click=${() => this.addLevelAt(index + 1)}>${this.t("editor.add_level_above")}</button>

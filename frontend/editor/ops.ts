@@ -2100,3 +2100,83 @@ export function uncoveredPieces(a: Vec2, b: Vec2, segments: [Vec2, Vec2][], min 
   if (length - from >= min) out.push([at(from), at(length)]);
   return out;
 }
+
+const SIDES_CW: Side[] = ["north", "east", "south", "west"];
+
+/**
+ * Turns a floor (by 90°, 180° or 270°, clockwise on the plan, around `about`) and moves it by
+ * `by`: its rooms with everything in them (furniture, lamps, cameras, roof windows), its doors
+ * and windows (onto the side they face now, in the same place), its drawn walls, its own
+ * outline, the robots and energy items on it. A robot's map of another floor, say, put in line.
+ */
+export function transformLevel(model: HouseInput, levelId: string, t: { turn: 0 | 90 | 180 | 270; about: Vec2; by: Vec2 }): HouseInput {
+  const m = clone(model);
+  const l = level(m, levelId);
+  const k = t.turn / 90;
+  const at = ([x, y]: Vec2): Vec2 => {
+    let dx = x - t.about[0];
+    let dy = y - t.about[1];
+    // clockwise on the plan (y points south): north becomes east
+    for (let i = 0; i < k; i++) [dx, dy] = [-dy, dx];
+    return [round(t.about[0] + dx + t.by[0]), round(t.about[1] + dy + t.by[1])];
+  };
+  const side = (s: Side): Side => SIDES_CW[(SIDES_CW.indexOf(s) + k) % 4];
+  const oldRooms = new Map(l.rooms.map((r) => [r.id, roomPolygon(m, r)]));
+  // doors and windows: where their middle is in the house now
+  const openingAt = new Map<OpeningInput, Vec2>();
+  for (const o of l.openings ?? []) {
+    const poly = oldRooms.get(o.room);
+    if (!poly) continue;
+    const { min, max } = bbox(poly);
+    const along = min[o.side === "north" || o.side === "south" ? 0 : 1] + o.at + o.width / 2;
+    openingAt.set(o, o.side === "north" ? [along, min[1]] : o.side === "south" ? [along, max[1]] : o.side === "west" ? [min[0], along] : [max[0], along]);
+  }
+  l.rooms = l.rooms.map((r) => {
+    const poly = oldRooms.get(r.id)!;
+    const from = bbox(poly).min;
+    const moved = poly.map(at);
+    const to = bbox(moved).min;
+    const rel = (p: [number, number]): [number, number] => {
+      const w = at([from[0] + p[0], from[1] + p[1]]);
+      return [round(w[0] - to[0]), round(w[1] - to[1])];
+    };
+    const next = setRoomPolygon({ ...r }, moved);
+    if (r.furniture) next.furniture = r.furniture.map((f) => ({ ...f, at: rel(f.at), ...(t.turn || f.rotation ? { rotation: ((f.rotation ?? 0) + t.turn) % 360 } : {}) }));
+    if (r.cameras) next.cameras = r.cameras.map((c) => ({ ...c, at: rel(c.at), ...(c.direction !== undefined || t.turn ? { direction: ((c.direction ?? 180) + t.turn) % 360 } : {}) }));
+    if (r.roof_windows) next.roof_windows = r.roof_windows.map((w) => ({ ...w, at: rel(w.at) }));
+    if (r.lights) next.lights = r.lights.map((li) => ({ ...li, ...(li.at ? { at: rel(li.at) } : {}), ...(li.to ? { to: rel(li.to) } : {}), ...(li.spots ? { spots: li.spots.map(rel) } : {}) }));
+    if (r.wall_sides) next.wall_sides = Object.fromEntries(Object.entries(r.wall_sides).map(([s, v]) => [side(s as Side), v]));
+    return next;
+  });
+  for (const o of l.openings ?? []) {
+    const mid = openingAt.get(o);
+    const poly = l.rooms.find((r) => r.id === o.room);
+    if (!mid || !poly) continue;
+    o.side = side(o.side);
+    const { min } = bbox(roomPolygon(m, poly));
+    const w = at(mid);
+    o.at = round((o.side === "north" || o.side === "south" ? w[0] - min[0] : w[1] - min[1]) - o.width / 2);
+  }
+  if (l.walls)
+    l.walls = l.walls.map((w) => ({
+      ...w,
+      ...(w.line && w.line.every((p) => typeof p[0] === "number" && typeof p[1] === "number") ? { line: (w.line as [Vec2, Vec2]).map(at) as [Vec2, Vec2] } : {}),
+      ...(w.side ? { side: side(w.side) } : {}),
+    }));
+  if (l.party_walls) l.party_walls = l.party_walls.map(side);
+  // a floor of its own shape keeps it, turned; one sharing a drawn house outline gets its own
+  if (l.outline && l.outline !== "auto") {
+    const { id: _id, ...shape } = setRoomPolygon({ id: "" }, shapePolygon(m, l.outline).map(at));
+    l.outline = shape;
+  } else if (!l.outline && m.outline && m.outline !== "auto") {
+    const { id: _id, ...shape } = setRoomPolygon({ id: "" }, shapePolygon(m, m.outline).map(at));
+    l.outline = shape;
+  }
+  for (const r of m.robots ?? [])
+    if (r.level === levelId) {
+      r.dock = at(r.dock);
+      if (r.position?.points) r.position.points = r.position.points.map(([reading, plan]) => [reading, at(plan)]);
+    }
+  for (const e of m.energy ?? []) if (e.level === levelId && e.at) e.at = at(e.at);
+  return m;
+}
