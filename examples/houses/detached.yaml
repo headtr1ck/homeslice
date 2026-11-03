@@ -4,7 +4,7 @@
 schema: 2
 id: detached
 name: Detached house
-outline: { rect: [0, 0, 11, 8.5] }
+outline: { rect: [0.18, 0.18, 10.64, 8.14] }
 facade: render_white
 vertical:
   # up from the hall by the front door, arriving on the landing above the living room door
@@ -13,38 +13,38 @@ levels:
   - id: ground
     floor_id: ground_floor
     # the garage reaches further east
-    outline: { polygon: [[0, 0], [14.5, 0], [14.5, 6.5], [11, 6.5], [11, 8.5], [0, 8.5]] }
+    outline: { polygon: [[0.18, 0.18], [14.32, 0.18], [14.32, 6.32], [10.82, 6.32], [10.82, 8.32], [0.18, 8.32]] }
     rooms:
       - id: kitchen
         area_id: kitchen
-        rect: [0, 0, 4, 4]
+        rect: [0.18, 0.18, 3.82, 3.82]
         floor: terrazzo
         wall: paint_sage
         furniture:
-          - { type: kitchen, model: "modern:kitchen", at: [1.95, 0.67], size: [3.0, 0.62] }
-          - { type: kitchen_upper, model: "modern:kitchen_hood", at: [2.6, 0.61] }
-          - { type: fridge, model: "modern:kitchen_tall_fridge", at: [0.67, 1.35], rotation: 270 }
-          - { type: kitchen, model: "modern:kitchen_island", at: [2.2, 2.4], size: [2.0, 0.95] }
-          - { type: stool, model: "modern:bar_stool_back", at: [1.7, 3.3], rotation: 180 }
-          - { type: stool, model: "modern:bar_stool_back", at: [2.7, 3.3], rotation: 180 }
-          - { type: ceiling_lamp, model: "modern:pendant_globe", at: [1.7, 2.4], entity: light.kitchen_island }
-          - { type: ceiling_lamp, model: "modern:pendant_globe", at: [2.7, 2.4], entity: light.kitchen_island }
+          - { type: kitchen, model: "modern:kitchen", at: [1.77, 0.49], size: [3.0, 0.62] }
+          - { type: kitchen_upper, model: "modern:kitchen_hood", at: [2.42, 0.43] }
+          - { type: fridge, model: "modern:kitchen_tall_fridge", at: [0.49, 1.17], rotation: 270 }
+          - { type: kitchen, model: "modern:kitchen_island", at: [2.02, 2.22], size: [2.0, 0.95] }
+          - { type: stool, model: "modern:bar_stool_back", at: [1.52, 3.12], rotation: 180 }
+          - { type: stool, model: "modern:bar_stool_back", at: [2.52, 3.12], rotation: 180 }
+          - { type: ceiling_lamp, model: "modern:pendant_globe", at: [1.52, 2.22], entity: light.kitchen_island }
+          - { type: ceiling_lamp, model: "modern:pendant_globe", at: [2.52, 2.22], entity: light.kitchen_island }
       - id: hall
         area_id: hall
-        rect: [4, 0, 3.5, 4]
+        rect: [4, 0.18, 3.5, 3.82]
         floor: tile_cement
         furniture:
-          - { type: rug, model: "modern:rug_runner", at: [2.2, 2.2], size: [0.8, 2.2] }
-          - { type: shelf, model: "modern:shoe_cabinet", at: [3.32, 1.87], rotation: 90 }
-          - { type: item, model: "modern:coat_hooks", at: [3.0, 0.42] }
+          - { type: rug, model: "modern:rug_runner", at: [2.2, 2.02], size: [0.8, 2.2] }
+          - { type: shelf, model: "modern:shoe_cabinet", at: [3.32, 1.69], rotation: 90 }
+          - { type: item, model: "modern:coat_hooks", at: [3.0, 0.24] }
       - id: wc
         name: Guest WC
         area_id: guest_wc
-        rect: [7.5, 0, 3.5, 1.8]
+        rect: [7.5, 0.18, 3.5, 1.62]
         floor: tile_white
         furniture:
-          - { type: toilet, model: "modern:toilet_wall", at: [3.165, 1.05], rotation: 90 }
-          - { type: sink, model: "modern:sink_wall_small", at: [1.6, 0.52] }
+          - { type: toilet, model: "modern:toilet_wall", at: [3.165, 0.87], rotation: 90 }
+          - { type: sink, model: "modern:sink_wall_small", at: [1.6, 0.34] }
       - id: utility
         area_id: utility
         rect: [7.5, 1.8, 3.5, 2.2]
@@ -56,33 +56,33 @@ levels:
           - { type: dryer, model: "modern:dryer", at: [2.4, 1.84], rotation: 180 }
       - id: living
         area_id: living_room
-        rect: [0, 4, 11, 4.5]
         floor: oak_herringbone
         wall: paint_warm
         furniture:
           # dining by the kitchen: chairs on both long sides, facing the table
-          - { type: table, model: "modern:dining_table", at: [2.2, 1.7] }
-          - { type: chair, model: "modern:chair_shell", at: [1.75, 0.85] }
-          - { type: chair, model: "modern:chair_shell", at: [2.65, 0.85] }
-          - { type: chair, model: "modern:chair_shell", at: [1.75, 2.55], rotation: 180 }
-          - { type: chair, model: "modern:chair_shell", at: [2.65, 2.55], rotation: 180 }
-          - { type: ceiling_lamp, model: "modern:pendant_linear", at: [2.2, 1.7], entity: light.dining }
+          - { type: table, model: "modern:dining_table", at: [2.02, 1.7] }
+          - { type: chair, model: "modern:chair_shell", at: [1.57, 0.85] }
+          - { type: chair, model: "modern:chair_shell", at: [2.47, 0.85] }
+          - { type: chair, model: "modern:chair_shell", at: [1.57, 2.55], rotation: 180 }
+          - { type: chair, model: "modern:chair_shell", at: [2.47, 2.55], rotation: 180 }
+          - { type: ceiling_lamp, model: "modern:pendant_linear", at: [2.02, 1.7], entity: light.dining }
           # the sofa facing the TV on the north wall, the stove in the corner
-          - { type: shelf, model: "modern:tv_board", at: [9.0, 0.26], size: [1.8, 0.4], height: 0.45 }
-          - { type: tv, model: "modern:tv_wall", at: [9.0, 0.1], entity: media_player.living_room_tv }
-          - { type: rug, model: "modern:rug_berber", at: [8.8, 1.6], size: [2.6, 1.9] }
-          - { type: sofa_corner, model: "modern:sofa_corner", at: [8.8, 2.9], rotation: 180 }
-          - { type: coffee_table, model: "modern:coffee_table_round", at: [8.8, 1.45] }
-          - { type: floor_lamp, model: "modern:floor_lamp_globe", at: [7.1, 3.6], entity: light.reading_lamp }
-          - { type: item, model: "modern:fireplace_stove", at: [10.715, 0.7], rotation: 90, entity: switch.fireplace }
-          - { type: plant, model: "modern:fiddle_fig", at: [5.0, 0.45] }
+          - { type: shelf, model: "modern:tv_board", at: [8.82, 0.26], size: [1.8, 0.4], height: 0.45 }
+          - { type: tv, model: "modern:tv_wall", at: [8.82, 0.1], entity: media_player.living_room_tv }
+          - { type: rug, model: "modern:rug_berber", at: [8.62, 1.6], size: [2.6, 1.9] }
+          - { type: sofa_corner, model: "modern:sofa_corner", at: [8.62, 2.9], rotation: 180 }
+          - { type: coffee_table, model: "modern:coffee_table_round", at: [8.62, 1.45] }
+          - { type: floor_lamp, model: "modern:floor_lamp_globe", at: [6.92, 3.6], entity: light.reading_lamp }
+          - { type: item, model: "modern:fireplace_stove", at: [10.535, 0.7], rotation: 90, entity: switch.fireplace }
+          - { type: plant, model: "modern:fiddle_fig", at: [4.82, 0.45] }
+        polygon: [[0.18, 4], [11, 4], [11, 6.32], [10.82, 6.32], [10.82, 8.32], [0.18, 8.32]]
       - id: garage
         area_id: garage
-        rect: [11, 0, 3.5, 6.5]
+        rect: [11, 0.18, 3.32, 6.14]
         floor: concrete
         furniture:
-          - { type: car, model: "modern:car_estate", at: [1.7, 3.3], finish: grey, entity: device_tracker.car, readings: [sensor.car_battery] }
-          - { type: item, model: "modern:wallbox", at: [3.075, 1.6], rotation: 90, entity: sensor.wallbox_power }
+          - { type: car, model: "modern:car_estate", at: [1.7, 3.12], finish: grey, entity: device_tracker.car, readings: [sensor.car_battery] }
+          - { type: item, model: "modern:wallbox", at: [3.075, 1.42], rotation: 90, entity: sensor.wallbox_power }
       - id: terrace
         area_id: terrace
         kind: outdoor
@@ -149,15 +149,15 @@ levels:
       - { between: [kitchen, living] }   # open plan
     openings:
       - { room: hall, side: north, at: 1.5, width: 1.0, type: door, style: entrance_panes, lock: lock.front_door, contact: binary_sensor.front_door }
-      - { room: hall, side: east, at: 0.55, width: 0.8, type: door }
-      - { room: hall, side: east, at: 2.4, width: 0.8, type: door }
+      - { room: hall, side: east, at: 0.37, width: 0.8, type: door }
+      - { room: hall, side: east, at: 2.22, width: 0.8, type: door }
       - { room: hall, side: south, at: 2.3, width: 0.9, type: door }
-      - { room: kitchen, side: north, at: 1.2, width: 1.2, sill: 1.05, height: 1.05, cover: cover.kitchen }
-      - { room: kitchen, side: west, at: 2.2, width: 1.0 }
+      - { room: kitchen, side: north, at: 1.02, width: 1.2, sill: 1.05, height: 1.05, cover: cover.kitchen }
+      - { room: kitchen, side: west, at: 2.02, width: 1.0 }
       - { room: wc, side: north, at: 2.2, width: 0.6, sill: 1.3, height: 0.7 }
       - { room: utility, side: east, at: 0.6, width: 0.9, type: door }
-      - { room: living, side: south, at: 1.0, width: 2.4, type: door, style: sliding_glass, cover: cover.living_terrace, contact: binary_sensor.terrace_door }
-      - { room: living, side: south, at: 6.2, width: 2.0, cover: cover.living_south }
+      - { room: living, side: south, at: 0.82, width: 2.4, type: door, style: sliding_glass, cover: cover.living_terrace, contact: binary_sensor.terrace_door }
+      - { room: living, side: south, at: 6.02, width: 2.0, cover: cover.living_south }
       - { room: living, side: east, at: 2.9, width: 1.0 }
       - { room: living, side: west, at: 1.4, width: 1.6 }
       - { room: garage, side: north, at: 0.45, width: 2.6, type: garage_door, cover: cover.garage_door }
@@ -168,34 +168,34 @@ levels:
     rooms:
       - id: ensuite
         area_id: ensuite
-        rect: [0, 0, 4, 3.4]
+        rect: [0.18, 0.18, 3.82, 3.22]
         floor: tile_white
         wall: tile_zellige
         furniture:
-          - { type: bathtub, model: "modern:bathtub", at: [1.26, 0.76] }
-          - { type: shower, model: "modern:shower_glass", at: [3.34, 0.81] }
-          - { type: sink, model: "modern:vanity_double", at: [0.595, 2.2], rotation: 270 }
-          - { type: toilet, model: "modern:toilet_wall", at: [3.665, 1.9], rotation: 90 }
+          - { type: bathtub, model: "modern:bathtub", at: [1.08, 0.58] }
+          - { type: shower, model: "modern:shower_glass", at: [3.16, 0.63] }
+          - { type: sink, model: "modern:vanity_double", at: [0.415, 2.02], rotation: 270 }
+          - { type: toilet, model: "modern:toilet_wall", at: [3.485, 1.72], rotation: 90 }
       - id: bedroom
         area_id: bedroom
-        rect: [0, 3.4, 4, 5.1]
+        rect: [0.18, 3.4, 3.82, 4.92]
         floor: oak_light
         wall_sides: { west: acoustic_oak }
         furniture:
-          - { type: bed, model: "modern:bed_upholstered", at: [1.435, 2.9], rotation: 270 }
-          - { type: nightstand, model: "modern:nightstand", at: [0.55, 1.75], rotation: 270 }
-          - { type: nightstand, model: "modern:nightstand", at: [0.55, 4.05], rotation: 270 }
-          - { type: wardrobe, model: "modern:wardrobe_sliding", at: [3.615, 2.6], rotation: 90 }
-          - { type: rug, model: "modern:rug_shaggy", at: [2.3, 2.9], size: [1.6, 2.4] }
-          - { type: item, model: "modern:ac_split", at: [1.5, 0.19], elevation: 2.05, entity: climate.bedroom_ac }
+          - { type: bed, model: "modern:bed_upholstered", at: [1.255, 2.9], rotation: 270 }
+          - { type: nightstand, model: "modern:nightstand", at: [0.37, 1.75], rotation: 270 }
+          - { type: nightstand, model: "modern:nightstand", at: [0.37, 4.05], rotation: 270 }
+          - { type: wardrobe, model: "modern:wardrobe_sliding", at: [3.435, 2.6], rotation: 90 }
+          - { type: rug, model: "modern:rug_shaggy", at: [2.12, 2.9], size: [1.6, 2.4] }
+          - { type: item, model: "modern:ac_split", at: [1.32, 0.19], elevation: 2.05, entity: climate.bedroom_ac }
       - id: landing
         area_id: landing
-        rect: [4, 0, 3.5, 5.2]
+        rect: [4, 0.18, 3.5, 5.02]
         furniture:
-          - { type: plant, model: "modern:olive_tree", at: [3.05, 0.7] }
+          - { type: plant, model: "modern:olive_tree", at: [3.05, 0.52] }
       - id: office
         area_id: office
-        rect: [4, 5.2, 3.5, 3.3]
+        rect: [4, 5.2, 3.5, 3.12]
         floor: oak_light
         furniture:
           - { type: desk, model: "modern:desk", at: [1.75, 2.59], rotation: 180 }
@@ -204,15 +204,15 @@ levels:
           - { type: sofa, model: "modern:daybed", at: [2.99, 1.6], rotation: 90 }
       - id: bath
         area_id: bathroom
-        rect: [7.5, 0, 3.5, 2.8]
+        rect: [7.5, 0.18, 3.32, 2.62]
         floor: tile_white
         furniture:
-          - { type: bathtub, model: "modern:bathtub_built_in", at: [2.24, 0.76] }
-          - { type: sink, model: "modern:vanity", at: [1.6, 2.505], rotation: 180 }
-          - { type: toilet, model: "modern:toilet_wall", at: [2.865, 2.0], rotation: 90 }
+          - { type: bathtub, model: "modern:bathtub_built_in", at: [2.24, 0.58] }
+          - { type: sink, model: "modern:vanity", at: [1.6, 2.325], rotation: 180 }
+          - { type: toilet, model: "modern:toilet_wall", at: [2.865, 1.82], rotation: 90 }
       - id: kids
         area_id: kids_room
-        rect: [7.5, 2.8, 3.5, 5.7]
+        rect: [7.5, 2.8, 3.32, 5.52]
         floor: carpet
         wall: paint_blush
         furniture:
@@ -237,14 +237,14 @@ levels:
           - { type: plant, model: "modern:planter_tall", at: [3.0, 6.0] }
           - { type: item, model: "modern:lantern", at: [0.4, 3.0], entity: light.roof_terrace }
     openings:
-      - { room: ensuite, side: north, at: 0.6, width: 1.2, sill: 1.1, height: 1.0 }
-      - { room: ensuite, side: south, at: 2.9, width: 0.8, type: door }
+      - { room: ensuite, side: north, at: 0.42, width: 1.2, sill: 1.1, height: 1.0 }
+      - { room: ensuite, side: south, at: 2.72, width: 0.8, type: door }
       - { room: bedroom, side: east, at: 0.55, width: 0.8, type: door }
-      - { room: bedroom, side: south, at: 1.0, width: 2.0, cover: cover.bedroom }
+      - { room: bedroom, side: south, at: 0.82, width: 2.0, cover: cover.bedroom }
       - { room: landing, side: north, at: 1.6, width: 1.0 }
       - { room: office, side: north, at: 1.6, width: 0.8, type: door }
       - { room: office, side: south, at: 1.0, width: 1.5, cover: cover.office }
-      - { room: bath, side: west, at: 1.0, width: 0.8, type: door }
+      - { room: bath, side: west, at: 0.82, width: 0.8, type: door }
       - { room: bath, side: north, at: 1.6, width: 1.0, sill: 1.1, height: 1.0 }
       - { room: kids, side: west, at: 0.6, width: 0.8, type: door }
       - { room: kids, side: east, at: 2.0, width: 0.9, type: door, style: glass }

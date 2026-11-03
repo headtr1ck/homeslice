@@ -843,6 +843,8 @@ export class HouseRenderer {
       for (const f of room.furniture) {
         // (under a sloped roof a pendant hangs from the slope)
         const piece = this.furniture(f, f.mount === "ceiling" ? this.ceilingUnderRoof(level, f.at) : level.height);
+        // in a garden: on the ground, a slab lower than the house's floor (what hangs on a wall stays)
+        if (f.mount !== "wall" && f.mount !== "ceiling") piece.position.y += this.groundY(level, f.at);
         g.add(piece);
         // tall things in the garden (trees, a shed) fade when they stand in front of the house
         if (room.kind === "outdoor" && f.height >= 1.8) this.occluders.push(piece);
@@ -1394,6 +1396,15 @@ export class HouseRenderer {
     };
   }
 
+  /**
+   * The ground's height at a point of a level (from its floor): a slab lower outside the house
+   * (a garden lies on the ground, its floor is drawn there), the floor itself inside.
+   */
+  private groundY(level: Level, p: Vec2): number {
+    if (!level.outline.length || pointInPolygon(p, level.outline) || level.annexes.some((a) => pointInPolygon(p, a))) return 0;
+    return level.rooms.some((r) => r.kind === "outdoor" && pointInPolygon(p, r.polygon)) ? -level.slab : 0;
+  }
+
   /** Turns, tilts or slides a leaf to how far open it is now (0 closed … 1 open). */
   private placeLeaf(l: LeafView) {
     const k = l.now;
@@ -1434,7 +1445,9 @@ export class HouseRenderer {
       const g = r.glide;
       if (!g) continue;
       const t = Math.min(1, (now - g.start) / g.ms);
-      r.body.position.set(g.from[0] + (g.to[0] - g.from[0]) * t, 0, g.from[1] + (g.to[1] - g.from[1]) * t);
+      const at: Vec2 = [g.from[0] + (g.to[0] - g.from[0]) * t, g.from[1] + (g.to[1] - g.from[1]) * t];
+      const level = this.model?.levels[r.levelIndex];
+      r.body.position.set(at[0], level ? this.groundY(level, at) : 0, at[1]);
       if (t >= 1) r.glide = undefined;
     }
   }
@@ -2952,7 +2965,9 @@ export class HouseRenderer {
       const mower = item.kind === "lawn_mower";
       // the dock: a small station (vacuum) or a platform (mower)
       const dock = this.mesh(mower ? new THREE.BoxGeometry(0.6, 0.06, 0.55) : new THREE.BoxGeometry(0.32, 0.12, 0.1), mat("#e4e4e2"));
-      dock.position.set(item.dock[0], mower ? 0.03 : 0.06, item.dock[1] + (mower ? 0 : -0.2));
+      // (a mower's dock in the garden: on the ground)
+      const ground = this.model?.levels[item.levelIndex] ? this.groundY(this.model.levels[item.levelIndex], item.dock) : 0;
+      dock.position.set(item.dock[0], (mower ? 0.03 : 0.06) + ground, item.dock[1] + (mower ? 0 : -0.2));
       // the robot
       const body = new THREE.Group();
       if (mower) {
@@ -2983,7 +2998,7 @@ export class HouseRenderer {
       ring.rotation.x = -Math.PI / 2;
       ring.position.y = 0.012;
       body.add(ring);
-      body.position.set(item.dock[0], 0, item.dock[1]);
+      body.position.set(item.dock[0], ground, item.dock[1]);
       for (const o of [dock, body]) {
         o.traverse((x) => (x.userData.outdoor = true)); // taps go to the room underneath
         level.group.add(o);
@@ -3146,7 +3161,8 @@ export class HouseRenderer {
       if (was && r.seen && d > 0.02 && d < 4) r.glide = { from, to: at, start: performance.now(), ms: Math.min(4000, Math.max(300, (d / 0.3) * 1000)) };
       else {
         r.glide = undefined;
-        r.body.position.set(at[0], 0, at[1]);
+        const lv = this.model?.levels[r.levelIndex];
+        r.body.position.set(at[0], lv ? this.groundY(lv, at) : 0, at[1]);
       }
       r.seen = true;
     } else r.glide = undefined;
@@ -3170,7 +3186,7 @@ export class HouseRenderer {
   projectRobot(key: string): { x: number; y: number } | null {
     const r = this.robots.get(key);
     if (!r || !r.body.visible || !this.pointVisible({ levelIndex: r.levelIndex })) return null;
-    const v = this.levels[r.levelIndex].group.localToWorld(r.body.position.clone().setY(0.3)).project(this.camera);
+    const v = this.levels[r.levelIndex].group.localToWorld(r.body.position.clone().setY(r.body.position.y + 0.3)).project(this.camera);
     return { x: ((v.x + 1) / 2) * this.size.width, y: ((1 - v.y) / 2) * this.size.height };
   }
 
