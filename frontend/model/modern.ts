@@ -23,6 +23,8 @@ export interface ModernKind {
    * `options: { handle: knob }`.
    */
   options?: Record<string, string[]>;
+  /** The option that changes how it looks from above (a sink or a hob in a base unit): the plan has a picture per choice. */
+  planBy?: string;
 }
 
 /** Colours of the finishes (wood, lacquer, fabric, stone). */
@@ -69,22 +71,31 @@ const UNIT = [0.3, 0.45, 0.5, 0.6, 0.8, 0.9, 1.0, 1.2];
 const HANDLE = { handle: ["bar", "knob", "handleless", "push"] };
 const KNOB = { handle: ["knob", "bar", "handleless", "push"] };
 const PUSH = { handle: ["push", "bar", "knob", "handleless"] };
-/** What a base unit has behind its fronts (render/modern.ts kitchen_base). */
-const BASE_FRONTS = ["drawer_door", "door", "drawers_2", "drawers_3", "oven", "shelves"];
+/** What a base unit has behind its fronts and in its worktop (render/modern.ts kitchen_base, TOPS). */
+const BASE_FRONTS = ["drawer_door", "door", "drawers_2", "drawers_3", "panel_drawer", "oven", "shelves"];
+const BASE_TOPS = ["none", "sink", "hob_gas", "hob_ceran", "hob_electric", "hob_downdraft"];
 
 /**
  * Pieces that became a choice of another: older houses still name them, and they are
  * drawn (and edited) as that piece with these options.
  */
-export const FOLDED: Record<string, { kind: string; options: Record<string, string> }> = {
+export const FOLDED: Record<string, { kind: string; options: Record<string, string>; renamed?: Record<string, Record<string, string>> }> = {
   kitchen_drawers: { kind: "kitchen_base", options: { fronts: "drawers_3" } },
   kitchen_oven: { kind: "kitchen_base", options: { fronts: "oven" } },
+  // the sink unit had its own fronts: doors, or a drawer under a panel
+  kitchen_sink_unit: { kind: "kitchen_base", options: { top: "sink", fronts: "door" }, renamed: { fronts: { doors: "door", drawer: "panel_drawer" } } },
+  kitchen_hob_gas: { kind: "kitchen_base", options: { top: "hob_gas", fronts: "oven" } },
+  kitchen_hob_ceran: { kind: "kitchen_base", options: { top: "hob_ceran", fronts: "oven" } },
+  kitchen_hob_electric: { kind: "kitchen_base", options: { top: "hob_electric", fronts: "oven" } },
+  kitchen_hob_downdraft: { kind: "kitchen_base", options: { top: "hob_downdraft", fronts: "drawers_2" } },
 };
 
 /** A built-in piece by its name, older names included: the piece and the options they stand for. */
 export function resolveKind(id: string, options: Record<string, string> = {}): { id: string; options: Record<string, string> } {
   const folded = FOLDED[id];
-  return folded ? { id: folded.kind, options: { ...folded.options, ...options } } : { id, options };
+  if (!folded) return { id, options };
+  const own = Object.fromEntries(Object.entries(options).map(([k, v]) => [k, folded.renamed?.[k]?.[v] ?? v]));
+  return { id: folded.kind, options: { ...folded.options, ...own } };
 }
 
 export const MODERN_GROUPS: { id: string; kinds: ModernKind[] }[] = [
@@ -186,12 +197,7 @@ export const MODERN_GROUPS: { id: string; kinds: ModernKind[] }[] = [
       k("kitchen_island", "kitchen", [2.4, 1.0, 0.92], ["white", "anthracite", "oak", "green", "blue", "black"], { accents: WORKTOP }),
       k("kitchen_upper", "kitchen_upper", [2.4, 0.35, 0.72], ["white", "anthracite", "oak", "green", "blue", "black"], { mount: "wall", elevation: 1.45, widths: UNIT, options: HANDLE }),
       k("kitchen_tall", "fridge", [0.6, 0.62, 2.2], ["white", "anthracite", "oak", "green", "blue", "black"], { widths: [0.3, 0.45, 0.5, 0.6] }),
-      k("kitchen_base", "kitchen", [0.6, 0.62, 0.91], FRONTS, { accents: WORKTOP, widths: UNIT, options: { fronts: BASE_FRONTS, ...HANDLE } }),
-      k("kitchen_sink_unit", "kitchen", [0.8, 0.62, 0.91], FRONTS, { accents: WORKTOP, widths: [0.6, 0.8, 0.9, 1.0, 1.2], options: { fronts: ["doors", "drawer"], ...HANDLE } }),
-      k("kitchen_hob_gas", "kitchen", [0.6, 0.62, 0.91], FRONTS, { accents: WORKTOP, widths: [0.6, 0.8, 0.9] }),
-      k("kitchen_hob_ceran", "kitchen", [0.6, 0.62, 0.91], FRONTS, { accents: WORKTOP, widths: [0.6, 0.8, 0.9] }),
-      k("kitchen_hob_downdraft", "kitchen", [0.8, 0.62, 0.91], FRONTS, { accents: WORKTOP, widths: [0.6, 0.8, 0.9], options: HANDLE }),
-      k("kitchen_hob_electric", "kitchen", [0.6, 0.62, 0.91], FRONTS, { accents: WORKTOP, widths: [0.6, 0.8, 0.9] }),
+      k("kitchen_base", "kitchen", [0.6, 0.62, 0.91], FRONTS, { accents: WORKTOP, widths: UNIT, options: { top: BASE_TOPS, fronts: BASE_FRONTS, ...HANDLE }, planBy: "top" }),
       k("kitchen_dishwasher", "kitchen", [0.6, 0.62, 0.91], FRONTS, { accents: WORKTOP, widths: [0.45, 0.6], options: HANDLE }),
       k("kitchen_corner", "kitchen", [1.0, 1.0, 0.91], FRONTS, { accents: WORKTOP, options: HANDLE }),
       k("kitchen_pantry", "kitchen", [0.6, 0.62, 2.2], FRONTS, { widths: [0.3, 0.45, 0.5, 0.6], options: HANDLE }),

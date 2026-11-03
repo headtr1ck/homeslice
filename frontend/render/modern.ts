@@ -1503,15 +1503,22 @@ const BASE_BUILDERS: Record<string, Build> = {
   heat_pump: (b, w, d, h, f) => outdoorUnit(b, w, d, h, f, false),
   // ----- kitchen, piece by piece (fronts in the finish, the worktop in the accent) -----
   kitchen_base: (b, w, d, h, f, _c, a) => {
-    // what is behind the fronts (options.fronts): see model/modern.ts BASE_FRONTS
+    // what is behind the fronts and in the worktop (options.fronts, options.top): model/modern.ts
     const layout = b.options.fronts ?? "drawer_door";
-    if (layout === "shelves") return openBase(b, w, d, h, f, a);
+    const top = b.options.top ?? "none";
+    if (layout === "shelves") {
+      openBase(b, w, d, h, f, a);
+      TOPS[top]?.(b, w, d, h);
+      return;
+    }
     const u = kitchenBase(b, w, d, h, a, f);
-    const doors = Math.max(1, Math.round(w / 0.6));
+    const doors = Math.max(1, Math.round(w / 0.5));
     const drawers = Math.max(1, Math.round(w / 0.9));
     const tall = u.y1 - u.y0;
-    const stack = (rows: number[]) => {
-      let y = u.y1;
+    // a sink leaves no room for a top drawer: its front is a fixed panel
+    const panel = (handled: boolean, n: number) => fronts(b, -w / 2, w, u.y1 - 0.17, 0.17, u.fz, n, f, 1, handled ? "bar" : undefined, undefined, true);
+    const stack = (rows: number[], from = u.y1) => {
+      let y = from;
       for (const rh of rows) {
         y -= rh;
         fronts(b, -w / 2, w, y, rh, u.fz, drawers, f, 1, "bar", undefined, true);
@@ -1519,99 +1526,18 @@ const BASE_BUILDERS: Record<string, Build> = {
     };
     if (layout === "door") fronts(b, -w / 2, w, u.y0, tall, u.fz, doors, f, 1, "bar");
     else if (layout === "drawers_2") stack([tall / 2, tall / 2]);
-    else if (layout === "drawers_3") stack([0.17, 0.27, tall - 0.44]);
-    else if (layout === "oven") oven(b, w, u, f);
+    else if (layout === "drawers_3") {
+      panel(top !== "sink", drawers);
+      stack([0.27, tall - 0.44], u.y1 - 0.17);
+    } else if (layout === "panel_drawer") {
+      panel(false, 1);
+      fronts(b, -w / 2, w, u.y0, tall - 0.17, u.fz, drawers, f, 1, "bar", undefined, true);
+    } else if (layout === "oven") oven(b, w, u, f, top === "hob_electric");
     else {
-      fronts(b, -w / 2, w, u.y1 - 0.17, 0.17, u.fz, doors, f, 1, "bar", undefined, true);
+      panel(top !== "sink", doors);
       fronts(b, -w / 2, w, u.y0, tall - 0.17, u.fz, doors, f, 1, "bar");
     }
-  },
-  kitchen_sink_unit: (b, w, d, h, f, _c, a) => {
-    const u = kitchenBase(b, w, d, h, a, f);
-    if (b.options.fronts === "drawer") {
-      // a fixed panel in front of the basin, one deep pull-out below it
-      fronts(b, -w / 2, w, u.y1 - 0.17, 0.17, u.fz, 1, f, 1);
-      fronts(b, -w / 2, w, u.y0, u.y1 - u.y0 - 0.17, u.fz, 1, f, 1, "bar", undefined, true);
-    } else fronts(b, -w / 2, w, u.y0, u.y1 - u.y0, u.fz, Math.max(1, Math.round(w / 0.45)), f, 1, "bar");
-    const bw = Math.min(w - 0.16, 0.7);
-    const steel = mat(C.steel, { metalness: 0.6, roughness: 0.3 });
-    b.box(bw + 0.04, 0.006, d - 0.2, 0, h, 0.03, steel, 0.01);
-    b.box(bw, 0.004, d - 0.26, 0, h + 0.002, 0.03, mat("#6d7277", { metalness: 0.5, roughness: 0.4 }), 0.03);
-    b.cyl(0.025, 0.025, 0.004, 0, h + 0.006, 0.03, mat("#3a3d41"), 16);
-    b.above(() => tapGooseneck(b, 0, h, back(d) + 0.07, mat(C.chrome, { metalness: 0.85, roughness: 0.2 })));
-  },
-  kitchen_hob_gas: (b, w, d, h, f, _c, a) => {
-    const u = kitchenBase(b, w, d, h, a, f);
-    oven(b, w, u, f);
-    const steel = mat(C.steel, { metalness: 0.6, roughness: 0.35 });
-    const iron = mat("#1f2023", { roughness: 0.6 });
-    b.box(w - 0.06, 0.008, d - 0.1, 0, h, 0, steel, 0.004);
-    const pw = w - 0.12;
-    for (const [dx, dz, r] of [[-0.25, -0.22, 0.05], [0.25, -0.22, 0.04], [-0.25, 0.22, 0.04], [0.25, 0.22, 0.06]] as const) {
-      const x = dx * pw;
-      const z = dz * (d - 0.1);
-      b.cyl(r * 1.4, r * 1.5, 0.012, x, h + 0.008, z, mat("#2b2c2e"), 20);
-      b.cyl(r, r, 0.012, x, h + 0.02, z, iron, 20);
-      for (let k = 0; k < 4; k++) {
-        const ang = (k / 4) * Math.PI * 2 + Math.PI / 4;
-        b.rod(v(x + Math.cos(ang) * r * 0.9, h + 0.04, z + Math.sin(ang) * r * 0.9), v(x + Math.cos(ang) * r * 2.1, h + 0.04, z + Math.sin(ang) * r * 2.1), 0.005, iron, 4);
-      }
-      b.add(new THREE.TorusGeometry(r * 2.1, 0.005, 4, 20), iron, x, h + 0.04, z).rotation.x = Math.PI / 2;
-    }
-  },
-  kitchen_hob_electric: (b, w, d, h, f, _c, a) => {
-    // the old kind: four cast-iron plates with chrome rims, knobs on the front
-    const u = kitchenBase(b, w, d, h, a, f);
-    oven(b, w, u, f, true);
-    b.box(w - 0.06, 0.012, d - 0.1, 0, h, 0, mat(C.ceramic, { roughness: 0.4 }), 0.006);
-    const pw = w - 0.12;
-    for (const [dx, dz, r] of [[-0.25, -0.22, 0.09], [0.25, -0.22, 0.072], [-0.25, 0.22, 0.072], [0.25, 0.22, 0.09]] as const) {
-      const x = dx * pw;
-      const z = dz * (d - 0.1);
-      b.cyl(r, r, 0.016, x, h + 0.012, z, mat("#2a2b2e", { roughness: 0.7 }), 24);
-      b.add(new THREE.TorusGeometry(r, 0.005, 4, 24), mat(C.chrome, { metalness: 0.8, roughness: 0.25 }), x, h + 0.026, z).rotation.x = Math.PI / 2;
-      b.cyl(0.012, 0.012, 0.004, x, h + 0.028, z, mat("#d23a2a"), 8);
-    }
-  },
-  kitchen_hob_ceran: (b, w, d, h, f, _c, a) => {
-    const u = kitchenBase(b, w, d, h, a, f);
-    oven(b, w, u, f);
-    b.box(w - 0.04, 0.006, d - 0.06, 0, h, 0, mat(C.screen, { roughness: 0.08, metalness: 0.2 }), 0.004);
-    const pw = w - 0.12;
-    for (const [dx, dz, r] of [[-0.25, -0.22, 0.09], [0.25, -0.22, 0.075], [-0.25, 0.22, 0.075], [0.25, 0.22, 0.1]] as const)
-      for (const k of [1, 0.6]) b.add(new THREE.RingGeometry(r * k - 0.003, r * k, 32), mat("#6a6d72"), dx * pw, h + 0.007, dz * (d - 0.1)).rotation.x = -Math.PI / 2;
-    for (let i = 0; i < 6; i++) b.add(new THREE.CircleGeometry(0.006, 8), mat("#c9cdd1", { emissive: "#c9cdd1", emissiveIntensity: 0.3 }), -0.08 + i * 0.032, h + 0.007, d / 2 - 0.07).rotation.x = -Math.PI / 2;
-  },
-  kitchen_hob_downdraft: (b, w, d, h, f, _c, a) => {
-    // two deep drawers under an induction hob with the extractor sunk in its middle
-    const u = kitchenBase(b, w, d, h, a, f);
-    fronts(b, -w / 2, w, u.y0, u.y1 - u.y0, u.fz, 1, f, 2, "bar");
-    const gw = Math.min(w - 0.04, 0.8);
-    const gd = Math.min(d - 0.1, 0.52);
-    const top = h + 0.0065;
-    b.box(gw, 0.006, gd, 0, h, 0, mat(C.screen, { roughness: 0.08, metalness: 0.2 }), 0.004);
-    const line = mat("#6a6d72");
-    const ring = (x: number, z: number, r: number) => (b.add(new THREE.RingGeometry(r - 0.003, r, 40), line, x, top, z).rotation.x = -Math.PI / 2);
-    // round zones on the left, a flex zone of two squares on the right
-    ring(-gw * 0.3, gd * 0.12, Math.min(0.11, gw * 0.14));
-    ring(-gw * 0.15, -gd * 0.25, Math.min(0.07, gw * 0.09));
-    const fx = gw * 0.3;
-    const fw = Math.min(0.22, gw * 0.28);
-    for (const z of [-gd * 0.21, gd * 0.21]) {
-      for (const sz of [-1, 1]) b.box(fw, 0.001, 0.003, fx, top, z + (sz * gd * 0.2), line);
-      for (const sx of [-1, 1]) b.box(0.003, 0.001, gd * 0.4, fx + (sx * fw) / 2, top, z, line);
-    }
-    // the extractor: a dark well with a round grille and a cap in the middle
-    const gx = gw * 0.02;
-    const gr = Math.min(0.075, gw * 0.1);
-    b.cyl(gr, gr, 0.002, gx, top, 0, mat("#0d0e10", { roughness: 0.9 }), 32);
-    const grille = mat("#4a4d52", { metalness: 0.6, roughness: 0.4 });
-    for (let i = 0; i < 7; i++) b.box(gr * 1.7 * Math.sqrt(1 - ((i - 3) / 3.6) ** 2), 0.002, 0.005, gx, top + 0.002, (i - 3) * gr * 0.26, grille);
-    b.add(new THREE.TorusGeometry(gr, 0.004, 4, 32), grille, gx, top + 0.002, 0).rotation.x = Math.PI / 2;
-    b.cyl(gr * 0.3, gr * 0.3, 0.008, gx, top, 0, mat("#2a2b2e", { roughness: 0.5 }), 20);
-    // touch controls at the front
-    for (let i = 0; i < 5; i++)
-      b.add(new THREE.CircleGeometry(0.005, 8), mat("#c9cdd1", { emissive: "#c9cdd1", emissiveIntensity: 0.3 }), -gw * 0.05 + i * 0.022, top, gd / 2 - 0.05).rotation.x = -Math.PI / 2;
+    TOPS[top]?.(b, w, d, h);
   },
   kitchen_dishwasher: (b, w, d, h, f, _c, a) => {
     const u = kitchenBase(b, w, d, h, a, f);
@@ -4685,6 +4611,83 @@ export function hollow(b: Builder, w: number, h: number, d: number, x: number, z
 }
 
 /** A kitchen base unit: plinth, carcass and worktop; where its fronts go. */
+/** What sits in a base unit's worktop (options.top, model/modern.ts BASE_TOPS), drawn on its top at h. */
+const TOPS: Record<string, (b: Builder, w: number, d: number, h: number) => void> = {
+  sink: (b, w, d, h) => {
+    const bw = Math.min(w - 0.16, 0.7);
+    const steel = mat(C.steel, { metalness: 0.6, roughness: 0.3 });
+    b.box(bw + 0.04, 0.006, d - 0.2, 0, h, 0.03, steel, 0.01);
+    b.box(bw, 0.004, d - 0.26, 0, h + 0.002, 0.03, mat("#6d7277", { metalness: 0.5, roughness: 0.4 }), 0.03);
+    b.cyl(0.025, 0.025, 0.004, 0, h + 0.006, 0.03, mat("#3a3d41"), 16);
+    b.above(() => tapGooseneck(b, 0, h, back(d) + 0.07, mat(C.chrome, { metalness: 0.85, roughness: 0.2 })));
+  },
+  hob_gas: (b, w, d, h) => {
+    const steel = mat(C.steel, { metalness: 0.6, roughness: 0.35 });
+    const iron = mat("#1f2023", { roughness: 0.6 });
+    b.box(w - 0.06, 0.008, d - 0.1, 0, h, 0, steel, 0.004);
+    const pw = w - 0.12;
+    for (const [dx, dz, r] of [[-0.25, -0.22, 0.05], [0.25, -0.22, 0.04], [-0.25, 0.22, 0.04], [0.25, 0.22, 0.06]] as const) {
+      const x = dx * pw;
+      const z = dz * (d - 0.1);
+      b.cyl(r * 1.4, r * 1.5, 0.012, x, h + 0.008, z, mat("#2b2c2e"), 20);
+      b.cyl(r, r, 0.012, x, h + 0.02, z, iron, 20);
+      for (let k = 0; k < 4; k++) {
+        const ang = (k / 4) * Math.PI * 2 + Math.PI / 4;
+        b.rod(v(x + Math.cos(ang) * r * 0.9, h + 0.04, z + Math.sin(ang) * r * 0.9), v(x + Math.cos(ang) * r * 2.1, h + 0.04, z + Math.sin(ang) * r * 2.1), 0.005, iron, 4);
+      }
+      b.add(new THREE.TorusGeometry(r * 2.1, 0.005, 4, 20), iron, x, h + 0.04, z).rotation.x = Math.PI / 2;
+    }
+  },
+  hob_ceran: (b, w, d, h) => {
+    b.box(w - 0.04, 0.006, d - 0.06, 0, h, 0, mat(C.screen, { roughness: 0.08, metalness: 0.2 }), 0.004);
+    const pw = w - 0.12;
+    for (const [dx, dz, r] of [[-0.25, -0.22, 0.09], [0.25, -0.22, 0.075], [-0.25, 0.22, 0.075], [0.25, 0.22, 0.1]] as const)
+      for (const k of [1, 0.6]) b.add(new THREE.RingGeometry(r * k - 0.003, r * k, 32), mat("#6a6d72"), dx * pw, h + 0.007, dz * (d - 0.1)).rotation.x = -Math.PI / 2;
+    for (let i = 0; i < 6; i++) b.add(new THREE.CircleGeometry(0.006, 8), mat("#c9cdd1", { emissive: "#c9cdd1", emissiveIntensity: 0.3 }), -0.08 + i * 0.032, h + 0.007, d / 2 - 0.07).rotation.x = -Math.PI / 2;
+  },
+  hob_electric: (b, w, d, h) => {
+    // the old kind: four cast-iron plates with chrome rims (knobs on the oven below)
+    b.box(w - 0.06, 0.012, d - 0.1, 0, h, 0, mat(C.ceramic, { roughness: 0.4 }), 0.006);
+    const pw = w - 0.12;
+    for (const [dx, dz, r] of [[-0.25, -0.22, 0.09], [0.25, -0.22, 0.072], [-0.25, 0.22, 0.072], [0.25, 0.22, 0.09]] as const) {
+      const x = dx * pw;
+      const z = dz * (d - 0.1);
+      b.cyl(r, r, 0.016, x, h + 0.012, z, mat("#2a2b2e", { roughness: 0.7 }), 24);
+      b.add(new THREE.TorusGeometry(r, 0.005, 4, 24), mat(C.chrome, { metalness: 0.8, roughness: 0.25 }), x, h + 0.026, z).rotation.x = Math.PI / 2;
+      b.cyl(0.012, 0.012, 0.004, x, h + 0.028, z, mat("#d23a2a"), 8);
+    }
+  },
+  hob_downdraft: (b, w, d, h) => {
+    // induction with the extractor sunk in its middle
+    const gw = Math.min(w - 0.04, 0.8);
+    const gd = Math.min(d - 0.1, 0.52);
+    const top = h + 0.0065;
+    b.box(gw, 0.006, gd, 0, h, 0, mat(C.screen, { roughness: 0.08, metalness: 0.2 }), 0.004);
+    const line = mat("#6a6d72");
+    const ring = (x: number, z: number, r: number) => (b.add(new THREE.RingGeometry(r - 0.003, r, 40), line, x, top, z).rotation.x = -Math.PI / 2);
+    // round zones on the left, a flex zone of two squares on the right
+    ring(-gw * 0.3, gd * 0.12, Math.min(0.11, gw * 0.14));
+    ring(-gw * 0.15, -gd * 0.25, Math.min(0.07, gw * 0.09));
+    const fx = gw * 0.3;
+    const fw = Math.min(0.22, gw * 0.28);
+    for (const z of [-gd * 0.21, gd * 0.21]) {
+      for (const sz of [-1, 1]) b.box(fw, 0.001, 0.003, fx, top, z + (sz * gd * 0.2), line);
+      for (const sx of [-1, 1]) b.box(0.003, 0.001, gd * 0.4, fx + (sx * fw) / 2, top, z, line);
+    }
+    // the extractor: a dark well with a round grille and a cap in the middle
+    const gx = gw * 0.02;
+    const gr = Math.min(0.075, gw * 0.1);
+    b.cyl(gr, gr, 0.002, gx, top, 0, mat("#0d0e10", { roughness: 0.9 }), 32);
+    const grille = mat("#4a4d52", { metalness: 0.6, roughness: 0.4 });
+    for (let i = 0; i < 7; i++) b.box(gr * 1.7 * Math.sqrt(1 - ((i - 3) / 3.6) ** 2), 0.002, 0.005, gx, top + 0.002, (i - 3) * gr * 0.26, grille);
+    b.add(new THREE.TorusGeometry(gr, 0.004, 4, 32), grille, gx, top + 0.002, 0).rotation.x = Math.PI / 2;
+    b.cyl(gr * 0.3, gr * 0.3, 0.008, gx, top, 0, mat("#2a2b2e", { roughness: 0.5 }), 20);
+    // touch controls at the front
+    for (let i = 0; i < 5; i++)
+      b.add(new THREE.CircleGeometry(0.005, 8), mat("#c9cdd1", { emissive: "#c9cdd1", emissiveIntensity: 0.3 }), -gw * 0.05 + i * 0.022, top, gd / 2 - 0.05).rotation.x = -Math.PI / 2;
+  },
+};
+
 /** A base unit without fronts: a box open to the front with two shelves, under the worktop. */
 function openBase(b: Builder, w: number, d: number, h: number, f: THREE.Material, a: THREE.Material) {
   const t = 0.018;
@@ -4726,7 +4729,7 @@ export function applianceFront(b: Builder, w: number, y: number, h: number, z: n
 export function oven(b: Builder, w: number, u: { y0: number; y1: number; fz: number }, f: THREE.Material, knobs = false) {
   const oh = Math.min(0.6, u.y1 - u.y0 - 0.12);
   applianceFront(b, w, u.y1 - oh - 0.01, oh, u.fz, "oven", knobs);
-  fronts(b, -w / 2, w, u.y0, u.y1 - oh - 0.01 - u.y0, u.fz, 1, f, 1, "bar");
+  fronts(b, -w / 2, w, u.y0, u.y1 - oh - 0.01 - u.y0, u.fz, 1, f, 1, "bar", undefined, true);
 }
 
 /** A tall unit with doors stacked by the given shares of its height. */

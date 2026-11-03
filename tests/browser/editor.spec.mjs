@@ -1401,6 +1401,11 @@ test.describe.serial("editor", () => {
     await page.locator('homeslice-panel .inspector [data-option="fronts"] button[data-value="shelves"]').click();
     const folded = (await room("kitchen")).furniture[0];
     assert(folded.model === "modern:kitchen_base" && folded.options?.fronts === "shelves", `folded: ${JSON.stringify(folded)}`);
+    // a sink in its top: the plan shows the base unit with a sink from above
+    await page.locator('homeslice-panel .inspector [data-option="top"] button[data-value="sink"]').click();
+    assert((await room("kitchen")).furniture[0].options?.top === "sink", "no sink");
+    const picture = await page.locator("homeslice-panel svg.plan g.furniture.selected image").getAttribute("href");
+    assert(picture.endsWith("plan/modern/kitchen_base-sink.png"), `plan picture: ${picture}`);
     await page.evaluate(() => (window.panel._furn = { room: "kitchen", index: 1 }));
     await page.locator("homeslice-panel .inspector button[data-finish]").nth(1).click();
     assert((await room("kitchen")).furniture[1].finish, "no colour for a piece without a model");

@@ -64,8 +64,8 @@ function shoot(piece: THREE.Object3D, size: [number, number]): { thumb: string; 
 }
 
 /** A built-in piece with the cards' materials. */
-function modern(kind: string, size: [number, number], height: number) {
-  const p = buildModern(kind, size, height);
+function modern(kind: string, size: [number, number], height: number, options: Record<string, string> = {}) {
+  const p = buildModern(kind, size, height, undefined, undefined, options);
   if (!p) throw new Error(`no built-in piece ${kind}`);
   p.traverse((o) => {
     if (o instanceof THREE.Mesh) o.material = convert(o.material as THREE.Material);
@@ -88,7 +88,13 @@ async function render() {
     add(type, shoot(kind ? modern(kind, def.size, def.height) : simple(), def.size));
     add(`builtin/${type}`, shoot(simple(), def.size));
   }
-  for (const g of MODERN_GROUPS) for (const k of g.kinds) add(`modern/${k.id}`, shoot(modern(k.id, [k.size[0], k.size[1]], k.size[2]), [k.size[0], k.size[1]]));
+  for (const g of MODERN_GROUPS)
+    for (const k of g.kinds) {
+      add(`modern/${k.id}`, shoot(modern(k.id, [k.size[0], k.size[1]], k.size[2]), [k.size[0], k.size[1]]));
+      // pieces that look different from above per choice: a plan picture for each other choice
+      const by = k.planBy;
+      for (const value of (by && k.options?.[by]?.slice(1)) || []) plans[`modern/${k.id}-${value}`] = shoot(modern(k.id, [k.size[0], k.size[1]], k.size[2], { [by!]: value }), [k.size[0], k.size[1]]).plan;
+    }
   return { thumbs, plans };
 }
 

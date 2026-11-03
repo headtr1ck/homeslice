@@ -199,9 +199,11 @@ accent, options, entity, readings}]`.
   default piece. Use `modern:` pieces; kinds, sizes, finishes and accents are in the
   catalogue.
 - `options`: choices a `modern:` piece offers, as listed in its catalogue `options` (the
-  first value is its own and need not be written), e.g. `options: {fronts: drawers_3,
-  handle: knob}` on `modern:kitchen_base` (fronts: `drawer_door`, `door`, `drawers_2`,
-  `drawers_3`, `oven`, `shelves`; handle: `bar`, `knob`, `handleless`, `push`). A kind's `widths` are the widths it
+  first value is its own and need not be written). A kitchen's base units are all
+  `modern:kitchen_base`: `top` is `none`, `sink`, `hob_gas`, `hob_ceran`, `hob_electric` or
+  `hob_downdraft`; `fronts` is `drawer_door`, `door`, `drawers_2`, `drawers_3`,
+  `panel_drawer`, `oven` or `shelves`; `handle` is `bar`, `knob`, `handleless` or `push`,
+  e.g. `options: {top: sink, fronts: panel_drawer, handle: handleless}`. A kind's `widths` are the widths it
   is sold in; any width still works.
 - `entity`: what the piece is in Home Assistant, and the card shows its state: a lamp's
   `light.…` glows, a TV's `media_player.…` lights its screen, a fireplace's `switch.…`

@@ -2407,11 +2407,20 @@
     1.2
    ],
    "options": {
+    "top": [
+     "none",
+     "sink",
+     "hob_gas",
+     "hob_ceran",
+     "hob_electric",
+     "hob_downdraft"
+    ],
     "fronts": [
      "drawer_door",
      "door",
      "drawers_2",
      "drawers_3",
+     "panel_drawer",
      "oven",
      "shelves"
     ],
@@ -2422,198 +2431,6 @@
      "push"
     ]
    }
-  },
-  {
-   "model": "modern:kitchen_sink_unit",
-   "name": "Sink unit",
-   "group": "kitchen",
-   "type": "kitchen",
-   "size": [
-    0.8,
-    0.62,
-    0.91
-   ],
-   "finishes": [
-    "white",
-    "anthracite",
-    "oak",
-    "green",
-    "blue",
-    "black",
-    "walnut"
-   ],
-   "accents": [
-    "marble",
-    "concrete",
-    "terrazzo",
-    "white",
-    "oak",
-    "black",
-    "anthracite"
-   ],
-   "widths": [
-    0.6,
-    0.8,
-    0.9,
-    1,
-    1.2
-   ],
-   "options": {
-    "fronts": [
-     "doors",
-     "drawer"
-    ],
-    "handle": [
-     "bar",
-     "knob",
-     "handleless",
-     "push"
-    ]
-   }
-  },
-  {
-   "model": "modern:kitchen_hob_gas",
-   "name": "Gas hob with oven",
-   "group": "kitchen",
-   "type": "kitchen",
-   "size": [
-    0.6,
-    0.62,
-    0.91
-   ],
-   "finishes": [
-    "white",
-    "anthracite",
-    "oak",
-    "green",
-    "blue",
-    "black",
-    "walnut"
-   ],
-   "accents": [
-    "marble",
-    "concrete",
-    "terrazzo",
-    "white",
-    "oak",
-    "black",
-    "anthracite"
-   ],
-   "widths": [
-    0.6,
-    0.8,
-    0.9
-   ]
-  },
-  {
-   "model": "modern:kitchen_hob_ceran",
-   "name": "Ceramic hob with oven",
-   "group": "kitchen",
-   "type": "kitchen",
-   "size": [
-    0.6,
-    0.62,
-    0.91
-   ],
-   "finishes": [
-    "white",
-    "anthracite",
-    "oak",
-    "green",
-    "blue",
-    "black",
-    "walnut"
-   ],
-   "accents": [
-    "marble",
-    "concrete",
-    "terrazzo",
-    "white",
-    "oak",
-    "black",
-    "anthracite"
-   ],
-   "widths": [
-    0.6,
-    0.8,
-    0.9
-   ]
-  },
-  {
-   "model": "modern:kitchen_hob_downdraft",
-   "name": "Induction hob with extractor and drawers",
-   "group": "kitchen",
-   "type": "kitchen",
-   "size": [
-    0.8,
-    0.62,
-    0.91
-   ],
-   "finishes": [
-    "white",
-    "anthracite",
-    "oak",
-    "green",
-    "blue",
-    "black",
-    "walnut"
-   ],
-   "accents": [
-    "marble",
-    "concrete",
-    "terrazzo",
-    "white",
-    "oak",
-    "black",
-    "anthracite"
-   ],
-   "widths": [
-    0.6,
-    0.8,
-    0.9
-   ],
-   "options": {
-    "handle": [
-     "bar",
-     "knob",
-     "handleless",
-     "push"
-    ]
-   }
-  },
-  {
-   "model": "modern:kitchen_hob_electric",
-   "name": "Electric hob (plates) with oven",
-   "group": "kitchen",
-   "type": "kitchen",
-   "size": [
-    0.6,
-    0.62,
-    0.91
-   ],
-   "finishes": [
-    "white",
-    "anthracite",
-    "oak",
-    "green",
-    "blue",
-    "black",
-    "walnut"
-   ],
-   "accents": [
-    "marble",
-    "concrete",
-    "terrazzo",
-    "white",
-    "oak",
-    "black",
-    "anthracite"
-   ],
-   "widths": [
-    0.6,
-    0.8,
-    0.9
-   ]
   },
   {
    "model": "modern:kitchen_dishwasher",
