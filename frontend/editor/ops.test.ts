@@ -677,6 +677,16 @@ describe("snapping furniture", () => {
     expect(r.c[1]).toBeCloseTo(0.81);
   });
 
+  it("snaps against a wall drawn a few millimetres off straight, without going into it", () => {
+    // the east face runs from x 5.6 at the top to 5.595 at the bottom (5 mm over 4 m)
+    const inner: Vec2[] = [[3.7, 9.1], [5.6, 9.1], [5.595, 12.87], [3.7, 12.87]];
+    const faces = inner.map((q, i) => [q, inner[(i + 1) % inner.length]] as [Vec2, Vec2]);
+    const inRoom = (p: Vec2) => p[0] > 3.7 && p[0] < 5.6 && p[1] > 9.1 && p[1] < 12.87;
+    const r = snapFurniture({ c: [5.2, 11], half: [0.31, 0.4] }, faces, [], [], 0.2, inRoom);
+    // its east side on the face where the face is nearest (the lower end of the piece)
+    const faceAt = (y: number) => 5.6 - (0.005 * (y - 9.1)) / 3.77;
+    expect(r.c[0] + 0.31).toBeCloseTo(faceAt(11.4), 6);
+  });
   it("pushes a piece against a nearby wall", () => {
     const r = snapFurniture({ c: [2, 0.55], half: [1, 0.45] }, walls, [], [], 0.15);
     expect(r.c[1]).toBeCloseTo(0.45);

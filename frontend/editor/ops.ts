@@ -675,19 +675,29 @@ export function snapFurniture(
   const hi = (f: Footprint, axis: 0 | 1) => f.c[axis] + f.half[axis];
   const overlaps = (f: Footprint, a0: number, a1: number, axis: 0 | 1, margin = 0) => Math.min(hi(f, axis), a1) - Math.max(lo(f, axis), a0) > -margin;
   for (const [a, b] of walls) {
-    // a wall along y (constant x) snaps x, if it runs beside the piece
+    // a wall along y (constant x) snaps x, if it runs beside the piece; walls drawn a few
+    // millimetres off straight (up to about 2°) count too
     for (const axis of [0, 1] as const) {
       const other = (1 - axis) as 0 | 1;
-      if (Math.abs(a[axis] - b[axis]) > 1e-6) continue;
+      const run = b[other] - a[other];
+      if (Math.abs(a[axis] - b[axis]) > 1e-6 && Math.abs(a[axis] - b[axis]) > Math.abs(run) * 0.035) continue;
       if (!overlaps(piece, Math.min(a[other], b[other]), Math.max(a[other], b[other]), other)) continue;
-      const face = a[axis];
+      // the face where the piece runs along it: its nearest point decides, so the piece stays out of the wall
+      const faceAt = (q: number) => (Math.abs(run) < 1e-9 ? a[axis] : a[axis] + ((b[axis] - a[axis]) * (Math.max(Math.min(a[other], b[other]), Math.min(Math.max(a[other], b[other]), q)) - a[other])) / run);
+      const ends = [faceAt(lo(piece, other)), faceAt(hi(piece, other))];
       // which side of the face the room is on (a piece never snaps into the wall behind it)
       const mid: Vec2 = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
       const probe: Vec2 = [...mid] as Vec2;
       probe[axis] += 0.05;
       const roomAbove = inRoom ? inRoom(probe) : null;
-      if (roomAbove !== false) offer(axis, face - lo(piece, axis), face);
-      if (roomAbove !== true) offer(axis, face - hi(piece, axis), face);
+      if (roomAbove !== false) {
+        const face = Math.max(...ends);
+        offer(axis, face - lo(piece, axis), face);
+      }
+      if (roomAbove !== true) {
+        const face = Math.min(...ends);
+        offer(axis, face - hi(piece, axis), face);
+      }
     }
   }
   for (const o of others) {

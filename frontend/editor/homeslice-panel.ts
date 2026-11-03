@@ -4122,6 +4122,9 @@ export class HomeslicePanel extends LitElement {
     if (!r || !f) return nothing;
     const set = (patch: Partial<FurnitureInput>) => this.commit(updateFurniture(m, this._level, r.id, sel.index, patch));
     const [w, d] = f.size ?? FURNITURE[f.type].size;
+    // the built-in piece it is drawn as: named, or the type's own when it names none
+    const kindId = f.model?.startsWith("modern:") ? f.model.slice(7) : f.model ? undefined : defaultKind(f.type, mountOf(f));
+    const kind = kindId ? MODERN[kindId] : undefined;
     const size = (axis: 0 | 1) => (e: Event) => {
       const v = Number((e.target as HTMLInputElement).value);
       if (!(v > 0.05)) return;
@@ -4144,21 +4147,34 @@ export class HomeslicePanel extends LitElement {
           if (v > 0) set({ height: v === FURNITURE[f.type].height ? undefined : v });
         }} /></label>
       </div>
+      ${kind?.widths
+        ? html`<div class="widths" role="radiogroup" aria-label=${this.t("editor.furniture_widths")}>
+            <span class="muted">${this.t("editor.furniture_widths")}</span>
+            ${kind.widths.map((x) => {
+              const on = Math.abs(w - x) < 0.001;
+              return html`<button role="radio" class=${on ? "active" : ""} aria-checked=${on} data-width=${x}
+                @click=${() => {
+                  const def = FURNITURE[f.type].size;
+                  set({ size: x === def[0] && d === def[1] ? undefined : [x, d] });
+                }}>${Math.round(x * 100)}</button>`;
+            })}
+          </div>`
+        : nothing}
       ${f.model ? html`<p class="muted">${this.t("editor.furniture_model")}: ${this.modelName(f.model)}</p>` : nothing}
-      ${f.model?.startsWith("modern:") && MODERN[f.model.slice(7)]
+      ${kind
         ? html`<div class="finishes" role="radiogroup" aria-label=${this.t("editor.furniture_finish")}>
             <span class="muted">${this.t("editor.furniture_finish")}</span>
-            ${MODERN[f.model.slice(7)].finishes.map(
-              (x, i) => html`<button role="radio" class="swatch ${(f.finish ?? MODERN[f.model!.slice(7)].finishes[0]) === x ? "active" : ""}" aria-checked=${(f.finish ?? MODERN[f.model!.slice(7)].finishes[0]) === x}
+            ${kind.finishes.map(
+              (x, i) => html`<button role="radio" class="swatch ${(f.finish ?? kind.finishes[0]) === x ? "active" : ""}" aria-checked=${(f.finish ?? kind.finishes[0]) === x}
                 title=${this.t(`finish.${x}` as StringKey)} data-finish=${x} style="--swatch:${FINISHES[x]}" @click=${() => set({ finish: i === 0 ? undefined : x })}></button>`,
             )}
           </div>`
         : nothing}
-      ${f.model?.startsWith("modern:") && MODERN[f.model.slice(7)]?.accents
+      ${kind?.accents
         ? html`<div class="finishes" role="radiogroup" aria-label=${this.t("editor.furniture_accent")}>
             <span class="muted">${this.t("editor.furniture_accent")}</span>
-            ${MODERN[f.model.slice(7)].accents!.map(
-              (x, i) => html`<button role="radio" class="swatch ${(f.accent ?? MODERN[f.model!.slice(7)].accents![0]) === x ? "active" : ""}" aria-checked=${(f.accent ?? MODERN[f.model!.slice(7)].accents![0]) === x}
+            ${kind.accents.map(
+              (x, i) => html`<button role="radio" class="swatch ${(f.accent ?? kind.accents![0]) === x ? "active" : ""}" aria-checked=${(f.accent ?? kind.accents![0]) === x}
                 title=${this.t(`finish.${x}` as StringKey)} data-accent=${x} style="--swatch:${FINISHES[x]}" @click=${() => set({ accent: i === 0 ? undefined : x })}></button>`,
             )}
           </div>`
@@ -4175,7 +4191,7 @@ export class HomeslicePanel extends LitElement {
       </div>
       <p class="muted">${this.t(`editor.mount_${mountOf(f)}_hint` as StringKey)}</p>
       ${this.renderSnapPieces()}
-      ${this.linkSelect(r.area_id, f.entity, (entity) => set({ entity }), linkDomain(f.type, f.model?.startsWith("modern:") ? f.model.slice(7) : f.model ? undefined : defaultKind(f.type, mountOf(f))))}
+      ${this.linkSelect(r.area_id, f.entity, (entity) => set({ entity }), linkDomain(f.type, kindId))}
       <p class="muted">${this.t("editor.furniture_entity_hint")}</p>
       ${(f.readings ?? []).map(
         (id, i) => html`<div class="row detail">
@@ -8638,6 +8654,22 @@ export class HomeslicePanel extends LitElement {
       text-align: center;
     }
     .library .piece:hover {
+      border-color: var(--accent);
+    }
+    .widths {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 4px;
+      margin: 6px 0;
+    }
+    .widths button {
+      min-width: 36px;
+      padding: 2px 6px;
+    }
+    .widths button.active {
+      background: var(--accent);
+      color: #fff;
       border-color: var(--accent);
     }
     .finishes {

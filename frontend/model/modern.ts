@@ -15,6 +15,8 @@ export interface ModernKind {
   finishes: string[];
   /** A second colour (legs, frame, shade, base), the first is the default. */
   accents?: string[];
+  /** The widths it is sold in (metres), offered in the editor; any other width still works. */
+  widths?: number[];
 }
 
 /** Colours of the finishes (wood, lacquer, fabric, stone). */
@@ -54,6 +56,9 @@ const HANDLES = ["black", "chrome", "brass", "oak"];
 const PAINT = ["silver", "white", "black", "anthracite", "blue", "red", "green"];
 
 const k = (id: string, type: FurnitureType, size: [number, number, number], finishes: string[], more: Partial<ModernKind> = {}): ModernKind => ({ id, type, size, finishes, ...more });
+
+/** Kitchen units come in these widths. */
+const UNIT = [0.3, 0.45, 0.5, 0.6, 0.8, 0.9, 1.0, 1.2];
 
 export const MODERN_GROUPS: { id: string; kinds: ModernKind[] }[] = [
   {
@@ -152,24 +157,25 @@ export const MODERN_GROUPS: { id: string; kinds: ModernKind[] }[] = [
     kinds: [
       k("kitchen", "kitchen", [3.0, 0.62, 0.91], ["white", "anthracite", "oak", "green", "blue", "black"], { accents: WORKTOP }),
       k("kitchen_island", "kitchen", [2.4, 1.0, 0.92], ["white", "anthracite", "oak", "green", "blue", "black"], { accents: WORKTOP }),
-      k("kitchen_upper", "kitchen_upper", [2.4, 0.35, 0.72], ["white", "anthracite", "oak", "green", "blue", "black"], { mount: "wall", elevation: 1.45 }),
-      k("kitchen_tall", "fridge", [0.6, 0.62, 2.2], ["white", "anthracite", "oak", "green", "blue", "black"]),
-      k("kitchen_base", "kitchen", [0.6, 0.62, 0.91], FRONTS, { accents: WORKTOP }),
-      k("kitchen_drawers", "kitchen", [0.6, 0.62, 0.91], FRONTS, { accents: WORKTOP }),
-      k("kitchen_sink_unit", "kitchen", [0.8, 0.62, 0.91], FRONTS, { accents: WORKTOP }),
-      k("kitchen_hob_gas", "kitchen", [0.6, 0.62, 0.91], FRONTS, { accents: WORKTOP }),
-      k("kitchen_hob_ceran", "kitchen", [0.6, 0.62, 0.91], FRONTS, { accents: WORKTOP }),
-      k("kitchen_hob_electric", "kitchen", [0.6, 0.62, 0.91], FRONTS, { accents: WORKTOP }),
-      k("kitchen_oven", "kitchen", [0.6, 0.62, 0.91], FRONTS, { accents: WORKTOP }),
-      k("kitchen_dishwasher", "kitchen", [0.6, 0.62, 0.91], FRONTS, { accents: WORKTOP }),
+      k("kitchen_upper", "kitchen_upper", [2.4, 0.35, 0.72], ["white", "anthracite", "oak", "green", "blue", "black"], { mount: "wall", elevation: 1.45, widths: UNIT }),
+      k("kitchen_tall", "fridge", [0.6, 0.62, 2.2], ["white", "anthracite", "oak", "green", "blue", "black"], { widths: [0.3, 0.45, 0.5, 0.6] }),
+      k("kitchen_base", "kitchen", [0.6, 0.62, 0.91], FRONTS, { accents: WORKTOP, widths: UNIT }),
+      k("kitchen_drawers", "kitchen", [0.6, 0.62, 0.91], FRONTS, { accents: WORKTOP, widths: UNIT }),
+      k("kitchen_sink_unit", "kitchen", [0.8, 0.62, 0.91], FRONTS, { accents: WORKTOP, widths: [0.6, 0.8, 0.9, 1.0, 1.2] }),
+      k("kitchen_hob_gas", "kitchen", [0.6, 0.62, 0.91], FRONTS, { accents: WORKTOP, widths: [0.6, 0.8, 0.9] }),
+      k("kitchen_hob_ceran", "kitchen", [0.6, 0.62, 0.91], FRONTS, { accents: WORKTOP, widths: [0.6, 0.8, 0.9] }),
+      k("kitchen_hob_downdraft", "kitchen", [0.8, 0.62, 0.91], FRONTS, { accents: WORKTOP, widths: [0.6, 0.8, 0.9] }),
+      k("kitchen_hob_electric", "kitchen", [0.6, 0.62, 0.91], FRONTS, { accents: WORKTOP, widths: [0.6, 0.8, 0.9] }),
+      k("kitchen_oven", "kitchen", [0.6, 0.62, 0.91], FRONTS, { accents: WORKTOP, widths: [0.6, 0.9] }),
+      k("kitchen_dishwasher", "kitchen", [0.6, 0.62, 0.91], FRONTS, { accents: WORKTOP, widths: [0.45, 0.6] }),
       k("kitchen_corner", "kitchen", [1.0, 1.0, 0.91], FRONTS, { accents: WORKTOP }),
-      k("kitchen_pantry", "kitchen", [0.6, 0.62, 2.2], FRONTS),
-      k("kitchen_pantry_mid", "kitchen", [0.6, 0.62, 1.45], FRONTS),
+      k("kitchen_pantry", "kitchen", [0.6, 0.62, 2.2], FRONTS, { widths: [0.3, 0.45, 0.5, 0.6] }),
+      k("kitchen_pantry_mid", "kitchen", [0.6, 0.62, 1.45], FRONTS, { widths: [0.3, 0.45, 0.5, 0.6] }),
       k("kitchen_tall_fridge", "fridge", [0.6, 0.62, 2.2], FRONTS),
       k("kitchen_tall_oven", "kitchen", [0.6, 0.62, 2.2], FRONTS),
-      k("kitchen_upper_glass", "kitchen_upper", [0.8, 0.35, 0.72], FRONTS, { mount: "wall", elevation: 1.45 }),
-      k("kitchen_upper_open", "kitchen_upper", [0.8, 0.25, 0.72], ["oak", "white", "black", "walnut"], { mount: "wall", elevation: 1.45 }),
-      k("kitchen_hood", "kitchen_upper", [0.9, 0.5, 1.0], ["silver", "black", "white"], { mount: "wall", elevation: 1.55 }),
+      k("kitchen_upper_glass", "kitchen_upper", [0.8, 0.35, 0.72], FRONTS, { mount: "wall", elevation: 1.45, widths: UNIT }),
+      k("kitchen_upper_open", "kitchen_upper", [0.8, 0.25, 0.72], ["oak", "white", "black", "walnut"], { mount: "wall", elevation: 1.45, widths: UNIT }),
+      k("kitchen_hood", "kitchen_upper", [0.9, 0.5, 1.0], ["silver", "black", "white"], { mount: "wall", elevation: 1.55, widths: [0.6, 0.9, 1.2] }),
       k("fridge_freestanding", "fridge", [0.6, 0.66, 1.85], ["silver", "white", "black", "anthracite", "blue", "red"]),
       k("fridge_double", "fridge", [0.91, 0.72, 1.78], ["silver", "black", "white"]),
       k("microwave", "item", [0.48, 0.38, 0.28], ["silver", "black", "white"]),

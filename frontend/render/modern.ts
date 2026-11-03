@@ -1537,6 +1537,37 @@ const BASE_BUILDERS: Record<string, Build> = {
       for (const k of [1, 0.6]) b.add(new THREE.RingGeometry(r * k - 0.003, r * k, 32), mat("#6a6d72"), dx * pw, h + 0.007, dz * (d - 0.1)).rotation.x = -Math.PI / 2;
     for (let i = 0; i < 6; i++) b.add(new THREE.CircleGeometry(0.006, 8), mat("#c9cdd1", { emissive: "#c9cdd1", emissiveIntensity: 0.3 }), -0.08 + i * 0.032, h + 0.007, d / 2 - 0.07).rotation.x = -Math.PI / 2;
   },
+  kitchen_hob_downdraft: (b, w, d, h, f, _c, a) => {
+    // two deep drawers under an induction hob with the extractor sunk in its middle
+    const u = kitchenBase(b, w, d, h, a);
+    fronts(b, -w / 2, w, u.y0, u.y1 - u.y0, u.fz, 1, f, 2, "bar");
+    const gw = Math.min(w - 0.04, 0.8);
+    const gd = Math.min(d - 0.1, 0.52);
+    const top = h + 0.0065;
+    b.box(gw, 0.006, gd, 0, h, 0, mat(C.screen, { roughness: 0.08, metalness: 0.2 }), 0.004);
+    const line = mat("#6a6d72");
+    const ring = (x: number, z: number, r: number) => (b.add(new THREE.RingGeometry(r - 0.003, r, 40), line, x, top, z).rotation.x = -Math.PI / 2);
+    // round zones on the left, a flex zone of two squares on the right
+    ring(-gw * 0.3, gd * 0.12, Math.min(0.11, gw * 0.14));
+    ring(-gw * 0.15, -gd * 0.25, Math.min(0.07, gw * 0.09));
+    const fx = gw * 0.3;
+    const fw = Math.min(0.22, gw * 0.28);
+    for (const z of [-gd * 0.21, gd * 0.21]) {
+      for (const sz of [-1, 1]) b.box(fw, 0.001, 0.003, fx, top, z + (sz * gd * 0.2), line);
+      for (const sx of [-1, 1]) b.box(0.003, 0.001, gd * 0.4, fx + (sx * fw) / 2, top, z, line);
+    }
+    // the extractor: a dark well with a round grille and a cap in the middle
+    const gx = gw * 0.02;
+    const gr = Math.min(0.075, gw * 0.1);
+    b.cyl(gr, gr, 0.002, gx, top, 0, mat("#0d0e10", { roughness: 0.9 }), 32);
+    const grille = mat("#4a4d52", { metalness: 0.6, roughness: 0.4 });
+    for (let i = 0; i < 7; i++) b.box(gr * 1.7 * Math.sqrt(1 - ((i - 3) / 3.6) ** 2), 0.002, 0.005, gx, top + 0.002, (i - 3) * gr * 0.26, grille);
+    b.add(new THREE.TorusGeometry(gr, 0.004, 4, 32), grille, gx, top + 0.002, 0).rotation.x = Math.PI / 2;
+    b.cyl(gr * 0.3, gr * 0.3, 0.008, gx, top, 0, mat("#2a2b2e", { roughness: 0.5 }), 20);
+    // touch controls at the front
+    for (let i = 0; i < 5; i++)
+      b.add(new THREE.CircleGeometry(0.005, 8), mat("#c9cdd1", { emissive: "#c9cdd1", emissiveIntensity: 0.3 }), -gw * 0.05 + i * 0.022, top, gd / 2 - 0.05).rotation.x = -Math.PI / 2;
+  },
   kitchen_oven: (b, w, d, h, f, _c, a) => {
     const u = kitchenBase(b, w, d, h, a);
     oven(b, w, u, f);

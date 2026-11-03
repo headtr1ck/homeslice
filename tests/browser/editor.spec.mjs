@@ -1369,6 +1369,33 @@ test.describe.serial("editor", () => {
     assert(errors.length === 0, errors.join(" | "));
   });
 
+  test("furniture: a kitchen unit's widths to pick; a piece without a model still has its colours", async () => {
+    await page.keyboard.press("Escape");
+    await page.evaluate(() => {
+      const m = structuredClone(window.panel._model);
+      const kitchen = m.levels.find((l) => l.id === window.panel._level).rooms.find((r) => r.id === "kitchen");
+      kitchen.furniture = [{ type: "kitchen", model: "modern:kitchen_base", at: [1, 1], size: [0.6, 0.62] }, { type: "sofa_corner", at: [2, 2] }];
+      window.panel.commit(m);
+      window.panel._furn = { room: "kitchen", index: 0 };
+    });
+    const widths = page.locator("homeslice-panel .inspector .widths button");
+    assert((await widths.allTextContents()).join(",") === "30,45,50,60,80,90,100,120", `widths: ${await widths.allTextContents()}`);
+    await page.locator('homeslice-panel .inspector .widths button[data-width="0.8"]').click();
+    const unit = (await room("kitchen")).furniture[0];
+    assert(unit.size?.[0] === 0.8 && unit.size[1] === 0.62, `size: ${JSON.stringify(unit.size)}`);
+    assert((await page.locator('homeslice-panel .inspector .widths button[data-width="0.8"]').getAttribute("aria-checked")) === "true", "80 not shown as picked");
+    await page.evaluate(() => (window.panel._furn = { room: "kitchen", index: 1 }));
+    await page.locator("homeslice-panel .inspector button[data-finish]").nth(1).click();
+    assert((await room("kitchen")).furniture[1].finish, "no colour for a piece without a model");
+    await page.evaluate(() => {
+      const m = structuredClone(window.panel._model);
+      delete m.levels.find((l) => l.id === window.panel._level).rooms.find((r) => r.id === "kitchen").furniture;
+      window.panel.commit(m);
+      window.panel._furn = null;
+    });
+    assert(errors.length === 0, errors.join(" | "));
+  });
+
   test("furniture library: grouped with pictures; drag pieces onto rooms, wall pieces go against a wall", async () => {
     await page.keyboard.press("Escape");
     await page.locator('homeslice-panel aside.tools button.tool[data-tool="furniture"]').click();
