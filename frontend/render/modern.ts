@@ -8,17 +8,37 @@ import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeom
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { FABRIC, FINISHES, MODERN } from "../model/modern";
 import { fabricTexture, finishLook } from "./finishes";
+import { BUILDERS as CAR_HATCHBACK } from "./modern/car-hatchback";
+import { BUILDERS as CAR_ESTATE } from "./modern/car-estate";
+import { BUILDERS as CAR_SUV } from "./modern/car-suv";
+import { BUILDERS as CAR_VAN } from "./modern/car-van";
+import { BUILDERS as CAR_SPORTS } from "./modern/car-sports";
+import { BUILDERS as VEHICLES } from "./modern/vehicles";
+import { BUILDERS as LIVING_SEATING } from "./modern/living-seating";
+import { BUILDERS as LIVING_REST } from "./modern/living-rest";
+import { BUILDERS as DINING } from "./modern/dining";
+import { BUILDERS as KITCHEN } from "./modern/kitchen";
+import { BUILDERS as BEDROOM_KIDS } from "./modern/bedroom-kids";
+import { BUILDERS as BATHROOM } from "./modern/bathroom";
+import { BUILDERS as PLANTS } from "./modern/plants";
+import { BUILDERS as OUTSIDE } from "./modern/outside";
+import { BUILDERS as GARDEN } from "./modern/garden";
+import { BUILDERS as LIGHTING } from "./modern/lighting";
+import { BUILDERS as OFFICE_SMART } from "./modern/office-smart";
+import { BUILDERS as CLIMATE_UTILITY } from "./modern/climate-utility";
+import { BUILDERS as HALL_DECOR } from "./modern/hall-decor";
+import { BUILDERS as HOBBY } from "./modern/hobby";
 
 // ----- materials (shared, so a card converts each once) -----
 
-const materials = new Map<string, THREE.MeshStandardMaterial>();
-function mat(color: string, extra: THREE.MeshStandardMaterialParameters = {}): THREE.MeshStandardMaterial {
+export const materials = new Map<string, THREE.MeshStandardMaterial>();
+export function mat(color: string, extra: THREE.MeshStandardMaterialParameters = {}): THREE.MeshStandardMaterial {
   const key = color + JSON.stringify(extra);
   let m = materials.get(key);
   if (!m) materials.set(key, (m = new THREE.MeshStandardMaterial({ color, roughness: 0.8, ...extra })));
   return m;
 }
-const C = {
+export const C = {
   black: "#232427",
   chrome: "#c9cdd1",
   steel: "#aeb3b8",
@@ -40,11 +60,11 @@ const C = {
   book: ["#b5523b", "#3f6c8f", "#e3c46b", "#5f8a5c", "#7a5a8c", "#d9d4c7"],
   clothes: ["#2f3e55", "#c9b9a0", "#8a3b3b", "#e8e4dc", "#5b6b58", "#3a3a3a"],
 };
-const glass = () => mat("#cfe3ea", { transparent: true, opacity: 0.3, roughness: 0.1 });
-const leafMat = (color: string) => mat(color, { side: THREE.DoubleSide, roughness: 0.9 });
+export const glass = () => mat("#cfe3ea", { transparent: true, opacity: 0.3, roughness: 0.1 });
+export const leafMat = (color: string) => mat(color, { side: THREE.DoubleSide, roughness: 0.9 });
 
 /** Deterministic randomness: the same piece looks the same every time. */
-function random(seed: number) {
+export function random(seed: number) {
   let a = seed >>> 0;
   return () => {
     a = (a + 0x6d2b79f5) >>> 0;
@@ -57,7 +77,7 @@ function random(seed: number) {
 
 // ----- building blocks -----
 
-class Builder {
+export class Builder {
   readonly g = new THREE.Group();
   /** Geometries merged per material at the end (plants: thousands of leaves, one mesh). */
   private batches = new Map<THREE.Material, THREE.BufferGeometry[]>();
@@ -146,12 +166,12 @@ class Builder {
   }
 }
 
-const v = (x: number, y: number, z: number) => new THREE.Vector3(x, y, z);
-const matrix = (x: number, y: number, z: number, rx = 0, ry = 0, rz = 0, s = 1) =>
+export const v = (x: number, y: number, z: number) => new THREE.Vector3(x, y, z);
+export const matrix = (x: number, y: number, z: number, rx = 0, ry = 0, rz = 0, s = 1) =>
   new THREE.Matrix4().compose(v(x, y, z), new THREE.Quaternion().setFromEuler(new THREE.Euler(rx, ry, rz, "YXZ")), v(s, s, s));
 
 /** Four legs inset from the corners. */
-function legs(b: Builder, w: number, d: number, h: number, inset: number, r: number, m: THREE.Material, square = false) {
+export function legs(b: Builder, w: number, d: number, h: number, inset: number, r: number, m: THREE.Material, square = false) {
   for (const sx of [-1, 1])
     for (const sz of [-1, 1]) {
       const x = sx * (w / 2 - inset);
@@ -162,7 +182,7 @@ function legs(b: Builder, w: number, d: number, h: number, inset: number, r: num
 }
 
 /** A flat leaf outline (base at 0, tip at +y), bent backwards along its length. */
-function leafGeometry(len: number, width: number, bend: number, holes = 0): THREE.BufferGeometry {
+export function leafGeometry(len: number, width: number, bend: number, holes = 0): THREE.BufferGeometry {
   const s = new THREE.Shape();
   s.moveTo(0, 0);
   s.bezierCurveTo(width * 0.7, len * 0.15, width * 0.6, len * 0.75, 0, len);
@@ -187,7 +207,7 @@ function leafGeometry(len: number, width: number, bend: number, holes = 0): THRE
 }
 
 /** A diamond-shaped small leaf (two triangles), for trees and shrubs. */
-function smallLeaf(size: number): THREE.BufferGeometry {
+export function smallLeaf(size: number): THREE.BufferGeometry {
   const geo = new THREE.BufferGeometry();
   const s = size;
   geo.setAttribute("position", new THREE.Float32BufferAttribute([0, 0, 0, s * 0.35, s * 0.5, 0.02 * s, 0, s, 0, 0, 0, 0, 0, s, 0, -s * 0.35, s * 0.5, 0.02 * s], 3));
@@ -196,14 +216,14 @@ function smallLeaf(size: number): THREE.BufferGeometry {
 }
 
 /** A pot with soil (lathe profile), `r` its top radius. */
-function pot(b: Builder, r: number, h: number, m: THREE.Material, y = 0) {
+export function pot(b: Builder, r: number, h: number, m: THREE.Material, y = 0) {
   const pts = [v(0, 0, 0), v(r * 0.72, 0, 0), v(r * 0.78, h * 0.08, 0), v(r, h * 0.92, 0), v(r * 0.96, h, 0), v(r * 0.9, h, 0), v(r * 0.86, h * 0.9, 0), v(0, h * 0.86, 0)].map((p) => new THREE.Vector2(p.x, p.y));
   b.add(new THREE.LatheGeometry(pts, 28), m, 0, y, 0);
   b.cyl(r * 0.88, r * 0.88, 0.01, 0, y + h * 0.86, 0, mat(C.soil), 24);
 }
 
 /** Leaves scattered in a ball (trees, shrubs, hedges); `fill` darkens the inside. */
-function foliage(b: Builder, rand: () => number, cx: number, cy: number, cz: number, rx: number, ry: number, rz: number, count: number, leafSize: number, colors: string[], fill = true) {
+export function foliage(b: Builder, rand: () => number, cx: number, cy: number, cz: number, rx: number, ry: number, rz: number, count: number, leafSize: number, colors: string[], fill = true) {
   if (fill) b.batch(new THREE.IcosahedronGeometry(1, 2), mat(C.leafDark), new THREE.Matrix4().compose(v(cx, cy, cz), new THREE.Quaternion(), v(rx * 0.86, ry * 0.86, rz * 0.86)));
   const leaf = smallLeaf(leafSize);
   for (let i = 0; i < count; i++) {
@@ -220,12 +240,12 @@ function foliage(b: Builder, rand: () => number, cx: number, cy: number, cz: num
 
 // ----- the kinds -----
 
-type Build = (b: Builder, w: number, d: number, h: number, finish: THREE.MeshStandardMaterial, color: string, accent: THREE.MeshStandardMaterial, accentColor: string) => void;
+export type Build = (b: Builder, w: number, d: number, h: number, finish: THREE.MeshStandardMaterial, color: string, accent: THREE.MeshStandardMaterial, accentColor: string) => void;
 
-const back = (d: number) => -d / 2;
+export const back = (d: number) => -d / 2;
 
 /** Seats of a sofa along x from x0, `n` cushions. */
-function sofaSeats(b: Builder, x0: number, len: number, z0: number, depth: number, fabric: THREE.Material, backrest: boolean, n = Math.max(1, Math.round(len / 0.8))) {
+export function sofaSeats(b: Builder, x0: number, len: number, z0: number, depth: number, fabric: THREE.Material, backrest: boolean, n = Math.max(1, Math.round(len / 0.8))) {
   const cw = len / n;
   for (let i = 0; i < n; i++) {
     const x = x0 + cw * (i + 0.5);
@@ -234,7 +254,7 @@ function sofaSeats(b: Builder, x0: number, len: number, z0: number, depth: numbe
   }
 }
 
-function sofa(b: Builder, w: number, d: number, fabric: THREE.Material, corner: "none" | "l" | "chaise", legM: THREE.Material) {
+export function sofa(b: Builder, w: number, d: number, fabric: THREE.Material, corner: "none" | "l" | "chaise", legM: THREE.Material) {
   const arm = 0.18;
   const sd = Math.min(d, 0.95);
   const z0 = back(d) + sd / 2;
@@ -269,7 +289,7 @@ function sofa(b: Builder, w: number, d: number, fabric: THREE.Material, corner: 
 }
 
 /** Doors (or drawers) across a front at z, gaps between them, and handles if asked. */
-function fronts(b: Builder, x0: number, w: number, y0: number, h: number, z: number, n: number, m: THREE.Material, rows = 1, handle?: "bar" | "knob", handleM: THREE.Material = mat(C.black)) {
+export function fronts(b: Builder, x0: number, w: number, y0: number, h: number, z: number, n: number, m: THREE.Material, rows = 1, handle?: "bar" | "knob", handleM: THREE.Material = mat(C.black)) {
   const cw = w / n;
   const rh = h / rows;
   // dark joints between fronts: they show even where the fronts sit flush in the carcass
@@ -284,7 +304,7 @@ function fronts(b: Builder, x0: number, w: number, y0: number, h: number, z: num
     }
 }
 
-function shelves(b: Builder, w: number, d: number, h: number, m: THREE.Material, count: number, rand: () => number, withBooks = true) {
+export function shelves(b: Builder, w: number, d: number, h: number, m: THREE.Material, count: number, rand: () => number, withBooks = true) {
   const t = 0.022;
   b.box(t, h, d, -w / 2 + t / 2, 0, 0, m);
   b.box(t, h, d, w / 2 - t / 2, 0, 0, m);
@@ -307,7 +327,7 @@ function shelves(b: Builder, w: number, d: number, h: number, m: THREE.Material,
 
 /** Lamp shades: open cones and domes, light inside. */
 /** Marks a material as lit by its lamp: a card lights it with the linked light. */
-function glowing<M extends THREE.Material>(m: M): M {
+export function glowing<M extends THREE.Material>(m: M): M {
   m.userData.glow = true;
   return m;
 }
@@ -316,12 +336,12 @@ function glowing<M extends THREE.Material>(m: M): M {
  * lights up while it plays, flames that burn while it is on, a status light. Unlinked
  * pieces keep the look they are drawn with.
  */
-function part<M extends THREE.Material>(m: M, role: "screen" | "fire" | "led" | "warm" | "water" | "photo"): M {
+export function part<M extends THREE.Material>(m: M, role: "screen" | "fire" | "led" | "warm" | "water" | "photo"): M {
   m.userData.part = role;
   return m;
 }
 /** A 240 l wheelie bin at x: a tapering body, the lid in its own colour, wheels at the back. */
-function wheelieBin(b: Builder, x: number, bw: number, d: number, h: number, body: THREE.Material, lid: THREE.Material) {
+export function wheelieBin(b: Builder, x: number, bw: number, d: number, h: number, body: THREE.Material, lid: THREE.Material) {
   const geo = new THREE.CylinderGeometry(Math.SQRT1_2, Math.SQRT1_2 * 0.88, 1, 4, 1, false, Math.PI / 4);
   geo.scale(bw, h - 0.12, d - 0.05);
   b.add(geo, body, x, (h - 0.12) / 2 + 0.04, 0);
@@ -331,20 +351,20 @@ function wheelieBin(b: Builder, x: number, bw: number, d: number, h: number, bod
 }
 
 /** A radiator's thermostatic valve: the pipe and a white head with ribs. */
-function radiatorValve(b: Builder, x: number, y: number, z: number) {
+export function radiatorValve(b: Builder, x: number, y: number, z: number) {
   b.cyl(0.01, 0.01, 0.06, x - 0.03, y, z, mat(C.chrome), 10).rotation.z = Math.PI / 2;
   b.cyl(0.024, 0.024, 0.07, x, y - 0.035, z, mat(C.ceramic), 16);
   b.cyl(0.026, 0.026, 0.01, x, y + 0.02, z, mat("#d9d9d6"), 16);
 }
 
 /** A copy of a finish that glows warm while its heating runs (radiators). */
-const warmMat = <M extends THREE.Material>(f: M) => part(f.clone() as M, "warm");
-const screenMat = () => part(mat(C.screen, { roughness: 0.15, metalness: 0.2, name: "screen" }), "screen");
-const ledMat = (color = "#3fd27a") => part(mat(color, { emissive: color, emissiveIntensity: 0.7, name: "led" }), "led");
-const shadeMat = (_finish: THREE.Material, color: string) =>
+export const warmMat = <M extends THREE.Material>(f: M) => part(f.clone() as M, "warm");
+export const screenMat = () => part(mat(C.screen, { roughness: 0.15, metalness: 0.2, name: "screen" }), "screen");
+export const ledMat = (color = "#3fd27a") => part(mat(color, { emissive: color, emissiveIntensity: 0.7, name: "led" }), "led");
+export const shadeMat = (_finish: THREE.Material, color: string) =>
   ["black", "anthracite"].includes(color) ? mat(FINISHES[color], { side: THREE.DoubleSide }) : glowing(mat(C.shade, { side: THREE.DoubleSide }));
 
-const BUILDERS: Record<string, Build> = {
+const BASE_BUILDERS: Record<string, Build> = {
   sofa: (b, w, d, _h, f, _c, a) => sofa(b, w, d, f, "none", a),
   garden_sofa: (b, w, d, _h, f, _c, a) => {
     // a frame of slats and thick cushions
@@ -4444,7 +4464,7 @@ const BUILDERS: Record<string, Build> = {
  * An outdoor unit (heat pump or air conditioner): a box with a round fan grille, on feet or
  * on a wall bracket; the fan turns while its linked climate entity runs.
  */
-function outdoorUnit(b: Builder, w: number, d: number, h: number, f: THREE.Material, bracket: boolean) {
+export function outdoorUnit(b: Builder, w: number, d: number, h: number, f: THREE.Material, bracket: boolean) {
   if (bracket) {
     // two steel arms from the wall under the unit
     for (const sx of [-1, 1]) {
@@ -4473,7 +4493,7 @@ function outdoorUnit(b: Builder, w: number, d: number, h: number, f: THREE.Mater
 }
 
 /** A row of books standing between x0 and x1 on a shelf at y. */
-function books(b: Builder, rand: () => number, x0: number, x1: number, y: number, maxH: number, depth: number, z: number) {
+export function books(b: Builder, rand: () => number, x0: number, x1: number, y: number, maxH: number, depth: number, z: number) {
   let x = x0;
   while (x < x1) {
     const bw = 0.02 + rand() * 0.03;
@@ -4484,7 +4504,7 @@ function books(b: Builder, rand: () => number, x0: number, x1: number, y: number
 }
 
 /** A gable roof on walls of w × d at height y, the ridge along x. */
-function gableRoof(b: Builder, w: number, d: number, y: number, rise: number, m: THREE.Material) {
+export function gableRoof(b: Builder, w: number, d: number, y: number, rise: number, m: THREE.Material) {
   const shape = new THREE.Shape([new THREE.Vector2(-d / 2, 0), new THREE.Vector2(d / 2, 0), new THREE.Vector2(0, rise)]);
   const geo = new THREE.ExtrudeGeometry(shape, { depth: w, bevelEnabled: false });
   geo.rotateY(Math.PI / 2);
@@ -4496,14 +4516,14 @@ function gableRoof(b: Builder, w: number, d: number, y: number, rise: number, m:
  * A car along z (front at +z), from a side profile: the body up to the window line in
  * the paint, the cabin in dark glass under a painted roof, wheels, lights.
  */
-const CAR_PROFILES: Record<string, { body: [number, number][]; cabin: [number, number][] }> = {
+export const CAR_PROFILES: Record<string, { body: [number, number][]; cabin: [number, number][] }> = {
   hatchback: { body: [[0, 0.17], [0, 0.58], [0.04, 0.62], [0.72, 0.62], [0.95, 0.52], [1, 0.42], [1, 0.17]], cabin: [[0.03, 0.62], [0.08, 0.97], [0.5, 1], [0.73, 0.62]] },
   estate: { body: [[0, 0.17], [0, 0.56], [0.03, 0.6], [0.75, 0.6], [0.96, 0.5], [1, 0.4], [1, 0.17]], cabin: [[0.02, 0.6], [0.04, 0.95], [0.6, 0.98], [0.77, 0.6]] },
   suv: { body: [[0, 0.17], [0, 0.6], [0.03, 0.64], [0.76, 0.64], [0.96, 0.57], [1, 0.47], [1, 0.17]], cabin: [[0.02, 0.64], [0.04, 0.97], [0.64, 0.99], [0.78, 0.64]] },
   sports: { body: [[0, 0.16], [0, 0.5], [0.05, 0.56], [0.62, 0.56], [0.9, 0.45], [1, 0.36], [1, 0.16]], cabin: [[0.12, 0.56], [0.3, 0.92], [0.52, 0.95], [0.7, 0.56]] },
   van: { body: [[0, 0.14], [0, 0.97], [0.03, 1], [0.8, 1], [0.86, 0.62], [1, 0.5], [1, 0.4], [1, 0.14]], cabin: [[0.79, 0.95], [0.85, 0.62], [0.95, 0.6], [0.83, 0.97]] },
 };
-function car(b: Builder, w: number, d: number, h: number, color: string, style: string) {
+export function car(b: Builder, w: number, d: number, h: number, color: string, style: string) {
   const prof = CAR_PROFILES[style] ?? CAR_PROFILES.hatchback;
   const paint = mat(FINISHES[color] ?? FINISHES.silver, { roughness: 0.35, metalness: 0.3 });
   const dark = mat("#20262d", { roughness: 0.15, metalness: 0.4 });
@@ -4578,7 +4598,7 @@ function car(b: Builder, w: number, d: number, h: number, color: string, style: 
 }
 
 /** An open-fronted box (glass cabinets): back, sides, top and bottom of thickness t. */
-function hollow(b: Builder, w: number, h: number, d: number, x: number, z: number, m: THREE.Material, t: number) {
+export function hollow(b: Builder, w: number, h: number, d: number, x: number, z: number, m: THREE.Material, t: number) {
   b.box(w, h, t, x, 0, z - d / 2 + t / 2, m);
   for (const sx of [-1, 1]) b.box(t, h, d, x + sx * (w / 2 - t / 2), 0, z, m);
   b.box(w, t, d, x, 0, z, m);
@@ -4586,7 +4606,7 @@ function hollow(b: Builder, w: number, h: number, d: number, x: number, z: numbe
 }
 
 /** A kitchen base unit: plinth, carcass and worktop; where its fronts go. */
-function kitchenBase(b: Builder, w: number, d: number, h: number, top: THREE.Material) {
+export function kitchenBase(b: Builder, w: number, d: number, h: number, top: THREE.Material) {
   const t = 0.04;
   b.box(w - 0.02, 0.1, d - 0.08, 0, 0, back(d) + (d - 0.08) / 2, mat(C.black));
   b.box(w, h - t - 0.1, d - 0.03, 0, 0.1, back(d) + (d - 0.03) / 2, mat("#e8e6e1"));
@@ -4595,7 +4615,7 @@ function kitchenBase(b: Builder, w: number, d: number, h: number, top: THREE.Mat
 }
 
 /** An appliance front: an oven (glass door, handle, controls) or a microwave. */
-function applianceFront(b: Builder, w: number, y: number, h: number, z: number, kind: "oven" | "microwave", knobs = false) {
+export function applianceFront(b: Builder, w: number, y: number, h: number, z: number, kind: "oven" | "microwave", knobs = false) {
   b.box(w - 0.006, h - 0.004, 0.02, 0, y + 0.002, z + 0.01, mat(C.screen, { roughness: 0.15, metalness: 0.2 }), 0.004);
   const steel = mat(C.chrome, { metalness: 0.8, roughness: 0.25 });
   if (kind === "oven") {
@@ -4610,14 +4630,14 @@ function applianceFront(b: Builder, w: number, y: number, h: number, z: number, 
 }
 
 /** The oven under a hob or worktop, with a drawer below. */
-function oven(b: Builder, w: number, u: { y0: number; y1: number; fz: number }, f: THREE.Material, knobs = false) {
+export function oven(b: Builder, w: number, u: { y0: number; y1: number; fz: number }, f: THREE.Material, knobs = false) {
   const oh = Math.min(0.6, u.y1 - u.y0 - 0.12);
   applianceFront(b, w, u.y1 - oh - 0.01, oh, u.fz, "oven", knobs);
   fronts(b, -w / 2, w, u.y0, u.y1 - oh - 0.01 - u.y0, u.fz, 1, f, 1, "bar");
 }
 
 /** A tall unit with doors stacked by the given shares of its height. */
-function tallUnit(b: Builder, w: number, d: number, h: number, f: THREE.Material, shares: number[]) {
+export function tallUnit(b: Builder, w: number, d: number, h: number, f: THREE.Material, shares: number[]) {
   b.box(w - 0.02, 0.1, d - 0.08, 0, 0, back(d) + (d - 0.08) / 2, mat(C.black));
   b.box(w, h - 0.1, d - 0.03, 0, 0.1, back(d) + (d - 0.03) / 2, mat("#e8e6e1"));
   let y = 0.1;
@@ -4629,7 +4649,7 @@ function tallUnit(b: Builder, w: number, d: number, h: number, f: THREE.Material
 }
 
 /** A tall kitchen tap, curving over the sink. */
-function tapGooseneck(b: Builder, x: number, y: number, z: number, m: THREE.Material) {
+export function tapGooseneck(b: Builder, x: number, y: number, z: number, m: THREE.Material) {
   b.cyl(0.022, 0.025, 0.06, x, y, z, m, 14);
   const curve = new THREE.CatmullRomCurve3([v(x, y + 0.05, z), v(x, y + 0.3, z), v(x, y + 0.36, z + 0.08), v(x, y + 0.28, z + 0.18)]);
   b.add(new THREE.TubeGeometry(curve, 16, 0.012, 8), m);
@@ -4645,7 +4665,7 @@ interface BowlStyle {
 }
 
 /** A rounded rectangle, centred, for seats, lids and basins. */
-function roundedRect(w: number, d: number, r: number): THREE.Shape {
+export function roundedRect(w: number, d: number, r: number): THREE.Shape {
   const s = new THREE.Shape();
   const rr = Math.min(r, w / 2 - 0.001, d / 2 - 0.001);
   s.moveTo(-w / 2 + rr, -d / 2);
@@ -4661,7 +4681,7 @@ function roundedRect(w: number, d: number, r: number): THREE.Shape {
 }
 
 /** A flat oval or rounded rectangle lying at y (seats, lids, basins' insides). */
-function flat(b: Builder, w: number, d: number, y: number, z: number, m: THREE.Material, square: boolean, thick = 0) {
+export function flat(b: Builder, w: number, d: number, y: number, z: number, m: THREE.Material, square: boolean, thick = 0) {
   if (thick > 0) {
     const geo = square
       ? new THREE.ExtrudeGeometry(roundedRect(w, d, 0.07), { depth: thick, bevelEnabled: false, curveSegments: 6 }).rotateX(-Math.PI / 2)
@@ -4675,7 +4695,7 @@ function flat(b: Builder, w: number, d: number, y: number, z: number, m: THREE.M
 }
 
 /** A ceramic toilet: the bowl, a closed seat and lid; standing ones get a cistern. */
-function toiletBowl(b: Builder, w: number, d: number, zBack: number, f: THREE.Material, hinge: THREE.Material, style: BowlStyle = {}) {
+export function toiletBowl(b: Builder, w: number, d: number, zBack: number, f: THREE.Material, hinge: THREE.Material, style: BowlStyle = {}) {
   const front = bowlShape(b, w, d, zBack, f, style);
   const seatM = mat(C.ceramic, { roughness: 0.35 });
   flat(b, w * 1.02, front.L * 1.02, 0.4, front.z, seatM, !!style.square, 0.022);
@@ -4692,7 +4712,7 @@ function toiletBowl(b: Builder, w: number, d: number, zBack: number, f: THREE.Ma
  * The bowl: narrow at its foot, wide at the seat (oval or squared); hung ones are joined to
  * the wall, standing ones reach the floor and have a cistern behind.
  */
-function bowlShape(b: Builder, w: number, d: number, zBack: number, f: THREE.Material, style: BowlStyle = {}) {
+export function bowlShape(b: Builder, w: number, d: number, zBack: number, f: THREE.Material, style: BowlStyle = {}) {
   const cistern = style.floor && !style.open ? 0.18 : 0;
   const z0 = zBack + 0.06 + cistern;
   const L = d - 0.06 - cistern;
@@ -4722,7 +4742,7 @@ function bowlShape(b: Builder, w: number, d: number, zBack: number, f: THREE.Mat
 }
 
 /** An open bidet: its bowl (no seat), the rim and a tap. */
-function bidet(b: Builder, w: number, d: number, f: THREE.Material, tap: THREE.Material, style: BowlStyle) {
+export function bidet(b: Builder, w: number, d: number, f: THREE.Material, tap: THREE.Material, style: BowlStyle) {
   const bowl = bowlShape(b, w, d, back(d), f, style);
   if (style.square) {
     const outline = roundedRect(w, bowl.L, 0.06);
@@ -4736,14 +4756,14 @@ function bidet(b: Builder, w: number, d: number, f: THREE.Material, tap: THREE.M
 }
 
 /** A wall-hung basin: a soft slab (or a crisp one), an oval (or squared) bowl in it, the drain. */
-function basin(b: Builder, w: number, d: number, h: number, f: THREE.Material, depth: number, square = false) {
+export function basin(b: Builder, w: number, d: number, h: number, f: THREE.Material, depth: number, square = false) {
   b.box(w, depth, d, 0, h - depth, 0, f, square ? 0.012 : Math.min(depth / 2 - 0.01, 0.06));
   flat(b, w - 0.12, d - 0.16, h + 0.002, 0.03, mat("#dcdcd8", { roughness: 0.3 }), square);
   b.cyl(0.02, 0.02, 0.003, 0, h + 0.003, 0.03, mat(C.steel), 12);
 }
 
 /** A bowl standing on a top at y. */
-function vessel(b: Builder, w: number, d: number, y: number, f: THREE.Material) {
+export function vessel(b: Builder, w: number, d: number, y: number, f: THREE.Material) {
   const profile = [[0.001, 0], [0.26, 0], [0.42, 0.3], [0.5, 1], [0.47, 1], [0.39, 0.35], [0.23, 0.09], [0.001, 0.09]].map(([r, yy]) => new THREE.Vector2(r, yy));
   const geo = new THREE.LatheGeometry(profile, 36);
   geo.scale(w, 0.14, d);
@@ -4751,21 +4771,21 @@ function vessel(b: Builder, w: number, d: number, y: number, f: THREE.Material) 
 }
 
 /** A basin mixer: a column, its spout and lever. */
-function tapBasin(b: Builder, x: number, y: number, z: number, m: THREE.Material, h = 0.16) {
+export function tapBasin(b: Builder, x: number, y: number, z: number, m: THREE.Material, h = 0.16) {
   b.cyl(0.018, 0.02, h, x, y, z, m, 14);
   b.rod(v(x, y + h - 0.012, z), v(x, y + h - 0.025, z + 0.13), 0.011, m, 8);
   b.rod(v(x, y + h + 0.005, z - 0.005), v(x, y + h + 0.02, z - 0.07), 0.006, m, 6);
 }
 
 /** The flush plate in the wall with its two buttons. */
-function flushPlate(b: Builder, x: number, y: number, z: number, m: THREE.Material) {
+export function flushPlate(b: Builder, x: number, y: number, z: number, m: THREE.Material) {
   b.box(0.24, 0.16, 0.012, x, y, z + 0.006, m, 0.004);
   b.box(0.1, 0.12, 0.006, x - 0.055, y + 0.02, z + 0.014, m, 0.004);
   b.box(0.1, 0.12, 0.006, x + 0.055, y + 0.02, z + 0.014, m, 0.004);
 }
 
 /** Overhead rain shower on an arm, a mixer, and optionally a hand shower on a rail. */
-function showerSet(b: Builder, x: number, h: number, z: number, m: THREE.Material, hand: boolean) {
+export function showerSet(b: Builder, x: number, h: number, z: number, m: THREE.Material, hand: boolean) {
   b.rod(v(x, h - 0.1, z), v(x, h - 0.1, z + 0.3), 0.01, m, 8);
   b.cyl(0.13, 0.13, 0.012, x, h - 0.12, z + 0.3, m, 32);
   b.cyl(0.035, 0.035, 0.05, x, 1.05, z + 0.02, m, 14).rotation.x = Math.PI / 2;
@@ -4776,7 +4796,7 @@ function showerSet(b: Builder, x: number, h: number, z: number, m: THREE.Materia
 }
 
 /** A walk-in shower: flush tiled floor, linear drain, one glass panel, its brace. */
-function walkIn(b: Builder, w: number, d: number, h: number, f: THREE.Material, a: THREE.Material, large: boolean) {
+export function walkIn(b: Builder, w: number, d: number, h: number, f: THREE.Material, a: THREE.Material, large: boolean) {
   b.box(w, 0.02, d, 0, 0, 0, tileMaterial(), 0);
   b.box(w - 0.2, 0.004, 0.06, 0, 0.02, back(d) + 0.08, mat("#8e9398", { metalness: 0.5, roughness: 0.4 }));
   const gw = w * (large ? 0.5 : 0.62);
@@ -4792,7 +4812,7 @@ function walkIn(b: Builder, w: number, d: number, h: number, f: THREE.Material, 
 }
 
 /** A freestanding tub turned on a lathe: the shell in the finish, white inside. */
-function tubLathe(b: Builder, w: number, d: number, h: number, f: THREE.Material, _r: number) {
+export function tubLathe(b: Builder, w: number, d: number, h: number, f: THREE.Material, _r: number) {
   const outer = [[0.001, 0], [0.36, 0], [0.45, 0.3], [0.5, 1], [0.475, 1.0]].map(([r, y]) => new THREE.Vector2(r, y));
   const inner = [[0.475, 1.0], [0.43, 0.4], [0.35, 0.14], [0.001, 0.12]].map(([r, y]) => new THREE.Vector2(r, y));
   const o = new THREE.LatheGeometry(outer, 40);
@@ -4804,7 +4824,7 @@ function tubLathe(b: Builder, w: number, d: number, h: number, f: THREE.Material
 }
 
 /** A floor-standing bath mixer at the tub's end. */
-function floorTap(b: Builder, x: number, h: number, z: number, m: THREE.Material) {
+export function floorTap(b: Builder, x: number, h: number, z: number, m: THREE.Material) {
   b.cyl(0.05, 0.05, 0.01, x, 0, z, m, 16);
   b.cyl(0.018, 0.018, h + 0.32, x, 0, z, m, 12);
   const curve = new THREE.CatmullRomCurve3([v(x, h + 0.3, z), v(x, h + 0.38, z), v(x - 0.1, h + 0.37, z), v(x - 0.18, h + 0.3, z)]);
@@ -4814,7 +4834,7 @@ function floorTap(b: Builder, x: number, h: number, z: number, m: THREE.Material
 
 /** Small square tiles with grout, for showers and tub aprons. */
 let tiles: THREE.MeshStandardMaterial | undefined;
-function tileMaterial(): THREE.MeshStandardMaterial {
+export function tileMaterial(): THREE.MeshStandardMaterial {
   if (tiles) return tiles;
   if (typeof document === "undefined") return mat("#d9dad6", { roughness: 0.5 });
   const c = document.createElement("canvas");
@@ -4835,22 +4855,22 @@ function tileMaterial(): THREE.MeshStandardMaterial {
 }
 
 /** A ceiling canopy and the cord down to a shade whose top is at y. */
-function canopyAndCord(b: Builder, h: number, y: number, m: THREE.Material) {
+export function canopyAndCord(b: Builder, h: number, y: number, m: THREE.Material) {
   b.cyl(0.05, 0.05, 0.025, 0, h - 0.025, 0, m, 20);
   b.rod(v(0, y, 0), v(0, h - 0.02, 0), 0.003, m, 4);
 }
 
 /** A glowing bulb. */
-function bulb(b: Builder, x: number, y: number, z: number, r: number) {
+export function bulb(b: Builder, x: number, y: number, z: number, r: number) {
   b.sphere(r, x, y, z, glowMat(), 1, 1.15, 1, 14);
 }
-const glowMat = () => glowing(mat("#fff6df", { emissive: "#fff2cc", emissiveIntensity: 0.8, side: THREE.DoubleSide }));
+export const glowMat = () => glowing(mat("#fff6df", { emissive: "#fff2cc", emissiveIntensity: 0.8, side: THREE.DoubleSide }));
 /** Opal glass: lit from within. */
-const opal = () => glowing(mat("#e6e1d6", { emissive: "#fff1d6", emissiveIntensity: 0.12, roughness: 0.5, side: THREE.DoubleSide }));
+export const opal = () => glowing(mat("#e6e1d6", { emissive: "#fff1d6", emissiveIntensity: 0.12, roughness: 0.5, side: THREE.DoubleSide }));
 
 /** Woven rattan or wicker, see-through-ish and double-sided. */
-const wicker = new Map<string, THREE.MeshStandardMaterial>();
-function wickerMat(color: string): THREE.MeshStandardMaterial {
+export const wicker = new Map<string, THREE.MeshStandardMaterial>();
+export function wickerMat(color: string): THREE.MeshStandardMaterial {
   let m = wicker.get(color);
   if (m) return m;
   const base = new THREE.Color(FINISHES[color] ?? FINISHES.sand);
@@ -4878,7 +4898,7 @@ function wickerMat(color: string): THREE.MeshStandardMaterial {
 }
 
 /** A front-loading washer or dryer: body, control strip with a dial, round door. */
-function laundry(b: Builder, w: number, d: number, h: number, f: THREE.Material, a: THREE.Material, kind: "washer" | "dryer") {
+export function laundry(b: Builder, w: number, d: number, h: number, f: THREE.Material, a: THREE.Material, kind: "washer" | "dryer") {
   b.box(w, h, d, 0, 0, 0, f, 0.015);
   b.box(w - 0.02, 0.1, 0.01, 0, h - 0.12, d / 2, mat(kind === "washer" ? C.ceramic : "#dfe3e6"), 0.004);
   b.cyl(0.03, 0.03, 0.02, w * 0.3, h - 0.07, d / 2 + 0.01, a, 20).rotation.x = Math.PI / 2;
@@ -4897,13 +4917,13 @@ function laundry(b: Builder, w: number, d: number, h: number, f: THREE.Material,
 }
 
 /** A thin green stem from a to b (merged with the leaves). */
-function stem(b: Builder, a: THREE.Vector3, c: THREE.Vector3, r: number, color: string) {
+export function stem(b: Builder, a: THREE.Vector3, c: THREE.Vector3, r: number, color: string) {
   const len = a.distanceTo(c);
   b.batch(new THREE.CylinderGeometry(r * 0.8, r, len, 5), mat(color), new THREE.Matrix4().compose(a.clone().add(c).multiplyScalar(0.5), new THREE.Quaternion().setFromUnitVectors(v(0, 1, 0), c.clone().sub(a).normalize()), v(1, 1, 1)));
 }
 
 /** A palm in a pot: arching fronds with leaflets on both sides. */
-function palm(b: Builder, w: number, d: number, h: number, f: THREE.Material, seed: number, o: { fronds: number; leaflets: number; droop: number; color: string[]; width: number }) {
+export function palm(b: Builder, w: number, d: number, h: number, f: THREE.Material, seed: number, o: { fronds: number; leaflets: number; droop: number; color: string[]; width: number }) {
   const rand = random(seed);
   const ph = 0.34;
   pot(b, Math.min(w, d) * 0.25, ph, f);
@@ -4922,7 +4942,7 @@ function palm(b: Builder, w: number, d: number, h: number, f: THREE.Material, se
 }
 
 /** Ribs around a round shape (cacti): pushes vertices out and in around y. */
-function ribs(geo: THREE.BufferGeometry, n: number, depth: number) {
+export function ribs(geo: THREE.BufferGeometry, n: number, depth: number) {
   const pos = geo.attributes.position;
   for (let i = 0; i < pos.count; i++) {
     const ang = Math.atan2(pos.getZ(i), pos.getX(i));
@@ -4934,14 +4954,14 @@ function ribs(geo: THREE.BufferGeometry, n: number, depth: number) {
 }
 
 /** A ribbed column with a rounded top (a cactus stem), from y up by len. */
-function ribbed(b: Builder, r: number, len: number, x: number, y: number, z: number) {
+export function ribbed(b: Builder, r: number, len: number, x: number, y: number, z: number) {
   const geo = new THREE.CapsuleGeometry(r, Math.max(0.01, len - r), 6, 20);
   ribs(geo, 10, 0.08);
   b.add(geo, mat("#4f7a45", { roughness: 0.9 }), x, y + len / 2, z);
 }
 
 /** A succulent rosette: rings of fat pointed leaves. */
-function rosette(b: Builder, x: number, y: number, z: number, r: number, color: string, rand: () => number) {
+export function rosette(b: Builder, x: number, y: number, z: number, r: number, color: string, rand: () => number) {
   for (let ring = 0; ring < 3; ring++)
     for (let i = 0; i < 7; i++) {
       const a = (i / 7) * Math.PI * 2 + ring * 0.45;
@@ -4956,7 +4976,7 @@ function rosette(b: Builder, x: number, y: number, z: number, r: number, color: 
  * A cupboard: doors (some mirrored), drawers below, boxes on top, a plinth or legs.
  * Handles in the accent.
  */
-function cupboard(b: Builder, w: number, d: number, h: number, f: THREE.Material, a: THREE.Material, o: { doors?: number; drawers?: number; columns?: number; mirror?: number[]; top?: boolean; legs?: boolean }) {
+export function cupboard(b: Builder, w: number, d: number, h: number, f: THREE.Material, a: THREE.Material, o: { doors?: number; drawers?: number; columns?: number; mirror?: number[]; top?: boolean; legs?: boolean }) {
   const base = o.legs ? 0.14 : 0.08;
   b.box(w, h - base, d - 0.02, 0, base, back(d) + (d - 0.02) / 2, f, o.legs ? 0.01 : 0);
   if (o.legs) legs(b, w - 0.04, d - 0.06, base, 0.04, 0.016, a);
@@ -4986,7 +5006,7 @@ function cupboard(b: Builder, w: number, d: number, h: number, f: THREE.Material
 }
 
 /** Flames and embers in a fire opening (glowing). */
-function fire(b: Builder, w: number, y: number, z: number, h: number) {
+export function fire(b: Builder, w: number, y: number, z: number, h: number) {
   const rand = random(277);
   b.box(w, 0.03, 0.04, 0, y, z, mat("#3a2a20"));
   for (let i = 0; i < Math.max(3, Math.round(w / 0.08)); i++) {
@@ -4997,7 +5017,7 @@ function fire(b: Builder, w: number, y: number, z: number, h: number) {
 }
 
 /** A piano keyboard: white keys and the black ones in their groups. */
-function keys(b: Builder, w: number, y: number, z: number) {
+export function keys(b: Builder, w: number, y: number, z: number) {
   b.box(w, 0.025, 0.15, 0, y, z, mat("#f6f4ee"), 0.002);
   const white = Math.max(14, Math.round(w / 0.0235));
   const kw = w / white;
@@ -5008,7 +5028,7 @@ function keys(b: Builder, w: number, y: number, z: number) {
 }
 
 /** An abstract print: a few soft shapes in a palette around a colour. */
-function art(b: Builder, w: number, h: number, y0: number, z: number, color: string) {
+export function art(b: Builder, w: number, h: number, y0: number, z: number, color: string) {
   const rand = random(color.length * 31 + Math.round(w * 100));
   const base = new THREE.Color(FINISHES[color] ?? FINISHES.terracotta);
   const tones = [base, base.clone().lerp(new THREE.Color("#ffffff"), 0.45), base.clone().lerp(new THREE.Color("#1c1c1c"), 0.35), new THREE.Color("#d9c9a8")];
@@ -5022,7 +5042,7 @@ function art(b: Builder, w: number, h: number, y0: number, z: number, color: str
 }
 
 /** A made bed's mattress, duvet and pillows, its mattress on y. */
-function bedding(b: Builder, w: number, d: number, y: number, back = 0.04) {
+export function bedding(b: Builder, w: number, d: number, y: number, back = 0.04) {
   b.box(w, 0.2, d, 0, y, back / 2, mat(C.mattress), 0.05);
   b.box(w + 0.02, 0.07, d * 0.66, 0, y + 0.18, d / 2 - (d * 0.66) / 2 + back / 2, mat(C.linen, { roughness: 1 }), 0.035);
   b.box(w + 0.02, 0.04, 0.3, 0, y + 0.21, d / 2 - d * 0.66 + 0.12 + back / 2, mat(C.linen, { roughness: 1 }), 0.02);
@@ -5030,18 +5050,18 @@ function bedding(b: Builder, w: number, d: number, y: number, back = 0.04) {
   for (let i = 0; i < n; i++) b.box(w / n - 0.14, 0.13, 0.36, -w / 2 + (w / n) * (i + 0.5), y + 0.18, -d / 2 + 0.27 + back / 2, mat(C.pillow), 0.06);
 }
 
-function tvPanel(b: Builder, w: number, h: number, y: number, z: number) {
+export function tvPanel(b: Builder, w: number, h: number, y: number, z: number) {
   b.box(w, h, 0.03, 0, y, z, mat(C.black, { roughness: 0.4 }), 0.004);
   b.box(w - 0.016, h - 0.016, 0.002, 0, y + 0.008, z + 0.016, screenMat());
 }
 
-function letterBox(b: Builder, w: number, d: number, h: number, y: number, f: THREE.Material) {
+export function letterBox(b: Builder, w: number, d: number, h: number, y: number, f: THREE.Material) {
   b.box(w, h, d, 0, y, 0, f, 0.01);
   b.box(w * 0.65, 0.025, 0.004, 0, y + h * 0.78, d / 2, mat(C.black));
   b.box(w * 0.3, 0.06, 0.004, 0, y + h * 0.35, d / 2, mat("#d9d5ce"));
 }
 
-function bed(b: Builder, w: number, d: number, h: number, f: THREE.Material, legM: THREE.Material) {
+export function bed(b: Builder, w: number, d: number, h: number, f: THREE.Material, legM: THREE.Material) {
   // an upholstered frame and headboard, mattress, duvet and pillows
   b.box(w, 0.28, d - 0.08, 0, 0.06, 0.04, f, 0.04);
   b.box(w + 0.04, h, 0.1, 0, 0.06, back(d) + 0.05, f, 0.04);
@@ -5053,7 +5073,7 @@ function bed(b: Builder, w: number, d: number, h: number, f: THREE.Material, leg
   legs(b, w, d - 0.08, 0.06, 0.08, 0.02, legM);
 }
 
-function vanity(b: Builder, w: number, d: number, h: number, f: THREE.Material, basins: number, tap: THREE.Material, square = false) {
+export function vanity(b: Builder, w: number, d: number, h: number, f: THREE.Material, basins: number, tap: THREE.Material, square = false) {
   // a cabinet on the wall and basins on a ceramic top: a white rim round a grey bowl
   b.box(w, 0.42, d - 0.02, 0, h - 0.47, back(d) + (d - 0.02) / 2, f, 0.006);
   fronts(b, -w / 2, w, h - 0.47, 0.42, d / 2 - 0.02, basins, f, 2, "bar");
@@ -5069,7 +5089,7 @@ function vanity(b: Builder, w: number, d: number, h: number, f: THREE.Material, 
 }
 
 /** A kitchen sink in its worktop: a steel rim, a darker bowl, a drain, a tall tap. */
-function kitchenSink(b: Builder, x: number, uw: number, d: number, h: number) {
+export function kitchenSink(b: Builder, x: number, uw: number, d: number, h: number) {
   const steel = mat(C.steel, { metalness: 0.7, roughness: 0.3 });
   b.box(uw - 0.12, 0.006, d - 0.2, x, h, 0.02, steel, 0.01);
   b.box(uw - 0.18, 0.004, d - 0.26, x, h + 0.006, 0.02, mat("#5f656b", { metalness: 0.5, roughness: 0.45 }), 0.02);
@@ -5081,7 +5101,7 @@ function kitchenSink(b: Builder, x: number, uw: number, d: number, h: number) {
 }
 
 /** Blades of grass on a patch, from height y. */
-function grass(b: Builder, rand: () => number, w: number, d: number, h: number, y: number, count: number, colors: string[], fountain = false) {
+export function grass(b: Builder, rand: () => number, w: number, d: number, h: number, y: number, count: number, colors: string[], fountain = false) {
   for (let i = 0; i < count; i++) {
     const x = (rand() - 0.5) * w * (fountain ? 0.4 : 1);
     const z = (rand() - 0.5) * d * (fountain ? 0.4 : 1);
@@ -5112,7 +5132,7 @@ function grass(b: Builder, rand: () => number, w: number, d: number, h: number, 
  * A grown deciduous tree: the trunk splits into limbs, limbs into branches, and leaves sit
  * in clusters at the branch ends, with gaps between them so the branches show.
  */
-function tree(b: Builder, w: number, d: number, h: number, seed: number, kind: "round" | "birch" | "fruit" | "autumn") {
+export function tree(b: Builder, w: number, d: number, h: number, seed: number, kind: "round" | "birch" | "fruit" | "autumn") {
   const rand = random(seed);
   const birch = kind === "birch";
   const fruit = kind === "fruit";
@@ -5168,8 +5188,8 @@ function tree(b: Builder, w: number, d: number, h: number, seed: number, kind: "
 
 // ----- rugs: woven patterns on a canvas -----
 
-const rugTextures = new Map<string, THREE.Material>();
-function rugMaterial(pattern: "border" | "rings" | "stripes" | "persian" | "berber", color: string, fallback: THREE.Material): THREE.Material {
+export const rugTextures = new Map<string, THREE.Material>();
+export function rugMaterial(pattern: "border" | "rings" | "stripes" | "persian" | "berber", color: string, fallback: THREE.Material): THREE.Material {
   const key = `${pattern}/${color}`;
   let m = rugTextures.get(key);
   if (m) return m;
@@ -5255,10 +5275,10 @@ function rugMaterial(pattern: "border" | "rings" | "stripes" | "persian" | "berb
 // ----- surfaces: the shared finishes (render/finishes.ts) for wood, stone and concrete -----
 
 /** Furniture finishes that are surface finishes too (the same texture on a floor or a sideboard). */
-const SHARED: Record<string, string> = { oak: "veneer_oak", walnut: "veneer_walnut", marble: "marble", concrete: "concrete", terrazzo: "terrazzo" };
-const surfaces = new Map<string, THREE.MeshStandardMaterial>();
+export const SHARED: Record<string, string> = { oak: "veneer_oak", walnut: "veneer_walnut", marble: "marble", concrete: "concrete", terrazzo: "terrazzo" };
+export const surfaces = new Map<string, THREE.MeshStandardMaterial>();
 /** A finish as a material: textured where it is a material (wood, stone), else plain. */
-function surface(color: string, roughness: number): THREE.MeshStandardMaterial {
+export function surface(color: string, roughness: number): THREE.MeshStandardMaterial {
   const shared = SHARED[color];
   if (!shared || typeof document === "undefined") return mat(FINISHES[color] ?? color, { roughness });
   const key = `${color}/${roughness}`;
@@ -5270,9 +5290,9 @@ function surface(color: string, roughness: number): THREE.MeshStandardMaterial {
   return m;
 }
 
-const fabricMats = new Map<string, THREE.MeshStandardMaterial>();
+export const fabricMats = new Map<string, THREE.MeshStandardMaterial>();
 /** Upholstery: the finish's colour woven (one material per colour). */
-function fabricMat(color: string, map: THREE.Texture): THREE.MeshStandardMaterial {
+export function fabricMat(color: string, map: THREE.Texture): THREE.MeshStandardMaterial {
   let m = fabricMats.get(color);
   if (!m) fabricMats.set(color, (m = new THREE.MeshStandardMaterial({ map, roughness: 1 })));
   return m;
@@ -5282,6 +5302,34 @@ function fabricMat(color: string, map: THREE.Texture): THREE.MeshStandardMateria
  * A Modern piece in its own frame, or null for an unknown kind. `finish` and `accent`
  * name FINISHES (default: the kind's first finish and accent).
  */
+/**
+ * The pieces: the ones above, each part file's (modern/*.ts) replacing those of the same
+ * key with more detailed ones.
+ */
+const BUILDERS: Record<string, Build> = {
+  ...BASE_BUILDERS,
+  ...CAR_HATCHBACK,
+  ...CAR_ESTATE,
+  ...CAR_SUV,
+  ...CAR_VAN,
+  ...CAR_SPORTS,
+  ...VEHICLES,
+  ...LIVING_SEATING,
+  ...LIVING_REST,
+  ...DINING,
+  ...KITCHEN,
+  ...BEDROOM_KIDS,
+  ...BATHROOM,
+  ...PLANTS,
+  ...OUTSIDE,
+  ...GARDEN,
+  ...LIGHTING,
+  ...OFFICE_SMART,
+  ...CLIMATE_UTILITY,
+  ...HALL_DECOR,
+  ...HOBBY,
+};
+
 export function buildModern(kind: string, size: [number, number], height: number, finish?: string, accent?: string): THREE.Group | null {
   const def = MODERN[kind];
   const build = BUILDERS[kind];
