@@ -65,7 +65,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             [
                 StaticPathConfig(FRONTEND_URL, str(FRONTEND_DIR), cache_headers=False),
                 # Poly Haven's and uploaded models (file names never change: cached)
-                StaticPathConfig(ASSETS_URL, str(assets.root), cache_headers=True),
+                *(StaticPathConfig(f"{ASSETS_URL}/{kind}", str(assets.folder(kind)), cache_headers=True) for kind in ("polyhaven", "textures", "custom")),
             ]
         )
         add_extra_js_url(hass, f"{FRONTEND_URL}/{FRONTEND_FILE}?v={version}")

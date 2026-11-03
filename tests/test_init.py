@@ -46,6 +46,7 @@ async def setup(hass: HomeAssistant, tmp_path: Path, monkeypatch: pytest.MonkeyP
     # an absolute MODEL_DIR makes hass.config.path() return it unchanged
     monkeypatch.setattr("custom_components.homeslice.store.MODEL_DIR", str(tmp_path / "homeslice"))
     monkeypatch.setattr("custom_components.homeslice.assets.MODEL_DIR", str(tmp_path / "homeslice"))
+    monkeypatch.setattr("custom_components.homeslice.assets.CACHE_DIR", str(tmp_path / ".cache"))
     (tmp_path / "homeslice").mkdir()
     (tmp_path / "homeslice" / "home.yaml").write_text(HOUSE_YAML)
     ar.async_get(hass).async_create("Living Room")
@@ -265,6 +266,21 @@ async def test_custom_models_upload_list_delete(hass: HomeAssistant, setup, hass
     assert (await client.receive_json())["result"] == []
 
 
+async def test_downloads_stay_out_of_backups(hass: HomeAssistant, setup, hass_client, tmp_path: Path) -> None:
+    """Poly Haven files come back by themselves: they move to .cache, which backups leave out,
+    and are still served where they were."""
+    assets = hass.data["homeslice"]["assets"]
+    old = tmp_path / "homeslice" / "assets" / "polyhaven" / "sofa_01"
+    old.mkdir(parents=True)
+    (old / "sofa_01_1k.gltf").write_text("{}")
+    await hass.async_add_executor_job(assets.ensure_dirs)
+    assert not old.exists()
+    assert (tmp_path / ".cache" / "homeslice" / "polyhaven" / "sofa_01" / "sofa_01_1k.gltf").read_text() == "{}"
+    client = await hass_client()
+    resp = await client.get("/homeslice_assets/polyhaven/sofa_01/sofa_01_1k.gltf")
+    assert resp.status == 200 and await resp.text() == "{}"
+
+
 async def test_unused_downloads_go_after_a_week(hass: HomeAssistant, setup, hass_ws_client, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     import os
 
@@ -274,10 +290,10 @@ async def test_unused_downloads_go_after_a_week(hass: HomeAssistant, setup, hass
     assets = hass.data["homeslice"]["assets"]
     old = 1_000_000_000  # long ago: past the grace for fresh downloads
     for kind, asset_id in (("polyhaven", "sofa_01"), ("polyhaven", "chair_02"), ("textures", "red_brick"), ("textures", "slate"), ("textures", "fresh_one")):
-        (root / kind / asset_id).mkdir(parents=True)
+        (assets.folder(kind) / asset_id).mkdir(parents=True)
         # fresh_one: downloaded a minute before the third sweep
         stamp = 2_000_000_000 + 8 * 24 * 3600 - 60 if asset_id == "fresh_one" else old
-        os.utime(root / kind / asset_id, (stamp, stamp))
+        os.utime(assets.folder(kind) / asset_id, (stamp, stamp))
     blob = base64.b64decode(GLB.split(",", 1)[1])
     used = (await assets.async_custom_store("Used", blob, {"source": "sketchfab"}))["id"]
     unused = (await assets.async_custom_store("Unused", blob, {"source": "sketchfab"}))["id"]
@@ -299,8 +315,8 @@ async def test_unused_downloads_go_after_a_week(hass: HomeAssistant, setup, hass
     now[0] += 2 * 24 * 3600
     gone = await assets.async_sweep([house])
     assert sorted(a["id"] for a in gone) == sorted(["chair_02", unused])
-    assert not (root / "polyhaven" / "chair_02").exists() and not (root / "custom" / f"{unused}.glb").exists()
-    for kept in (root / "polyhaven" / "sofa_01", root / "textures" / "slate", root / "textures" / "fresh_one", root / "textures" / "red_brick", root / "custom" / f"{used}.glb", root / "custom" / f"{own}.glb"):
+    assert not (assets.folder("polyhaven") / "chair_02").exists() and not (root / "custom" / f"{unused}.glb").exists()
+    for kept in (assets.folder("polyhaven") / "sofa_01", assets.folder("textures") / "slate", assets.folder("textures") / "fresh_one", assets.folder("textures") / "red_brick", root / "custom" / f"{used}.glb", root / "custom" / f"{own}.glb"):
         assert kept.exists(), kept
     now[0] += 8 * 24 * 3600
     # red_brick a week after it was last used; fresh_one only noted (its first sweep)
@@ -367,7 +383,7 @@ async def test_polyhaven_models_are_downloaded_once(hass: HomeAssistant, setup, 
         await client.send_json_auto_id({"type": "homeslice/assets/polyhaven/fetch", "asset": "Sofa_01"})
         msg = await client.receive_json()
         assert msg["result"] == {"url": "/homeslice_assets/polyhaven/Sofa_01/Sofa_01_1k.gltf"}, msg
-    folder = tmp_path / "homeslice" / "assets" / "polyhaven" / "Sofa_01"
+    folder = tmp_path / ".cache" / "homeslice" / "polyhaven" / "Sofa_01"
     assert (folder / "textures" / "Sofa_01_diff_1k.jpg").read_text() == "jpg"
     assert aioclient_mock.call_count == 4  # once: the file list and three files
     assert all(dict(call[3] or {}).get("User-Agent", "").startswith("Homeslice") for call in aioclient_mock.mock_calls)
@@ -392,7 +408,7 @@ async def test_polyhaven_models_with_odd_files_are_refused(hass: HomeAssistant, 
     client = await hass_ws_client(hass)
     await client.send_json_auto_id({"type": "homeslice/assets/polyhaven/fetch", "asset": "Odd"})
     assert not (await client.receive_json())["success"]
-    assert not (tmp_path / "homeslice" / "assets" / "polyhaven" / "Odd").exists()
+    assert not (tmp_path / ".cache" / "homeslice" / "polyhaven" / "Odd").exists()
 
 
 async def test_old_custom_index_moves_out_of_the_served_folder(hass: HomeAssistant, tmp_path: Path, monkeypatch) -> None:
@@ -430,7 +446,7 @@ async def test_polyhaven_textures_catalog_and_download(hass: HomeAssistant, setu
         await client.send_json_auto_id({"type": "homeslice/assets/textures/fetch", "asset": "wood_floor"})
         msg = await client.receive_json()
         assert msg["result"] == {"url": "/homeslice_assets/textures/wood_floor/wood_floor_diff_1k.jpg", "size": [2.0, 2.0]}, msg
-    folder = tmp_path / "homeslice" / "assets" / "textures" / "wood_floor"
+    folder = tmp_path / ".cache" / "homeslice" / "textures" / "wood_floor"
     assert (folder / "wood_floor_diff_1k.jpg").read_bytes().startswith(b"\xff\xd8")
     assert aioclient_mock.call_count == 3  # the catalogue once, the file list and the image once
     await client.send_json_auto_id({"type": "homeslice/assets/textures/fetch", "asset": "../etc"})

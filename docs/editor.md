@@ -136,8 +136,9 @@ The library has four sources:
 ### Poly Haven
 
 The Poly Haven library uses the [Poly Haven](https://polyhaven.com) API; its models are
-CC0. Home Assistant downloads a model (1k textures) into `<config>/homeslice/assets/` the
-first time a house uses it, and every device loads it from there. Homeslice is not made or
+CC0. Home Assistant downloads a model (1k textures) into `<config>/.cache/homeslice/` the
+first time a house uses it, and every device loads it from there. Home Assistant's backups
+leave that folder out: the models come back by themselves after a restore. Homeslice is not made or
 endorsed by Poly Haven.
 
 ### Sketchfab

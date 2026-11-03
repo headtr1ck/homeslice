@@ -1,7 +1,8 @@
 """Furniture models from outside the bundle: Poly Haven's and the user's own.
 
-Both live in <config>/homeslice/assets (so they are part of backups) and are served at
-ASSETS_URL to every device. Poly Haven models are downloaded once, the first time a house
+Uploads live in <config>/homeslice/assets (so they are part of backups); what Poly Haven
+gives again any time lives in <config>/.cache/homeslice, which Home Assistant's backups leave
+out. All are served at ASSETS_URL to every device. Poly Haven models are downloaded once, the first time a house
 uses one (https://polyhaven.com, CC0); custom ones are uploaded in the editor as .glb.
 """
 
@@ -30,6 +31,9 @@ _LOGGER = logging.getLogger(__name__)
 
 ASSETS_URL = "/homeslice_assets"
 ASSETS_DIR = "assets"
+# what Poly Haven gives again any time, kept in CACHE_DIR
+CACHE_DIR = ".cache"
+DOWNLOADED = ("polyhaven", "textures")
 
 POLYHAVEN_API = "https://api.polyhaven.com"
 POLYHAVEN_FILES = "https://dl.polyhaven.org/"
@@ -111,6 +115,8 @@ class Assets:
     def __init__(self, hass: HomeAssistant) -> None:
         self.hass = hass
         self.root = Path(hass.config.path(MODEL_DIR, ASSETS_DIR))
+        # downloads that come back by themselves: out of backups
+        self.cache = Path(hass.config.path(CACHE_DIR, "homeslice"))
         self._catalog: tuple[float, list[dict[str, Any]]] | None = None
         self._textures: tuple[float, list[dict[str, Any]]] | None = None
         self._fetching: dict[str, asyncio.Task[None]] = {}
@@ -118,14 +124,25 @@ class Assets:
 
     def ensure_dirs(self) -> None:
         """Create the folders (blocking)."""
-        (self.root / "polyhaven").mkdir(parents=True, exist_ok=True)
+        for kind in DOWNLOADED:
+            # they used to be next to the uploads, in backups
+            old, new = self.root / kind, self.folder(kind)
+            new.mkdir(parents=True, exist_ok=True)
+            if old.is_dir():
+                for item in old.iterdir():
+                    if not (new / item.name).exists():
+                        shutil.move(item, new / item.name)
+                shutil.rmtree(old, ignore_errors=True)
         (self.root / "custom").mkdir(parents=True, exist_ok=True)
-        (self.root / "textures").mkdir(parents=True, exist_ok=True)
         # the index used to live in the served folder, where anyone could read it
         old = self.root / "custom" / "index.json"
         if old.exists() and not self._index_path.exists():
             old.replace(self._index_path)
         old.unlink(missing_ok=True)
+
+    def folder(self, kind: str) -> Path:
+        """Where a kind of model is kept: "polyhaven", "textures" or "custom"."""
+        return (self.cache if kind in DOWNLOADED else self.root) / kind
 
     @property
     def _index_path(self) -> Path:
@@ -171,7 +188,7 @@ class Assets:
         return f"{ASSETS_URL}/polyhaven/{asset_id}/{asset_id}_{RESOLUTION}.gltf"
 
     def _polyhaven_ready(self, asset_id: str) -> bool:
-        return (self.root / "polyhaven" / asset_id / f"{asset_id}_{RESOLUTION}.gltf").exists()
+        return (self.folder("polyhaven") / asset_id / f"{asset_id}_{RESOLUTION}.gltf").exists()
 
     async def async_polyhaven(self, asset_id: str) -> str:
         """Downloads a model (once) and returns where it is served."""
@@ -204,7 +221,7 @@ class Assets:
         total = entry.get("size", 0) + sum(i.get("size", 0) for i in (entry.get("include") or {}).values())
         if total > MAX_POLYHAVEN_BYTES:
             raise AssetError("This model is too large")
-        target = self.root / "polyhaven" / asset_id
+        target = self.folder("polyhaven") / asset_id
         session = async_get_clientsession(self.hass)
         blobs: dict[Path, bytes] = {}
         for rel, url in wanted.items():
@@ -281,7 +298,7 @@ class Assets:
         """Downloads a texture's colour map (once); where it is served and the metres it covers."""
         if not ID.match(asset_id):
             raise AssetError("Not a Poly Haven texture id")
-        folder = self.root / "textures" / asset_id
+        folder = self.folder("textures") / asset_id
         info = folder / "info.json"
 
         def read() -> Any:
@@ -406,7 +423,7 @@ class Assets:
         out: list[dict[str, Any]] = []
         fresh = time.time() - UNUSED_GRACE
         for kind in ("polyhaven", "textures"):
-            base = self.root / kind
+            base = self.folder(kind)
             for path in sorted(base.iterdir()) if base.is_dir() else []:
                 if path.is_dir() and ID.match(path.name) and path.name not in used[kind] and path.stat().st_mtime < fresh:
                     out.append({"kind": kind, "id": path.name})
@@ -434,7 +451,7 @@ class Assets:
         def remove() -> None:
             for a in gone:
                 if a["kind"] != "custom":
-                    shutil.rmtree(self.root / a["kind"] / a["id"], ignore_errors=True)
+                    shutil.rmtree(self.folder(a["kind"]) / a["id"], ignore_errors=True)
 
         await self.hass.async_add_executor_job(remove)
         for a in gone:
