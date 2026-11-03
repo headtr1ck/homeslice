@@ -100,6 +100,21 @@ test.describe.serial("editor", () => {
     await page.evaluate((m) => window.panel.commit(m), before);
   });
 
+  test("with a room selected, a click on its inside wall selects the wall (a drag still moves the side)", async () => {
+    await page.evaluate(() => (window.panel._room = "kitchen"));
+    await page.waitForTimeout(150);
+    const handle = page.locator('homeslice-panel svg.plan rect.edge-handle[data-at="[[3,4],[3,0]]"], homeslice-panel svg.plan rect.edge-handle[data-at="[[3,0],[3,4]]"]');
+    const box = await handle.boundingBox();
+    await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+    const sel = await page.evaluate(() => ({ room: window.panel._room, wall: window.panel._wall }));
+    assert(!sel.room && sel.wall && [sel.wall.a, sel.wall.b].sort().join() === "hall,kitchen", `selected: ${JSON.stringify(sel)}`);
+    assert((await page.locator("homeslice-panel .inspector h2").textContent()) === "Wall", "no wall panel");
+    // (the kitchen selected again for the next test)
+    await page.keyboard.press("Escape");
+    await page.evaluate(() => (window.panel._room = "kitchen"));
+    await page.waitForTimeout(150);
+  });
+
   test("dragging a shared wall moves both rooms; undo and redo", async () => {
     // the wall between hall (x 0–3) and kitchen (x 3–8)
     const handle = page.locator('homeslice-panel svg.plan rect.edge-handle[data-at="[[3,4],[3,0]]"], homeslice-panel svg.plan rect.edge-handle[data-at="[[3,0],[3,4]]"]');

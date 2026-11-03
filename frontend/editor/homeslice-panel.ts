@@ -688,6 +688,8 @@ export class HomeslicePanel extends LitElement {
   private renderer?: HouseRenderer;
   private previewTimer = 0;
   private tourOffered = false;
+  /** The room selected until just now (a click picked something else): for a double-click that follows. */
+  private roomBefore: { id: string; time: number } | null = null;
   private fitted = "";
   private onKey = (e: KeyboardEvent) => this.handleKey(e);
 
@@ -2832,6 +2834,15 @@ export class HomeslicePanel extends LitElement {
       }
       return;
     }
+    // a selected room's side clicked, not dragged: the wall there (between it and the next room)
+    if (drag.kind === "edge" && JSON.stringify(drag.origin) === JSON.stringify(this._model)) {
+      const wall = this.insideWallAt(drag.startWorld);
+      if (wall) {
+        this.clearSelection();
+        this._wall = wall;
+        return;
+      }
+    }
     if (drag.kind === "vertex" || drag.kind === "edge" || drag.kind === "opening" || drag.kind === "wall" || drag.kind === "stair-move" || drag.kind === "stair-resize" || drag.kind === "light" || drag.kind === "energy" || drag.kind === "furniture" || drag.kind === "freewall-end" || drag.kind === "section-end" || drag.kind === "freewall-move" || drag.kind === "robot" || drag.kind === "camera") {
       if (JSON.stringify(drag.origin) !== JSON.stringify(this._model)) this.commit(this._model, drag.origin);
     } else if (drag.kind === "rect" && this._rectPreview && this._tool === "stairs") {
@@ -2878,10 +2889,28 @@ export class HomeslicePanel extends LitElement {
     // the plan holds the pointer while pressed, so the event names the plan: ask what is under it
     const under = (this.renderRoot as ShadowRoot).elementsFromPoint(e.clientX, e.clientY);
     const handle = under.map((el) => el.closest("[data-handle]") as SVGElement | null).find((h) => h?.dataset.handle === "vertex") ?? under.map((el) => el.closest("[data-handle]") as SVGElement | null).find(Boolean);
+    // its first click picked something else (the wall on a selected room's side): back to that
+    // room, and its side under the pointer
+    const r0 = (this.renderRoot.querySelector("svg.plan") as SVGSVGElement).getBoundingClientRect();
+    const where = this.toWorld([e.clientX - r0.left, e.clientY - r0.top]);
+    const before = this.roomBefore && Date.now() - this.roomBefore.time < 800 ? this.roomBefore.id : null;
+    this.roomBefore = null;
+    const poly = before && !this._room ? this.levelInputRoomPolygon(before) : null;
+    const near = poly
+      ?.map((a, i) => ({ a, b: poly[(i + 1) % poly.length], d: project(where, a, poly[(i + 1) % poly.length]) }))
+      .filter((x) => x.d.t > 0 && x.d.t < x.d.length && x.d.distance < Math.max(0.2, 10 / this._view.scale))
+      .sort((x, y) => x.d.distance - y.d.distance)[0];
+    const recent = near && before ? { room: before, a: near.a, b: near.b } : null;
     if (handle?.dataset.handle === "vertex") {
       this.commit(removeVertex(this._model, this._level, JSON.parse(handle.dataset.at!)));
-    } else if (handle?.dataset.handle === "edge") {
-      const [a, b]: [Vec2, Vec2] = JSON.parse(handle.dataset.at!);
+      // (it is gone: nothing left to have selected)
+      this._vertexSel = null;
+    } else if (handle?.dataset.handle === "edge" || recent) {
+      if (recent && handle?.dataset.handle !== "edge") {
+        this._wall = null;
+        this._room = recent.room;
+      }
+      const [a, b]: [Vec2, Vec2] = handle?.dataset.handle === "edge" ? JSON.parse(handle.dataset.at!) : [recent!.a, recent!.b];
       // the new corner where the wall was clicked (to the centimetre), clear of its ends
       const r = (this.renderRoot.querySelector("svg.plan") as SVGSVGElement).getBoundingClientRect();
       const w = this.toWorld([e.clientX - r.left, e.clientY - r.top]);
@@ -2926,6 +2955,25 @@ export class HomeslicePanel extends LitElement {
   }
 
   /** Walls of the level being edited (derived from the current model). */
+  /** The inside wall under a plan point (as clicking it selects it), the selected room's side first. */
+  private insideWallAt(p: Vec2): { a: string; b: string; side: Side; line: [Vec2, Vec2]; thickness: number } | null {
+    let best: Wall | null = null;
+    let dist = Infinity;
+    for (const w of this.levelWalls()) {
+      if ((w.type !== "interior" && w.type !== "open") || !w.rooms.length) continue;
+      const pr = project(p, w.line[0], w.line[1]);
+      const len = Math.hypot(w.line[1][0] - w.line[0][0], w.line[1][1] - w.line[0][1]);
+      if (pr.t < 0 || pr.t > len || pr.distance >= dist) continue;
+      [best, dist] = [w, pr.distance];
+    }
+    if (!best || dist > Math.max(best.thickness / 2, 8 / this._view.scale)) return null;
+    const a = this._room && best.rooms.includes(this._room) ? this._room : best.rooms[0];
+    const b = best.rooms.find((r) => r !== a) ?? "";
+    const own = this.levelInputRoomPolygon(a);
+    const side = own ? sideOfRoom(own, best.line[0], best.line[1]) : null;
+    return side ? { a, b, side, line: best.line, thickness: best.thickness } : null;
+  }
+
   private levelWalls(): Wall[] {
     const { house } = expandHouse(this._model!);
     const level = house?.levels.find((x) => x.id === this._level);
@@ -2973,6 +3021,9 @@ export class HomeslicePanel extends LitElement {
   // ----- 3D preview -----
 
   protected override updated(changed: PropertyValues) {
+    // a room let go of (something else picked): kept a moment, for a double-click that follows
+    const was = changed.get("_room") as string | null | undefined;
+    if (changed.has("_room") && was && was !== OUTLINE && !this._room) this.roomBefore = { id: was, time: Date.now() };
     if (this._tour !== null) {
       if (changed.has("_model") || changed.has("_level") || changed.has("_saved")) this.checkTour();
       this.markTourTarget();
