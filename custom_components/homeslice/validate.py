@@ -305,6 +305,10 @@ def validate(house: Any) -> list[dict[str, str]]:
             if accent is not MISSING and not isinstance(accent, str):
                 err(fp, "accent must be a name like black, brass or oak.")
                 continue
+            options = get(fi, "options")
+            if options is not MISSING and not (isinstance(options, dict) and all(isinstance(o, str) for o in options.values())):
+                err(fp, "options must name a choice per option, e.g. {handle: knob}.")
+                continue
             readings = get(fi, "readings")
             if readings is not MISSING and not (isinstance(readings, list) and all(isinstance(r, str) and "." in r for r in readings)):
                 err(fp, "readings must be a list of entity ids, e.g. [sensor.car_battery].")

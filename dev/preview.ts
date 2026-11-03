@@ -11,9 +11,9 @@ renderer.setClearColor(0x2a2d32, 1);
 renderer.setSize(SIZE * 2, SIZE * 2);
 
 /** Four views of a piece in one picture: front right above, front, side, top; and its triangles. */
-function shoot(kind: string, finish?: string): { png: string; triangles: number } {
+function shoot(kind: string, finish?: string, options: Record<string, string> = {}): { png: string; triangles: number } {
   const def = MODERN[kind];
-  const piece = buildModern(kind, [def.size[0], def.size[1]], def.size[2], finish);
+  const piece = buildModern(kind, [def.size[0], def.size[1]], def.size[2], finish, undefined, options);
   if (!piece) throw new Error(`no built-in piece ${kind}`);
   const scene = new THREE.Scene();
   scene.add(new THREE.HemisphereLight(0xffffff, 0x50555c, 1.2));
@@ -53,7 +53,8 @@ function shoot(kind: string, finish?: string): { png: string; triangles: number 
 const wanted = decodeURIComponent(location.hash.slice(1)).split(",").filter(Boolean);
 const out: Record<string, { png: string; triangles: number }> = {};
 for (const item of wanted) {
-  const [kind, finish] = item.split(":");
-  out[item] = shoot(kind, finish);
+  // piece[:finish][:option=value…]
+  const [kind, finish, ...rest] = item.split(":");
+  out[item] = shoot(kind, finish || undefined, Object.fromEntries(rest.map((o) => o.split("="))));
 }
 (window as unknown as { previews: typeof out }).previews = out;

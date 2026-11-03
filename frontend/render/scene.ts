@@ -3381,7 +3381,7 @@ export class HouseRenderer {
           if (o instanceof THREE.Mesh) o.material = Array.isArray(o.material) ? o.material.map(convert) : convert(o.material);
         });
       } else if (mod && "kind" in how) {
-        piece = (mod as typeof import("./modern")).buildModern(how.kind, f.size, f.height, f.finish, f.accent);
+        piece = (mod as typeof import("./modern")).buildModern(how.kind, f.size, f.height, f.finish, f.accent, f.options);
         piece?.traverse((o) => {
           if (o instanceof THREE.Mesh) o.material = Array.isArray(o.material) ? o.material.map(convert) : convert(o.material);
         });

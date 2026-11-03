@@ -84,6 +84,9 @@ export class Builder {
   /** Where new meshes go: the piece, or a part being drawn (see spinner). */
   private into: THREE.Object3D = this.g;
 
+  /** The piece's chosen options (e.g. handle: knob); see ModernKind.options. */
+  constructor(readonly options: Record<string, string> = {}) {}
+
   add(geo: THREE.BufferGeometry, m: THREE.Material, x = 0, y = 0, z = 0) {
     const mesh = new THREE.Mesh(geo, m);
     mesh.position.set(x, y, z);
@@ -103,6 +106,19 @@ export class Builder {
     draw();
     this.into = this.g;
     for (const child of part.children) child.position.sub(part.position);
+    return part;
+  }
+  /**
+   * Draws a part that may stand above the piece's height: a tap on a sink unit is not part
+   * of the unit's 91 cm, so the piece is not squeezed to fit it in.
+   */
+  above(draw: () => void) {
+    const part = new THREE.Group();
+    part.userData.above = true;
+    this.g.add(part);
+    this.into = part;
+    draw();
+    this.into = this.g;
     return part;
   }
   /** Draws a part that shows (and turns) only while its device runs: a sprinkler's spray. */
@@ -289,16 +305,32 @@ export function sofa(b: Builder, w: number, d: number, fabric: THREE.Material, c
 }
 
 /** Doors (or drawers) across a front at z, gaps between them, and handles if asked. */
-export function fronts(b: Builder, x0: number, w: number, y0: number, h: number, z: number, n: number, m: THREE.Material, rows = 1, handle?: "bar" | "knob", handleM: THREE.Material = mat(C.black)) {
+/** How fronts open: a bar or a knob, a grip rail along the top (handleless) or a push (no handle at all). */
+export type Handle = "bar" | "knob" | "handleless" | "push";
+
+/**
+ * Doors or drawer fronts in a grid, with joints between them. `handle` is the piece's own
+ * handle; a piece whose fronts have one takes the handle chosen for it (options.handle).
+ */
+export function fronts(b: Builder, x0: number, w: number, y0: number, h: number, z: number, n: number, m: THREE.Material, rows = 1, own?: Handle, handleM: THREE.Material = mat(C.black)) {
+  const chosen = b.options.handle as Handle | undefined;
+  const handle: Handle | undefined = own && chosen && ["bar", "knob", "handleless", "push"].includes(chosen) ? chosen : own;
   const cw = w / n;
   const rh = h / rows;
+  // handleless: each row's fronts stop short of a recessed grip rail along their top
+  const rail = handle === "handleless" ? Math.min(0.035, rh * 0.2) : 0;
+  if (rail)
+    for (let r = 0; r < rows; r++) {
+      b.box(w, rail, 0.008, x0 + w / 2, y0 + rh * (r + 1) - rail, z + 0.004, mat("#2c2e31", { roughness: 0.9 }));
+      b.box(w, 0.006, 0.016, x0 + w / 2, y0 + rh * (r + 1) - rail * 0.55, z + 0.006, mat("#a9adb2", { metalness: 0.7, roughness: 0.35 }));
+    }
   // dark joints between fronts: they show even where the fronts sit flush in the carcass
   const joint = mat("#26272a", { roughness: 1 });
   for (let i = 1; i < n; i++) b.box(0.005, h, 0.02, x0 + cw * i, y0, z + 0.0105, joint);
   for (let r = 1; r < rows; r++) b.box(w, 0.005, 0.02, x0 + w / 2, y0 + rh * r - 0.0025, z + 0.0105, joint);
   for (let i = 0; i < n; i++)
     for (let r = 0; r < rows; r++) {
-      b.box(cw - 0.004, rh - 0.004, 0.018, x0 + cw * (i + 0.5), y0 + rh * r + 0.002, z + 0.009, m, 0.003);
+      b.box(cw - 0.004, rh - 0.004 - rail, 0.018, x0 + cw * (i + 0.5), y0 + rh * r + 0.002, z + 0.009, m, 0.003);
       if (handle === "bar") b.box(rows > 1 ? Math.min(0.2, cw * 0.4) : 0.012, rows > 1 ? 0.012 : Math.min(0.3, rh * 0.25), 0.02, x0 + cw * (i + 0.5) + (rows > 1 ? 0 : (i % 2 ? -1 : 1) * (cw / 2 - 0.05)), y0 + rh * r + (rows > 1 ? rh - 0.06 : rh * 0.5), z + 0.028, handleM);
       if (handle === "knob") b.sphere(0.015, x0 + cw * (i + 0.5), y0 + rh * (r + 0.5), z + 0.03, handleM, 1, 1, 1, 8);
     }
@@ -608,7 +640,7 @@ const BASE_BUILDERS: Record<string, Build> = {
     const uw = w / n;
     const top = 0.04;
     b.box(w - 0.02, 0.1, d - 0.08, 0, 0, back(d) + (d - 0.08) / 2, mat(C.black));
-    b.box(w, h - top - 0.1, d - 0.03, 0, 0.1, back(d) + (d - 0.03) / 2, mat("#e8e6e1"));
+    b.box(w, h - top - 0.1, d - 0.03, 0, 0.1, back(d) + (d - 0.03) / 2, f);
     b.box(w, top, d, 0, h - top, 0, a, 0.004);
     const sink = n > 1 ? Math.floor(n / 3) : -1;
     const hob = n > 2 ? Math.min(n - 1, sink + 2) : -1;
@@ -621,7 +653,7 @@ const BASE_BUILDERS: Record<string, Build> = {
         b.box(uw - 0.006, 0.58, 0.018, x, 0.12, fz + 0.009, mat(C.screen, { roughness: 0.2 }), 0.003);
         b.box(uw - 0.1, 0.005, d - 0.12, x, h, 0, mat(C.screen, { roughness: 0.15 }));
         for (const [dx, dz, r] of [[-0.12, -0.08, 0.09], [0.12, -0.08, 0.07], [-0.12, 0.12, 0.07], [0.12, 0.12, 0.09]]) b.add(new THREE.RingGeometry(r - 0.006, r, 24), mat("#555"), x + dx, h + 0.006, dz).rotation.x = -Math.PI / 2;
-      } else fronts(b, x - uw / 2, uw, 0.1, h - top - 0.1, fz, 1, f, i % 2 ? 3 : 1);
+      } else fronts(b, x - uw / 2, uw, 0.1, h - top - 0.1, fz, 1, f, i % 2 ? 3 : 1, "push");
       if (i === sink) kitchenSink(b, x, uw, d, h);
     }
   },
@@ -640,13 +672,13 @@ const BASE_BUILDERS: Record<string, Build> = {
   },
   kitchen_upper: (b, w, d, h, f) => {
     const n = Math.max(1, Math.round(w / 0.6));
-    b.box(w, h, d - 0.02, 0, 0, back(d) + (d - 0.02) / 2, mat("#e8e6e1"));
-    fronts(b, -w / 2, w, 0, h, d / 2 - 0.02, n, f, 1);
+    b.box(w, h, d - 0.02, 0, 0, back(d) + (d - 0.02) / 2, f);
+    fronts(b, -w / 2, w, 0, h, d / 2 - 0.02, n, f, 1, "bar");
     // light under the cabinets
     b.box(w - 0.04, 0.008, 0.03, 0, -0.008, d / 2 - 0.06, mat("#fff6df", { emissive: "#fff2cc", emissiveIntensity: 0.4 }));
   },
   kitchen_tall: (b, w, d, h, f) => {
-    b.box(w, h - 0.1, d - 0.03, 0, 0.1, back(d) + (d - 0.03) / 2, mat("#e8e6e1"));
+    b.box(w, h - 0.1, d - 0.03, 0, 0.1, back(d) + (d - 0.03) / 2, f);
     b.box(w - 0.02, 0.1, d - 0.08, 0, 0, back(d) + (d - 0.08) / 2, mat(C.black));
     const z = d / 2 - 0.03;
     b.box(w - 0.004, h * 0.55, 0.018, 0, 0.1, z + 0.009, f, 0.003);
@@ -1470,13 +1502,13 @@ const BASE_BUILDERS: Record<string, Build> = {
   heat_pump: (b, w, d, h, f) => outdoorUnit(b, w, d, h, f, false),
   // ----- kitchen, piece by piece (fronts in the finish, the worktop in the accent) -----
   kitchen_base: (b, w, d, h, f, _c, a) => {
-    const u = kitchenBase(b, w, d, h, a);
+    const u = kitchenBase(b, w, d, h, a, f);
     const n = Math.max(1, Math.round(w / 0.6));
     fronts(b, -w / 2, w, u.y1 - 0.17, 0.17, u.fz, n, f, 1, "bar");
     fronts(b, -w / 2, w, u.y0, u.y1 - u.y0 - 0.17, u.fz, n, f, 1, "bar");
   },
   kitchen_drawers: (b, w, d, h, f, _c, a) => {
-    const u = kitchenBase(b, w, d, h, a);
+    const u = kitchenBase(b, w, d, h, a, f);
     const n = Math.max(1, Math.round(w / 0.9));
     const rows = [0.17, 0.27, u.y1 - u.y0 - 0.44];
     let y = u.y1;
@@ -1486,17 +1518,17 @@ const BASE_BUILDERS: Record<string, Build> = {
     }
   },
   kitchen_sink_unit: (b, w, d, h, f, _c, a) => {
-    const u = kitchenBase(b, w, d, h, a);
+    const u = kitchenBase(b, w, d, h, a, f);
     fronts(b, -w / 2, w, u.y0, u.y1 - u.y0, u.fz, Math.max(1, Math.round(w / 0.45)), f, 1, "bar");
     const bw = Math.min(w - 0.16, 0.7);
     const steel = mat(C.steel, { metalness: 0.6, roughness: 0.3 });
     b.box(bw + 0.04, 0.006, d - 0.2, 0, h, 0.03, steel, 0.01);
     b.box(bw, 0.004, d - 0.26, 0, h + 0.002, 0.03, mat("#6d7277", { metalness: 0.5, roughness: 0.4 }), 0.03);
     b.cyl(0.025, 0.025, 0.004, 0, h + 0.006, 0.03, mat("#3a3d41"), 16);
-    tapGooseneck(b, 0, h, back(d) + 0.07, mat(C.chrome, { metalness: 0.85, roughness: 0.2 }));
+    b.above(() => tapGooseneck(b, 0, h, back(d) + 0.07, mat(C.chrome, { metalness: 0.85, roughness: 0.2 })));
   },
   kitchen_hob_gas: (b, w, d, h, f, _c, a) => {
-    const u = kitchenBase(b, w, d, h, a);
+    const u = kitchenBase(b, w, d, h, a, f);
     oven(b, w, u, f);
     const steel = mat(C.steel, { metalness: 0.6, roughness: 0.35 });
     const iron = mat("#1f2023", { roughness: 0.6 });
@@ -1516,7 +1548,7 @@ const BASE_BUILDERS: Record<string, Build> = {
   },
   kitchen_hob_electric: (b, w, d, h, f, _c, a) => {
     // the old kind: four cast-iron plates with chrome rims, knobs on the front
-    const u = kitchenBase(b, w, d, h, a);
+    const u = kitchenBase(b, w, d, h, a, f);
     oven(b, w, u, f, true);
     b.box(w - 0.06, 0.012, d - 0.1, 0, h, 0, mat(C.ceramic, { roughness: 0.4 }), 0.006);
     const pw = w - 0.12;
@@ -1529,7 +1561,7 @@ const BASE_BUILDERS: Record<string, Build> = {
     }
   },
   kitchen_hob_ceran: (b, w, d, h, f, _c, a) => {
-    const u = kitchenBase(b, w, d, h, a);
+    const u = kitchenBase(b, w, d, h, a, f);
     oven(b, w, u, f);
     b.box(w - 0.04, 0.006, d - 0.06, 0, h, 0, mat(C.screen, { roughness: 0.08, metalness: 0.2 }), 0.004);
     const pw = w - 0.12;
@@ -1539,7 +1571,7 @@ const BASE_BUILDERS: Record<string, Build> = {
   },
   kitchen_hob_downdraft: (b, w, d, h, f, _c, a) => {
     // two deep drawers under an induction hob with the extractor sunk in its middle
-    const u = kitchenBase(b, w, d, h, a);
+    const u = kitchenBase(b, w, d, h, a, f);
     fronts(b, -w / 2, w, u.y0, u.y1 - u.y0, u.fz, 1, f, 2, "bar");
     const gw = Math.min(w - 0.04, 0.8);
     const gd = Math.min(d - 0.1, 0.52);
@@ -1569,18 +1601,18 @@ const BASE_BUILDERS: Record<string, Build> = {
       b.add(new THREE.CircleGeometry(0.005, 8), mat("#c9cdd1", { emissive: "#c9cdd1", emissiveIntensity: 0.3 }), -gw * 0.05 + i * 0.022, top, gd / 2 - 0.05).rotation.x = -Math.PI / 2;
   },
   kitchen_oven: (b, w, d, h, f, _c, a) => {
-    const u = kitchenBase(b, w, d, h, a);
+    const u = kitchenBase(b, w, d, h, a, f);
     oven(b, w, u, f);
   },
   kitchen_dishwasher: (b, w, d, h, f, _c, a) => {
-    const u = kitchenBase(b, w, d, h, a);
+    const u = kitchenBase(b, w, d, h, a, f);
     fronts(b, -w / 2, w, u.y0, u.y1 - u.y0, u.fz, 1, f, 1, "bar");
   },
   kitchen_corner: (b, w, d, h, f, _c, a) => {
     // the blind corner of an L: the worktop runs on, a door on the open part
     const t = 0.04;
     b.box(w - 0.05, 0.1, d - 0.05, -0.025, 0, -0.025, mat(C.black));
-    b.box(w - 0.02, h - t - 0.1, d - 0.02, -0.01, 0.1, -0.01, mat("#e8e6e1"));
+    b.box(w - 0.02, h - t - 0.1, d - 0.02, -0.01, 0.1, -0.01, f);
     b.box(w, t, d, 0, h - t, 0, a, 0.004);
     const open = Math.max(0.3, w - 0.62);
     fronts(b, -w / 2, open, 0.1, h - t - 0.1, d / 2 - 0.02, 1, f, 1, "bar");
@@ -1605,7 +1637,7 @@ const BASE_BUILDERS: Record<string, Build> = {
   },
   kitchen_upper_glass: (b, w, d, h, f) => {
     const n = Math.max(1, Math.round(w / 0.5));
-    hollow(b, w, h, d - 0.02, 0, back(d) + (d - 0.02) / 2, mat("#e8e6e1"), 0.018);
+    hollow(b, w, h, d - 0.02, 0, back(d) + (d - 0.02) / 2, f, 0.018);
     for (let s = 1; s < 3; s++) b.box(w - 0.04, 0.015, d - 0.06, 0, (h * s) / 3, back(d) + (d - 0.04) / 2, mat("#f3f1ec"));
     for (let s = 0; s < 3; s++) for (let i = 0; i < Math.floor((w - 0.06) / 0.12); i++) b.cyl(0.05, 0.04, 0.03, -w / 2 + 0.09 + i * 0.12, (h * s) / 3 + 0.02, -0.03, mat(C.ceramic), 14);
     const cw = w / n;
@@ -4644,10 +4676,11 @@ export function hollow(b: Builder, w: number, h: number, d: number, x: number, z
 }
 
 /** A kitchen base unit: plinth, carcass and worktop; where its fronts go. */
-export function kitchenBase(b: Builder, w: number, d: number, h: number, top: THREE.Material) {
+/** A base unit's plinth, body (in the fronts' colour, its sides show) and worktop; where its fronts go. */
+export function kitchenBase(b: Builder, w: number, d: number, h: number, top: THREE.Material, body: THREE.Material) {
   const t = 0.04;
   b.box(w - 0.02, 0.1, d - 0.08, 0, 0, back(d) + (d - 0.08) / 2, mat(C.black));
-  b.box(w, h - t - 0.1, d - 0.03, 0, 0.1, back(d) + (d - 0.03) / 2, mat("#e8e6e1"));
+  b.box(w, h - t - 0.1, d - 0.03, 0, 0.1, back(d) + (d - 0.03) / 2, body);
   b.box(w, t, d, 0, h - t, 0, top, 0.004);
   return { y0: 0.1, y1: h - t, fz: d / 2 - 0.03 };
 }
@@ -4677,7 +4710,7 @@ export function oven(b: Builder, w: number, u: { y0: number; y1: number; fz: num
 /** A tall unit with doors stacked by the given shares of its height. */
 export function tallUnit(b: Builder, w: number, d: number, h: number, f: THREE.Material, shares: number[]) {
   b.box(w - 0.02, 0.1, d - 0.08, 0, 0, back(d) + (d - 0.08) / 2, mat(C.black));
-  b.box(w, h - 0.1, d - 0.03, 0, 0.1, back(d) + (d - 0.03) / 2, mat("#e8e6e1"));
+  b.box(w, h - 0.1, d - 0.03, 0, 0.1, back(d) + (d - 0.03) / 2, f);
   let y = 0.1;
   for (const s of shares) {
     const dh = (h - 0.1) * s;
@@ -5368,13 +5401,15 @@ const BUILDERS: Record<string, Build> = {
   ...HOBBY,
 };
 
-export function buildModern(kind: string, size: [number, number], height: number, finish?: string, accent?: string): THREE.Group | null {
+export function buildModern(kind: string, size: [number, number], height: number, finish?: string, accent?: string, options: Record<string, string> = {}): THREE.Group | null {
   const def = MODERN[kind];
   const build = BUILDERS[kind];
   if (!def || !build) return null;
   const color = finish && FINISHES[finish] ? finish : def.finishes[0];
   const accentColor = accent && FINISHES[accent] && def.accents ? accent : (def.accents?.[0] ?? "black");
-  const b = new Builder();
+  // only the options the piece offers, with values it knows
+  const chosen = Object.fromEntries(Object.entries(options).filter(([k, val]) => def.options?.[k]?.includes(val)));
+  const b = new Builder(chosen);
   const fabricLike =
     ["sofa", "armchair", "bed", "rug"].includes(def.type) || kind.startsWith("sofa") || def.finishes === FABRIC || ["garden_sofa", "chair_office", "curtains", "dog_bed", "lounge_ottoman", "gaming_chair"].includes(kind);
   const fabric = fabricLike && !SHARED[color] ? fabricTexture(FINISHES[color]) : null;
@@ -5385,7 +5420,14 @@ export function buildModern(kind: string, size: [number, number], height: number
   const piece = b.done();
   // never larger than asked for and never below the floor: squeeze and lift what sticks
   // out (taps, leaves, a sofa's fixed seat height in a lower box)
-  const box = new THREE.Box3().setFromObject(piece);
+  // parts drawn above the piece (b.above) don't count
+  const box = new THREE.Box3();
+  piece.updateMatrixWorld(true);
+  piece.traverse((o) => {
+    if (!(o instanceof THREE.Mesh)) return;
+    for (let p: THREE.Object3D | null = o; p && p !== piece; p = p.parent) if (p.userData.above) return;
+    box.expandByObject(o);
+  });
   if (box.isEmpty()) return piece;
   const bottom = Math.min(0, box.min.y);
   const got = box.getSize(new THREE.Vector3());

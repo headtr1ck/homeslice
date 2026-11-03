@@ -1017,7 +1017,15 @@
     "walnut",
     "black",
     "anthracite"
-   ]
+   ],
+   "options": {
+    "handle": [
+     "bar",
+     "knob",
+     "handleless",
+     "push"
+    ]
+   }
   },
   {
    "model": "modern:display_cabinet",
@@ -1226,7 +1234,15 @@
     "walnut",
     "black",
     "anthracite"
-   ]
+   ],
+   "options": {
+    "handle": [
+     "knob",
+     "bar",
+     "handleless",
+     "push"
+    ]
+   }
   },
   {
    "model": "modern:bookshelf_low",
@@ -2250,7 +2266,15 @@
     "oak",
     "black",
     "anthracite"
-   ]
+   ],
+   "options": {
+    "handle": [
+     "push",
+     "bar",
+     "knob",
+     "handleless"
+    ]
+   }
   },
   {
    "model": "modern:kitchen_island",
@@ -2308,6 +2332,14 @@
     1,
     1.2
    ],
+   "options": {
+    "handle": [
+     "bar",
+     "knob",
+     "handleless",
+     "push"
+    ]
+   },
    "mount": "wall",
    "elevation": 1.45
   },
@@ -2373,7 +2405,15 @@
     0.9,
     1,
     1.2
-   ]
+   ],
+   "options": {
+    "handle": [
+     "bar",
+     "knob",
+     "handleless",
+     "push"
+    ]
+   }
   },
   {
    "model": "modern:kitchen_drawers",
@@ -2412,7 +2452,15 @@
     0.9,
     1,
     1.2
-   ]
+   ],
+   "options": {
+    "handle": [
+     "bar",
+     "knob",
+     "handleless",
+     "push"
+    ]
+   }
   },
   {
    "model": "modern:kitchen_sink_unit",
@@ -2448,7 +2496,15 @@
     0.9,
     1,
     1.2
-   ]
+   ],
+   "options": {
+    "handle": [
+     "bar",
+     "knob",
+     "handleless",
+     "push"
+    ]
+   }
   },
   {
    "model": "modern:kitchen_hob_gas",
@@ -2550,7 +2606,15 @@
     0.6,
     0.8,
     0.9
-   ]
+   ],
+   "options": {
+    "handle": [
+     "bar",
+     "knob",
+     "handleless",
+     "push"
+    ]
+   }
   },
   {
    "model": "modern:kitchen_hob_electric",
@@ -2653,7 +2717,15 @@
    "widths": [
     0.45,
     0.6
-   ]
+   ],
+   "options": {
+    "handle": [
+     "bar",
+     "knob",
+     "handleless",
+     "push"
+    ]
+   }
   },
   {
    "model": "modern:kitchen_corner",
@@ -2682,7 +2754,15 @@
     "oak",
     "black",
     "anthracite"
-   ]
+   ],
+   "options": {
+    "handle": [
+     "bar",
+     "knob",
+     "handleless",
+     "push"
+    ]
+   }
   },
   {
    "model": "modern:kitchen_pantry",
@@ -2708,7 +2788,15 @@
     0.45,
     0.5,
     0.6
-   ]
+   ],
+   "options": {
+    "handle": [
+     "bar",
+     "knob",
+     "handleless",
+     "push"
+    ]
+   }
   },
   {
    "model": "modern:kitchen_pantry_mid",
@@ -2734,7 +2822,15 @@
     0.45,
     0.5,
     0.6
-   ]
+   ],
+   "options": {
+    "handle": [
+     "bar",
+     "knob",
+     "handleless",
+     "push"
+    ]
+   }
   },
   {
    "model": "modern:kitchen_tall_fridge",
@@ -2754,7 +2850,15 @@
     "blue",
     "black",
     "walnut"
-   ]
+   ],
+   "options": {
+    "handle": [
+     "bar",
+     "knob",
+     "handleless",
+     "push"
+    ]
+   }
   },
   {
    "model": "modern:kitchen_tall_oven",
@@ -2774,7 +2878,15 @@
     "blue",
     "black",
     "walnut"
-   ]
+   ],
+   "options": {
+    "handle": [
+     "bar",
+     "knob",
+     "handleless",
+     "push"
+    ]
+   }
   },
   {
    "model": "modern:kitchen_upper_glass",
@@ -3130,7 +3242,15 @@
     "chrome",
     "brass",
     "oak"
-   ]
+   ],
+   "options": {
+    "handle": [
+     "bar",
+     "knob",
+     "handleless",
+     "push"
+    ]
+   }
   },
   {
    "model": "modern:bed_platform",
@@ -3213,7 +3333,15 @@
     "black",
     "oak",
     "white"
-   ]
+   ],
+   "options": {
+    "handle": [
+     "knob",
+     "bar",
+     "handleless",
+     "push"
+    ]
+   }
   },
   {
    "model": "modern:nightstand",
@@ -3236,7 +3364,15 @@
     "black",
     "oak",
     "brass"
-   ]
+   ],
+   "options": {
+    "handle": [
+     "knob",
+     "bar",
+     "handleless",
+     "push"
+    ]
+   }
   },
   {
    "model": "modern:nightstand_wall",
@@ -3589,7 +3725,15 @@
     "black",
     "oak",
     "brass"
-   ]
+   ],
+   "options": {
+    "handle": [
+     "bar",
+     "knob",
+     "handleless",
+     "push"
+    ]
+   }
   },
   {
    "model": "modern:filing_cabinet",
@@ -3674,7 +3818,15 @@
     "chrome",
     "white",
     "oak"
-   ]
+   ],
+   "options": {
+    "handle": [
+     "bar",
+     "knob",
+     "handleless",
+     "push"
+    ]
+   }
   },
   {
    "model": "modern:desk_standing",
@@ -3787,7 +3939,15 @@
     "chrome",
     "brass",
     "oak"
-   ]
+   ],
+   "options": {
+    "handle": [
+     "bar",
+     "knob",
+     "handleless",
+     "push"
+    ]
+   }
   },
   {
    "model": "modern:laptop",
@@ -3974,7 +4134,15 @@
     "oak",
     "white",
     "black"
-   ]
+   ],
+   "options": {
+    "handle": [
+     "knob",
+     "bar",
+     "handleless",
+     "push"
+    ]
+   }
   },
   {
    "model": "modern:toy_box",
@@ -4083,7 +4251,15 @@
     "walnut",
     "black",
     "anthracite"
-   ]
+   ],
+   "options": {
+    "handle": [
+     "bar",
+     "knob",
+     "handleless",
+     "push"
+    ]
+   }
   },
   {
    "model": "modern:hall_bench",
@@ -4239,7 +4415,15 @@
     "chrome",
     "brass",
     "oak"
-   ]
+   ],
+   "options": {
+    "handle": [
+     "bar",
+     "knob",
+     "handleless",
+     "push"
+    ]
+   }
   },
   {
    "model": "modern:key_cabinet",
@@ -4262,6 +4446,14 @@
     "brass",
     "oak"
    ],
+   "options": {
+    "handle": [
+     "knob",
+     "bar",
+     "handleless",
+     "push"
+    ]
+   },
    "mount": "wall",
    "elevation": 1.5
   },
@@ -4990,7 +5182,15 @@
     "chrome",
     "black",
     "brass"
-   ]
+   ],
+   "options": {
+    "handle": [
+     "bar",
+     "knob",
+     "handleless",
+     "push"
+    ]
+   }
   },
   {
    "model": "modern:bath_shelf",
@@ -6058,7 +6258,15 @@
     "anthracite",
     "white",
     "terracotta"
-   ]
+   ],
+   "options": {
+    "handle": [
+     "bar",
+     "knob",
+     "handleless",
+     "push"
+    ]
+   }
   },
   {
    "model": "modern:dog_house",

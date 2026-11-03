@@ -118,6 +118,7 @@ levels:
           - { type: sofa_corner, at: [2, 3], mirror: true }                    # flipped left to right
           - { type: sofa, at: [3, 4], model: polyhaven:Sofa_01, size: [1.57, 0.66], height: 0.8 }
           - { type: wardrobe, at: [5, 0.4], model: modern:wardrobe_sliding, finish: walnut, accent: black, size: [2, 0.65], height: 2.2 }
+          - { type: kitchen, at: [7, 0.3], model: modern:kitchen_drawers, size: [0.8, 0.62], options: { handle: handleless } }  # bar, knob, handleless, push
           - { type: car, at: [2, 3], model: modern:car_estate, entity: device_tracker.car, readings: [sensor.car_battery, sensor.car_range] }  # only while home
           # model: modern:<kind> | polyhaven:<id> | custom:<id> | builtin (default: the card's style)
       - { id: kitchen, area_id: kitchen, rect: [6, 0, 4, 8], floor: terrazzo, wall: tile_subway }

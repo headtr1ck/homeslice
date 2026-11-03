@@ -4160,6 +4160,22 @@ export class HomeslicePanel extends LitElement {
             })}
           </div>`
         : nothing}
+      ${Object.entries(kind?.options ?? {}).map(([key, values]) => {
+        const current = f.options?.[key] && values.includes(f.options[key]) ? f.options[key] : values[0];
+        return html`<div class="choices" role="radiogroup" aria-label=${this.t(`option.${key}` as StringKey)} data-option=${key}>
+          <span class="muted">${this.t(`option.${key}` as StringKey)}</span>
+          ${values.map(
+            (x, i) => html`<button role="radio" class=${current === x ? "active" : ""} aria-checked=${current === x} data-value=${x}
+              @click=${() => {
+                // the first is the piece's own: no need to write it down
+                const next = { ...(f.options ?? {}) };
+                if (i === 0) delete next[key];
+                else next[key] = x;
+                set({ options: Object.keys(next).length ? next : undefined });
+              }}>${this.t(`option.${key}_${x}` as StringKey)}</button>`,
+          )}
+        </div>`;
+      })}
       ${f.model ? html`<p class="muted">${this.t("editor.furniture_model")}: ${this.modelName(f.model)}</p>` : nothing}
       ${kind
         ? html`<div class="finishes" role="radiogroup" aria-label=${this.t("editor.furniture_finish")}>
@@ -8656,18 +8672,21 @@ export class HomeslicePanel extends LitElement {
     .library .piece:hover {
       border-color: var(--accent);
     }
-    .widths {
+    .widths,
+    .choices {
       display: flex;
       flex-wrap: wrap;
       align-items: center;
       gap: 4px;
       margin: 6px 0;
     }
-    .widths button {
+    .widths button,
+    .choices button {
       min-width: 36px;
       padding: 2px 6px;
     }
-    .widths button.active {
+    .widths button.active,
+    .choices button.active {
       background: var(--accent);
       color: #fff;
       border-color: var(--accent);

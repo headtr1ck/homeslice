@@ -23,7 +23,7 @@ const full = {
     {
       id: "g",
       rooms: [
-        { id: "a", rect: ["a", "top", 4, 5], lights: [{ entity: "light.a", at: [1, 1] }], furniture: [{ type: "sofa", at: [2, 2], model: "modern:sofa", finish: "grey", accent: "oak" }] },
+        { id: "a", rect: ["a", "top", 4, 5], lights: [{ entity: "light.a", at: [1, 1] }], furniture: [{ type: "sofa", at: [2, 2], model: "modern:sofa", finish: "grey", accent: "oak" }, { type: "kitchen", at: [1, 1], model: "modern:kitchen_base", options: { handle: "knob" } }] },
         { id: "b", polygon: [["b", "top"], ["c", "top"], ["c", "mid"], ["b", "mid"]] },
         { id: "c", rect: [0, 5, 8, 5], floor: "oak_herringbone", wall: "paint_sage", wall_sides: { north: "acoustic_oak" } },
       ],
@@ -99,6 +99,8 @@ const MUTATIONS: [string, (h: House) => unknown][] = [
   ["furniture bad model", (h) => ((L(h).rooms[0].furniture = [{ type: "sofa", at: [1, 1], model: "ikea:klippan" }]), h)],
   ["furniture model number", (h) => ((L(h).rooms[0].furniture = [{ type: "sofa", at: [1, 1], model: 3 }]), h)],
   ["furniture bad accent", (h) => ((L(h).rooms[0].furniture = [{ type: "sofa", at: [1, 1], accent: ["black"] }]), h)],
+  ["furniture bad options", (h) => ((L(h).rooms[0].furniture = [{ type: "kitchen", at: [1, 1], options: { handle: 3 } }]), h)],
+  ["furniture options a list", (h) => ((L(h).rooms[0].furniture = [{ type: "kitchen", at: [1, 1], options: ["knob"] }]), h)],
   ["furniture bad finish", (h) => ((L(h).rooms[0].furniture = [{ type: "sofa", at: [1, 1], finish: 7 }]), h)],
   ["opening unknown room", (h) => ((L(h).openings[0].room = "zz"), h)],
   ["opening bad side", (h) => ((L(h).openings[0].side = "up"), h)],

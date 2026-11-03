@@ -1384,6 +1384,13 @@ test.describe.serial("editor", () => {
     const unit = (await room("kitchen")).furniture[0];
     assert(unit.size?.[0] === 0.8 && unit.size[1] === 0.62, `size: ${JSON.stringify(unit.size)}`);
     assert((await page.locator('homeslice-panel .inspector .widths button[data-width="0.8"]').getAttribute("aria-checked")) === "true", "80 not shown as picked");
+    // its options from the catalogue: handles, its own (bar) first and not written down
+    const handles = page.locator('homeslice-panel .inspector [data-option="handle"] button');
+    assert((await handles.count()) === 4, `handle choices: ${await handles.count()}`);
+    await page.locator('homeslice-panel .inspector [data-option="handle"] button[data-value="handleless"]').click();
+    assert((await room("kitchen")).furniture[0].options?.handle === "handleless", `options: ${JSON.stringify((await room("kitchen")).furniture[0].options)}`);
+    await page.locator('homeslice-panel .inspector [data-option="handle"] button[data-value="bar"]').click();
+    assert(!(await room("kitchen")).furniture[0].options, "the piece's own handle written down");
     await page.evaluate(() => (window.panel._furn = { room: "kitchen", index: 1 }));
     await page.locator("homeslice-panel .inspector button[data-finish]").nth(1).click();
     assert((await room("kitchen")).furniture[1].finish, "no colour for a piece without a model");

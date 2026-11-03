@@ -17,6 +17,12 @@ export interface ModernKind {
   accents?: string[];
   /** The widths it is sold in (metres), offered in the editor; any other width still works. */
   widths?: number[];
+  /**
+   * Choices the drawing follows, each with its values (the first is the default), e.g.
+   * `handle: ["bar", "knob", "handleless", "push"]`. A piece stores its choice as
+   * `options: { handle: knob }`.
+   */
+  options?: Record<string, string[]>;
 }
 
 /** Colours of the finishes (wood, lacquer, fabric, stone). */
@@ -59,6 +65,10 @@ const k = (id: string, type: FurnitureType, size: [number, number, number], fini
 
 /** Kitchen units come in these widths. */
 const UNIT = [0.3, 0.45, 0.5, 0.6, 0.8, 0.9, 1.0, 1.2];
+/** How fronts open (render/modern.ts fronts), the piece's own way first. */
+const HANDLE = { handle: ["bar", "knob", "handleless", "push"] };
+const KNOB = { handle: ["knob", "bar", "handleless", "push"] };
+const PUSH = { handle: ["push", "bar", "knob", "handleless"] };
 
 export const MODERN_GROUPS: { id: string; kinds: ModernKind[] }[] = [
   {
@@ -87,7 +97,7 @@ export const MODERN_GROUPS: { id: string; kinds: ModernKind[] }[] = [
       k("side_table", "side_table", [0.45, 0.45, 0.52], ["black", "oak", "white", "marble", "terrazzo"], { accents: ["black", "brass", "chrome", "white"] }),
       k("tv_board", "shelf", [1.8, 0.4, 0.45], WOOD, { accents: ["black", "oak", "brass"] }),
       k("tv_board_wall", "shelf", [1.8, 0.38, 0.32], WOOD, { mount: "wall", elevation: 0.35 }),
-      k("sideboard", "shelf", [1.6, 0.45, 0.8], WOOD),
+      k("sideboard", "shelf", [1.6, 0.45, 0.8], WOOD, { options: HANDLE }),
       k("display_cabinet", "shelf", [1.0, 0.42, 1.9], WOOD, { accents: HANDLES }),
       k("tv_stand", "tv", [1.6, 0.4, 1.3], WOOD),
       k("tv_wall", "tv", [1.45, 0.06, 0.84], ["black"], { mount: "wall", elevation: 1.0 }),
@@ -97,7 +107,7 @@ export const MODERN_GROUPS: { id: string; kinds: ModernKind[] }[] = [
       k("speaker_shelf", "item", [0.18, 0.24, 0.3], ["black", "white", "walnut"]),
       k("cube_shelf", "shelf", [0.77, 0.39, 1.47], ["white", "oak", "black", "walnut"]),
       k("bookshelf", "shelf", [0.8, 0.3, 2.0], WOOD),
-      k("bookshelf_wide", "shelf", [1.6, 0.35, 2.1], WOOD),
+      k("bookshelf_wide", "shelf", [1.6, 0.35, 2.1], WOOD, { options: KNOB }),
       k("bookshelf_low", "shelf", [1.2, 0.3, 0.8], WOOD),
       k("bookshelf_grid", "shelf", [1.5, 0.35, 1.8], WOOD),
       k("bookshelf_ladder", "shelf", [0.7, 0.42, 1.8], ["oak", "white", "black", "walnut"]),
@@ -155,24 +165,24 @@ export const MODERN_GROUPS: { id: string; kinds: ModernKind[] }[] = [
   {
     id: "kitchen",
     kinds: [
-      k("kitchen", "kitchen", [3.0, 0.62, 0.91], ["white", "anthracite", "oak", "green", "blue", "black"], { accents: WORKTOP }),
+      k("kitchen", "kitchen", [3.0, 0.62, 0.91], ["white", "anthracite", "oak", "green", "blue", "black"], { accents: WORKTOP, options: PUSH }),
       k("kitchen_island", "kitchen", [2.4, 1.0, 0.92], ["white", "anthracite", "oak", "green", "blue", "black"], { accents: WORKTOP }),
-      k("kitchen_upper", "kitchen_upper", [2.4, 0.35, 0.72], ["white", "anthracite", "oak", "green", "blue", "black"], { mount: "wall", elevation: 1.45, widths: UNIT }),
+      k("kitchen_upper", "kitchen_upper", [2.4, 0.35, 0.72], ["white", "anthracite", "oak", "green", "blue", "black"], { mount: "wall", elevation: 1.45, widths: UNIT, options: HANDLE }),
       k("kitchen_tall", "fridge", [0.6, 0.62, 2.2], ["white", "anthracite", "oak", "green", "blue", "black"], { widths: [0.3, 0.45, 0.5, 0.6] }),
-      k("kitchen_base", "kitchen", [0.6, 0.62, 0.91], FRONTS, { accents: WORKTOP, widths: UNIT }),
-      k("kitchen_drawers", "kitchen", [0.6, 0.62, 0.91], FRONTS, { accents: WORKTOP, widths: UNIT }),
-      k("kitchen_sink_unit", "kitchen", [0.8, 0.62, 0.91], FRONTS, { accents: WORKTOP, widths: [0.6, 0.8, 0.9, 1.0, 1.2] }),
+      k("kitchen_base", "kitchen", [0.6, 0.62, 0.91], FRONTS, { accents: WORKTOP, widths: UNIT, options: HANDLE }),
+      k("kitchen_drawers", "kitchen", [0.6, 0.62, 0.91], FRONTS, { accents: WORKTOP, widths: UNIT, options: HANDLE }),
+      k("kitchen_sink_unit", "kitchen", [0.8, 0.62, 0.91], FRONTS, { accents: WORKTOP, widths: [0.6, 0.8, 0.9, 1.0, 1.2], options: HANDLE }),
       k("kitchen_hob_gas", "kitchen", [0.6, 0.62, 0.91], FRONTS, { accents: WORKTOP, widths: [0.6, 0.8, 0.9] }),
       k("kitchen_hob_ceran", "kitchen", [0.6, 0.62, 0.91], FRONTS, { accents: WORKTOP, widths: [0.6, 0.8, 0.9] }),
-      k("kitchen_hob_downdraft", "kitchen", [0.8, 0.62, 0.91], FRONTS, { accents: WORKTOP, widths: [0.6, 0.8, 0.9] }),
+      k("kitchen_hob_downdraft", "kitchen", [0.8, 0.62, 0.91], FRONTS, { accents: WORKTOP, widths: [0.6, 0.8, 0.9], options: HANDLE }),
       k("kitchen_hob_electric", "kitchen", [0.6, 0.62, 0.91], FRONTS, { accents: WORKTOP, widths: [0.6, 0.8, 0.9] }),
       k("kitchen_oven", "kitchen", [0.6, 0.62, 0.91], FRONTS, { accents: WORKTOP, widths: [0.6, 0.9] }),
-      k("kitchen_dishwasher", "kitchen", [0.6, 0.62, 0.91], FRONTS, { accents: WORKTOP, widths: [0.45, 0.6] }),
-      k("kitchen_corner", "kitchen", [1.0, 1.0, 0.91], FRONTS, { accents: WORKTOP }),
-      k("kitchen_pantry", "kitchen", [0.6, 0.62, 2.2], FRONTS, { widths: [0.3, 0.45, 0.5, 0.6] }),
-      k("kitchen_pantry_mid", "kitchen", [0.6, 0.62, 1.45], FRONTS, { widths: [0.3, 0.45, 0.5, 0.6] }),
-      k("kitchen_tall_fridge", "fridge", [0.6, 0.62, 2.2], FRONTS),
-      k("kitchen_tall_oven", "kitchen", [0.6, 0.62, 2.2], FRONTS),
+      k("kitchen_dishwasher", "kitchen", [0.6, 0.62, 0.91], FRONTS, { accents: WORKTOP, widths: [0.45, 0.6], options: HANDLE }),
+      k("kitchen_corner", "kitchen", [1.0, 1.0, 0.91], FRONTS, { accents: WORKTOP, options: HANDLE }),
+      k("kitchen_pantry", "kitchen", [0.6, 0.62, 2.2], FRONTS, { widths: [0.3, 0.45, 0.5, 0.6], options: HANDLE }),
+      k("kitchen_pantry_mid", "kitchen", [0.6, 0.62, 1.45], FRONTS, { widths: [0.3, 0.45, 0.5, 0.6], options: HANDLE }),
+      k("kitchen_tall_fridge", "fridge", [0.6, 0.62, 2.2], FRONTS, { options: HANDLE }),
+      k("kitchen_tall_oven", "kitchen", [0.6, 0.62, 2.2], FRONTS, { options: HANDLE }),
       k("kitchen_upper_glass", "kitchen_upper", [0.8, 0.35, 0.72], FRONTS, { mount: "wall", elevation: 1.45, widths: UNIT }),
       k("kitchen_upper_open", "kitchen_upper", [0.8, 0.25, 0.72], ["oak", "white", "black", "walnut"], { mount: "wall", elevation: 1.45, widths: UNIT }),
       k("kitchen_hood", "kitchen_upper", [0.9, 0.5, 1.0], ["silver", "black", "white"], { mount: "wall", elevation: 1.55, widths: [0.6, 0.9, 1.2] }),
@@ -194,12 +204,12 @@ export const MODERN_GROUPS: { id: string; kinds: ModernKind[] }[] = [
     kinds: [
       k("bed", "bed", [1.8, 2.1, 1.0], ["beige", "grey", "anthracite", "green", "blue", "pink", "oak"], { accents: ["black", "oak", "brass", "chrome"] }),
       k("bed_single", "bed_single", [0.9, 2.05, 0.9], ["beige", "grey", "anthracite", "green", "blue", "pink", "oak"], { accents: ["black", "oak", "brass", "chrome"] }),
-      k("bed_storage", "bed", [1.6, 2.1, 0.95], WOOD, { accents: HANDLES }),
+      k("bed_storage", "bed", [1.6, 2.1, 0.95], WOOD, { accents: HANDLES, options: HANDLE }),
       k("bed_platform", "bed", [2.0, 2.2, 0.7], ["oak", "walnut", "black", "white"]),
       k("bed_canopy", "bed", [1.8, 2.1, 2.1], ["oak", "walnut", "black", "white"]),
       k("bed_upholstered", "bed", [1.8, 2.15, 1.25], FABRIC, { accents: ["black", "oak", "walnut", "brass"] }),
-      k("dressing_table", "desk", [1.0, 0.45, 0.76], ["white", "oak", "walnut", "pink"], { accents: ["brass", "black", "oak", "white"] }),
-      k("nightstand", "nightstand", [0.45, 0.38, 0.5], WOOD, { accents: ["black", "oak", "brass"] }),
+      k("dressing_table", "desk", [1.0, 0.45, 0.76], ["white", "oak", "walnut", "pink"], { accents: ["brass", "black", "oak", "white"], options: KNOB }),
+      k("nightstand", "nightstand", [0.45, 0.38, 0.5], WOOD, { accents: ["black", "oak", "brass"], options: KNOB }),
       k("nightstand_wall", "nightstand", [0.45, 0.32, 0.18], WOOD, { mount: "wall", elevation: 0.45, accents: HANDLES }),
       k("wardrobe", "wardrobe", [2.0, 0.6, 2.2], WOOD, { accents: HANDLES }),
       k("wardrobe_1door", "wardrobe", [0.5, 0.6, 2.0], WOOD, { accents: HANDLES }),
@@ -214,7 +224,7 @@ export const MODERN_GROUPS: { id: string; kinds: ModernKind[] }[] = [
       k("chest_low", "shelf", [0.8, 0.48, 0.8], WOOD, { accents: HANDLES }),
       k("wardrobe_sliding", "wardrobe", [2.0, 0.65, 2.2], [...WOOD, "grey"], { accents: ["black", "chrome", "brass"] }),
       k("wardrobe_open", "wardrobe", [1.6, 0.55, 2.0], ["black", "oak", "white"]),
-      k("dresser", "shelf", [1.2, 0.48, 0.8], WOOD, { accents: ["black", "oak", "brass"] }),
+      k("dresser", "shelf", [1.2, 0.48, 0.8], WOOD, { accents: ["black", "oak", "brass"], options: HANDLE }),
     ],
   },
   {
@@ -223,12 +233,12 @@ export const MODERN_GROUPS: { id: string; kinds: ModernKind[] }[] = [
       k("filing_cabinet", "item", [0.42, 0.6, 1.02], ["grey", "white", "anthracite", "black"]),
       k("whiteboard", "item", [1.2, 0.04, 0.9], ["white"], { mount: "wall", elevation: 0.95, accents: ["silver", "black", "oak"] }),
       k("desk", "desk", [1.4, 0.7, 0.75], ["oak", "white", "walnut", "black"], { accents: ["black", "white", "chrome", "oak"] }),
-      k("desk_drawers", "desk", [1.4, 0.7, 0.75], WOOD, { accents: ["black", "chrome", "white", "oak"] }),
+      k("desk_drawers", "desk", [1.4, 0.7, 0.75], WOOD, { accents: ["black", "chrome", "white", "oak"], options: HANDLE }),
       k("desk_standing", "desk", [1.6, 0.8, 1.05], ["oak", "white", "walnut", "black"], { accents: ["black", "white", "silver"] }),
       k("desk_corner", "desk", [1.6, 1.4, 0.75], ["oak", "white", "walnut", "black"], { accents: ["black", "white", "silver"] }),
       k("chair_office", "chair", [0.6, 0.6, 1.05], ["black", "grey", "white"], { accents: ["black", "chrome", "white"] }),
       k("gaming_chair", "chair", [0.7, 0.7, 1.35], ["black", "red", "blue", "grey", "white"], { accents: ["black", "red", "white", "blue"] }),
-      k("drawer_unit", "shelf", [0.42, 0.55, 0.62], WOOD, { accents: HANDLES }),
+      k("drawer_unit", "shelf", [0.42, 0.55, 0.62], WOOD, { accents: HANDLES, options: HANDLE }),
       k("laptop", "item", [0.32, 0.22, 0.2], ["silver", "black", "white"]),
       k("monitor", "tv", [0.62, 0.2, 0.48], ["black", "white", "silver"]),
       k("printer", "item", [0.45, 0.38, 0.25], ["white", "black", "grey"]),
@@ -243,7 +253,7 @@ export const MODERN_GROUPS: { id: string; kinds: ModernKind[] }[] = [
       k("play_kitchen", "item", [0.85, 0.32, 0.95], ["white", "oak", "pink", "green"], { accents: ["oak", "white", "silver"] }),
       k("crib", "bed_single", [0.68, 1.28, 0.95], ["white", "oak", "green", "pink", "blue"]),
       k("bunk_bed", "bed_single", [1.0, 2.05, 1.6], ["oak", "white", "walnut", "black"]),
-      k("changing_table", "shelf", [0.8, 0.55, 1.0], ["white", "oak", "green", "pink", "blue"], { accents: ["oak", "white", "black"] }),
+      k("changing_table", "shelf", [0.8, 0.55, 1.0], ["white", "oak", "green", "pink", "blue"], { accents: ["oak", "white", "black"], options: KNOB }),
       k("toy_box", "item", [0.8, 0.42, 0.45], ["white", "blue", "green", "pink", "oak"]),
       k("rocking_horse", "item", [0.32, 0.85, 0.72], ["oak", "white", "walnut"]),
       k("teepee", "item", [1.3, 1.3, 1.8], ["beige", "white", "grey", "pink", "green"]),
@@ -254,7 +264,7 @@ export const MODERN_GROUPS: { id: string; kinds: ModernKind[] }[] = [
     id: "hall",
     kinds: [
       k("shoe_shelf", "shelf", [0.8, 0.3, 0.9], ["black", "oak", "white"]),
-      k("shoe_cabinet", "shelf", [0.8, 0.24, 1.05], WOOD),
+      k("shoe_cabinet", "shelf", [0.8, 0.24, 1.05], WOOD, { options: HANDLE }),
       k("hall_bench", "bench", [1.0, 0.38, 0.47], ["oak", "black", "white", "walnut"]),
       k("coat_hooks", "item", [0.9, 0.12, 0.6], ["black", "oak", "white"], { mount: "wall", elevation: 1.15, accents: ["black", "brass", "chrome"] }),
       k("coat_stand", "item", [0.45, 0.45, 1.75], ["black", "oak", "white"]),
@@ -262,8 +272,8 @@ export const MODERN_GROUPS: { id: string; kinds: ModernKind[] }[] = [
       k("letter_box_post", "item", [0.4, 0.3, 1.25], ["anthracite", "black", "white", "concrete"]),
       k("console_table", "side_table", [1.1, 0.32, 0.8], ["oak", "walnut", "black", "white", "marble"], { accents: ["black", "brass", "oak"] }),
       k("umbrella_stand", "item", [0.26, 0.26, 0.55], ["black", "white", "terracotta", "brass"]),
-      k("hall_wardrobe", "wardrobe", [1.3, 0.4, 2.0], WOOD, { accents: HANDLES }),
-      k("key_cabinet", "item", [0.3, 0.08, 0.4], ["white", "oak", "black"], { mount: "wall", elevation: 1.5, accents: HANDLES }),
+      k("hall_wardrobe", "wardrobe", [1.3, 0.4, 2.0], WOOD, { accents: HANDLES, options: HANDLE }),
+      k("key_cabinet", "item", [0.3, 0.08, 0.4], ["white", "oak", "black"], { mount: "wall", elevation: 1.5, accents: HANDLES, options: KNOB }),
     ],
   },
   {
@@ -303,7 +313,7 @@ export const MODERN_GROUPS: { id: string; kinds: ModernKind[] }[] = [
       k("whirlpool", "bathtub", [2.0, 2.0, 0.9], ["grey", "anthracite", "oak", "white"], { accents: TAPS }),
       k("towel_radiator", "item", [0.5, 0.06, 1.2], ["white", "black", "anthracite"], { mount: "wall", elevation: 0.2 }),
       k("towel_ladder", "item", [0.5, 0.4, 1.7], ["oak", "black", "white"]),
-      k("bath_tall_cabinet", "shelf", [0.4, 0.35, 1.7], WOOD, { accents: TAPS }),
+      k("bath_tall_cabinet", "shelf", [0.4, 0.35, 1.7], WOOD, { accents: TAPS, options: HANDLE }),
       k("bath_shelf", "shelf", [0.6, 0.15, 0.32], ["oak", "white", "black"], { mount: "wall", elevation: 1.3 }),
       k("mirror_lit", "mirror", [0.8, 0.04, 0.7], ["white", "black", "silver"], { mount: "wall", elevation: 1.2 }),
       k("laundry_hamper", "item", [0.42, 0.35, 0.62], ["oak", "white", "black"]),
@@ -368,7 +378,7 @@ export const MODERN_GROUPS: { id: string; kinds: ModernKind[] }[] = [
       k("garden_bench", "bench", [1.5, 0.62, 0.85], ["oak", "walnut", "white", "green"], { accents: ["black", "anthracite", "green"] }),
       k("bistro_set", "table", [1.5, 0.7, 0.72], ["green", "black", "white", "terracotta", "blue"], { accents: ["black", "green", "white"] }),
       k("pergola", "item", [3.5, 3.0, 2.5], ["oak", "walnut", "anthracite", "white"]),
-      k("outdoor_kitchen", "kitchen", [2.4, 0.7, 0.92], ["concrete", "anthracite", "white", "terracotta"]),
+      k("outdoor_kitchen", "kitchen", [2.4, 0.7, 0.92], ["concrete", "anthracite", "white", "terracotta"], { options: HANDLE }),
       k("dog_house", "item", [0.8, 1.0, 0.85], ["oak", "red", "green", "white"]),
       k("bird_house", "item", [0.25, 0.25, 1.8], ["white", "oak", "green", "blue"]),
       k("fountain", "item", [1.2, 1.2, 1.2], ["concrete", "sand", "anthracite"]),

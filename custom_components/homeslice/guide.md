@@ -186,7 +186,7 @@ finish, any floor finish: wood by default, concrete, tile_white…).
 ### Furniture
 
 Optional, per room: `furniture: [{type, at, rotation, size, height, mount, model, finish,
-accent, entity, readings}]`.
+accent, options, entity, readings}]`.
 
 - `type`: one of the furniture types in the catalogue (decides the plan symbol and
   defaults). `at` is the piece's centre (room coordinates). `rotation` in degrees
@@ -198,6 +198,10 @@ accent, entity, readings}]`.
   `polyhaven:<id>`, `custom:<id>` or `builtin` (simple shapes). Without one, the type's
   default piece. Use `modern:` pieces; kinds, sizes, finishes and accents are in the
   catalogue.
+- `options`: choices a `modern:` piece offers, as listed in its catalogue `options` (the
+  first value is its own and need not be written), e.g. `options: {handle: knob}` on a
+  kitchen unit (`bar`, `knob`, `handleless`, `push`). A kind's `widths` are the widths it
+  is sold in; any width still works.
 - `entity`: what the piece is in Home Assistant, and the card shows its state: a lamp's
   `light.…` glows, a TV's `media_player.…` lights its screen, a fireplace's `switch.…`
   burns, a fan's `fan.…` or an air conditioner's `climate.…` turns and shows heating or

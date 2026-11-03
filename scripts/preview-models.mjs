@@ -11,7 +11,7 @@ import { chromium } from "playwright-core";
 
 const kinds = process.argv.slice(2);
 if (!kinds.length) {
-  console.error("usage: preview-models.mjs <piece>[:finish] …");
+  console.error("usage: preview-models.mjs <piece>[:finish][:option=value] …");
   process.exit(2);
 }
 const root = resolve(import.meta.dirname, "..");
@@ -45,7 +45,7 @@ if (errors.length) console.error(errors.join("\n"));
 const target = join(root, "test-results/preview");
 mkdirSync(target, { recursive: true });
 for (const [key, { png, triangles }] of Object.entries(images)) {
-  const file = join(target, `${key.replace(":", "-")}.png`);
+  const file = join(target, `${key.replace(/[:=]/g, "-")}.png`);
   writeFileSync(file, Buffer.from(png.split(",")[1], "base64"));
   console.log(`${file}  (${Math.round(triangles)} triangles)`);
 }

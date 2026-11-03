@@ -352,6 +352,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ]
       },
@@ -594,6 +605,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ]
       },
@@ -821,6 +843,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ]
       },
@@ -1257,6 +1290,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ]
       },
@@ -1500,6 +1544,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ]
       },
@@ -1734,6 +1789,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ]
       },
@@ -1973,6 +2039,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ]
       },
@@ -2204,6 +2281,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ]
       },
@@ -2425,6 +2513,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ]
       },
@@ -2652,6 +2751,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ]
       },
@@ -2879,6 +2989,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ]
       },
@@ -3094,6 +3215,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ]
       },
@@ -3369,6 +3501,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ]
       },
@@ -3588,6 +3731,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ]
       },
@@ -3811,6 +3965,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ]
       },
@@ -4039,6 +4204,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ]
       },
@@ -4266,6 +4442,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ]
       },
@@ -4493,6 +4680,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ]
       },
@@ -4715,6 +4913,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ]
       },
@@ -4942,6 +5151,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ]
       },
@@ -5169,6 +5389,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ]
       },
@@ -5396,6 +5627,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ]
       },
@@ -5623,6 +5865,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ]
       },
@@ -5850,6 +6103,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ]
       },
@@ -6073,6 +6337,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ]
       },
@@ -6294,6 +6569,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ]
       },
@@ -6520,6 +6806,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ]
       },
@@ -6747,6 +7044,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ],
        "cameras": [
@@ -6983,6 +7291,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ],
        "cameras": [
@@ -7215,6 +7534,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ],
        "cameras": [
@@ -7452,6 +7782,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ],
        "cameras": [
@@ -7689,6 +8030,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ],
        "cameras": [
@@ -7922,6 +8274,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ]
       },
@@ -8155,6 +8518,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ]
       },
@@ -8383,6 +8757,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ]
       },
@@ -8607,6 +8992,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ]
       },
@@ -8835,6 +9231,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ]
       },
@@ -9086,6 +9493,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ]
       },
@@ -11026,6 +11444,460 @@
   ]
  },
  {
+  "name": "furniture bad options",
+  "house": {
+   "schema": 2,
+   "id": "full",
+   "grid": {
+    "x": {
+     "a": 0,
+     "b": 4,
+     "c": 8
+    },
+    "y": {
+     "top": 0,
+     "mid": 5,
+     "bottom": 10
+    }
+   },
+   "outline": {
+    "rect": [
+     "a",
+     "top",
+     8,
+     10
+    ]
+   },
+   "facade_openings": [
+    {
+     "id": "col",
+     "side": "west",
+     "at": 1,
+     "width": 1.2,
+     "levels": [
+      "g",
+      "f"
+     ]
+    }
+   ],
+   "vertical": [
+    {
+     "id": "st",
+     "rect": [
+      5,
+      1,
+      3,
+      1.2
+     ],
+     "from": "g",
+     "to": "f",
+     "shape": "u_turn"
+    }
+   ],
+   "levels": [
+    {
+     "id": "g",
+     "rooms": [
+      {
+       "id": "a",
+       "rect": [
+        "a",
+        "top",
+        4,
+        5
+       ],
+       "lights": [
+        {
+         "entity": "light.a",
+         "at": [
+          1,
+          1
+         ]
+        }
+       ],
+       "furniture": [
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "options": {
+          "handle": 3
+         }
+        }
+       ]
+      },
+      {
+       "id": "b",
+       "polygon": [
+        [
+         "b",
+         "top"
+        ],
+        [
+         "c",
+         "top"
+        ],
+        [
+         "c",
+         "mid"
+        ],
+        [
+         "b",
+         "mid"
+        ]
+       ]
+      },
+      {
+       "id": "c",
+       "rect": [
+        0,
+        5,
+        8,
+        5
+       ],
+       "floor": "oak_herringbone",
+       "wall": "paint_sage",
+       "wall_sides": {
+        "north": "acoustic_oak"
+       }
+      }
+     ],
+     "openings": [
+      {
+       "room": "a",
+       "side": "north",
+       "at": 1,
+       "width": 1,
+       "type": "door",
+       "style": "glass"
+      }
+     ],
+     "walls": [
+      {
+       "between": [
+        "a",
+        "b"
+       ]
+      },
+      {
+       "between": [
+        "a",
+        "c"
+       ],
+       "type": "wall",
+       "thickness": 0.2
+      },
+      {
+       "line": [
+        [
+         1,
+         7
+        ],
+        [
+         3,
+         7
+        ]
+       ]
+      }
+     ]
+    },
+    {
+     "id": "f",
+     "rooms": [
+      {
+       "id": "x",
+       "rect": [
+        0,
+        0,
+        8,
+        10
+       ]
+      }
+     ]
+    }
+   ],
+   "roof": {
+    "ridge": "east_west",
+    "pitch": 30
+   },
+   "energy": [
+    {
+     "kind": "solar",
+     "roof": "south"
+    },
+    {
+     "kind": "battery",
+     "level": "g",
+     "at": [
+      1,
+      1
+     ]
+    },
+    {
+     "kind": "device",
+     "name": "Washer",
+     "level": "g",
+     "at": [
+      2,
+      2
+     ],
+     "power": "sensor.washer_power",
+     "to": "battery"
+    }
+   ],
+   "robots": [
+    {
+     "entity": "vacuum.robo",
+     "level": "g",
+     "dock": [
+      1,
+      1
+     ]
+    }
+   ],
+   "inverted_covers": [
+    "cover.awning"
+   ],
+   "north": 20,
+   "facade": "brick_red"
+  },
+  "errors": [
+   {
+    "path": "levels.g.rooms.a.furniture.0",
+    "message": "options must name a choice per option, e.g. {handle: knob}."
+   }
+  ]
+ },
+ {
+  "name": "furniture options a list",
+  "house": {
+   "schema": 2,
+   "id": "full",
+   "grid": {
+    "x": {
+     "a": 0,
+     "b": 4,
+     "c": 8
+    },
+    "y": {
+     "top": 0,
+     "mid": 5,
+     "bottom": 10
+    }
+   },
+   "outline": {
+    "rect": [
+     "a",
+     "top",
+     8,
+     10
+    ]
+   },
+   "facade_openings": [
+    {
+     "id": "col",
+     "side": "west",
+     "at": 1,
+     "width": 1.2,
+     "levels": [
+      "g",
+      "f"
+     ]
+    }
+   ],
+   "vertical": [
+    {
+     "id": "st",
+     "rect": [
+      5,
+      1,
+      3,
+      1.2
+     ],
+     "from": "g",
+     "to": "f",
+     "shape": "u_turn"
+    }
+   ],
+   "levels": [
+    {
+     "id": "g",
+     "rooms": [
+      {
+       "id": "a",
+       "rect": [
+        "a",
+        "top",
+        4,
+        5
+       ],
+       "lights": [
+        {
+         "entity": "light.a",
+         "at": [
+          1,
+          1
+         ]
+        }
+       ],
+       "furniture": [
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "options": [
+          "knob"
+         ]
+        }
+       ]
+      },
+      {
+       "id": "b",
+       "polygon": [
+        [
+         "b",
+         "top"
+        ],
+        [
+         "c",
+         "top"
+        ],
+        [
+         "c",
+         "mid"
+        ],
+        [
+         "b",
+         "mid"
+        ]
+       ]
+      },
+      {
+       "id": "c",
+       "rect": [
+        0,
+        5,
+        8,
+        5
+       ],
+       "floor": "oak_herringbone",
+       "wall": "paint_sage",
+       "wall_sides": {
+        "north": "acoustic_oak"
+       }
+      }
+     ],
+     "openings": [
+      {
+       "room": "a",
+       "side": "north",
+       "at": 1,
+       "width": 1,
+       "type": "door",
+       "style": "glass"
+      }
+     ],
+     "walls": [
+      {
+       "between": [
+        "a",
+        "b"
+       ]
+      },
+      {
+       "between": [
+        "a",
+        "c"
+       ],
+       "type": "wall",
+       "thickness": 0.2
+      },
+      {
+       "line": [
+        [
+         1,
+         7
+        ],
+        [
+         3,
+         7
+        ]
+       ]
+      }
+     ]
+    },
+    {
+     "id": "f",
+     "rooms": [
+      {
+       "id": "x",
+       "rect": [
+        0,
+        0,
+        8,
+        10
+       ]
+      }
+     ]
+    }
+   ],
+   "roof": {
+    "ridge": "east_west",
+    "pitch": 30
+   },
+   "energy": [
+    {
+     "kind": "solar",
+     "roof": "south"
+    },
+    {
+     "kind": "battery",
+     "level": "g",
+     "at": [
+      1,
+      1
+     ]
+    },
+    {
+     "kind": "device",
+     "name": "Washer",
+     "level": "g",
+     "at": [
+      2,
+      2
+     ],
+     "power": "sensor.washer_power",
+     "to": "battery"
+    }
+   ],
+   "robots": [
+    {
+     "entity": "vacuum.robo",
+     "level": "g",
+     "dock": [
+      1,
+      1
+     ]
+    }
+   ],
+   "inverted_covers": [
+    "cover.awning"
+   ],
+   "north": 20,
+   "facade": "brick_red"
+  },
+  "errors": [
+   {
+    "path": "levels.g.rooms.a.furniture.0",
+    "message": "options must name a choice per option, e.g. {handle: knob}."
+   }
+  ]
+ },
+ {
   "name": "furniture bad finish",
   "house": {
    "schema": 2,
@@ -11332,6 +12204,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ]
       },
@@ -11559,6 +12442,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ]
       },
@@ -11786,6 +12680,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ]
       },
@@ -12012,6 +12917,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ]
       },
@@ -12239,6 +13155,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ]
       },
@@ -12465,6 +13392,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ]
       },
@@ -12692,6 +13630,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ]
       },
@@ -12919,6 +13868,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ]
       },
@@ -13147,6 +14107,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ]
       },
@@ -13375,6 +14346,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ]
       },
@@ -13602,6 +14584,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ]
       },
@@ -13829,6 +14822,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ]
       },
@@ -14039,6 +15043,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ]
       },
@@ -14263,6 +15278,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ]
       },
@@ -14485,6 +15511,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ]
       },
@@ -14860,6 +15897,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ]
       },
@@ -15095,6 +16143,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ]
       },
@@ -15323,6 +16382,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ]
       },
@@ -15553,6 +16623,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ]
       },
@@ -15780,6 +16861,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ]
       },
@@ -16008,6 +17100,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ]
       },
@@ -16235,6 +17338,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ]
       },
@@ -16462,6 +17576,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ]
       },
@@ -16689,6 +17814,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ]
       },
@@ -16916,6 +18052,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ]
       },
@@ -17144,6 +18291,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ]
       },
@@ -17372,6 +18530,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ]
       },
@@ -17600,6 +18769,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ]
       },
@@ -17828,6 +19008,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ]
       },
@@ -18049,6 +19240,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ]
       },
@@ -18276,6 +19478,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ]
       },
@@ -18503,6 +19716,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ]
       },
@@ -18730,6 +19954,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ]
       },
@@ -18957,6 +20192,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ]
       },
@@ -19184,6 +20430,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ]
       },
@@ -19408,6 +20665,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ]
       },
@@ -19638,6 +20906,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ]
       },
@@ -19869,6 +21148,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ]
       },
@@ -20096,6 +21386,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ]
       },
@@ -20322,6 +21623,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ]
       },
@@ -20549,6 +21861,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ]
       },
@@ -20782,6 +22105,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ]
       },
@@ -21009,6 +22343,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ]
       },
@@ -21237,6 +22582,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ]
       },
@@ -21466,6 +22822,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ]
       },
@@ -21691,6 +23058,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ]
       },
@@ -21918,6 +23296,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ]
       },
@@ -22145,6 +23534,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ]
       },
@@ -22368,6 +23768,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ]
       },
@@ -22596,6 +24007,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ]
       },
@@ -22823,6 +24245,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ]
       },
@@ -23062,6 +24495,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ]
       },
@@ -23301,6 +24745,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ]
       },
@@ -23529,6 +24984,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ]
       },
@@ -23752,6 +25218,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ]
       },
@@ -23980,6 +25457,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ]
       },
@@ -24209,6 +25697,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ]
       },
@@ -24432,6 +25931,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ]
       },
@@ -24672,6 +26182,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ]
       },
@@ -24895,6 +26416,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ]
       },
@@ -25123,6 +26655,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ]
       },
@@ -25352,6 +26895,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ]
       },
@@ -25574,6 +27128,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ]
       },
@@ -25812,6 +27377,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ]
       },
@@ -26039,6 +27615,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ],
        "underfloor": "warm"
@@ -26267,6 +27854,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ]
       },
@@ -26497,6 +28095,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ]
       },
@@ -26729,6 +28338,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ],
        "railing": "rope"
@@ -26957,6 +28577,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ],
        "building": [
@@ -27187,6 +28818,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ],
        "building": {
@@ -27417,6 +29059,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ],
        "building": {
@@ -27648,6 +29301,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ],
        "building": {
@@ -27878,6 +29542,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ],
        "building": {
@@ -28108,6 +29783,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ],
        "building": {
@@ -28338,6 +30024,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ],
        "building": {
@@ -28568,6 +30265,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ]
       },
@@ -28824,6 +30532,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ]
       },
@@ -29051,6 +30770,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ]
       },
@@ -29283,6 +31013,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ]
       },
@@ -29520,6 +31261,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ]
       },
@@ -29757,6 +31509,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ]
       },
@@ -30000,6 +31763,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ]
       },
@@ -30243,6 +32017,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ]
       },
@@ -30486,6 +32271,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ]
       },
@@ -30737,6 +32533,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ]
       },
@@ -30992,6 +32799,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ]
       },
@@ -31218,6 +33036,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ]
       },
@@ -31444,6 +33273,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ]
       },
@@ -31674,6 +33514,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ]
       },
@@ -31906,6 +33757,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ]
       },
@@ -32138,6 +34000,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ]
       },
@@ -32366,6 +34239,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ]
       },
@@ -32599,6 +34483,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ]
       },
@@ -32831,6 +34726,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ]
       },
@@ -33067,6 +34973,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ]
       },
@@ -33305,6 +35222,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ]
       },
@@ -33546,6 +35474,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ]
       },
@@ -33787,6 +35726,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ]
       },
@@ -34021,6 +35971,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ]
       },
@@ -34259,6 +36220,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ]
       },
@@ -34506,6 +36478,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ]
       },
@@ -34752,6 +36735,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ]
       },
@@ -34999,6 +36993,17 @@
          "model": "piece:nothing",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ]
       },
@@ -35226,6 +37231,17 @@
          "model": "piece:unit",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ]
       },
@@ -35486,6 +37502,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ]
       },
@@ -35717,6 +37744,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ]
       },
@@ -35939,6 +37977,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ]
       },
@@ -36167,6 +38216,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ]
       },
@@ -36390,6 +38450,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ]
       },
@@ -36631,6 +38702,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ]
       },
@@ -36868,6 +38950,17 @@
          "finish": "grey",
          "accent": "oak",
          "visible_when": "christmas"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ]
       },
@@ -37096,6 +39189,17 @@
          "finish": "grey",
          "accent": "oak",
          "visible_when": "input_boolean.christmas"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ]
       },
@@ -37318,6 +39422,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ]
       },
@@ -37546,6 +39661,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ]
       },
@@ -37774,6 +39900,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ]
       },
@@ -37999,6 +40136,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ]
       },
@@ -38222,6 +40370,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ]
       },
@@ -38454,6 +40613,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ]
       },
@@ -38911,6 +41081,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ]
       },
@@ -39144,6 +41325,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ]
       },
@@ -39387,6 +41579,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ]
       },
@@ -39630,6 +41833,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ]
       },
@@ -39869,6 +42083,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ]
       },
@@ -40096,6 +42321,17 @@
          "model": "modern:sofa",
          "finish": "grey",
          "accent": "oak"
+        },
+        {
+         "type": "kitchen",
+         "at": [
+          1,
+          1
+         ],
+         "model": "modern:kitchen_base",
+         "options": {
+          "handle": "knob"
+         }
         }
        ]
       },

@@ -49,7 +49,16 @@ describe("Modern pieces", () => {
         expect(piece, k.id).not.toBeNull();
         expect(hasNaN(piece!), `${k.id}: NaN in its geometry`).toBe(false);
         expect(triangles(piece!), `${k.id}: triangles`).toBeLessThan(MAX_TRIANGLES);
-        const box = new THREE.Box3().setFromObject(piece!);
+        // the piece itself; parts drawn above it (a sink's tap) are checked on their own
+        const box = new THREE.Box3();
+        piece!.updateMatrixWorld(true);
+        piece!.traverse((o) => {
+          if (!(o instanceof THREE.Mesh)) return;
+          for (let p: THREE.Object3D | null = o; p && p !== piece; p = p.parent) if (p.userData.above) return;
+          box.expandByObject(o);
+        });
+        const all = new THREE.Box3().setFromObject(piece!);
+        expect(all.max.y, `${k.id}: parts above it at ${s}×`).toBeLessThan(box.max.y + 0.5);
         const size = box.getSize(new THREE.Vector3());
         // taps, lamp arms and leaves may reach a little out of the box, not more
         const slack = (m: number) => m * 1.12 + 0.2;

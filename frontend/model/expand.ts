@@ -189,6 +189,8 @@ export function expandHouse(input: unknown): ExpandResult {
       if (fi.model?.startsWith("piece:") && !pieceIds.has(fi.model!.slice(6))) return err(fp, `model ${fi.model} names no piece in pieces (pieces: ${[...pieceIds].join(", ") || "none"}).`);
       if (fi.finish !== undefined && typeof fi.finish !== "string") return err(fp, "finish must be a name like oak, white or grey.");
       if (fi.accent !== undefined && typeof fi.accent !== "string") return err(fp, "accent must be a name like black, brass or oak.");
+      if (fi.options !== undefined && !(fi.options && typeof fi.options === "object" && !Array.isArray(fi.options) && Object.values(fi.options).every((o) => typeof o === "string")))
+        return err(fp, "options must name a choice per option, e.g. {handle: knob}.");
       if (fi.readings !== undefined && !(Array.isArray(fi.readings) && fi.readings.every((r) => typeof r === "string" && r.includes("."))))
         return err(fp, "readings must be a list of entity ids, e.g. [sensor.car_battery].");
       if (fi.visible_when !== undefined && !(typeof fi.visible_when === "string" && fi.visible_when.includes(".")))
@@ -206,6 +208,7 @@ export function expandHouse(input: unknown): ExpandResult {
         ...(fi.model ? { model: fi.model } : {}),
         ...(fi.finish ? { finish: fi.finish } : {}),
         ...(fi.accent ? { accent: fi.accent } : {}),
+        ...(fi.options && Object.keys(fi.options).length ? { options: fi.options } : {}),
         ...(fi.readings?.length ? { readings: fi.readings } : {}),
         ...(fi.visible_when ? { visibleWhen: fi.visible_when } : {}),
       });

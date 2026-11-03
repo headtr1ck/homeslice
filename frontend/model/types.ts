@@ -169,6 +169,11 @@ export interface FurnitureInput {
   /** Modern pieces with a second colour: legs, frame, shade or base (e.g. black, brass, oak). */
   accent?: string;
   /**
+   * Modern pieces: choices the piece offers (see model/modern.ts options), e.g.
+   * `{handle: knob}` (bar, knob, handleless or push to open).
+   */
+  options?: Record<string, string>;
+  /**
    * The entity this piece is, e.g. a floor lamp's light (it then glows where the piece
    * stands) or a TV's media player (shown in the room's popup).
    */
@@ -657,7 +662,7 @@ export interface Room {
   /** `at` in plan coordinates; defaults filled in. */
   cameras: { entity: string; at: Vec2; direction: number; fov: number; range: number; height: number; motion?: string }[];
   /** `elevation`: bottom above the floor in metres (ceiling pieces: null, they hang from the ceiling). */
-  furniture: { type: FurnitureType; at: Vec2; rotation: number; size: [number, number]; height: number; mount: FurnitureMount; elevation: number | null; mirror: boolean; entity?: string; model?: string; finish?: string; accent?: string; readings?: string[]; visibleWhen?: string }[];
+  furniture: { type: FurnitureType; at: Vec2; rotation: number; size: [number, number]; height: number; mount: FurnitureMount; elevation: number | null; mirror: boolean; entity?: string; model?: string; finish?: string; accent?: string; options?: Record<string, string>; readings?: string[]; visibleWhen?: string }[];
 }
 
 /** Where an opening is defined: a level's own list, or a façade entry shared by levels. */
