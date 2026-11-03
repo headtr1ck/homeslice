@@ -841,6 +841,24 @@ def validate(house: Any) -> list[dict[str, str]]:
         ):
             err(f"{rp}.map", "map needs entity (image.*), size [width, height] in pixels, origin [x, y] in metres, scale (metres a pixel) and optionally rotation.")
             continue
+    for index, sec in enumerate(items(get(h, "sections"))):
+        sp = f"sections.{index}"
+        line = get(sec, "line")
+
+        def point(p: Any) -> bool:
+            return isinstance(p, list) and len(p) == 2 and all(is_num(x) for x in p)
+
+        if not isinstance(get(sec, "id"), str) or not isinstance(line, list) or len(line) != 2 or not all(point(p) for p in line):
+            err(sp, "A section needs id, line: [[x, y], [x, y]] and look: north, east, south or west.")
+            continue
+        look = get(sec, "look")
+        if isinstance(look, (dict, list)) or look not in SIDES:
+            err(f"{sp}.look", f"look must be one of {', '.join(SIDES)}, got {stringify(look)}.")
+            continue
+        (x0, y0), (x1, y1) = line
+        across = abs(y1 - y0) if look in ("east", "west") else abs(x1 - x0)
+        if across < 0.5:
+            err(f"{sp}.line", "line must run across the way one looks (at least 0.5 m), e.g. from west to east for look: north.")
     north = get(h, "north")
     if north is not MISSING and not is_num(north):
         err("north", f"north must be degrees (a number), got {stringify(north)}.")

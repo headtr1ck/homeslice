@@ -15,9 +15,9 @@ import { LineGeometry } from "three/examples/jsm/lines/LineGeometry.js";
 import { LineMaterial } from "three/examples/jsm/lines/LineMaterial.js";
 import { LineSegments2 } from "three/examples/jsm/lines/LineSegments2.js";
 import { LineSegmentsGeometry } from "three/examples/jsm/lines/LineSegmentsGeometry.js";
-import type { RoofPart, Room, House, Level, LightType, PieceInput, Side, Vec2, Vertical } from "../model/types";
+import type { RoofPart, Room, House, Level, LightType, PieceInput, Section, Side, Vec2, Vertical } from "../model/types";
 import { innerPolygon, type Wall, type WallOpening } from "../model/walls";
-import { bbox, innermost, labelPoint, nestedIn, overlap, pointInPolygon } from "../model/geometry";
+import { bbox, clipHalfPlane, innermost, labelPoint, nestedIn, overlap, pointInPolygon } from "../model/geometry";
 import { galleryRails, stairFrame, stairHole, stairRail, stairTreads } from "../model/stairs";
 
 /** `isometric`: parallel lines stay parallel; `perspective`: walls lean, like a photo. */
@@ -121,6 +121,11 @@ const BLUEPRINT = { background: "#0b1a33", surface: "#2f5c9e", glass: "#6aa6ff",
 
 /** The night look's outlines, unless the card picks another colour. */
 export const DEFAULT_ACCENT = "#4fc3f7";
+
+/** How high the camera looks at a section, in degrees. */
+const SECTION_ELEVATION = 18;
+/** The cut faces of walls and slabs (linear RGB, as the shader writes it). */
+const CUT_COLOR = "0.035, 0.04, 0.05";
 
 const COLORS = {
   wall: "#eeeae3",
@@ -438,6 +443,8 @@ export class HouseRenderer {
   private scene = new THREE.Scene();
   private camera = new THREE.PerspectiveCamera();
   private root = new THREE.Group();
+  private section: Section | null = null;
+  private sectionPlane = new THREE.Plane();
   private sun = new THREE.DirectionalLight(0xffffff, 2.2);
   private sky = new THREE.HemisphereLight(0xffffff, 0x50555c, 1.4);
   private ambient = new THREE.AmbientLight(0xffffff, 0.35);
@@ -652,6 +659,11 @@ export class HouseRenderer {
     this.aspect = this.extent(this.orientation, this.box);
     this.applyTheme();
     this.placeSun();
+    // a section shown stays (the same one, if the house still has it)
+    if (this.section) {
+      const same = house.sections?.find((x) => x.id === this.section!.id) ?? null;
+      void this.setSection(same, false);
+    }
   }
 
   private clear() {
@@ -3370,6 +3382,77 @@ export class HouseRenderer {
     return this.root;
   }
 
+  // ----- sections -----
+
+  /**
+   * Cuts the house along a section's line: what lies before it (seen looking `look`) goes,
+   * and the camera turns to look at the cut from a little above. Cut walls and slabs show
+   * dark faces where they are cut. Null: the whole house again.
+   */
+  setSection(s: Section | null, animate = true): Promise<void> {
+    this.section = s;
+    if (s) {
+      const look: Record<Side, Vec2> = { north: [0, -1], south: [0, 1], east: [1, 0], west: [-1, 0] };
+      const d = look[s.look];
+      // the line's normal, turned the way one looks
+      let n: Vec2 = [-(s.b[1] - s.a[1]), s.b[0] - s.a[0]];
+      if (n[0] * d[0] + n[1] * d[1] < 0) n = [-n[0], -n[1]];
+      const len = Math.hypot(n[0], n[1]) || 1;
+      const normal = new THREE.Vector3(n[0] / len, 0, n[1] / len);
+      // a few centimetres before the line: walls on it stay whole
+      this.sectionPlane.set(normal, -(normal.x * s.a[0] + normal.z * s.a[1]) + 0.02);
+    }
+    this.renderer.clippingPlanes = s ? [this.sectionPlane] : [];
+    this.capCuts(!!s);
+    if (!s) {
+      this.draw();
+      return Promise.resolve();
+    }
+    // the camera on the near side, looking across the cut
+    const azimuth = { south: 0, west: 90, north: 180, east: 270 }[s.look];
+    if (!animate) {
+      this.orientation = { ...this.orientation, azimuth, elevation: SECTION_ELEVATION };
+      this.draw();
+      return Promise.resolve();
+    }
+    return this.turnTo(azimuth, SECTION_ELEVATION);
+  }
+
+  /** Where a room's label goes while a section is shown: in the part of it that stays (null: none does). */
+  sectionLabelPoint(poly: Vec2[]): Vec2 | null {
+    if (!this.section) return labelPoint(poly);
+    const kept = clipHalfPlane(poly, [this.sectionPlane.normal.x, this.sectionPlane.normal.z], this.sectionPlane.constant - 0.05);
+    return kept.length ? labelPoint(kept) : null;
+  }
+
+  /** The section shown, if any. */
+  get sectionShown(): Section | null {
+    return this.section;
+  }
+
+  /** Back faces of the house's own (closed) pieces drawn dark: the cut faces of walls and slabs. */
+  private capCuts(on: boolean) {
+    for (const l of this.levels)
+      for (const m of l.materials) {
+        if (!(m instanceof THREE.MeshLambertMaterial) || m.transparent) continue;
+        if (on && m.side === THREE.FrontSide) {
+          m.side = THREE.DoubleSide;
+          m.userData.capped = true;
+          m.onBeforeCompile = (shader) => {
+            shader.fragmentShader = shader.fragmentShader.replace("#include <dithering_fragment>", `#include <dithering_fragment>\n  if (!gl_FrontFacing) gl_FragColor = vec4(${CUT_COLOR}, 1.0);`);
+          };
+          m.customProgramCacheKey = () => "section-cut";
+          m.needsUpdate = true;
+        } else if (!on && m.userData.capped) {
+          m.side = THREE.FrontSide;
+          delete m.userData.capped;
+          m.onBeforeCompile = () => {};
+          m.customProgramCacheKey = () => "";
+          m.needsUpdate = true;
+        }
+      }
+  }
+
   /** For tests: whether the roof is drawn. */
   roofVisible() {
     return !!this.roof?.visible;
@@ -3857,6 +3940,8 @@ export class HouseRenderer {
 
   /** Animates back to the configured camera of the current focus. */
   resetView(): Promise<void> {
+    // a section: back to looking across its cut
+    if (this.section) return this.setFocus(this.focus).then(() => this.setSection(this.section));
     return this.setFocus(this.focus);
   }
 
@@ -4082,6 +4167,8 @@ export class HouseRenderer {
   project(levelId: string, [x, y]: Vec2, h = 0): { x: number; y: number } | null {
     const l = this.levels[this.levelIds.indexOf(levelId)];
     if (!l) return null;
+    // cut away by the section shown
+    if (this.section && this.sectionPlane.normal.x * x + this.sectionPlane.normal.z * y + this.sectionPlane.constant < 0) return null;
     const v = new THREE.Vector3(x + l.group.position.x, l.group.position.y + h, y + l.group.position.z).project(this.camera);
     return { x: ((v.x + 1) / 2) * this.size.width, y: ((1 - v.y) / 2) * this.size.height };
   }

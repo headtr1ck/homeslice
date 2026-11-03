@@ -211,6 +211,10 @@ const MUTATIONS: [string, (h: House) => unknown][] = [
   ["dormer odd shape", (h) => ((h.roof = { dormers: [{ side: "south", at: 2, shape: "round" }] }), h)],
   ["energy details not entities", (h) => ((h.energy[2].details = ["cop"]), h)],
   ["furniture readings not entities", (h) => ((L(h).rooms[0].furniture = [{ type: "car", at: [1, 1], readings: ["range"] }]), h)],
+  ["section without a line", (h) => ((h.sections = [{ id: "cut", look: "north" }]), h)],
+  ["section looking up", (h) => ((h.sections = [{ id: "cut", line: [[0, 4], [8, 4]], look: "up" }]), h)],
+  ["section along the view", (h) => ((h.sections = [{ id: "cut", line: [[2, 0], [2, 8]], look: "north" }]), h)],
+  ["valid: a section through the stairs", (h) => ((h.sections = [{ id: "cut", name: "Through the stairs", line: [[0, 4], [8, 4]], look: "north" }]), h)],
   ["errors hide later checks", (h) => ((h.north = "NNE"), (h.roof.pitch = 90), h)],
   ["several errors at once", (h) => ((L(h).openings[0].room = "zz"), (L(h).rooms[0].furniture[0].type = "x"), (h.energy[0].kind = "?"), h)],
 ];

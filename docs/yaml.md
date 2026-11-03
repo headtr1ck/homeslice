@@ -56,6 +56,8 @@ roof:                                   # optional; drawn by cards with view.roo
     - { side: south, at: 2, up: 1.5, cover: cover.roof_window, contact: binary_sensor.roof_window }
 north: 0                                # optional: degrees the plan's north side is turned east of true north
 inverted_covers: [cover.awning]         # optional: covers that report open/closed the other way round
+sections:                               # optional: cuts through the house, a card button each
+  - { id: stairs, name: Through the stairs, line: [[-1, 5], [9, 5]], look: north }
 robots:                                 # optional: robot vacuums and lawn mowers
   - { entity: vacuum.robo, level: ground, dock: [0.8, 3.3] }   # live position: see the editor
 opening_defaults:                       # optional, house-wide per opening type

@@ -17,7 +17,7 @@ import de from "../i18n/de.json";
 import { DEFAULTS, LIGHT_TYPES, expandHouse } from "../model/expand";
 import { bbox, bendEdges, edgeDistance, labelPoint, normalizeOrientation, pointInPolygon, project, signedArea, within } from "../model/geometry";
 import { closedFaces, faceAt } from "../model/faces";
-import type { Building, DormerInput, EnergyInput, LevelInput, RoofInput, RoofPartInput, RoofWindowInput, FurnitureInput, FurnitureMount, FurnitureType, HouseInput, Issue, LightType, OpeningInput, OpeningSource, OpeningType, PieceInput, RoomInput, ShapeInput, Side, StairShape, Vec2, VerticalInput } from "../model/types";
+import type { Building, DormerInput, EnergyInput, LevelInput, RoofInput, RoofPartInput, RoofWindowInput, SectionInput, FurnitureInput, FurnitureMount, FurnitureType, HouseInput, Issue, LightType, OpeningInput, OpeningSource, OpeningType, PieceInput, RoomInput, ShapeInput, Side, StairShape, Vec2, VerticalInput } from "../model/types";
 import { deriveWalls, innerPolygon, sideOfRoom, type Wall, type WallOpening } from "../model/walls";
 import { HouseRenderer } from "../render/scene";
 import { stairHole, stairPath, stairTreads } from "../model/stairs";
@@ -156,7 +156,7 @@ import {
 } from "./ops";
 
 /** What a click on the plan does: select and drag, or add something. */
-type Tool = "select" | "rect" | "balcony" | "stairs" | "wall" | "railing" | "divide" | "assign" | "opening" | "furniture" | "devices" | "robots" | "measure";
+type Tool = "select" | "rect" | "balcony" | "stairs" | "wall" | "railing" | "divide" | "assign" | "opening" | "furniture" | "devices" | "robots" | "measure" | "section";
 /** What the plan shows (visibility toggles below the tools). */
 type Layer = "dims" | "furniture" | "lights" | "devices" | "below";
 const LAYERS: { layer: Layer; icon: string }[] = [
@@ -197,6 +197,7 @@ const TOOLS: { tool: Tool; icon: string; key: string; group?: "build" | "opening
   { tool: "devices", icon: "mdi:lightning-bolt-outline", key: "E", group: "devices" },
   { tool: "robots", icon: "mdi:robot-vacuum", key: "O", group: "devices" },
   { tool: "measure", icon: "mdi:tape-measure", key: "M" },
+  { tool: "section", icon: "mdi:box-cutter", key: "C" },
 ];
 
 /** More words each tool is found by in the command search. */
@@ -214,6 +215,7 @@ const TOOL_WORDS: Record<Tool, string> = {
   devices: "energy solar battery grid inverter heat pump wallbox",
   robots: "robot vacuum mower dock",
   measure: "measure ruler distance length",
+  section: "section cut slice cross-section dollhouse profile",
 };
 
 // ----- drafts: unsaved changes kept in this browser -----
@@ -347,6 +349,7 @@ type Drag =
   | { kind: "wall"; origin: HouseInput; a: Vec2; b: Vec2; startWorld: Vec2; normal: Vec2; thickness: number; faces: number[] }
   | { kind: "opening"; origin: HouseInput; base?: HouseInput; src: OpeningSource; axis: 0 | 1; startWorld: Vec2; at: number; snaps: OpeningSnaps; room: string }
   | { kind: "measure"; ctx: SnapContext }
+  | { kind: "section"; ctx: SnapContext }
   | { kind: "freewall"; ctx: SnapContext }
   | { kind: "freewall-end"; origin: HouseInput; index: number; end: 0 | 1; ctx: SnapContext }
   | { kind: "freewall-move"; origin: HouseInput; index: number; line: [Vec2, Vec2]; startWorld: Vec2; ctx: SnapContext; faces: number[]; normal: Vec2 }
@@ -467,6 +470,8 @@ export class HomeslicePanel extends LitElement {
     _show: { state: true },
     _dimEdit: { state: true },
     _measure: { state: true },
+    _sectionSel: { state: true },
+    _sectionDraft: { state: true },
     _linePreview: { state: true },
     _freeWall: { state: true },
     _linkEnd: { state: true },
@@ -588,6 +593,9 @@ export class HomeslicePanel extends LitElement {
   private dimTargets = new Map<string, DimTarget>();
   /** The measuring tool's line. */
   private _measure: { a: Vec2; b: Vec2 } | null = null;
+  /** The selected section (its index), and one being drawn. */
+  private _sectionSel: number | null = null;
+  private _sectionDraft: { a: Vec2; b: Vec2 } | null = null;
   /** A free-standing wall being drawn. */
   private _linePreview: [Vec2, Vec2] | null = null;
   /** Selected free-standing wall (index in the level's `walls`). */
@@ -1552,6 +1560,7 @@ export class HomeslicePanel extends LitElement {
     this._furn = null;
     this._energySel = null;
     this._robotSel = null;
+    this._sectionSel = null;
   }
 
   private toggleLayer(layer: Layer, on = !this._show[layer]) {
@@ -1916,7 +1925,7 @@ export class HomeslicePanel extends LitElement {
       // first Escape: let go of the selection and anything half done; the next: back to Select
       const busy =
         !!(this._room || this._wall || this._opening || this._stair || this._furn || this._energyPlace || this._robotPlace || this._robotCalib || this._settings || this._checklist) ||
-        this._freeWall !== null || this._energySel !== null || this._robotSel !== null || !!this._measure || !!this._dimEdit || !!this._calib || !!this._straighten || this._underlayMove;
+        this._freeWall !== null || this._energySel !== null || this._robotSel !== null || this._sectionSel !== null || !!this._measure || !!this._dimEdit || !!this._calib || !!this._straighten || this._underlayMove;
       // drawing walls or railings: one Escape is enough (the last one drawn stays selected meanwhile)
       if (!busy || this._tool === "wall" || this._tool === "railing" || this._tool === "divide" || this._tool === "assign") this._tool = "select";
       this.clearSelection();
@@ -2203,6 +2212,13 @@ export class HomeslicePanel extends LitElement {
       const p = snap(world, ctx).p;
       this._measure = { a: p, b: p };
       this._drag = { kind: "measure", ctx };
+      return;
+    }
+    if (this._tool === "section") {
+      const ctx = this.snapContext();
+      const p = snap(world, ctx).p;
+      this._sectionDraft = { a: p, b: p };
+      this._drag = { kind: "section", ctx };
       return;
     }
     // one click places something waiting for its spot
@@ -2630,6 +2646,11 @@ export class HomeslicePanel extends LitElement {
       this._linkEnd = world;
       return;
     }
+    if (drag.kind === "section" && this._sectionDraft) {
+      const s = snapped(world, drag.ctx);
+      this._sectionDraft = { a: this._sectionDraft.a, b: s.p };
+      return;
+    }
     if (drag.kind === "measure" && this._measure) {
       const s = snapped(world, drag.ctx);
       this._guides = { x: s.alignX, y: s.alignY, ring: s.target };
@@ -2711,6 +2732,25 @@ export class HomeslicePanel extends LitElement {
     }
     if (drag.kind === "underlay" && this._underlay) {
       this.saveUnderlay({ place: this._underlay.place });
+      return;
+    }
+    if (drag.kind === "section") {
+      const d = this._sectionDraft;
+      this._sectionDraft = null;
+      if (!d || Math.hypot(d.b[0] - d.a[0], d.b[1] - d.a[1]) < 0.5) return;
+      const m = structuredClone(this._model);
+      const sections = (m.sections ??= []);
+      const ids = new Set(sections.map((s) => s.id));
+      let n = sections.length + 1;
+      while (ids.has(`section_${n}`)) n++;
+      // looking across the line: north or west (from the street side up), whichever crosses it
+      const horizontal = Math.abs(d.b[0] - d.a[0]) >= Math.abs(d.b[1] - d.a[1]);
+      const r = (p: Vec2): [number, number] => [Math.round(p[0] * 100) / 100, Math.round(p[1] * 100) / 100];
+      sections.push({ id: `section_${n}`, name: this.t("editor.section_name", { n: String(n) }), line: [r(d.a), r(d.b)], look: horizontal ? "north" : "west" });
+      this.commit(m);
+      this.clearSelection();
+      this._sectionSel = sections.length - 1;
+      this.tipOnce("section");
       return;
     }
     if (drag.kind === "floor-move") {
@@ -2902,7 +2942,7 @@ export class HomeslicePanel extends LitElement {
     }
     if ((changed.has("_level") || changed.has("_house")) && this._model) void this.loadUnderlay();
     if ((changed.has("_model") || changed.has("_saved")) && this._model && !this._draft) this.keepDraft();
-    if (changed.has("_model") || changed.has("_level")) {
+    if (changed.has("_model") || changed.has("_level") || changed.has("_sectionSel")) {
       if (this._model && this.fitted !== `${this._house}/${this._level}`) {
         this.fitted = `${this._house}/${this._level}`;
         this.fitView();
@@ -2957,8 +2997,11 @@ export class HomeslicePanel extends LitElement {
     const zoom = this.renderer.zoom;
     this.renderer.setModel(house, walls, { focus: { azimuth: 200, elevation: 50, projection: "perspective" } });
     const index = house.levels.findIndex((l) => l.id === this._level);
-    void this.renderer.setFocus(index >= 0 ? index : null, false);
-    if (keep && this.previewTouched) {
+    // a selected section: the preview shows its cut, all floors
+    const section = this._sectionSel !== null ? (house.sections[this._sectionSel] ?? null) : null;
+    void this.renderer.setFocus(section ? null : index >= 0 ? index : null, false);
+    void this.renderer.setSection(section, false);
+    if (keep && this.previewTouched && !section) {
       this.renderer.orientation = keep;
       this.renderer.zoom = zoom;
     }
@@ -3709,6 +3752,7 @@ export class HomeslicePanel extends LitElement {
       ${this._linePreview ? svg`<polyline class="line-preview ${this._tool === "divide" ? "divide" : ""}" points=${pts(this._linePreview)}></polyline>` : nothing}
       ${this._opening ? this.renderOpeningDims(walls) : nothing}
       ${this._measure ? this.renderMeasure(this._measure) : nothing}
+      ${this.renderSections()}
       ${this.renderGuides()}
       ${this._dimEdit ? this.renderDimEdit(this._dimEdit) : nothing}`;
     this._planContent = content;
@@ -4572,6 +4616,63 @@ export class HomeslicePanel extends LitElement {
     })}</g>`;
   }
 
+  /** The house's sections on the plan: a dash-dot line, arrows the way one looks, its name. */
+  private renderSections() {
+    const list = (this._model?.sections ?? []).map((s, i) => ({ a: s.line[0] as Vec2, b: s.line[1] as Vec2, look: s.look as Side | undefined, name: s.name ?? s.id, i }));
+    if (this._sectionDraft) list.push({ ...this._sectionDraft, look: undefined, name: "", i: -1 });
+    const dirs: Record<Side, Vec2> = { north: [0, -1], south: [0, 1], east: [1, 0], west: [-1, 0] };
+    return svg`${list.map(({ a, b, look, name, i }) => {
+      const [ax, ay] = this.toScreen(a);
+      const [bx, by] = this.toScreen(b);
+      const sel = i === this._sectionSel;
+      const d = look ? dirs[look] : null;
+      // an arrow at each end, the way one looks
+      const arrow = (x: number, y: number) => (d ? svg`<path class="section-arrow" d="M ${x} ${y} l ${d[0] * 22} ${d[1] * 22} m ${-d[0] * 7 - d[1] * 6} ${-d[1] * 7 - d[0] * 6} l ${d[0] * 7 + d[1] * 6} ${d[1] * 7 + d[0] * 6} l ${-d[0] * 7 + d[1] * 6} ${-d[1] * 7 - d[0] * 6}"></path>` : nothing);
+      return svg`<g class="section-line ${sel ? "selected" : ""}" data-section=${i}>
+        <line x1=${ax} y1=${ay} x2=${bx} y2=${by}></line>
+        ${arrow(ax, ay)}${arrow(bx, by)}
+        ${name ? svg`<text x=${ax} y=${ay - (d && d[1] < 0 ? 34 : 12)} text-anchor="end">${name}</text>` : nothing}
+        ${i >= 0
+          ? svg`<line class="section-hit" x1=${ax} y1=${ay} x2=${bx} y2=${by} stroke-width="14" @pointerdown=${(e: PointerEvent) => {
+              if (this._tool !== "select" && this._tool !== "section") return;
+              e.stopPropagation();
+              this.clearSelection();
+              this._sectionSel = i;
+            }}></line>`
+          : nothing}
+      </g>`;
+    })}`;
+  }
+
+  private renderSectionInspector(i: number) {
+    const m = this._model!;
+    const s = m.sections![i];
+    const set = (patch: Partial<SectionInput>) => {
+      const next = structuredClone(m);
+      Object.assign(next.sections![i], patch);
+      this.commit(next);
+    };
+    const horizontal = Math.abs(s.line[1][0] - s.line[0][0]) >= Math.abs(s.line[1][1] - s.line[0][1]);
+    const looks: Side[] = horizontal ? ["north", "south"] : ["west", "east"];
+    return html`<h2>${s.name ?? s.id}</h2>
+      <p class="muted">${this.t("editor.section_hint")}</p>
+      <label>${this.t("editor.section_name_label")}
+        <input data-section-name .value=${s.name ?? ""} @change=${(e: Event) => set({ name: (e.target as HTMLInputElement).value.trim() || undefined })} />
+      </label>
+      <label>${this.t("editor.section_look")}
+        <select data-section-look @change=${(e: Event) => set({ look: (e.target as HTMLSelectElement).value as Side })}>
+          ${looks.map((sd) => html`<option value=${sd} ?selected=${s.look === sd}>${this.t(`editor.side_${sd}` as StringKey)}</option>`)}
+        </select>
+      </label>
+      <button class="danger" data-section-delete @click=${() => {
+        const next = structuredClone(m);
+        next.sections!.splice(i, 1);
+        if (!next.sections!.length) delete next.sections;
+        this._sectionSel = null;
+        this.commit(next);
+      }}>${this.t("editor.section_delete")}</button>`;
+  }
+
   private renderMeasure({ a, b }: { a: Vec2; b: Vec2 }) {
     const [ax, ay] = this.toScreen(a);
     const [bx, by] = this.toScreen(b);
@@ -4695,6 +4796,7 @@ export class HomeslicePanel extends LitElement {
     if (this._tool === "robots")
       return html`<h2>${this.t("editor.sub_robots")}</h2>
         ${this.renderRobotSection() === nothing ? html`<p class="muted">${this.t("editor.robots_none")}</p>` : this.renderRobotSection()}`;
+    if (this._sectionSel !== null && this._model?.sections?.[this._sectionSel]) return this.renderSectionInspector(this._sectionSel);
     if (this._stair) return this.renderStairInspector(this._stair);
     if (this._freeWall !== null) return this.renderFreeWallInspector(this._freeWall);
     if (this._room === OUTLINE) return this.renderOutlineInspector();
@@ -5100,7 +5202,7 @@ export class HomeslicePanel extends LitElement {
   }
 
   /** The tip for `what`, the first time it is done in this browser. */
-  private tipOnce(what: "room" | "wall" | "opening" | "stairs") {
+  private tipOnce(what: "room" | "wall" | "opening" | "stairs" | "section") {
     let seen: string[] = [];
     try {
       seen = JSON.parse(localStorage.getItem("homeslice-tips") ?? "[]");
@@ -6745,6 +6847,7 @@ export class HomeslicePanel extends LitElement {
       ["S", "editor.key_stairs"],
       ["W", "editor.key_wall"],
       ["M", "editor.key_measure"],
+      ["C", "editor.key_section"],
       ["R (" + this.t("editor.mode_objects") + ")", "editor.key_turn"],
       ["Ctrl+D", "editor.key_duplicate"],
       ["D", "editor.key_opening"],
@@ -8614,6 +8717,31 @@ export class HomeslicePanel extends LitElement {
       stroke: #4a4f55;
       stroke-width: 1;
       pointer-events: none;
+    }
+    .section-line line:not(.section-hit),
+    .section-line .section-arrow {
+      stroke: #e0565b;
+      stroke-width: 2;
+      fill: none;
+    }
+    .section-line line:not(.section-hit) {
+      stroke-dasharray: 14 4 3 4;
+    }
+    .section-line.selected line:not(.section-hit),
+    .section-line.selected .section-arrow {
+      stroke-width: 3.5;
+    }
+    .section-line text {
+      fill: #e0565b;
+      font-size: 12px;
+      font-weight: 600;
+      paint-order: stroke;
+      stroke: var(--plan-bg, #fff);
+      stroke-width: 3px;
+    }
+    .section-hit {
+      stroke: transparent;
+      cursor: pointer;
     }
     .measure line {
       stroke: #ff4fa3;

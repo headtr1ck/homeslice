@@ -47,7 +47,9 @@ flies to what happens (a doorbell) or to what you ask Assist for ("Show the kitc
 Tap a room's lamp to switch its lights (on a picked floor, rooms with several lamps get
 one toggle per lamp), tap a room for a popup with its devices (including the blinds and
 contacts of its windows), pick a floor to lift the floors above away. Hovering a floor
-highlights it and makes the floors above see-through.
+highlights it and makes the floors above see-through. A house with sections (drawn in the
+editor with the Section tool) has a button for each: all floors cut along its line, seen
+from the side, like an architect's section; again (or a floor) shows the whole house.
 
 ## All options
 

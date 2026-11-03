@@ -251,3 +251,20 @@ export function offsetEdges(poly: Vec2[], by: number[]): Vec2[] {
     return [a1[0] + d1[0] * t, a1[1] + d1[1] * t];
   });
 }
+
+/** The part of a polygon where n·p + c ≥ 0 (a cut through it); empty when none is. */
+export function clipHalfPlane(poly: Vec2[], n: Vec2, c: number): Vec2[] {
+  const side = (p: Vec2) => n[0] * p[0] + n[1] * p[1] + c;
+  const out: Vec2[] = [];
+  poly.forEach((p, i) => {
+    const q = poly[(i + 1) % poly.length];
+    const sp = side(p);
+    const sq = side(q);
+    if (sp >= 0) out.push(p);
+    if ((sp >= 0) !== (sq >= 0)) {
+      const t = sp / (sp - sq);
+      out.push([p[0] + (q[0] - p[0]) * t, p[1] + (q[1] - p[1]) * t]);
+    }
+  });
+  return out.length >= 3 ? out : [];
+}

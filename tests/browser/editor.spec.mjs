@@ -877,6 +877,30 @@ test.describe.serial("editor", () => {
     assert((await page.locator("homeslice-panel svg.plan g.measure").count()) === 0, "measurement not cleared");
   });
 
+  test("a section: drawn across the house, its view turned, deleted", async () => {
+    await page.keyboard.press("c");
+    const a = await toPage([-1, 5]);
+    const b = await toPage([9, 5]);
+    await page.mouse.move(a.x, a.y);
+    await page.mouse.down();
+    await page.mouse.move(b.x, b.y, { steps: 6 });
+    await page.mouse.up();
+    const drawn = (await model()).sections;
+    assert(drawn?.length === 1 && drawn[0].look === "north" && drawn[0].line[0][1] === drawn[0].line[1][1], `sections: ${JSON.stringify(drawn)}`);
+    assert((await page.locator("homeslice-panel svg.plan g.section-line").count()) === 1, "not on the plan");
+    await page.locator("homeslice-panel .inspector select[data-section-look]").selectOption("south");
+    assert((await model()).sections[0].look === "south", "look");
+    // the 3D preview shows the cut while the section is selected
+    await page.waitForFunction(() => window.panel.renderer.renderer.clippingPlanes.length === 1);
+    await page.waitForTimeout(300);
+    await shot(page, "editor-section");
+    await page.locator("homeslice-panel .inspector button[data-section-delete]").click();
+    assert(!(await model()).sections, "not deleted");
+    await page.waitForFunction(() => window.panel.renderer.renderer.clippingPlanes.length === 0);
+    await page.keyboard.press("Escape");
+    await page.keyboard.press("Escape");
+  });
+
   test("a free-standing wall: draw, change its thickness, delete", async () => {
     await page.keyboard.press("w");
     const a = await toPage([1, 8]);

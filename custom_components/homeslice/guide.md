@@ -234,7 +234,9 @@ default to Home Assistant's energy settings). Any item can add `details: [sensor
 sensor.…, name: Hot water}]`: more readings in its callout (a heat pump's COP, hot water…). `robots: [{entity: vacuum.…, level, dock:
 [x, y]}]`. A live position needs `position: {attribute: …}` (map coordinates in an
 attribute), `{service: roborock.get_vacuum_current_position}` (Roborock) or GPS, and two
-calibration `points` set in the editor.
+calibration `points` set in the editor. `sections: [{id, name, line: [[x, y], [x, y]], look:
+north|south|east|west}]`: cuts through the house (the card shows all floors cut along the
+line, what lies beyond it in the `look` direction); the line runs across the look direction.
 
 ## Common mistakes
 

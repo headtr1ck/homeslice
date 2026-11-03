@@ -553,6 +553,25 @@ export interface HouseInput {
   roof?: RoofInput;
   energy?: EnergyInput[];
   robots?: RobotInput[];
+  /** Cuts through the house, like an architect's section: the card shows what is behind the line, looking `look`. */
+  sections?: SectionInput[];
+}
+
+export interface SectionInput {
+  id: string;
+  name?: string;
+  /** Where the house is cut: two points (metres), running across the view. */
+  line: [[number, number], [number, number]];
+  /** The way one looks at the cut: what lies beyond the line in this direction stays. */
+  look: Side;
+}
+
+export interface Section {
+  id: string;
+  name: string;
+  a: Vec2;
+  b: Vec2;
+  look: Side;
 }
 
 /**
@@ -734,6 +753,7 @@ export interface House {
   invertedCovers: string[];
   facade?: string;
   robots: Robot[];
+  sections: Section[];
   north: number;
 }
 

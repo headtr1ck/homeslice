@@ -332,6 +332,34 @@ test.describe.serial("demo house, roof (1)", () => {
     await act(page, () => page.evaluate(() => window.card.hass.pushModel(window.__demoModel)));
   });
 
+  test("a section: all floors cut along a line, seen across it; labels only where the house stays", async () => {
+    await act(page, () =>
+      page.evaluate(() => {
+        const m = structuredClone(window.__demoModel);
+        m.sections = [{ id: "stairs", name: "Through the stairs", line: [[-1, 5], [9, 5]], look: "north" }];
+        window.card.hass.pushModel(m);
+      }),
+    );
+    const button = page.locator("homeslice-card button[data-section=stairs]");
+    assert((await button.textContent()).includes("Through the stairs"), "no section button");
+    await act(page, () => button.click());
+    await page.waitForTimeout(700);
+    const state = await page.evaluate(() => ({
+      planes: window.card.renderer.renderer.clippingPlanes.length,
+      azimuth: Math.round(window.card.renderer.orientation.azimuth),
+      labels: window.card._labels.map((l) => l.key),
+    }));
+    assert(state.planes === 1 && state.azimuth === 180, JSON.stringify(state));
+    // the kids' room (south of the cut) is gone; the bedroom, cut through, keeps its label
+    assert(!state.labels.some((k) => k.endsWith("/kids")) && state.labels.some((k) => k.endsWith("/bedroom")), JSON.stringify(state.labels));
+    await shot(page, "demo-section");
+    // again: the whole house
+    await act(page, () => button.click());
+    await page.waitForTimeout(700);
+    assert((await page.evaluate(() => window.card.renderer.renderer.clippingPlanes.length)) === 0, "still cut");
+    await act(page, () => page.evaluate(() => window.card.hass.pushModel(window.__demoModel)));
+  });
+
   test("a shed in the garden: a building of its own, with outside walls and a roof", async () => {
     const before = await triangles(page);
     await act(page, () =>

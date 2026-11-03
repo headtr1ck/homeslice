@@ -98,6 +98,7 @@ Press `?` in the editor for this overview.
 | `W` | Draw a free-standing wall |
 | `G`, `B`, `X`, `A` | Railing, balcony, divider, assign |
 | `M` | Measure |
+| `C` | Section: drag a line across the house; the card gets a button that shows the house cut there |
 | `D` | Doors & windows |
 | `F` | Furniture |
 | `E`, `O` | Energy, robots |

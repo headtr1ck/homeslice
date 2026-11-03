@@ -33,6 +33,7 @@ import type {
   Robot,
   Room,
   Building,
+  Section,
   ShapeInput,
   Side,
   Vec2,
@@ -738,9 +739,20 @@ export function expandHouse(input: unknown): ExpandResult {
       ...(map ? { map: { entity: map.entity, size: [map.size[0], map.size[1]], origin: [map.origin[0], map.origin[1]], scale: map.scale, rotation: map.rotation ?? 0 } } : {}),
     });
   });
+  const sections: Section[] = [];
+  (h.sections ?? []).forEach((s, index) => {
+    const sp = `sections.${index}`;
+    const point = (p: unknown) => Array.isArray(p) && p.length === 2 && p.every((x) => typeof x === "number");
+    if (typeof s?.id !== "string" || !Array.isArray(s.line) || s.line.length !== 2 || !s.line.every(point)) return err(sp, "A section needs id, line: [[x, y], [x, y]] and look: north, east, south or west.");
+    if (!SIDES.includes(s.look)) return err(`${sp}.look`, `look must be one of ${SIDES.join(", ")}, got ${JSON.stringify(s.look)}.`);
+    const [[x0, y0], [x1, y1]] = s.line;
+    const across = s.look === "east" || s.look === "west" ? Math.abs(y1 - y0) : Math.abs(x1 - x0);
+    if (across < 0.5) return err(`${sp}.line`, "line must run across the way one looks (at least 0.5 m), e.g. from west to east for look: north.");
+    sections.push({ id: s.id, name: typeof s.name === "string" ? s.name : s.id, a: [x0, y0], b: [x1, y1], look: s.look });
+  });
   if (h.north !== undefined && typeof h.north !== "number") err("north", `north must be degrees (a number), got ${JSON.stringify(h.north)}.`);
   const north = typeof h.north === "number" ? h.north : 0;
-  return { house: { id: h.id, name: h.name ?? h.id, walls, levels, vertical, roof, energy, invertedCovers, robots, north, ...(h.facade ? { facade: h.facade } : {}), ...(h.pieces?.length ? { pieces: h.pieces } : {}) }, issues };
+  return { house: { id: h.id, name: h.name ?? h.id, walls, levels, vertical, roof, energy, invertedCovers, robots, sections, north, ...(h.facade ? { facade: h.facade } : {}), ...(h.pieces?.length ? { pieces: h.pieces } : {}) }, issues };
 }
 
 /** Whether p lies on the polygon's boundary (a room sharing a wall with the house). */

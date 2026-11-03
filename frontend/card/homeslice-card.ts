@@ -397,6 +397,7 @@ export class HomesliceCard extends LitElement {
     _layersOpen: { state: true },
     _people: { state: true },
     _level: { state: true },
+    _section: { state: true },
     _popup: { state: true },
     _hover: { state: true },
     _readout: { state: true },
@@ -454,6 +455,8 @@ export class HomesliceCard extends LitElement {
   private view: Partial<ViewOptions> = {};
   /** Focused level: the levels above it are lifted away. */
   private _level: string | null = null;
+  /** The section shown (all floors, cut along its line), if any. */
+  private _section: string | null = null;
   private _popup: Popup | null = null;
   /** Level under the mouse (or under a hovered floor button). */
   private _hover: number | null = null;
@@ -1959,10 +1962,43 @@ export class HomesliceCard extends LitElement {
     return (entrance ?? house.levels.find((l) => l.rooms.some((r) => r.kind === "outdoor")) ?? house.levels[0])?.id ?? null;
   }
 
+  /** Shows a section: all floors, cut along its line, seen across it. Again: the whole house. */
+  private async selectSection(id: string) {
+    if (!this.renderer || !this.house) return;
+    const section = this._section === id ? null : (this.house.sections.find((s) => s.id === id) ?? null);
+    this._section = section?.id ?? null;
+    this._labels = [];
+    this._lampButtons = [];
+    this.transitioning = true;
+    if (section) {
+      this._level = null;
+      await this.renderer.setFocus(null);
+      await this.renderer.setSection(section);
+    } else {
+      await this.renderer.setSection(null);
+      await this.renderer.setFocus(null);
+    }
+    this.transitioning = false;
+    this.placeLabels();
+    this.dispatchEvent(new CustomEvent("homeslice-rendered"));
+  }
+
   private async selectLevel(id: string | null) {
     if (!this.renderer || !this.house) return;
     // a plan shows one floor all the time
     if (this.plan && (id === null || id === this._level)) return;
+    // a floor (or the whole house) ends a section
+    if (this._section) {
+      this._section = null;
+      await this.renderer.setSection(null);
+      if (id === null) {
+        this._level = null;
+        this._labels = [];
+        await this.renderer.setFocus(null);
+        this.placeLabels();
+        return;
+      }
+    }
     this._level = this._level === id ? null : id;
     const index = this._level ? this.house.levels.find((l) => l.id === this._level)?.index ?? null : null;
     this._hover = null;
@@ -2408,8 +2444,10 @@ export class HomesliceCard extends LitElement {
       // with a level focused, only that level gets labels
       if (this._level && r.levelId !== this._level) continue;
       // under the roof nothing can be seen
-      if (roofed && r.levelIndex === this.house!.levels.length - 1) continue;
-      const p = this.renderer.project(r.levelId, r.point, 0.05);
+      if (roofed && !this._section && r.levelIndex === this.house!.levels.length - 1) continue;
+      // cut by a section: the label goes into the part that stays
+      const at = this.renderer.sectionShown ? this.renderer.sectionLabelPoint(r.room.polygon) : r.point;
+      const p = at && this.renderer.project(r.levelId, at, 0.05);
       if (!p) continue;
       const areaId = r.room.areaId;
       labels.push({
@@ -2487,9 +2525,16 @@ export class HomesliceCard extends LitElement {
               )}
               ${this.plan
                 ? nothing
-                : html`<button class=${this._level === null ? "active" : ""} @click=${() => this.selectLevel(null)}>
+                : html`<button class=${this._level === null && !this._section ? "active" : ""} @click=${() => this.selectLevel(null)}>
                     ${this.t("card.all_floors")}
                   </button>`}
+              ${this.plan || this._walking
+                ? nothing
+                : (this.house.sections ?? []).map(
+                    (s) => html`<button class="section ${this._section === s.id ? "active" : ""}" data-section=${s.id} title=${this.t("card.section")} @click=${() => this.selectSection(s.id)}>
+                      <ha-icon icon="mdi:box-cutter"></ha-icon> ${s.name}
+                    </button>`,
+                  )}
             </nav>`
           : nothing}
         <div class="wrap">
@@ -3715,6 +3760,15 @@ export class HomesliceCard extends LitElement {
     }
     .levels button.hover {
       border-color: var(--primary-color);
+    }
+    .levels button.section {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .levels button.section ha-icon {
+      --mdc-icon-size: 18px;
+      flex: none;
     }
     .levels button.active {
       border-color: var(--primary-color);
