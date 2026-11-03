@@ -888,6 +888,15 @@ test.describe.serial("editor", () => {
     const drawn = (await model()).sections;
     assert(drawn?.length === 1 && drawn[0].look === "north" && drawn[0].line[0][1] === drawn[0].line[1][1], `sections: ${JSON.stringify(drawn)}`);
     assert((await page.locator("homeslice-panel svg.plan g.section-line").count()) === 1, "not on the plan");
+    // its end dragged further east (snapping to the grid)
+    const end = await page.locator("homeslice-panel circle.section-end[data-section-end='1']").boundingBox();
+    const to = await toPage([10, 5]);
+    await page.mouse.move(end.x + end.width / 2, end.y + end.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(to.x, to.y, { steps: 6 });
+    await page.mouse.up();
+    const moved = (await model()).sections[0].line;
+    assert(Math.abs(moved[1][0] - 10) < 0.15 && moved[0][0] === drawn[0].line[0][0], `line: ${JSON.stringify(moved)}`);
     await page.locator("homeslice-panel .inspector select[data-section-look]").selectOption("south");
     assert((await model()).sections[0].look === "south", "look");
     // the 3D preview shows the cut while the section is selected

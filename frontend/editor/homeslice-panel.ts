@@ -361,6 +361,7 @@ type Drag =
   | { kind: "opening"; origin: HouseInput; base?: HouseInput; src: OpeningSource; axis: 0 | 1; startWorld: Vec2; at: number; snaps: OpeningSnaps; room: string }
   | { kind: "measure"; ctx: SnapContext }
   | { kind: "section"; ctx: SnapContext }
+  | { kind: "section-end"; origin: HouseInput; index: number; end: 0 | 1; ctx: SnapContext }
   | { kind: "freewall"; ctx: SnapContext }
   | { kind: "freewall-end"; origin: HouseInput; index: number; end: 0 | 1; ctx: SnapContext }
   | { kind: "freewall-move"; origin: HouseInput; index: number; line: [Vec2, Vec2]; startWorld: Vec2; ctx: SnapContext; faces: number[]; normal: Vec2 }
@@ -2217,6 +2218,14 @@ export class HomeslicePanel extends LitElement {
       this._drag = { kind: "freewall", ctx };
       return;
     }
+    // a selected section's end: dragged
+    const sectionEnd = target.closest("[data-section-end]") as SVGElement | null;
+    if (sectionEnd && this._sectionSel !== null && this._model.sections?.[this._sectionSel]) {
+      const endNo = Number(sectionEnd.dataset.sectionEnd) as 0 | 1;
+      const line = this._model.sections[this._sectionSel].line;
+      this._drag = { kind: "section-end", origin: clone(this._model), index: this._sectionSel, end: endNo, ctx: this.snapContext(line[endNo] as Vec2) };
+      return;
+    }
     // drawing a room, balcony or stairs: a press anywhere starts it (on a door or a lamp too)
     if (this._tool === "rect" || this._tool === "balcony" || this._tool === "stairs") {
       const ctx = this.snapContext();
@@ -2708,6 +2717,19 @@ export class HomeslicePanel extends LitElement {
       this._hint = { x: screen[0], y: screen[1], lines: [this.moveReadout(by)] };
       return;
     }
+    if (drag.kind === "section-end") {
+      const sec = drag.origin.sections?.[drag.index];
+      if (!sec) return;
+      const line = sec.line.map((p) => [...p]) as [[number, number], [number, number]];
+      const s = snapped(world, { ...drag.ctx, anchors: [line[1 - drag.end] as Vec2] });
+      line[drag.end] = [Math.round(s.p[0] * 100) / 100, Math.round(s.p[1] * 100) / 100];
+      this._guides = { x: s.alignX, y: s.alignY, ring: s.target, rays: s.rays };
+      const next = clone(drag.origin);
+      next.sections![drag.index].line = line;
+      this._model = next;
+      this._hint = { x: screen[0], y: screen[1], lines: [this.fmtM(Math.hypot(line[1][0] - line[0][0], line[1][1] - line[0][1]))] };
+      return;
+    }
     if (drag.kind === "freewall-end") {
       const w = drag.origin.levels.find((l) => l.id === this._level)?.walls?.[drag.index];
       if (!w?.line) return;
@@ -2810,7 +2832,7 @@ export class HomeslicePanel extends LitElement {
       }
       return;
     }
-    if (drag.kind === "vertex" || drag.kind === "edge" || drag.kind === "opening" || drag.kind === "wall" || drag.kind === "stair-move" || drag.kind === "stair-resize" || drag.kind === "light" || drag.kind === "energy" || drag.kind === "furniture" || drag.kind === "freewall-end" || drag.kind === "freewall-move" || drag.kind === "robot" || drag.kind === "camera") {
+    if (drag.kind === "vertex" || drag.kind === "edge" || drag.kind === "opening" || drag.kind === "wall" || drag.kind === "stair-move" || drag.kind === "stair-resize" || drag.kind === "light" || drag.kind === "energy" || drag.kind === "furniture" || drag.kind === "freewall-end" || drag.kind === "section-end" || drag.kind === "freewall-move" || drag.kind === "robot" || drag.kind === "camera") {
       if (JSON.stringify(drag.origin) !== JSON.stringify(this._model)) this.commit(this._model, drag.origin);
     } else if (drag.kind === "rect" && this._rectPreview && this._tool === "stairs") {
       const [[x0, y0], , [x1, y1]] = this._rectPreview;
@@ -4672,6 +4694,7 @@ export class HomeslicePanel extends LitElement {
               this._sectionSel = i;
             }}></line>`
           : nothing}
+        ${sel ? svg`<circle class="section-end" data-section-end="0" cx=${ax} cy=${ay} r="7"></circle><circle class="section-end" data-section-end="1" cx=${bx} cy=${by} r="7"></circle>` : nothing}
       </g>`;
     })}`;
   }
@@ -8894,6 +8917,12 @@ export class HomeslicePanel extends LitElement {
       paint-order: stroke;
       stroke: var(--plan-bg, #fff);
       stroke-width: 3px;
+    }
+    .section-end {
+      fill: var(--card-background-color, #fff);
+      stroke: #e0565b;
+      stroke-width: 2.5;
+      cursor: grab;
     }
     .section-hit {
       stroke: transparent;

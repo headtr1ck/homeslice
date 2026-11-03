@@ -2029,13 +2029,18 @@ export class HomesliceCard extends LitElement {
         const q = rect(s);
         return svg`<rect class="step" x=${q.x} y=${q.y} width=${q.w} height=${q.h}></rect>`;
       })}
+      ${dr.roofs.map((pts) => svg`<polygon class="roof" points=${pts.map(([x, y]) => `${x},${-y}`).join(" ")}></polygon>`)}
+      ${dr.bars.map((w) => {
+        const q = rect(w);
+        return svg`<rect class="bar" x=${q.x} y=${q.y} width=${q.w} height=${q.h}></rect>`;
+      })}
       ${dr.openings.map((o) => {
         const q = rect(o);
         return svg`<rect class=${o.kind} x=${q.x} y=${q.y} width=${q.w} height=${q.h}></rect>`;
       })}
-      ${dr.bars.map((w) => {
+      ${dr.railings.map((w) => {
         const q = rect(w);
-        return svg`<rect class="bar" x=${q.x} y=${q.y} width=${q.w} height=${q.h}></rect>`;
+        return svg`<rect class="railing" x=${q.x} y=${q.y} width=${q.w} height=${q.h}></rect>`;
       })}
       <line class="ground" x1=${b.x0} x2=${b.x1} y1="0.3" y2="0.3"></line>
     </svg>`;
@@ -3897,8 +3902,8 @@ export class HomesliceCard extends LitElement {
       fill: color-mix(in srgb, #ffc35a 45%, transparent);
     }
     .side-view .bar {
-      fill: var(--primary-text-color, #e6e6e6);
-      opacity: 0.85;
+      /* solid: walls and slabs meeting show no seams */
+      fill: color-mix(in srgb, var(--primary-text-color, #e6e6e6) 82%, var(--ha-card-background, var(--card-background-color, #1c1f24)));
     }
     .side-view .window {
       fill: color-mix(in srgb, #7fb6d8 55%, transparent);
@@ -3908,6 +3913,18 @@ export class HomesliceCard extends LitElement {
     }
     .side-view .step {
       fill: color-mix(in srgb, var(--primary-text-color, #e6e6e6) 35%, transparent);
+    }
+    .side-view .roof {
+      fill: color-mix(in srgb, #b4553f 30%, transparent);
+      stroke: var(--primary-text-color, #e6e6e6);
+      stroke-width: 0.06;
+      stroke-linejoin: round;
+    }
+    .side-view .railing {
+      fill: none;
+      stroke: var(--primary-text-color, #e6e6e6);
+      stroke-width: 0.05;
+      opacity: 0.7;
     }
     .side-view .ground {
       stroke: var(--secondary-text-color, #999);

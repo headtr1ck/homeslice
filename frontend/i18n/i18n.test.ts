@@ -21,6 +21,17 @@ describe("translations", () => {
     expect(tools).toContain("balcony");
     for (const tool of tools) expect([tool, `editor.tool_${tool}` in en, `editor.help_${tool}` in en]).toEqual([tool, true, true]);
   });
+  it("every English string is used somewhere (keys built from a prefix count as used)", () => {
+    const files = (dir: string): string[] =>
+      readdirSync(dir, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? files(`${dir}/${e.name}`) : e.name.endsWith(".ts") && !e.name.endsWith(".test.ts") ? [`${dir}/${e.name}`] : []));
+    const src = files("frontend").map((f) => readFileSync(f, "utf8")).join("\n");
+    // `editor.tool_${tool}` and the like: every key starting so may be meant
+    const prefixes = [...src.matchAll(/`([a-z_]+\.[A-Za-z0-9_.]*?)\$\{/g)].map((m) => m[1]);
+    // (the stairs' shapes are built from their names, but only these are left)
+    const built = (k: string) => prefixes.some((p) => k.startsWith(p) && !(p === "editor.stairs_" && !["editor.stairs_spiral", "editor.stairs_curved"].includes(k) && !/^editor\.stairs_[a-z]+_/.test(k)));
+    const unused = Object.keys(en).filter((k) => !src.includes(`"${k}"`) && !src.includes(`\`${k}\``) && !built(k));
+    expect(unused).toEqual([]);
+  });
   it("picks the language, falls back to English", () => {
     expect(localize("de", "card.all_floors")).not.toBe(localize("en", "card.all_floors"));
     expect(localize("de-AT", "card.all_floors")).toBe(localize("de", "card.all_floors"));

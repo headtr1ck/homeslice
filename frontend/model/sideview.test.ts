@@ -41,8 +41,8 @@ describe("side view", () => {
 
   it("looking east: rows across the other way", () => {
     const layout = sideLayout(expandHouse(house).house!, "east");
-    // the living room spans the hall and the kitchen along x: one row
-    expect(layout.bands.filter((b) => b.levelId === "ground").map((b) => [b.from, b.to])).toEqual([[0, 8]]);
+    // the hall and the kitchen are one behind the other: rows of their own (the living room beside the hall)
+    expect(layout.bands.filter((b) => b.levelId === "ground").map((b) => b.rooms)).toEqual([["hall", "living"], ["kitchen"]]);
     expect(layout.r).toEqual([0, 1]);
   });
 });
@@ -67,5 +67,26 @@ describe("side view drawing", () => {
     expect(dr.openings).toHaveLength(1);
     expect(dr.openings[0].kind).toBe("window");
     expect(dr.bars.length).toBeGreaterThan(4);
+  });
+
+  it("the roof's profile over the top floor; a balcony upstairs with its railing", async () => {
+    const { deriveWalls } = await import("./walls");
+    const { stairTreads } = await import("./stairs");
+    const input: HouseInput = structuredClone(house);
+    input.roof = { shape: "gable", pitch: 40, ridge: "north_south" };
+    input.levels[1].rooms.push({ id: "balcony", kind: "outdoor", railing: "metal", rect: [0, 10, 3, 1.5] });
+    const h = expandHouse(input).house!;
+    const walls = new Map(h.levels.map((l) => [l.id, deriveWalls(l, h.walls)]));
+    // looking north at a ridge running north-south: the gable end, a triangle over the loft
+    const dr = sideDrawing(h, walls, sideLayout(h, "north"), stairTreads);
+    expect(dr.roofs).toHaveLength(1);
+    const loft = dr.rooms.find((r) => r.roomId === "loft")!;
+    const peak = Math.max(...dr.roofs[0].map(([, y]) => y));
+    expect(peak).toBeGreaterThan(loft.y1 + 2.5);
+    // the peak in the middle
+    const at = dr.roofs[0].find(([, y]) => y === peak)!;
+    expect(at[0]).toBeCloseTo((loft.x0 + loft.x1) / 2, 0);
+    expect(dr.railings).toHaveLength(1);
+    expect(dr.railings[0].y0).toBeCloseTo(loft.y0);
   });
 });
