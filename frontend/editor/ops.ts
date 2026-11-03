@@ -1297,7 +1297,7 @@ export function updateLevel(model: HouseInput, levelId: string, patch: Partial<O
 
 /**
  * A new stair from `from` to `to` in `rect`: it climbs along the longer side; a nearly
- * square stairwell gets a u_turn stair.
+ * square stairwell gets a U (two quarter turns).
  */
 export function addStairs(model: HouseInput, rect: [number, number, number, number], from: string, to: string): { model: HouseInput; id: string } {
   const m = clone(model);
@@ -1306,7 +1306,9 @@ export function addStairs(model: HouseInput, rect: [number, number, number, numb
   const long = Math.max(w, d) / Math.max(0.01, Math.min(w, d));
   const v: VerticalInput = { id, kind: "stairs", rect: [x, y, w, d], from, to, up: w >= d ? "east" : "south" };
   if (long < 1.8) {
-    v.shape = "u_turn";
+    // nearly square: a U, turning back on itself over winders
+    v.turns = 2;
+    v.turn = "winders";
     v.start = w >= d ? "south" : "west";
   }
   m.vertical = [...(m.vertical ?? []), v];
@@ -1321,7 +1323,7 @@ export function updateStairs(model: HouseInput, id: string, patch: Partial<Verti
     for (const [k, val] of Object.entries(patch)) if (val === undefined || val === "" || (k === "entry" && val === 0)) delete (next as Record<string, unknown>)[k];
     // a turn needs a start side across the climb
     const across: Side[] = next.up === "north" || next.up === "south" ? ["east", "west"] : ["north", "south"];
-    const turns = next.shape === "u_turn" || next.shape === "l_turn" || next.shape === "spiral";
+    const turns = !!next.turns || next.shape === "u_turn" || next.shape === "l_turn" || next.shape === "spiral" || next.shape === "curved";
     if (turns && (!next.start || !across.includes(next.start))) next.start = across[1];
     if (!turns && next.start && !across.includes(next.start)) delete next.start;
     return next;

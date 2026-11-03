@@ -1160,9 +1160,13 @@ test.describe.serial("editor", () => {
     assert((await page.locator("homeslice-panel .inspector h2").textContent()) === "Stairs", "stairs not selected");
     const moved = await stair();
     assert(Math.abs(moved.rect[0] - (before.rect[0] - 0.5)) < 0.06 && moved.rect[1] === before.rect[1], `moved: ${JSON.stringify(moved.rect)}`);
-    await page.locator("homeslice-panel .inspector select").nth(3).selectOption("u_turn");
-    assert((await stair()).shape === "u_turn" && (await stair()).start, `shape: ${JSON.stringify(await stair())}`);
+    // two quarter turns: a U, its start side set; winders instead of a landing
+    await page.locator("homeslice-panel .inspector select[data-stair-turns]").selectOption("2");
+    assert((await stair()).turns === 2 && (await stair()).start, `turns: ${JSON.stringify(await stair())}`);
+    await page.locator("homeslice-panel .inspector select[data-stair-turn]").selectOption("winders");
+    assert((await stair()).turn === "winders", `turn: ${JSON.stringify(await stair())}`);
     await shot(page, "editor-stairs");
+    await page.keyboard.press("Control+z");
     await page.keyboard.press("Control+z");
     await page.keyboard.press("Control+z");
     assert(JSON.stringify(await stair()) === JSON.stringify(before), "undo didn't restore the stairs");

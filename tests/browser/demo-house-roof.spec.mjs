@@ -286,8 +286,8 @@ test.describe.serial("demo house, roof (1)", () => {
         window.card.renderer.object.traverse((o) => o.userData.railing === style && n++);
         return n;
       }, style);
-    const before = { glass: await rails("glass"), metal: await rails("metal") };
-    for (const [shape, railing, rect] of [["spiral", "glass", [6, 4, 2, 2]], ["l_turn", "metal", [5, 4, 3, 2]]]) {
+    const before = { glass: await rails("glass"), metal: await rails("metal"), wood: await rails("wood") };
+    for (const [shape, railing, rect] of [["spiral", "glass", [6, 4, 2, 2]], ["l_turn", "metal", [5, 4, 3, 2]], ["curved", "wood", [5, 4, 3, 2]]]) {
       await act(page, () =>
         page.evaluate(
           ([shape, railing, rect]) => {

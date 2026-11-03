@@ -704,12 +704,23 @@ def validate(house: Any) -> list[dict[str, str]]:
             err(vp, "to must be a level above from.")
             continue
         stair_shape = nullish(get(vi, "shape"), "straight")
-        if stair_shape not in ("straight", "u_turn", "l_turn", "spiral"):
-            err(vp, f'shape must be straight, u_turn, l_turn or spiral, got "{text(stair_shape)}".')
+        if stair_shape not in ("straight", "u_turn", "l_turn", "spiral", "curved"):
+            err(vp, f'shape must be straight, u_turn, l_turn, spiral or curved, got "{text(stair_shape)}".')
             continue
         rail = get(vi, "railing")
         if rail is not MISSING and rail not in ("glass", "metal", "wood"):
             err(vp, f'railing must be glass, metal or wood, got "{text(rail)}".')
+            continue
+        turns = get(vi, "turns")
+        if turns is not MISSING and (isinstance(turns, bool) or turns not in (0, 1, 2, 3)):
+            err(f"{vp}.turns", f"turns is the number of quarter turns: 0 (straight), 1 (an L), 2 (a U) or 3; got {stringify(turns)}.")
+            continue
+        if truthy(turns) and stair_shape in ("spiral", "curved"):
+            err(f"{vp}.turns", f"turns is for stairs in flights; a {stair_shape} stair turns by itself.")
+            continue
+        turn = get(vi, "turn")
+        if turn is not MISSING and turn not in ("landing", "winders"):
+            err(f"{vp}.turn", f"turn must be landing or winders, got {stringify(turn)}.")
             continue
         treads = get(vi, "treads")
         if treads is not MISSING and treads not in ("open", "solid"):

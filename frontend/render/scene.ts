@@ -1590,9 +1590,8 @@ export class HouseRenderer {
   }
 
   /**
-   * One flight of stairs up to the next level: open wooden treads on dark steel. A
-   * u_turn stair has two flights side by side, joined by winders, with a screen of bars
-   * between them.
+   * One flight of stairs up to the next level: open wooden treads on dark steel (or solid
+   * steps). A U-shaped stair without a railing has a screen of bars between its flights.
    */
   private stairs(v: Vertical, level: Level): THREE.Group {
     const g = new THREE.Group();
@@ -1621,7 +1620,7 @@ export class HouseRenderer {
       carrier.translate(0, t.top - 0.09, 0);
       g.add(this.mesh(carrier, steel));
     }
-    if (v.shape === "u_turn") {
+    if (v.shape === "straight" && v.turns === 2 && !v.railing) {
       // screen of vertical bars between the two flights
       const S = Math.max(0.5, L - W / 2);
       for (let u = 0.06; u < S; u += 0.11) {

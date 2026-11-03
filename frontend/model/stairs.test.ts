@@ -3,9 +3,13 @@ import { bbox } from "./geometry";
 import { galleryRails, stairPath, stairRail, stairTreads } from "./stairs";
 import type { Vertical } from "./types";
 
-const stair = (shape: Vertical["shape"], rect: [number, number, number, number], extra: Partial<Vertical> = {}): Vertical => {
+type Form = Vertical["shape"] | "l_turn" | "u_turn";
+const stair = (form: Form, rect: [number, number, number, number], extra: Partial<Vertical> = {}): Vertical => {
   const [x, y, w, d] = rect;
-  return { id: "s", kind: "stairs", polygon: [[x, y], [x + w, y], [x + w, y + d], [x, y + d]], from: 0, to: 1, shape, up: "east", start: "north", entry: 0, ...extra };
+  // the older names: quarter turns
+  const shape = form === "l_turn" || form === "u_turn" ? "straight" : form;
+  const turns = form === "l_turn" ? 1 : form === "u_turn" ? 2 : 0;
+  return { id: "s", kind: "stairs", polygon: [[x, y], [x + w, y], [x + w, y + d], [x, y + d]], from: 0, to: 1, shape, turns, up: "east", start: "north", entry: 0, ...extra };
 };
 const inside = (p: [number, number], [x, y, w, d]: number[]) => p[0] >= x - 1e-9 && p[0] <= x + w + 1e-9 && p[1] >= y - 1e-9 && p[1] <= y + d + 1e-9;
 
@@ -45,7 +49,10 @@ describe("stairs", () => {
     const rail = stairRail(stair("straight", [0, 0, 4, 1]), 2.66)!;
     expect(rail[0]).toMatchObject({ foot: 0, z: 0.9 });
     expect(rail.at(-1)!.z).toBeCloseTo(2.66 + 0.9);
-    expect(stairRail(stair("u_turn", [0, 0, 3, 2]), 2.66)).toBeNull();
+    // a U: along the edge between its flights, climbing
+    const u = stairRail(stair("u_turn", [0, 0, 3, 2]), 2.66)!;
+    expect(u.every((r, i) => !i || r.z > u[i - 1].z)).toBe(true);
+    expect(u.every((r) => Math.abs(r.at[1] - 1) < 0.1 || r.at[0] > 1.9)).toBe(true);
   });
 
   it("upstairs, a railing runs round the well: not where one steps off, nor along a wall", () => {
@@ -66,5 +73,42 @@ describe("stairs", () => {
     // an L: one steps off at the far end of the second flight
     const l = galleryRails(stair("l_turn", [0, 0, 4, 3]), []);
     expect(l.reduce((t, s) => t + len(s), 0)).toBeCloseTo(4 + 3 + 4 + 3 - 1);
+  });
+
+  const climbs = (treads: { top: number }[]) => treads.every((t, i) => !i || t.top > treads[i - 1].top);
+
+  it("quarter turns: 1 an L, 2 a U, 3 round a well; each turn a landing or winders", () => {
+    const rect: [number, number, number, number] = [0, 0, 3.5, 3.5];
+    for (const turns of [0, 1, 2, 3])
+      for (const turn of ["landing", "winders"] as const) {
+        const treads = stairTreads(stair("straight", rect, { turns, turn }), 2.66);
+        expect(treads).toHaveLength(14);
+        expect(climbs(treads)).toBe(true);
+        expect(treads.every((t) => t.poly.every((p) => inside(p, rect)))).toBe(true);
+      }
+    // round a well: the last flight comes back down the start end's side (west), above the first
+    const well = stairTreads(stair("straight", rect, { turns: 3 }), 2.66);
+    expect(bbox(well.at(-1)!.poly).max[0]).toBeLessThan(1.2);
+    expect(bbox(well.at(-1)!.poly).min[1]).toBeGreaterThan(0.9);
+    // winders: three steps in each turn instead of a landing
+    const l = stairTreads(stair("straight", [0, 0, 4, 3], { turns: 1, turn: "winders" }), 2.66);
+    const inCorner = (t: { poly: [number, number][] }) => t.poly.every((p) => inside(p, [3, 0, 1, 1]));
+    expect(l.filter(inCorner)).toHaveLength(3);
+    expect(stairTreads(stair("straight", [0, 0, 4, 3], { turns: 1 }), 2.66).filter(inCorner)).toHaveLength(1);
+    // a U with a landing: one wide step across the far end
+    const u = stairTreads(stair("straight", [0, 0, 4, 2], { turns: 2, turn: "landing" }), 2.66);
+    expect(u.filter((t) => bbox(t.poly).max[1] - bbox(t.poly).min[1] > 1.9)).toHaveLength(1);
+  });
+
+  it("a curved stair: a half ring from the start end round to the far end, a rail on its outside", () => {
+    const rect: [number, number, number, number] = [0, 0, 4, 2.2];
+    const v = stair("curved", rect);
+    const treads = stairTreads(v, 2.66);
+    expect(climbs(treads)).toBe(true);
+    expect(treads.every((t) => t.poly.every((p) => inside(p, rect)))).toBe(true);
+    // starts at the west end, ends at the east end
+    expect(bbox(treads[0].poly).max[0]).toBeLessThan(1.5);
+    expect(bbox(treads.at(-1)!.poly).min[0]).toBeGreaterThan(2.5);
+    expect(stairRail({ ...v, railing: "wood" }, 2.66)).toHaveLength(treads.length + 1);
   });
 });

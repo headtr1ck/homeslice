@@ -7253,6 +7253,10 @@ export class HomeslicePanel extends LitElement {
     const [, , w, d] = stairsRect(m, v);
     const up = v.up ?? (w >= d ? "east" : "south");
     const across: Side[] = up === "north" || up === "south" ? ["east", "west"] : ["north", "south"];
+    // older files: l_turn and u_turn are flights with one and two quarter turns
+    const form = v.shape === "spiral" || v.shape === "curved" ? v.shape : "straight";
+    const turnsOf: 0 | 1 | 2 | 3 = v.turns ?? (v.shape === "l_turn" ? 1 : v.shape === "u_turn" ? 2 : 0);
+    const turnOf = v.turn ?? (v.shape === "u_turn" ? "winders" : "landing");
     const length = up === "east" || up === "west" ? w : d;
     const levelOptions = (value: string, ok: (i: number) => boolean) =>
       m.levels.map((l, i) => html`<option value=${l.id} ?selected=${l.id === value} ?disabled=${!ok(i)}>${this.levelName(l)}</option>`);
@@ -7278,8 +7282,12 @@ export class HomeslicePanel extends LitElement {
         ? nothing
         : html`<div class="row">
               <label>${this.t("editor.stairs_shape")}
-                <select data-stair-shape @change=${(e: Event) => set({ shape: (e.target as HTMLSelectElement).value as StairShape })}>
-                  ${(["straight", "l_turn", "u_turn", "spiral"] as StairShape[]).map((sh) => html`<option value=${sh} ?selected=${(v.shape ?? "straight") === sh}>${this.t(`editor.stairs_${sh}` as StringKey)}</option>`)}
+                <select data-stair-shape @change=${(e: Event) => {
+                  const shape = (e.target as HTMLSelectElement).value as StairShape;
+                  // round ones turn by themselves; flights keep their turns
+                  set(shape === "straight" ? { shape: undefined, turns: turnsOf || undefined, turn: v.turn ?? (v.shape === "u_turn" ? "winders" : undefined) } : { shape, turns: undefined, turn: undefined });
+                }}>
+                  ${(["straight", "spiral", "curved"] as const).map((sh) => html`<option value=${sh} ?selected=${form === sh}>${this.t(sh === "straight" ? "editor.stairs_flights" : `editor.stairs_${sh}`)}</option>`)}
                 </select>
               </label>
               <label>${this.t("editor.stairs_up")}
@@ -7288,6 +7296,26 @@ export class HomeslicePanel extends LitElement {
                 </select>
               </label>
             </div>
+            ${form === "straight"
+              ? html`<div class="row">
+                  <label>${this.t("editor.stairs_turns")}
+                    <select data-stair-turns @change=${(e: Event) => {
+                      const turns = Number((e.target as HTMLSelectElement).value) as 0 | 1 | 2 | 3;
+                      // (an older l_turn / u_turn becomes flights with turns)
+                      set({ shape: undefined, turns: turns || undefined, turn: v.turn ?? (v.shape === "u_turn" ? "winders" : undefined) });
+                    }}>
+                      ${[0, 1, 2, 3].map((n) => html`<option value=${n} ?selected=${turnsOf === n}>${this.t(`editor.stairs_turns_${n}` as StringKey)}</option>`)}
+                    </select>
+                  </label>
+                  ${turnsOf
+                    ? html`<label>${this.t("editor.stairs_turn")}
+                        <select data-stair-turn @change=${(e: Event) => set({ shape: undefined, turns: turnsOf, turn: (e.target as HTMLSelectElement).value as "landing" | "winders" })}>
+                          ${(["landing", "winders"] as const).map((t) => html`<option value=${t} ?selected=${turnOf === t}>${this.t(`editor.stairs_turn_${t}`)}</option>`)}
+                        </select>
+                      </label>`
+                    : nothing}
+                </div>`
+              : nothing}
             <label>${this.t("editor.stairs_railing")}
               <select data-stair-railing @change=${(e: Event) => set({ railing: ((e.target as HTMLSelectElement).value || undefined) as VerticalInput["railing"] })}>
                 <option value="" ?selected=${!v.railing}>${this.t("editor.stairs_railing_none")}</option>
@@ -7301,7 +7329,7 @@ export class HomeslicePanel extends LitElement {
             </label>
             <h4>${this.t("editor.stairs_finish")}</h4>
             ${this.renderFinishPicker("floor", v.finish, (finish) => set({ finish }), this.t("surface.wood"))}
-            ${v.shape === "u_turn" || v.shape === "l_turn" || v.shape === "spiral"
+            ${turnsOf || form !== "straight"
               ? html`<label>${this.t("editor.stairs_start")}
                   <select @change=${(e: Event) => set({ start: (e.target as HTMLSelectElement).value as Side })}>
                     ${across.map((sd) => html`<option value=${sd} ?selected=${(v.start ?? across[1]) === sd}>${this.t(`editor.side_${sd}` as StringKey)}</option>`)}

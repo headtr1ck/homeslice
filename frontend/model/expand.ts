@@ -651,8 +651,11 @@ export function expandHouse(input: unknown): ExpandResult {
     if (!polygon || from === undefined || to === undefined) return;
     if (to <= from) return err(vp, "to must be a level above from.");
     const stairShape = vi.shape ?? "straight";
-    if (!["straight", "u_turn", "l_turn", "spiral"].includes(stairShape)) return err(vp, `shape must be straight, u_turn, l_turn or spiral, got "${stairShape}".`);
+    if (!["straight", "u_turn", "l_turn", "spiral", "curved"].includes(stairShape)) return err(vp, `shape must be straight, u_turn, l_turn, spiral or curved, got "${stairShape}".`);
     if (vi.railing !== undefined && !["glass", "metal", "wood"].includes(vi.railing)) return err(vp, `railing must be glass, metal or wood, got "${vi.railing}".`);
+    if (vi.turns !== undefined && !([0, 1, 2, 3] as unknown[]).includes(vi.turns)) return err(`${vp}.turns`, `turns is the number of quarter turns: 0 (straight), 1 (an L), 2 (a U) or 3; got ${JSON.stringify(vi.turns)}.`);
+    if (vi.turns && (stairShape === "spiral" || stairShape === "curved")) return err(`${vp}.turns`, `turns is for stairs in flights; a ${stairShape} stair turns by itself.`);
+    if (vi.turn !== undefined && !["landing", "winders"].includes(vi.turn)) return err(`${vp}.turn`, `turn must be landing or winders, got ${JSON.stringify(vi.turn)}.`);
     if (vi.treads !== undefined && !["open", "solid"].includes(vi.treads)) return err(`${vp}.treads`, `treads must be open or solid, got ${JSON.stringify(vi.treads)}.`);
     if (vi.finish !== undefined && !finishOk(vi.finish, FLOOR_FINISHES)) return err(`${vp}.finish`, `finish must be ${FLOOR_HINT}, got ${JSON.stringify(vi.finish)}.`);
     const { min, max } = bbox(polygon);
@@ -664,7 +667,11 @@ export function expandHouse(input: unknown): ExpandResult {
     const length = up === "east" || up === "west" ? max[0] - min[0] : max[1] - min[1];
     const entry = vi.entry ?? 0;
     if (typeof entry !== "number" || entry < 0 || entry > length - 0.5) return err(vp, `entry must be between 0 and ${(length - 0.5).toFixed(2)} m (the stairwell is ${length.toFixed(2)} m long), got ${entry}.`);
-    vertical.push({ id: vi.id, kind: vi.kind ?? "stairs", polygon, from, to, shape: stairShape, up, start, entry, ...(vi.treads ? { treads: vi.treads } : {}), ...(vi.railing ? { railing: vi.railing } : {}), ...(vi.finish ? { finish: vi.finish } : {}) });
+    // the older names: an L is one quarter turn, a U two (its turns winders unless said)
+    const turns = vi.turns ?? (stairShape === "l_turn" ? 1 : stairShape === "u_turn" ? 2 : 0);
+    const turn = vi.turn ?? (stairShape === "u_turn" ? "winders" : undefined);
+    const form = stairShape === "spiral" || stairShape === "curved" ? stairShape : "straight";
+    vertical.push({ id: vi.id, kind: vi.kind ?? "stairs", polygon, from, to, shape: form, turns, up, start, entry, ...(vi.treads ? { treads: vi.treads } : {}), ...(turn ? { turn } : {}), ...(vi.railing ? { railing: vi.railing } : {}), ...(vi.finish ? { finish: vi.finish } : {}) });
   });
 
   // every house has a roof (defaults unless set); cards decide whether it is drawn

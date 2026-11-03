@@ -100,7 +100,7 @@ describe("expandHouse", () => {
     ];
     const v = expand(input).vertical;
     expect(v[0]).toMatchObject({ shape: "straight", up: "east", start: "south" });
-    expect(v[1]).toMatchObject({ shape: "u_turn", up: "west", start: "north" });
+    expect(v[1]).toMatchObject({ shape: "straight", turns: 2, turn: "winders", up: "west", start: "north" });
     input.vertical = [{ id: "bad", rect: [1, 1, 3, 2], from: "ground", to: "first", shape: "u_turn", up: "east", start: "west" }];
     expect(expandHouse(input).issues[0].message).toBe('start must be north or south for a stair climbing east, got "west".');
     expect(v[0].entry).toBe(0);
@@ -447,7 +447,7 @@ describe("labelPoint", () => {
 
 describe("stairs", () => {
   it("keeps the floor in front of the first step when a stair starts further in", () => {
-    const v = { id: "s", kind: "stairs", polygon: [[0, 0], [3, 0], [3, 2], [0, 2]], from: 0, to: 1, shape: "u_turn", up: "east", start: "south", entry: 1 } as const;
+    const v = { id: "s", kind: "stairs", polygon: [[0, 0], [3, 0], [3, 2], [0, 2]], from: 0, to: 1, shape: "straight", turns: 2, up: "east", start: "south", entry: 1 } as const;
     const hole = stairHole({ ...v, polygon: v.polygon.map((p) => [...p] as [number, number]) });
     // the first flight runs along the south side (y 1–2) and starts at x 1
     expect(hole).toHaveLength(6);

@@ -357,7 +357,8 @@ export interface FacadeOpeningInput {
   blind_style?: BlindStyle;
 }
 
-export type StairShape = "straight" | "u_turn" | "l_turn" | "spiral";
+/** `straight`: in flights (they turn by `turns`); `spiral`; `curved`. `l_turn`, `u_turn`: older names for 1 and 2 turns. */
+export type StairShape = "straight" | "u_turn" | "l_turn" | "spiral" | "curved";
 
 export interface VerticalInput extends ShapeInput {
   id: string;
@@ -373,6 +374,13 @@ export interface VerticalInput extends ShapeInput {
   railing?: "glass" | "metal" | "wood";
   /** `open` (default): floating treads on a steel carrier, gaps between; `solid`: closed steps down to the floor. */
   treads?: "open" | "solid";
+  /**
+   * Flights: how many quarter turns: 0 straight (default), 1 an L, 2 a U, 3 round a well
+   * (four flights, for tall storeys). The flights turn away from the `start` side.
+   */
+  turns?: 0 | 1 | 2 | 3;
+  /** How each turn goes: `landing` (flat, default) or `winders` (steps turning round). */
+  turn?: "landing" | "winders";
   /** The steps' finish, like a floor's: wood (default), concrete, tile_white, carpet… */
   finish?: string;
   /** Compass direction the first flight climbs towards (default: along the longer side). */
@@ -732,12 +740,15 @@ export interface Vertical {
   polygon: Vec2[];
   from: number;
   to: number;
-  shape: StairShape;
+  /** In flights (turning `turns` quarter turns), a spiral, or curved. */
+  shape: "straight" | "spiral" | "curved";
+  turns: number;
   up: Side;
   start: Side;
   entry: number;
   railing?: "glass" | "metal" | "wood";
   treads?: "open" | "solid";
+  turn?: "landing" | "winders";
   finish?: string;
 }
 

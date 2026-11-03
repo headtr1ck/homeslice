@@ -8,7 +8,7 @@ outline: { rect: [0, 0, 8, 10] }
 party_walls: [east]
 vertical:
   # a u-turn stair: up along the north side, round the winders, back to the landing
-  - { id: stairs, rect: [5, 4, 3, 2], from: ground, to: first, shape: u_turn, up: east, start: north }
+  - { id: stairs, rect: [5, 4, 3, 2], from: ground, to: first, turns: 2, turn: winders, up: east, start: north }
 levels:
   - id: ground
     floor_id: ground_floor

@@ -447,11 +447,11 @@ describe("houses and levels", () => {
 });
 
 describe("stairs", () => {
-  it("adds stairs climbing along the longer side, u_turn when nearly square", () => {
+  it("adds stairs climbing along the longer side, a U (two quarter turns, winders) when nearly square", () => {
     let { model, id } = addStairs(house(), [1, 1, 4, 1], "g", "f");
     expect(model.vertical![0]).toEqual({ id, kind: "stairs", rect: [1, 1, 4, 1], from: "g", to: "f", up: "east" });
     ({ model } = addStairs(model, [6, 1, 2.5, 2], "g", "f"));
-    expect(model.vertical![1]).toMatchObject({ id: "stairs_2", shape: "u_turn", up: "east", start: "south" });
+    expect(model.vertical![1]).toMatchObject({ id: "stairs_2", turns: 2, turn: "winders", up: "east", start: "south" });
   });
 
   it("keeps the start side valid when the direction changes", () => {

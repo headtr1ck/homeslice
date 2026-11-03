@@ -73,8 +73,9 @@ vertical:
     rect: [6, 3, 3, 1.2]
     from: ground
     to: first
-    shape: straight                     # u_turn (two flights joined by winders), l_turn (a right
-                                        # angle with a landing) or spiral (round a post)
+    turns: 0                            # quarter turns: 0 straight, 1 an L, 2 a U, 3 round a well
+    turn: landing                       # each turn: landing (flat) or winders (turning steps)
+    # shape: spiral                     # instead of flights: spiral (round a post) or curved
     railing: metal                      # optional handrail on the open side: glass, metal, wood
                                         # (and upstairs round the well, where no wall is)
     treads: open                        # open (floating, gaps between) or solid (closed to the floor)

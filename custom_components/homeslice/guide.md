@@ -168,12 +168,14 @@ defaults: `walls: {exterior: 0.36, interior: 0.12, party: 0.24}`.
 ### Stairs
 
 `vertical: [{id, rect, from: <level id>, to: <level id>}]` on the house. The stairwell's
-rectangle is where the stairs stand; the floor above gets a hole there. `shape:
-straight|u_turn|l_turn|spiral` (u_turn: two flights side by side joined by winders; l_turn:
-two flights at a right angle with a landing; spiral: round a post, in a square stairwell),
+rectangle is where the stairs stand; the floor above gets a hole there. Stairs in flights turn
+`turns` quarter turns: 0 straight (default), 1 an L, 2 a U, 3 round a well (four flights, for
+tall storeys); `turn: landing|winders` (each turn flat, the default, or turning steps).
+`shape: spiral` (round a post, in a square stairwell) or `curved` (a half ring with an open
+middle, a hall stair) instead; `l_turn`/`u_turn` are older names for 1 and 2 turns.
 `up: east|west|north|south` (the direction the first flight climbs; default along the
-longer side), `start` (u_turn, l_turn: the side the first flight runs along; the second
-flight, or a spiral, turns away from it), `entry` (metres of floor before the first step),
+longer side), `start` (turning stairs: the side the first flight runs along; the flights, a
+spiral or a curved stair turn away from it), `entry` (metres of floor before the first step),
 `railing: glass|metal|wood` (a handrail on the open side; none against a wall; upstairs, a
 railing round the well's open edges, except where one steps off), `treads: open|solid` (open:
 floating steps with gaps, the default; solid: closed down to the floor), `finish` (the steps'
