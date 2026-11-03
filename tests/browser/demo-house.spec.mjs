@@ -567,6 +567,15 @@ test.describe.serial("demo house (3)", () => {
       return null;
     });
     assert(spot, "no visible spot on the ground floor");
+    // and one where only the first floor is (above the ground floor on screen)
+    const above = await page.evaluate(() => {
+      const canvas = window.card.shadowRoot.querySelector("canvas");
+      const r = canvas.getBoundingClientRect();
+      for (let y = 20; y < r.height - 20; y += 15)
+        for (let x = 20; x < r.width - 20; x += 15)
+          if (window.card.renderer.levelAt(x, y) === 1) return { x: r.left + x, y: r.top + y };
+      return null;
+    });
     await page.mouse.move(spot.x, spot.y);
     await page.waitForFunction(() => window.card.renderer.levels[1].hoverOpacity === 0, null, { timeout: 10000 });
     const state = await page.evaluate(() => ({
@@ -592,6 +601,10 @@ test.describe.serial("demo house (3)", () => {
     const faded = await page.locator("homeslice-card .label.faded span.name").allTextContents();
     assert(faded.includes("Bedroom") && !faded.includes("Kitchen"), `faded labels: ${faded.join(", ")}`);
     await shot(page, "demo-hover-ground");
+    // over where the floor above stood: still the ground floor, it doesn't come back under the pointer
+    await page.mouse.move(above.x, above.y, { steps: 6 });
+    await page.waitForTimeout(500);
+    assert((await page.evaluate(() => window.card.renderer.hoveredIndex)) === 0, "the floor above came back under the pointer");
   });
 
   test("hovering a floor button does the same; leaving clears it", async () => {

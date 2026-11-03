@@ -49,11 +49,7 @@ one toggle per lamp), tap a room for a popup with its devices (including the bli
 contacts of its windows), pick a floor to lift the floors above away. Hovering a floor
 highlights it and makes the floors above see-through. A house with sections (drawn in the
 editor with the Section tool) has a button for each: all floors cut along its line, seen
-from the side, like an architect's section; again (or a floor) shows the whole house. **Side view**
-is a plain 2D drawing of every room at once from the side: each floor's rows of rooms stand
-side by side, the floors at their real heights, rooms warm while their lights are on, the
-back walls' windows and doors, the stairs; tap a room for its panel. **Turn** looks from the
-next side.
+from the side, like an architect's section; again (or a floor) shows the whole house.
 
 ## All options
 
@@ -67,6 +63,9 @@ interactive: false             # true: drag to turn, scroll/pinch to zoom, two f
 energy: false                  # true: energy overlay (shows the roof unless view.roof: false)
 mode: 3d                       # or plan: a drawn floor plan from above (dark walls, door swings),
                                #   or tilted: a plan at an angle with low walls; both one floor at a time
+                               #   or side: a plain 2D side view of every room at once (each floor's
+                               #   rows of rooms side by side, at their real heights); turn it on the card
+side_look: north               # side view: the way it looks at first (default: from the overview's side)
 floors: one                    # plan only: all shows every floor at once, side by side
 sun: true                      # light from the real sun (sun.sun), darker at night
 look: day                      # or night (dark, glowing outlines), auto (night after sunset),

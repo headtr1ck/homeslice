@@ -116,7 +116,9 @@ export interface HomesliceCardConfig {
    * plan seen at an angle with low walls, looking into the rooms. Both show one floor at a
    * time. Default `3d`.
    */
-  mode?: "3d" | "plan" | "tilted";
+  mode?: "3d" | "plan" | "tilted" | "side";
+  /** The side view (mode: side): the way it looks at first (default: from the overview's angle). */
+  side_look?: Side;
   /** Plans: `all` shows every floor at once, side by side (default: one at a time). */
   floors?: "one" | "all";
   /** The floor shown first (level id); default: the whole house, or in plan mode the entrance floor. */
@@ -376,9 +378,6 @@ async function preloadCard(helpers: CardHelpers, type: string) {
   await Promise.race([customElements.whenDefined(tag), new Promise((r) => setTimeout(r, 3000))]);
 }
 
-/** The side view turned a quarter clockwise. */
-const SIDE_TURN: Record<Side, Side> = { north: "east", east: "south", south: "west", west: "north" };
-
 export class HomesliceCard extends LitElement {
   static override properties = {
     _issues: { state: true },
@@ -503,6 +502,8 @@ export class HomesliceCard extends LitElement {
     this.kioskTimer = this.isConnected && this.kiosk ? window.setInterval(this.kioskTick, 1000) : 0;
     if (!this.kiosk) this._night = false;
     this.view = viewOptions(config.view);
+    // (the side view is a look of its own, below)
+    this._side = null;
     // the overlay puts solar panels on the roof, so it shows the roof unless told not to
     if (config.energy && config.view?.roof === undefined) this.view.roof = true;
     if (config.roof === "show" || config.roof === "hide") this.view.roof = config.roof === "show";
@@ -520,6 +521,13 @@ export class HomesliceCard extends LitElement {
         this.view.sideBySide = true;
         Object.assign(this.view, { azimuth: 180, elevation: 90, projection: "isometric" });
       }
+    } else if (config.mode === "side") {
+      // the side view: a 2D drawing of every room at once, looking from the overview's side (or as set)
+      const a = ((((config.view?.azimuth ?? this.view.azimuth ?? 0) % 360) + 360) % 360) as number;
+      this._side = config.side_look ?? (["south", "west", "north", "east"] as Side[])[Math.round(a / 90) % 4];
+      this.applySavedViews();
+      // its labels at once, where the drawing has the rooms
+      if (this.house) this.updateComplete.then(() => this.placeLabels());
     } else if (config.mode === "tilted") {
       // a plan at an angle: walls cut low so every room is seen into
       this.view.focus = { azimuth: 180, elevation: 52, projection: "isometric", ...config.view?.focus };
@@ -1971,28 +1979,16 @@ export class HomesliceCard extends LitElement {
     return (entrance ?? house.levels.find((l) => l.rooms.some((r) => r.kind === "outdoor")) ?? house.levels[0])?.id ?? null;
   }
 
-  /**
-   * The side view: every room at once from the side (from where the camera is, or turned to
-   * `look`). Again: the whole house.
-   */
-  private async selectSide(look?: Side) {
-    if (!this.renderer || !this.house) return;
-    let next: Side | null = look ?? null;
-    if (!look && !this._side) {
-      // looking from where the camera is now
-      const a = ((this.renderer.orientation.azimuth % 360) + 360) % 360;
-      next = (["south", "west", "north", "east"] as Side[])[Math.round(a / 90) % 4];
-    }
-    this._side = next;
-    this._section = null;
-    this._level = null;
+  /** The side view looks from the next side (1: clockwise, −1: back). */
+  private turnSide(step: 1 | -1) {
+    if (!this._side) return;
+    const order: Side[] = ["north", "east", "south", "west"];
+    this._side = order[(order.indexOf(this._side) + step + 4) % 4];
     this._labels = [];
-    this._lampButtons = [];
-    // the 3D house behind it shows everything again
-    await this.renderer.setSection(null, false);
-    await this.renderer.setFocus(null, false);
-    this.placeLabels();
-    this.dispatchEvent(new CustomEvent("homeslice-rendered"));
+    this.updateComplete.then(() => {
+      this.placeLabels();
+      this.dispatchEvent(new CustomEvent("homeslice-rendered"));
+    });
   }
 
   /** The side view's drawing, made again when the house or the look changes. */
@@ -2049,7 +2045,6 @@ export class HomesliceCard extends LitElement {
   /** Shows a section: all floors, cut along its line, seen across it. Again: the whole house. */
   private async selectSection(id: string) {
     if (!this.renderer || !this.house) return;
-    this._side = null;
     const section = this._section === id ? null : (this.house.sections.find((s) => s.id === id) ?? null);
     this._section = section?.id ?? null;
     this._labels = [];
@@ -2072,10 +2067,9 @@ export class HomesliceCard extends LitElement {
     if (!this.renderer || !this.house) return;
     // a plan shows one floor all the time
     if (this.plan && (id === null || id === this._level)) return;
-    // a floor (or the whole house) ends a section or the side view
-    if (this._section || this._side) {
+    // a floor (or the whole house) ends a section
+    if (this._section) {
       this._section = null;
-      this._side = null;
       await this.renderer.setSection(null);
       if (id === null) {
         this._level = null;
@@ -2620,9 +2614,9 @@ export class HomesliceCard extends LitElement {
       <ha-card class="${this.config.lamp_style === "circle" ? "" : "bare-lamps"} ${this._night ? "night-dim" : ""}" style=${this._night ? `--night-brightness:${Math.min(1, Math.max(0.1, this.config.night_brightness ?? 0.4))}` : ""}>
         ${this.config.clock && this._clock ? html`<div class="clock" role="timer">${this._clock}</div>` : nothing}
         ${this.renderWeather()}
-          ${this.house
+          ${this.house && !this._side && (levels.length > 1 || (!this.plan && this.house.sections?.length))
           ? html`<nav class="levels">
-              ${levels.map(
+              ${(levels.length > 1 ? levels : []).map(
                 (l) => html`<button
                   class="${this._level === l.id ? "active" : ""} ${this._hover === l.index ? "hover" : ""}"
                   @click=${() => this.selectLevel(l.id)}
@@ -2632,7 +2626,7 @@ export class HomesliceCard extends LitElement {
                   ${this.levelName(l.id)}
                 </button>`,
               )}
-              ${this.plan
+              ${this.plan || levels.length < 2
                 ? nothing
                 : html`<button class=${this._level === null && !this._section ? "active" : ""} @click=${() => this.selectLevel(null)}>
                     ${this.t("card.all_floors")}
@@ -2644,16 +2638,6 @@ export class HomesliceCard extends LitElement {
                       <ha-icon icon="mdi:box-cutter"></ha-icon> ${s.name}
                     </button>`,
                   )}
-              ${this.plan || this._walking || !this.house.levels.some((l) => l.rooms.some((r) => r.kind === "room"))
-                ? nothing
-                : html`<button class="section ${this._side ? "active" : ""}" data-side-view title=${this.t("card.side_view_hint")} @click=${() => this.selectSide()}>
-                      <ha-icon icon="mdi:view-column-outline"></ha-icon> ${this.t("card.side_view")}
-                    </button>
-                    ${this._side
-                      ? html`<button class="section" data-side-turn title=${this.t("card.side_turn")} @click=${() => this.selectSide(SIDE_TURN[this._side!])}>
-                          <ha-icon icon="mdi:rotate-right"></ha-icon> ${this.t("card.side_turn")}
-                        </button>`
-                      : nothing}`}
             </nav>`
           : nothing}
         <div class="wrap">
@@ -2668,8 +2652,10 @@ export class HomesliceCard extends LitElement {
             @pointermove=${this.onPointerMove}
             @pointerup=${this.onPointerUp}
             @pointercancel=${this.onPointerUp}
-            @pointerleave=${() => {
-              if (this.pointers.size === 0) this.hoverLevel(null);
+            @pointerleave=${(e: PointerEvent) => {
+              // onto a room's label over the house: still over the house (the hover stays)
+              const onto = e.relatedTarget as Element | null;
+              if (this.pointers.size === 0 && !onto?.closest?.(".label")) this.hoverLevel(null);
               this._tip = null;
             }}
             @wheel=${this.onWheel}
@@ -2684,7 +2670,12 @@ export class HomesliceCard extends LitElement {
           ${this.renderWalk()}
           ${this.renderRoofToggle()}
           ${this.renderLayers()}
-          ${this.interactive && !this.plan
+          ${this._side
+            ? html`<div class="views">
+                <button data-side-turn="left" title=${this.t("card.view_left")} @click=${() => this.turnSide(-1)}><ha-icon icon="mdi:rotate-left"></ha-icon></button>
+                <button data-side-turn="right" title=${this.t("card.view_right")} @click=${() => this.turnSide(1)}><ha-icon icon="mdi:rotate-right"></ha-icon></button>
+              </div>`
+            : this.interactive && !this.plan
             ? html`<div class="views">
                 <button title=${this.t("card.view_left")} @click=${() => this.turnView(-90)}><ha-icon icon="mdi:rotate-left"></ha-icon></button>
                 <button title=${this.t("card.view_top")} @click=${() => this.turnView(null, 89)}><ha-icon icon="mdi:arrow-collapse-down"></ha-icon></button>

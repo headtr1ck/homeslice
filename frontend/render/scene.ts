@@ -3581,7 +3581,7 @@ export class HouseRenderer {
     ray.setFromCamera(ndc, this.camera);
     const visible = (o: THREE.Object3D) => {
       const level = this.levels.find((l) => l.group === o.parent);
-      return !!level && level.group.visible && level.opacity > 0.5;
+      return !!level && this.pickable(level);
     };
     const pieces = this.linked.filter(visible);
     if (!pieces.length) return null;
@@ -3598,6 +3598,14 @@ export class HouseRenderer {
     return (o?.userData.entity as string | undefined) ?? null;
   }
 
+  /**
+   * Whether the pointer can reach a level's rooms and pieces: shown, and not faded away (by a
+   * focus on a floor below, or while a floor below is hovered: one reaches through to it).
+   */
+  private pickable(l: (typeof this.levels)[number]): boolean {
+    return l.group.visible && l.opacity > 0.5 && l.hoverOpacity > 0.5;
+  }
+
   /** Room under a canvas position (CSS px), as `level/room`. */
   pick(x: number, y: number): string | null {
     const ndc = new THREE.Vector2((x / this.size.width) * 2 - 1, -(y / this.size.height) * 2 + 1);
@@ -3605,7 +3613,7 @@ export class HouseRenderer {
     ray.setFromCamera(ndc, this.camera);
     const candidates = [...this.floors.values()].filter((f) => {
       const level = this.levels.find((l) => l.group === f.parent);
-      return level && level.group.visible && level.opacity > 0.5;
+      return !!level && this.pickable(level);
     });
     const hit = ray.intersectObjects(candidates, false)[0];
     return (hit?.object.userData.room as string | undefined) ?? null;
@@ -3883,7 +3891,7 @@ export class HouseRenderer {
     const ndc = new THREE.Vector2((x / this.size.width) * 2 - 1, -(y / this.size.height) * 2 + 1);
     const ray = new THREE.Raycaster();
     ray.setFromCamera(ndc, this.camera);
-    const groups = this.levels.filter((l) => l.group.visible && l.opacity > 0.5).map((l) => l.group);
+    const groups = this.levels.filter((l) => this.pickable(l)).map((l) => l.group);
     const hits = ray.intersectObjects(groups, true).filter((h) => h.object.visible && !h.object.userData.outdoor);
     const levelOf = (o: THREE.Object3D | null): number => {
       while (o && !groups.includes(o as THREE.Group)) o = o.parent;
@@ -3891,7 +3899,27 @@ export class HouseRenderer {
     };
     if (this.hover !== null && hits.some((h) => levelOf(h.object) === this.hover)) return this.hover;
     const first = hits.length ? levelOf(hits[0].object) : -1;
-    return first >= 0 ? first : null;
+    if (first >= 0) return first;
+    // where the floors above stood before they slid away: still the hovered floor (else they
+    // would come back under the pointer reaching for what they covered)
+    return this.hover !== null && this.overStack(this.hover, x, y) ? this.hover : null;
+  }
+
+  /** Whether a canvas position (CSS px) is over the screen area of a level and those above it, at rest. */
+  private overStack(from: number, x: number, y: number): boolean {
+    let [x0, y0, x1, y1] = [Infinity, Infinity, -Infinity, -Infinity];
+    const v = new THREE.Vector3();
+    for (let i = from; i < this.levels.length; i++) {
+      const l = this.levels[i];
+      for (const [px, pz] of this.levelOutlines[i] ?? [])
+        for (const py of [l.baseY + l.lift, l.baseY + l.lift + (this.levelHeights[i] ?? 2.6)]) {
+          v.set(px + l.group.position.x, py, pz + l.group.position.z).project(this.camera);
+          const sx = ((v.x + 1) / 2) * this.size.width;
+          const sy = ((1 - v.y) / 2) * this.size.height;
+          [x0, y0, x1, y1] = [Math.min(x0, sx), Math.min(y0, sy), Math.max(x1, sx), Math.max(y1, sy)];
+        }
+    }
+    return x >= x0 && x <= x1 && y >= y0 && y <= y1;
   }
 
   get hoveredIndex() {

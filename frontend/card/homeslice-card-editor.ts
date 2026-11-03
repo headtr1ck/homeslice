@@ -159,11 +159,12 @@ export class HomesliceCardEditor extends LitElement {
         >${this.t("cardeditor.mode")}
         <select @change=${(e: Event) => {
           const mode = (e.target as HTMLSelectElement).value;
-          this.change({ mode: mode === "plan" || mode === "tilted" ? mode : undefined });
+          this.change({ mode: mode === "plan" || mode === "tilted" || mode === "side" ? mode : undefined });
         }}>
           <option value="3d" ?selected=${!this._config.mode || this._config.mode === "3d"}>${this.t("cardeditor.mode_3d")}</option>
           <option value="tilted" ?selected=${this._config.mode === "tilted"}>${this.t("cardeditor.mode_tilted")}</option>
           <option value="plan" ?selected=${this._config.mode === "plan"}>${this.t("cardeditor.mode_plan")}</option>
+          <option value="side" ?selected=${this._config.mode === "side"}>${this.t("cardeditor.mode_side")}</option>
         </select>
       </label>
       <label class="check" ?hidden=${this._config.mode !== "plan"}

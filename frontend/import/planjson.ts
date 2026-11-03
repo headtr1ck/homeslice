@@ -55,6 +55,8 @@ interface Source {
   /** Room edges on the walls' centre lines (else on their inner faces). */
   centre: boolean;
   roof?: { type?: string; pitch?: number; ridge?: string };
+  /** What the source has that can't come along, said while reading it. */
+  notes?: string[];
 }
 
 /** An entity link, or nothing ("none" and null mean pick one yourself or none). */
@@ -73,6 +75,7 @@ function findBuilding(j: Json): Json {
 /** The full model: rooms with their edges, openings on room edges, furniture and entity pins. */
 function fromBuilding(b: Json): Source {
   const settings = b.settings ?? {};
+  const notes: string[] = [];
   const floors: SourceFloor[] = (b.floors ?? []).map((f: Json) => {
     const rooms = (f.rooms ?? []).flatMap((r: Json) => {
       const points = (r.points ?? []).map(pt).filter(Boolean) as Vec2[];
@@ -82,6 +85,11 @@ function fromBuilding(b: Json): Source {
     });
     const openings: SourceOpening[] = (f.openings ?? []).flatMap((o: Json) => {
       const room = rooms.find((r: { id: string }) => r.id === String(o.room_id));
+      // a door in a free-standing wall: its edge is the wall's, not the room's
+      if (o.wall) {
+        notes.push(`${o.type ?? "door"} in a free-standing wall: openings go in room walls only`);
+        return [];
+      }
       if (!room || typeof o.edge !== "number") return [];
       const a = room.points[o.edge % room.points.length];
       const c = room.points[(o.edge + 1) % room.points.length];
@@ -95,7 +103,7 @@ function fromBuilding(b: Json): Source {
     const walls = (f.walls ?? []).flatMap((w: Json) => (pt(w.a) && pt(w.b) ? [{ a: pt(w.a)!, b: pt(w.b)!, thickness: w.thickness ?? undefined, height: w.height ?? undefined }] : []));
     return { name: String(f.name ?? "Floor"), elevation: num(f.elevation, 0), height: num(f.height, 2.5), haFloor: f.ha_floor ?? undefined, rooms, openings, pieces, pins, walls };
   });
-  return { floors, exterior: num(settings.wall_exterior, 0.24), interior: num(settings.wall_interior, 0.12), centre: true, roof: settings.roof };
+  return { floors, exterior: num(settings.wall_exterior, 0.24), interior: num(settings.wall_interior, 0.12), centre: true, roof: settings.roof, notes };
 }
 
 /** The simple format: lengths in m, cm or mm, doors and windows by the point in their middle. */
@@ -223,7 +231,7 @@ export function planToHouse(text: string, id = "home"): PlanImport {
   }
   const simple = Array.isArray(j?.floors) && j.floors.some((f: Json) => Array.isArray(f?.doors) || Array.isArray(f?.windows)) && !j.floors.some((f: Json) => Array.isArray(f?.openings));
   const src = simple ? fromSimple(j) : fromBuilding(findBuilding(j));
-  const skipped: string[] = [];
+  const skipped: string[] = [...(src.notes ?? [])];
   const floors = [...src.floors].sort((a, b) => a.elevation - b.elevation).filter((f) => f.rooms.length);
   if (!floors.length) throw new Error("No rooms in this plan.");
 

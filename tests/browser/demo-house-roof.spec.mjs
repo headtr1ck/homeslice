@@ -381,25 +381,41 @@ test.describe.serial("demo house, roof (1)", () => {
     await act(page, () => page.evaluate(() => window.card.hass.pushModel(window.__demoModel)));
   });
 
-  test("the side view: a 2D drawing of every room at once, rows side by side, floors at their heights; turned; back", async () => {
-    const button = page.locator("homeslice-card button[data-side-view]");
-    await act(page, () => button.click());
-    await page.waitForTimeout(700);
+  test("the side view, a look of its own: a 2D drawing of every room at once, rows side by side, floors at their heights; turned; back", async () => {
+    const before = await page.evaluate(() => window.card.config);
+    await page.evaluate((c) => window.card.setConfig({ ...c, mode: "side", side_look: "north" }), before);
+    await page.waitForFunction(() => window.card.shadowRoot.querySelector("svg.side-view rect.room") && window.card._labels.some((l) => l.key === "first/bedroom"), null, { timeout: 15000 });
     const state = await page.evaluate(() => ({ look: window.card._side, labels: window.card._labels.map((l) => l.key), rooms: window.card.shadowRoot.querySelectorAll("svg.side-view rect.room").length }));
-    assert(state.look && state.rooms >= 5, `side view: ${JSON.stringify(state)}`);
+    assert(state.look === "north" && state.rooms >= 5, `side view: ${JSON.stringify(state)}`);
+    // no floor selector: the side view shows every floor
+    assert((await page.locator("homeslice-card nav.levels").count()) === 0, "floor buttons in the side view");
     // every room of every floor has its label
     const rooms = await page.evaluate(() => window.card.house.levels.flatMap((l) => l.rooms.filter((r) => r.kind === "room").map((r) => `${l.id}/${r.id}`)));
     const missing = rooms.filter((k) => !state.labels.includes(k));
     assert(!missing.length, `rooms without a label: ${missing}`);
     await shot(page, "demo-side-view");
-    await act(page, () => page.locator("homeslice-card button[data-side-turn]").click());
+    await page.locator("homeslice-card button[data-side-turn=right]").click();
     await page.waitForTimeout(700);
     const turned = await page.evaluate(() => window.card._side);
     assert(turned && turned !== state.look, `turned: ${turned}`);
     await shot(page, "demo-side-view-turned");
-    await act(page, () => button.click());
+    await page.evaluate((c) => window.card.setConfig(c), before);
     await page.waitForTimeout(700);
     assert((await page.evaluate(() => window.card.shadowRoot.querySelector("svg.side-view"))) === null, "still in the side view");
+  });
+
+  test("a house of one floor: no floor buttons", async () => {
+    await act(page, () =>
+      page.evaluate(() => {
+        const m = structuredClone(window.__demoModel);
+        m.levels = m.levels.slice(0, 1);
+        m.vertical = [];
+        window.card.hass.pushModel(m);
+      }),
+    );
+    assert((await page.locator("homeslice-card nav.levels").count()) === 0, "a floor selector for one floor");
+    await act(page, () => page.evaluate(() => window.card.hass.pushModel(window.__demoModel)));
+    assert((await page.locator("homeslice-card nav.levels button").count()) >= 3, "the floor buttons are gone for two floors");
   });
 
   test("a shed in the garden: a building of its own, with outside walls and a roof", async () => {
