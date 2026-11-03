@@ -161,9 +161,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     entry.async_on_unload(async_track_time_interval(hass, sweep, timedelta(days=1)))
     entry.async_on_unload(async_at_started(hass, sweep))
 
-    # models kept before their pictures were scaled down on download: done once, in the background
+    # models kept before: ones stored cut off downloaded again, then all made light (fewer
+    # triangles, smaller pictures), once, in the background
+    async def light() -> None:
+        await data["sketchfab"].async_repair()
+        await assets.async_shrink_all()
+
     async def shrink(*_: object) -> None:
-        hass.async_create_background_task(assets.async_shrink_all(), "homeslice shrink models")
+        hass.async_create_background_task(light(), "homeslice shrink models")
 
     entry.async_on_unload(async_at_started(hass, shrink))
     # the tools for AI assistants (conversation agents, and MCP clients through MCP Server)

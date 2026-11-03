@@ -101,6 +101,25 @@ class Sketchfab:
             raise AssetError("Add a Sketchfab API token first")
         return token
 
+    async def async_repair(self) -> int:
+        """Downloads again the models stored cut off; how many. Needs the token (else later)."""
+        broken = await self.hass.async_add_executor_job(self.assets.incomplete)
+        if not broken:
+            return 0
+        if not (await self._load()).get("token"):
+            _LOGGER.warning("%d Sketchfab models were stored incomplete; add the Sketchfab token in the editor to download them again", len(broken))
+            return 0
+        fixed = 0
+        for asset_id, meta in broken:
+            try:
+                await self.async_fetch(meta["uid"], asset_id)
+                fixed += 1
+            except AssetError as err:
+                _LOGGER.warning("Sketchfab model %s could not be downloaded again: %s", meta.get("name"), err)
+        if fixed:
+            _LOGGER.info("Downloaded %d incomplete Sketchfab models again", fixed)
+        return fixed
+
     async def async_search(self, query: str, cursor: str | None = None) -> dict[str, Any]:
         """Downloadable models for a query, smallest download first in each page; the next page's cursor."""
         params: dict[str, Any] = {"type": "models", "downloadable": "true", "q": query[:100], "count": 24}
@@ -126,8 +145,9 @@ class Sketchfab:
         nxt = data.get("cursors", {}).get("next")
         return {"results": items, "next": nxt}
 
-    async def async_fetch(self, uid: str) -> dict[str, Any]:
-        """Downloads a model's .glb into the house's own models, with its author and licence."""
+    async def async_fetch(self, uid: str, asset_id: str | None = None) -> dict[str, Any]:
+        """Downloads a model's .glb into the house's own models, with its author and licence
+        (under its own id again, when given: a model downloaded again)."""
         if not isinstance(uid, str) or not uid.isalnum() or len(uid) > 64:
             raise AssetError("Not a Sketchfab model id")
         token = await self._token()
@@ -143,9 +163,13 @@ class Sketchfab:
         async with session.get(url, headers={"User-Agent": USER_AGENT}, timeout=300) as resp:
             if resp.status != 200:
                 raise AssetError(f"Sketchfab answered {resp.status}")
-            blob = await resp.content.read(MAX_BYTES + 1)
-        if len(blob) > MAX_BYTES:
-            raise AssetError("This model is too large (40 MB at most)")
+            # all of it (a single read gives what has arrived so far), not more than the limit
+            data = bytearray()
+            async for chunk in resp.content.iter_chunked(1 << 16):
+                data += chunk
+                if len(data) > MAX_BYTES:
+                    raise AssetError("This model is too large (40 MB at most)")
+            blob = bytes(data)
         check_links(glb_json(blob))
         lic = licence_of(model)
         user = model.get("user") or {}
@@ -163,6 +187,6 @@ class Sketchfab:
             # bought ones are for this home only; CC ones may be passed on as their licence says
             "shareable": lic["slug"] in SHAREABLE,
         }
-        stored = await self.assets.async_custom_store(model.get("name") or "Sketchfab model", blob, meta)
+        stored = await self.assets.async_custom_store(model.get("name") or "Sketchfab model", blob, meta, asset_id)
         _LOGGER.info("Downloaded Sketchfab model %s", uid)
         return stored

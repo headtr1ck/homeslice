@@ -26,6 +26,10 @@ from homeassistant.helpers.storage import Store
 
 from .const import MODEL_DIR
 from .glbshrink import MAX_PX, shrink_glb
+from .glbsimplify import MAX_TRIANGLES, simplify_glb
+
+# what a stored model was made light for: pictures at most MAX_PX, meshes at most MAX_TRIANGLES
+LIGHT = f"{MAX_PX}px/{MAX_TRIANGLES}tri"
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -84,6 +88,9 @@ def glb_json(blob: bytes) -> Any:
     length, kind = struct.unpack_from("<I4s", blob, 12)
     if kind != b"JSON" or 20 + length > len(blob):
         raise AssetError("This is not a .glb file")
+    # its header says how long it is: shorter is a download cut off
+    if struct.unpack_from("<I", blob, 8)[0] != len(blob):
+        raise AssetError("The .glb file is incomplete")
     try:
         return json.loads(blob[20 : 20 + length])
     except ValueError as err:
@@ -356,9 +363,10 @@ class Assets:
         check_links(glb_json(blob))
         return await self.async_custom_store(name, blob)
 
-    async def async_custom_store(self, name: str, blob: bytes, meta: dict[str, Any] | None = None) -> dict[str, Any]:
-        """Keeps a checked .glb under a new, unguessable id (with where it came from, if anywhere)."""
-        asset_id = secrets.token_hex(12)
+    async def async_custom_store(self, name: str, blob: bytes, meta: dict[str, Any] | None = None, asset_id: str | None = None) -> dict[str, Any]:
+        """Keeps a checked .glb under a new, unguessable id (with where it came from, if anywhere);
+        or again under its own id (a model downloaded again)."""
+        asset_id = asset_id or secrets.token_hex(12)
         name = (name or "Model").strip()[:80] or "Model"
 
         def write() -> dict[str, Any]:
@@ -366,7 +374,8 @@ class Assets:
             small = _shrunk(blob)
             (self.root / "custom" / f"{asset_id}.glb").write_bytes(small)
             index = self._custom_index()
-            index[asset_id] = {"name": name, "bytes": len(small), **(meta or {}), "shrunk": MAX_PX}
+            index[asset_id] = {"name": name, "bytes": len(small), **(meta or {}), "shrunk": LIGHT}
+            index[asset_id].pop("original_bytes", None)
             if len(small) < len(blob):
                 index[asset_id]["original_bytes"] = len(blob)
             self._index_path.write_text(json.dumps(index, indent=1))
@@ -375,14 +384,26 @@ class Assets:
         stored = await self.hass.async_add_executor_job(write)
         return {"id": asset_id, "url": f"{ASSETS_URL}/custom/{asset_id}.glb", **stored}
 
+    def incomplete(self) -> list[tuple[str, dict[str, Any]]]:
+        """Sketchfab models stored cut off (a download read only partly, before 0.0.21) (blocking)."""
+        out = []
+        for asset_id, meta in self._custom_index().items():
+            path = self.root / "custom" / f"{asset_id}.glb"
+            if meta.get("source") != "sketchfab" or not meta.get("uid") or not path.exists():
+                continue
+            head = path.read_bytes()[:12]
+            if len(head) < 12 or struct.unpack_from("<I", head, 8)[0] != path.stat().st_size:
+                out.append((asset_id, meta))
+        return out
+
     async def async_shrink_all(self) -> int:
-        """Scales down the pictures of models kept before that was done on download; the bytes saved."""
+        """Makes models kept before light (fewer triangles, smaller pictures), once; the bytes saved."""
 
         def shrink() -> int:
             index = self._custom_index()
             saved = 0
             for asset_id, meta in index.items():
-                if meta.get("shrunk") == MAX_PX:
+                if meta.get("shrunk") == LIGHT:
                     continue
                 path = self.root / "custom" / f"{asset_id}.glb"
                 if path.exists():
@@ -390,16 +411,16 @@ class Assets:
                     small = _shrunk(blob)
                     if len(small) < len(blob):
                         path.write_bytes(small)
-                        meta.update(bytes=len(small), original_bytes=len(blob))
+                        meta.update(bytes=len(small), original_bytes=meta.get("original_bytes", len(blob)))
                         saved += len(blob) - len(small)
-                meta["shrunk"] = MAX_PX
+                meta["shrunk"] = LIGHT
                 # (written after each, so a restart halfway keeps what is done)
                 self._index_path.write_text(json.dumps(index, indent=1))
             return saved
 
         saved = await self.hass.async_add_executor_job(shrink)
         if saved:
-            _LOGGER.info("Scaled down the pictures in downloaded models: %.1f MB saved", saved / 1e6)
+            _LOGGER.info("Made downloaded models lighter (fewer triangles, smaller pictures): %.1f MB saved", saved / 1e6)
         return saved
 
     async def async_custom_delete(self, asset_id: str) -> None:
@@ -499,9 +520,9 @@ def texture_refs(model: dict[str, Any]) -> set[str]:
 
 
 def _shrunk(blob: bytes) -> bytes:
-    """The .glb with its pictures scaled down, still a valid model; else as it was."""
+    """The .glb with fewer triangles and its pictures scaled down, still a valid model; else as it was."""
     try:
-        small = shrink_glb(blob, MAX_PX)
+        small = shrink_glb(simplify_glb(blob, MAX_TRIANGLES), MAX_PX)
         check_links(glb_json(small))
     except Exception as err:  # noqa: BLE001 - a model that can't be shrunk is kept as it is
         _LOGGER.debug("Model kept as it is: %s", err)

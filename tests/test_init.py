@@ -266,6 +266,14 @@ async def test_custom_models_upload_list_delete(hass: HomeAssistant, setup, hass
     assert (await client.receive_json())["result"] == []
 
 
+async def test_a_cut_off_model_is_refused(hass: HomeAssistant, setup, hass_ws_client) -> None:
+    blob = base64.b64decode(GLB.split(",", 1)[1])
+    client = await hass_ws_client(hass)
+    cut = "data:model/gltf-binary;base64," + base64.b64encode(blob + b"\0" * 8).decode()
+    await client.send_json_auto_id({"type": "homeslice/assets/custom/upload", "name": "Half", "data": cut})
+    assert "incomplete" in (await client.receive_json())["error"]["message"]
+
+
 async def test_downloads_stay_out_of_backups(hass: HomeAssistant, setup, hass_client, tmp_path: Path) -> None:
     """Poly Haven files come back by themselves: they move to .cache, which backups leave out,
     and are still served where they were."""
@@ -365,6 +373,17 @@ async def test_sketchfab_token_search_and_fetch(hass: HomeAssistant, setup, hass
     reader = await hass_ws_client(hass, hass_read_only_access_token)
     await reader.send_json_auto_id({"type": "homeslice/sketchfab/search", "query": "sofa"})
     assert (await reader.receive_json())["error"]["code"] == "unauthorized"
+
+    # stored cut off (an earlier download read only its first part): downloaded again at start,
+    # under the same id (houses use it)
+    path = tmp_path / "homeslice" / "assets" / "custom" / f"{stored['id']}.glb"
+    whole = path.read_bytes()
+    path.write_bytes(whole[: len(whole) // 2])
+    assets = hass.data["homeslice"]["assets"]
+    assert [a for a, _ in await hass.async_add_executor_job(assets.incomplete)] == [stored["id"]]
+    assert await hass.data["homeslice"]["sketchfab"].async_repair() == 1
+    assert path.read_bytes() == whole
+    assert await hass.data["homeslice"]["sketchfab"].async_repair() == 0
 
 
 async def test_polyhaven_models_are_downloaded_once(hass: HomeAssistant, setup, hass_ws_client, aioclient_mock, tmp_path: Path) -> None:

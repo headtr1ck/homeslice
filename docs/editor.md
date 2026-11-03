@@ -165,10 +165,11 @@ Downloads clean up after themselves: Poly Haven models and textures and Sketchfa
 that no house has used for a week are removed (Poly Haven ones come back by themselves if
 used again). Your own uploads stay until you delete them in the library.
 
-Sketchfab models and uploads are kept small: the pictures inside them are scaled down to
-1024 px (a 4K texture on a chair is never seen on a floor plan), often a tenth of the size,
-which keeps Home Assistant's backups and the tablets' downloads light. Models kept before
-this are scaled down once, by themselves.
+Sketchfab models and uploads are kept light: the pictures inside them are scaled down to
+1024 px (a 4K texture on a chair is never seen on a floor plan), and a model with more than
+50,000 triangles is simplified to about that many (nearby points merged, texture seams kept),
+so a wall tablet can draw a whole furnished house. That keeps Home Assistant's backups and
+the tablets' downloads light too. Models kept before this are made light once, by themselves.
 
 ## Backup, YAML and restore
 
