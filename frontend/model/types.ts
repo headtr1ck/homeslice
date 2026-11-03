@@ -231,6 +231,8 @@ export interface WallInput {
   between?: [string, string];
   /** Only the boundary on this side of the first room. */
   side?: Side;
+  /** Only the piece of the boundary lying on this line (its two ends, metres): one wall of several. */
+  along?: [[number, number], [number, number]];
   /** A free-standing wall (not on a room boundary). */
   line?: [[Coord, Coord], [Coord, Coord]];
   /**
@@ -727,13 +729,13 @@ export interface Level {
   rooms: Room[];
   openings: Opening[];
   /** Boundaries between two rooms that are open (no wall), optionally one side only. */
-  openBoundaries: { between: [string, string]; side?: Side }[];
+  openBoundaries: { between: [string, string]; side?: Side; along?: [Vec2, Vec2] }[];
   /** Free-standing walls. */
   freeWalls: { a: Vec2; b: Vec2; thickness?: number }[];
   /** Free-standing railings (galleries, stair edges). */
   railings: { a: Vec2; b: Vec2; style: "glass" | "metal" | "wood" }[];
   /** Walls between two rooms with their own thickness, optionally one side only. */
-  thickBoundaries: { between: [string, string]; side?: Side; thickness: number }[];
+  thickBoundaries: { between: [string, string]; side?: Side; along?: [Vec2, Vec2]; thickness: number }[];
 }
 
 export interface Vertical {

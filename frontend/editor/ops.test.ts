@@ -40,6 +40,8 @@ import {
   setBoundaryOpen,
   setBoundaryOpenAll,
   boundaryOpenAll,
+  setOpenSegments,
+  setSegmentThickness,
   setOwnOutline,
   snap,
   splitEdge,
@@ -1128,6 +1130,51 @@ describe("a slanted wall between two rooms", () => {
     expect(between(m)[0].thickness).toBeCloseTo(0.2);
     m = setBoundaryThickness(m, "g", "living", "kitchen", null, undefined);
     expect(m.levels[0].walls).toBeUndefined();
+  });
+});
+
+describe("one wall of several between two rooms", () => {
+  // an L-shaped boundary: two walls on the living room's east side, one on its south
+  const ell = (): HouseInput => ({
+    schema: 2,
+    id: "l",
+    outline: { rect: [0, 0, 8, 4] },
+    levels: [
+      {
+        id: "g",
+        rooms: [
+          { id: "living", polygon: [[0, 0], [5, 0], [5, 2], [3, 2], [3, 4], [0, 4]] },
+          { id: "kitchen", polygon: [[5, 0], [8, 0], [8, 4], [3, 4], [3, 2], [5, 2]] },
+        ],
+      },
+    ],
+  });
+  const walls = (m: HouseInput) => {
+    const h = expandHouse(m).house!;
+    return deriveWalls(h.levels[0], h.walls).filter((w) => w.rooms.includes("living") && w.rooms.includes("kitchen"));
+  };
+  const at = (m: HouseInput, x: number, y: number) => walls(m).find((w) => Math.abs((w.a[0] + w.b[0]) / 2 - x) < 0.01 && Math.abs((w.a[1] + w.b[1]) / 2 - y) < 0.01)!;
+
+  it("opens just the one clicked; the others keep how they are", () => {
+    expect(walls(ell())).toHaveLength(3);
+    let m = setOpenSegments(ell(), "g", "living", "kitchen", [[[5, 0], [5, 2]]], 3);
+    expect(at(m, 5, 1).type).toBe("open");
+    expect(at(m, 3, 3).type).toBe("interior");
+    expect(at(m, 4, 2).type).toBe("interior");
+    // a second one too; then all three: one entry for the pair
+    m = setOpenSegments(m, "g", "living", "kitchen", [[[5, 0], [5, 2]], [[3, 2], [3, 4]]], 3);
+    expect(walls(m).filter((w) => w.type === "open")).toHaveLength(2);
+    m = setOpenSegments(m, "g", "living", "kitchen", walls(ell()).map((w) => w.line), 3);
+    expect(m.levels[0].walls).toEqual([{ between: ["living", "kitchen"] }]);
+    // and closed again
+    m = setOpenSegments(m, "g", "living", "kitchen", [], 3);
+    expect(m.levels[0].walls).toBeUndefined();
+  });
+
+  it("gives one its own thickness", () => {
+    const m = setSegmentThickness(ell(), "g", "living", "kitchen", [[3, 2], [3, 4]], 0.24);
+    expect(at(m, 3, 3).thickness).toBeCloseTo(0.24);
+    expect(at(m, 5, 1).thickness).toBeCloseTo(expandHouse(ell()).house!.walls.interior);
   });
 });
 

@@ -140,6 +140,9 @@ import {
   setBoundaryOpen,
   setBoundaryOpenAll,
   boundaryOpenAll,
+  setOpenSegments,
+  setSegmentThickness,
+  segmentThickness,
   setOutlineAuto,
   setOwnOutline,
   removeVertex,
@@ -212,6 +215,16 @@ const TOUR: { id: "floors" | "room" | "reshape" | "opening" | "furniture" | "sav
   { id: "save", target: "header button.save" },
 ];
 type TourCounts = { rooms: number; openings: number; furniture: number };
+
+/** Whether two wall segments lie on each other (one's middle on the other): the same wall, if split or merged since. */
+function overlaps(l: [Vec2, Vec2], m: [Vec2, Vec2]): boolean {
+  const on = (seg: [Vec2, Vec2], p: Vec2) => {
+    const pr = project(p, seg[0], seg[1]);
+    return pr.distance < 0.03 && pr.t > 0.01 && pr.t < pr.length - 0.01;
+  };
+  const mid = (seg: [Vec2, Vec2]): Vec2 => [(seg[0][0] + seg[1][0]) / 2, (seg[0][1] + seg[1][1]) / 2];
+  return on(l, mid(m)) || on(m, mid(l));
+}
 
 /** More words each tool is found by in the command search. */
 const TOOL_WORDS: Record<Tool, string> = {
@@ -553,7 +566,7 @@ export class HomeslicePanel extends LitElement {
   private _levelDrag: { id: string; from: number; over: number; startY: number; dy: number; step: number; moved: boolean } | null = null;
   /** Selected wall between two rooms: the rooms and its side as seen from `a`. */
   /** A selected inside wall: its rooms and side (seen from `a`; null for a slanted wall). */
-  private _wall: { a: string; b: string; side: Side | null } | null = null;
+  private _wall: { a: string; b: string; side: Side | null; line?: [Vec2, Vec2] } | null = null;
   /** The wall view: one side of a room seen from inside it, and what is being dragged there. */
   private _wallView: { room: string; side: Side; sel?: string } | null = null;
   private robotPolledAt = 0;
@@ -4511,7 +4524,7 @@ export class HomeslicePanel extends LitElement {
     const sel = this._wall;
     // (a wall of one room only: the other side is empty)
     const room = sel && w.rooms.includes(sel.a) && (sel.b ? w.rooms.includes(sel.b) : w.rooms.length === 1) ? this.levelInputRoomPolygon(sel.a) : null;
-    const selected = !!sel && !!room && sideOfRoom(room, w.line[0], w.line[1]) === sel.side;
+    const selected = !!sel && !!room && (sel.line ? overlaps(w.line, sel.line) : sideOfRoom(room, w.line[0], w.line[1]) === sel.side);
     let hit: unknown = nothing;
     // every inside wall can be selected: between two rooms, or one room's with nothing beside it
     if ((w.type === "interior" || w.type === "open") && w.rooms.length >= 1) {
@@ -5532,7 +5545,7 @@ export class HomeslicePanel extends LitElement {
       .filter((x): x is { side: Side; wall: Wall } => !!x.side);
   }
 
-  private renderWallInspector(sel: { a: string; b: string; side: Side | null }) {
+  private renderWallInspector(sel: { a: string; b: string; side: Side | null; line?: [Vec2, Vec2] }) {
     const m = this._model!;
     const l = this.levelInput!;
     const name = (id: string) => {
@@ -5554,9 +5567,18 @@ export class HomeslicePanel extends LitElement {
         </div>`;
     const all = [...new Set(this.boundary(sel.a, sel.b).map((x) => x.side))];
     const side = sel.side;
-    // a slanted wall: open or built all along
-    const open = side ? openSides(m, this._level, sel.a, sel.b, all).includes(side) : boundaryOpenAll(m, this._level, sel.a, sel.b);
-    const set = (o: boolean) => this.commit(side ? setBoundaryOpen(m, this._level, sel.a, sel.b, side, o, all) : setBoundaryOpenAll(m, this._level, sel.a, sel.b, o));
+    // the walls between the two rooms, and the one clicked: changed on its own
+    const pieces = this.levelWalls().filter((w) => (w.type === "interior" || w.type === "open") && w.rooms.includes(sel.a) && w.rooms.includes(sel.b));
+    const piece = sel.line ? pieces.find((w) => overlaps(w.line, sel.line!)) : undefined;
+    const open = piece ? piece.type === "open" : side ? openSides(m, this._level, sel.a, sel.b, all).includes(side) : boundaryOpenAll(m, this._level, sel.a, sel.b);
+    const set = (o: boolean) =>
+      this.commit(
+        piece
+          ? setOpenSegments(m, this._level, sel.a, sel.b, pieces.filter((w) => (w === piece ? o : w.type === "open")).map((w) => w.line), pieces.length)
+          : side
+            ? setBoundaryOpen(m, this._level, sel.a, sel.b, side, o, all)
+            : setBoundaryOpenAll(m, this._level, sel.a, sel.b, o),
+      );
     return html`<h2>${this.t("editor.wall")}</h2>
       <p class="muted">${side ? this.t("editor.wall_between", { a: name(sel.a), b: name(sel.b), side: this.t(`editor.side_${side}` as StringKey) }) : this.t("editor.wall_between_slanted", { a: name(sel.a), b: name(sel.b) })}</p>
       <div class="segmented" role="radiogroup">
@@ -5574,9 +5596,9 @@ export class HomeslicePanel extends LitElement {
       ${open
         ? nothing
         : (() => {
-            const own = boundaryThickness(m, this._level, sel.a, sel.b, sel.side);
+            const own = (piece ? segmentThickness(m, this._level, sel.a, sel.b, piece.line) : undefined) ?? boundaryThickness(m, this._level, sel.a, sel.b, sel.side);
             const house = m.walls?.interior ?? DEFAULTS.walls.interior;
-            return html`${this.cmInput(this.t("editor.wall_thickness"), own, house, (v) => this.commit(setBoundaryThickness(m, this._level, sel.a, sel.b, sel.side, v)))}
+            return html`${this.cmInput(this.t("editor.wall_thickness"), own, house, (v) => this.commit(piece ? setSegmentThickness(m, this._level, sel.a, sel.b, piece.line, v) : setBoundaryThickness(m, this._level, sel.a, sel.b, sel.side, v)))}
               <p class="muted">${this.t("editor.wall_thickness_hint", { cm: cm(house) })}</p>`;
           })()}`;
   }

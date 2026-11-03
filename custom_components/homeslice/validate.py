@@ -581,6 +581,14 @@ def validate(house: Any) -> list[dict[str, str]]:
                 if truthy(wside) and wside not in SIDES:
                     err(wp, f'side must be one of {", ".join(SIDES)}, got "{text(wside)}".')
                     continue
+                along = get(wi, "along")
+
+                def point(q: Any) -> bool:
+                    return isinstance(q, list) and len(q) == 2 and all(is_num(v) for v in q)
+
+                if along is not MISSING and not (isinstance(along, list) and len(along) == 2 and all(point(q) for q in along)):
+                    err(f"{wp}.along", "along must be the wall's two ends, [[x, y], [x, y]] in metres.")
+                    continue
                 thickness = get(wi, "thickness")
                 if nullish(get(wi, "type"), "open") != "open" and thickness is not MISSING and not (0 < num(thickness) < 2):
                     err(wp, f"thickness is in metres, e.g. 0.12; got {text(thickness)}.")

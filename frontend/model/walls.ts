@@ -144,8 +144,14 @@ export function deriveWalls(level: Level, thickness: WallThickness, issues: Issu
     const room = level.rooms.find((r) => r.id === roomId);
     return room ? sideOfRoom(room.polygon, p, q) : null;
   };
-  const matches = (piece: Piece, o: { between: [string, string]; side?: Side }) =>
-    piece.rooms.size === 2 && o.between.every((r) => piece.rooms.has(r)) && (!o.side || sideFrom(o.between[0], piece.a, piece.b) === o.side);
+  // `along`: only a piece lying on that line (its middle on it, a few centimetres off at most)
+  const onLine = (piece: Piece, [p, q]: [Vec2, Vec2]) => {
+    const mid: Vec2 = [(piece.a[0] + piece.b[0]) / 2, (piece.a[1] + piece.b[1]) / 2];
+    const pr = project(mid, p, q);
+    return pr.distance < 0.05 && pr.t > -0.05 && pr.t < pr.length + 0.05;
+  };
+  const matches = (piece: Piece, o: { between: [string, string]; side?: Side; along?: [Vec2, Vec2] }) =>
+    piece.rooms.size === 2 && o.between.every((r) => piece.rooms.has(r)) && (!o.side || sideFrom(o.between[0], piece.a, piece.b) === o.side) && (!o.along || onLine(piece, o.along));
   const isOpen = (piece: Piece) => level.openBoundaries.some((o) => matches(piece, o));
   // the last entry wins, like in the file
   const ownThickness = (piece: Piece) => [...(level.thickBoundaries ?? [])].reverse().find((o) => matches(piece, o))?.thickness;

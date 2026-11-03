@@ -161,7 +161,7 @@ bulge on its edge). Doors and windows on a curved side follow the arc in parts.
 
 Generated from the rooms. Entries under a level's `walls` only change them:
 `{between: [a, b]}` removes the wall between two rooms (open plan; `side: north` limits
-it to one side of the first room); `{between: [a, b], type: wall, thickness: 0.2}` gives
+it to one side of the first room, `along: [[x, y], [x, y]]` to the one wall on that line); `{between: [a, b], type: wall, thickness: 0.2}` gives
 that wall its own thickness; `{line: [[x, y], [x, y]]}` adds a free-standing wall (`type: railing, railing: glass|metal|wood`: a metre-high railing instead, for galleries and stair edges). House
 defaults: `walls: {exterior: 0.36, interior: 0.12, party: 0.24}`.
 

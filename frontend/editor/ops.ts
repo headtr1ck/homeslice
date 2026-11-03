@@ -467,6 +467,42 @@ export function setBoundaryOpen(model: HouseInput, levelId: string, a: string, b
 }
 
 /** The own thickness of one side (seen from `a`) of the wall between two rooms, if set. */
+const r2 = (p: Vec2): [number, number] => [round(p[0]), round(p[1])];
+const sameLine = (l: [Vec2, Vec2], m: [Vec2, Vec2]) => {
+  const d = (p: Vec2, q: Vec2) => Math.hypot(p[0] - q[0], p[1] - q[1]);
+  return (d(l[0], m[0]) < 0.02 && d(l[1], m[1]) < 0.02) || (d(l[0], m[1]) < 0.02 && d(l[1], m[0]) < 0.02);
+};
+
+/**
+ * Which walls between two rooms are open, segment by segment: `open` the lines of the open
+ * ones, of `count` in all. Settings for the pair (a side, all along) become per-segment ones,
+ * so the others keep how they are; all open is one entry for the pair again.
+ */
+export function setOpenSegments(model: HouseInput, levelId: string, a: string, b: string, open: [Vec2, Vec2][], count: number): HouseInput {
+  const m = clone(model);
+  const l = level(m, levelId);
+  const others = (l.walls ?? []).filter((w) => !(w.between && w.between.includes(a) && w.between.includes(b) && (w.type ?? "open") === "open"));
+  const mine: WallInput[] = count > 0 && open.length >= count ? [{ between: [a, b] }] : open.map((line) => ({ between: [a, b] as [string, string], along: [r2(line[0]), r2(line[1])] as [[number, number], [number, number]] }));
+  l.walls = [...others, ...mine];
+  if (!l.walls.length) delete l.walls;
+  return m;
+}
+
+/** One wall segment between two rooms with its own thickness; undefined: as the others. */
+export function setSegmentThickness(model: HouseInput, levelId: string, a: string, b: string, line: [Vec2, Vec2], thickness: number | undefined): HouseInput {
+  const m = clone(model);
+  const l = level(m, levelId);
+  l.walls = (l.walls ?? []).filter((w) => !(w.between && w.type === "wall" && w.between.includes(a) && w.between.includes(b) && w.along && sameLine(w.along as [Vec2, Vec2], line)));
+  if (thickness !== undefined) l.walls.push({ between: [a, b], along: [r2(line[0]), r2(line[1])], type: "wall", thickness: round(thickness) });
+  if (!l.walls.length) delete l.walls;
+  return m;
+}
+
+/** A segment's own thickness (an entry along it), if it has one. */
+export function segmentThickness(model: HouseInput, levelId: string, a: string, b: string, line: [Vec2, Vec2]): number | undefined {
+  return (level(model, levelId).walls ?? []).filter((w) => w.between && w.type === "wall" && w.between.includes(a) && w.between.includes(b) && w.along && sameLine(w.along as [Vec2, Vec2], line)).at(-1)?.thickness;
+}
+
 /** Whether the wall between two rooms is open all along (a slanted wall has no side to open alone). */
 export function boundaryOpenAll(model: HouseInput, levelId: string, a: string, b: string): boolean {
   return (level(model, levelId).walls ?? []).some((w) => !!w.between && (w.type ?? "open") === "open" && !w.side && w.between.includes(a) && w.between.includes(b));

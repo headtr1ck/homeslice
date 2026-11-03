@@ -434,10 +434,13 @@ export function expandHouse(input: unknown): ExpandResult {
         const unknown = wi.between.filter((r) => !roomIds.has(r));
         if (wi.between.length !== 2 || unknown.length) return err(wp, `between needs two rooms of this level (unknown: ${unknown.join(", ") || "none"}; rooms: ${[...roomIds].join(", ")}).`);
         if (wi.side && !SIDES.includes(wi.side)) return err(wp, `side must be one of ${SIDES.join(", ")}, got "${wi.side}".`);
-        if ((wi.type ?? "open") === "open") openBoundaries.push({ between: wi.between, side: wi.side });
+        const pt = (q: unknown) => Array.isArray(q) && q.length === 2 && q.every((v) => typeof v === "number");
+        if (wi.along !== undefined && !(Array.isArray(wi.along) && wi.along.length === 2 && wi.along.every(pt))) return err(`${wp}.along`, "along must be the wall's two ends, [[x, y], [x, y]] in metres.");
+        const along = wi.along ? ([[wi.along[0][0], wi.along[0][1]], [wi.along[1][0], wi.along[1][1]]] as [Vec2, Vec2]) : undefined;
+        if ((wi.type ?? "open") === "open") openBoundaries.push({ between: wi.between, side: wi.side, ...(along ? { along } : {}) });
         else if (wi.thickness !== undefined) {
           if (!(wi.thickness > 0 && wi.thickness < 2)) return err(wp, `thickness is in metres, e.g. 0.12; got ${wi.thickness}.`);
-          thickBoundaries.push({ between: wi.between, side: wi.side, thickness: wi.thickness });
+          thickBoundaries.push({ between: wi.between, side: wi.side, ...(along ? { along } : {}), thickness: wi.thickness });
         }
         return;
       }

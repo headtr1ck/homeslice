@@ -151,6 +151,8 @@ const MUTATIONS: [string, (h: House) => unknown][] = [
   ["robot without dock", (h) => (delete h.robots[0].dock, h)],
   ["stairs of an unknown shape", (h) => ((h.vertical[0].shape = "helix"), h)],
   ["stairs with a railing of paper", (h) => ((h.vertical[0].railing = "paper"), h)],
+  ["wall along a point", (h) => (L(h).walls.push({ between: [L(h).rooms[0].id, L(h).rooms[1].id], along: [[1, 2]] }), h)],
+  ["valid: one wall of the boundary open", (h) => (L(h).walls.push({ between: [L(h).rooms[0].id, L(h).rooms[1].id], along: [[1, 2], [3, 2]] }), h)],
   ["stairs on stilts", (h) => ((h.vertical[0].stringers = "stilts"), h)],
   ["valid: stairs on a central stringer", (h) => ((h.vertical[0].stringers = "centre"), h)],
   ["stairs turning five times", (h) => ((h.vertical[0].turns = 5), h)],

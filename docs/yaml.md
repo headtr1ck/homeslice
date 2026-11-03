@@ -124,6 +124,7 @@ levels:
       - { id: garden, area_id: garden, kind: outdoor, rect: [0, 8, 10, 6], awning: cover.awning }
     walls:
       - { between: [living, kitchen] }  # no wall here (open plan); side: north opens one side only
+      # - { between: [living, kitchen], along: [[3, 4], [5, 4]] }   # or just the wall on this line
     openings:
       # at = metres from the room's west end (north/south sides) or north end (east/west sides)
       - { room: living, side: south, at: 1, width: 2.4, cover: cover.living_room, blind: cover.living_blind, blind_style: venetian }
