@@ -311,6 +311,27 @@ test.describe.serial("demo house, roof (1)", () => {
     await act(page, () => page.evaluate(() => window.card.hass.pushModel(window.__demoModel)));
   });
 
+  test("stairs on stringers: an L, a board each side of each flight", async () => {
+    await act(page, () =>
+      page.evaluate(() => {
+        const m = structuredClone(window.__demoModel);
+        Object.assign(m.vertical[0], { turns: 1, stringers: "sides", railing: "metal" });
+        window.card.hass.pushModel(m);
+      }),
+    );
+    const boards = await page.evaluate(() => {
+      let n = 0;
+      window.card.renderer.object.traverse((o) => o.userData.stringer && n++);
+      return n;
+    });
+    assert(boards === 4, `stringers: ${boards}`);
+    await act(page, () => page.locator("homeslice-card button", { hasText: "Ground Floor" }).click());
+    await page.waitForTimeout(800);
+    await shot(page, "demo-stairs-stringers");
+    await act(page, () => page.locator("homeslice-card button", { hasText: "All floors" }).click());
+    await act(page, () => page.evaluate(() => window.card.hass.pushModel(window.__demoModel)));
+  });
+
   test("stairs with solid steps in concrete", async () => {
     await act(page, () =>
       page.evaluate(() => {

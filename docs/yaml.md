@@ -79,6 +79,7 @@ vertical:
     railing: metal                      # optional handrail on the open side: glass, metal, wood
                                         # (and upstairs round the well, where no wall is)
     treads: open                        # open (floating, gaps between) or solid (closed to the floor)
+    stringers: sides                    # open steps: sides, centre (one under the middle) or none
     finish: wood                        # the steps: any floor finish (concrete, tile_white…)
     up: east                            # direction the first flight climbs
     entry: 0                            # floor before the first step (stairs that start further in)

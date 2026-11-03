@@ -381,6 +381,8 @@ export interface VerticalInput extends ShapeInput {
   turns?: 0 | 1 | 2 | 3;
   /** How each turn goes: `landing` (flat, default) or `winders` (steps turning round). */
   turn?: "landing" | "winders";
+  /** Open steps in flights: what carries them: `sides` (a stringer each side), `centre` (one under the middle) or `none` (floating, fixed in the wall). Default: a steel carrier under each step. */
+  stringers?: "sides" | "centre" | "none";
   /** The steps' finish, like a floor's: wood (default), concrete, tile_white, carpet… */
   finish?: string;
   /** Compass direction the first flight climbs towards (default: along the longer side). */
@@ -749,6 +751,7 @@ export interface Vertical {
   railing?: "glass" | "metal" | "wood";
   treads?: "open" | "solid";
   turn?: "landing" | "winders";
+  stringers?: "sides" | "centre" | "none";
   finish?: string;
 }
 

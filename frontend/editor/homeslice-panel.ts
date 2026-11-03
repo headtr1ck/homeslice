@@ -7327,6 +7327,13 @@ export class HomeslicePanel extends LitElement {
                 ${(["open", "solid"] as const).map((t) => html`<option value=${t} ?selected=${(v.treads ?? "open") === t}>${this.t(`editor.stairs_treads_${t}`)}</option>`)}
               </select>
             </label>
+            ${form === "straight" && v.treads !== "solid"
+              ? html`<label>${this.t("editor.stairs_stringers")}
+                  <select data-stair-stringers @change=${(e: Event) => set({ stringers: ((e.target as HTMLSelectElement).value || undefined) as VerticalInput["stringers"] })}>
+                    ${(["", "sides", "centre", "none"] as const).map((k) => html`<option value=${k} ?selected=${(v.stringers ?? "") === k}>${this.t(`editor.stairs_stringers_${k || "carriers"}`)}</option>`)}
+                  </select>
+                </label>`
+              : nothing}
             <h4>${this.t("editor.stairs_finish")}</h4>
             ${this.renderFinishPicker("floor", v.finish, (finish) => set({ finish }), this.t("surface.wood"))}
             ${turnsOf || form !== "straight"

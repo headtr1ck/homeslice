@@ -656,6 +656,7 @@ export function expandHouse(input: unknown): ExpandResult {
     if (vi.turns !== undefined && !([0, 1, 2, 3] as unknown[]).includes(vi.turns)) return err(`${vp}.turns`, `turns is the number of quarter turns: 0 (straight), 1 (an L), 2 (a U) or 3; got ${JSON.stringify(vi.turns)}.`);
     if (vi.turns && (stairShape === "spiral" || stairShape === "curved")) return err(`${vp}.turns`, `turns is for stairs in flights; a ${stairShape} stair turns by itself.`);
     if (vi.turn !== undefined && !["landing", "winders"].includes(vi.turn)) return err(`${vp}.turn`, `turn must be landing or winders, got ${JSON.stringify(vi.turn)}.`);
+    if (vi.stringers !== undefined && !["sides", "centre", "none"].includes(vi.stringers)) return err(`${vp}.stringers`, `stringers must be sides, centre or none, got ${JSON.stringify(vi.stringers)}.`);
     if (vi.treads !== undefined && !["open", "solid"].includes(vi.treads)) return err(`${vp}.treads`, `treads must be open or solid, got ${JSON.stringify(vi.treads)}.`);
     if (vi.finish !== undefined && !finishOk(vi.finish, FLOOR_FINISHES)) return err(`${vp}.finish`, `finish must be ${FLOOR_HINT}, got ${JSON.stringify(vi.finish)}.`);
     const { min, max } = bbox(polygon);
@@ -671,7 +672,7 @@ export function expandHouse(input: unknown): ExpandResult {
     const turns = vi.turns ?? (stairShape === "l_turn" ? 1 : stairShape === "u_turn" ? 2 : 0);
     const turn = vi.turn ?? (stairShape === "u_turn" ? "winders" : undefined);
     const form = stairShape === "spiral" || stairShape === "curved" ? stairShape : "straight";
-    vertical.push({ id: vi.id, kind: vi.kind ?? "stairs", polygon, from, to, shape: form, turns, up, start, entry, ...(vi.treads ? { treads: vi.treads } : {}), ...(turn ? { turn } : {}), ...(vi.railing ? { railing: vi.railing } : {}), ...(vi.finish ? { finish: vi.finish } : {}) });
+    vertical.push({ id: vi.id, kind: vi.kind ?? "stairs", polygon, from, to, shape: form, turns, up, start, entry, ...(vi.treads ? { treads: vi.treads } : {}), ...(vi.stringers ? { stringers: vi.stringers } : {}), ...(turn ? { turn } : {}), ...(vi.railing ? { railing: vi.railing } : {}), ...(vi.finish ? { finish: vi.finish } : {}) });
   });
 
   // every house has a roof (defaults unless set); cards decide whether it is drawn

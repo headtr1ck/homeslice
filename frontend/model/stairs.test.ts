@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { bbox } from "./geometry";
-import { galleryRails, stairPath, stairRail, stairTreads } from "./stairs";
+import { galleryRails, stairPath, stairRail, stairStringers, stairTreads } from "./stairs";
 import type { Vertical } from "./types";
 
 type Form = Vertical["shape"] | "l_turn" | "u_turn";
@@ -110,5 +110,19 @@ describe("stairs", () => {
     expect(bbox(treads[0].poly).max[0]).toBeLessThan(1.5);
     expect(bbox(treads.at(-1)!.poly).min[0]).toBeGreaterThan(2.5);
     expect(stairRail({ ...v, railing: "wood" }, 2.66)).toHaveLength(treads.length + 1);
+  });
+
+  it("stringers: one each side of each flight, or one under the middle, rising with the steps", () => {
+    const rect: [number, number, number, number] = [0, 0, 4, 3];
+    expect(stairStringers(stair("straight", rect), 2.66)).toEqual([]);
+    const sides = stairStringers(stair("straight", rect, { turns: 1, stringers: "sides" }), 2.66);
+    // two flights, two sides
+    expect(sides).toHaveLength(4);
+    expect(sides.every((s) => s.zb > s.za)).toBe(true);
+    // the first starts on the floor; the second ends at the top
+    expect(sides[0].za).toBeCloseTo(0);
+    expect(Math.max(...sides.map((s) => s.zb))).toBeCloseTo(2.66);
+    expect(stairStringers(stair("straight", rect, { stringers: "centre" }), 2.66)).toHaveLength(1);
+    expect(stairStringers(stair("spiral", [0, 0, 2, 2], { stringers: "sides" }), 2.66)).toEqual([]);
   });
 });

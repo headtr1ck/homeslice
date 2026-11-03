@@ -83,6 +83,37 @@ function flightTread(f: { axis: "u" | "w"; from: number; to: number; band: [numb
 export interface Tread {
   poly: Vec2[];
   top: number;
+  /** The flight it belongs to (stairs in flights; turns and round steps have none). */
+  flight?: number;
+}
+
+/**
+ * Where a stair's stringers run (the boards carrying its steps): per flight, along both its
+ * sides or under its middle; from the floor (or the step before) up to its last step. Plan
+ * points with their heights (the stringer's top edge). Round stairs have none.
+ */
+export function stairStringers(v: Vertical, rise: number): { a: Vec2; za: number; b: Vec2; zb: number }[] {
+  if (v.shape !== "straight" || !v.stringers || v.stringers === "none") return [];
+  const { L, W, plan } = stairFrame(v);
+  const treads = stairTreadsLocal(v, rise);
+  const step = treads[0]?.top ?? 0;
+  const flights =
+    v.turns > 0
+      ? flightLayout(v, L, W).flights
+      : [{ axis: "u" as const, from: Math.min(v.entry, L - 0.5), to: L, band: [W * 0.05, W * 0.95] as [number, number] }];
+  const out: { a: Vec2; za: number; b: Vec2; zb: number }[] = [];
+  flights.forEach((f, j) => {
+    const own = treads.filter((t) => t.flight === j);
+    if (!own.length || Math.abs(f.to - f.from) < 0.05) return;
+    const za = own[0].top - step;
+    const zb = own[own.length - 1].top;
+    const lines = v.stringers === "centre" ? [(f.band[0] + f.band[1]) / 2] : [f.band[0] + 0.03, f.band[1] - 0.03];
+    for (const w of lines) {
+      const at = (x: number): Vec2 => (f.axis === "u" ? [x, w] : [w, x]);
+      out.push({ a: plan(at(f.from)), za, b: plan(at(f.to)), zb });
+    }
+  });
+  return out;
 }
 
 /** Winders in a quarter turn. */
@@ -159,7 +190,7 @@ export function spiralRadii(v: Vertical): { r0: number; R: number } {
  */
 export function stairTreads(v: Vertical, rise: number): Tread[] {
   const { plan } = stairFrame(v);
-  return stairTreadsLocal(v, rise).map((t) => ({ poly: t.poly.map(plan), top: t.top }));
+  return stairTreadsLocal(v, rise).map((t) => ({ ...t, poly: t.poly.map(plan) }));
 }
 
 /** The steps in the stair's own (u, w) frame. */
@@ -167,7 +198,7 @@ function stairTreadsLocal(v: Vertical, rise: number): Tread[] {
   const { L, W } = stairFrame(v);
   const n = Math.max(3, Math.round(rise / 0.19));
   const step = rise / n;
-  const out: { poly: Vec2[]; top: number }[] = [];
+  const out: Tread[] = [];
   const rect = (u0: number, u1: number, w0: number, w1: number): Vec2[] => [[u0, w0], [u1, w0], [u1, w1], [u0, w1]];
   if (v.shape === "straight" && v.turns > 0) {
     const { flights, corners } = flightLayout(v, L, W);
@@ -184,7 +215,7 @@ function stairTreadsLocal(v: Vertical, rise: number): Tread[] {
     [...len.keys()].sort((x, y) => (rest * len[y]) / total - counts[y] - ((rest * len[x]) / total - counts[x])).slice(0, rest - counts.reduce((x, y) => x + y, 0)).forEach((j) => counts[j]++);
     let top = 0;
     flights.forEach((f, j) => {
-      for (let i = 0; i < counts[j]; i++) out.push({ poly: flightTread(f, i, counts[j]), top: (top += step) });
+      for (let i = 0; i < counts[j]; i++) out.push({ poly: flightTread(f, i, counts[j]), top: (top += step), flight: j });
       const corner = corners[j];
       if (!corner) return;
       if (c === 1) {
@@ -224,7 +255,7 @@ function stairTreadsLocal(v: Vertical, rise: number): Tread[] {
   } else {
     const width = W * 0.9;
     const E = Math.min(v.entry, L - 0.5);
-    for (let i = 0; i < n; i++) out.push({ poly: rect(E + (i * (L - E)) / n, E + ((i + 1) * (L - E)) / n, (W - width) / 2, (W + width) / 2), top: (i + 1) * step });
+    for (let i = 0; i < n; i++) out.push({ poly: rect(E + (i * (L - E)) / n, E + ((i + 1) * (L - E)) / n, (W - width) / 2, (W + width) / 2), top: (i + 1) * step, flight: 0 });
   }
   return out;
 }

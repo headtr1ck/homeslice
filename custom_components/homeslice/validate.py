@@ -722,6 +722,10 @@ def validate(house: Any) -> list[dict[str, str]]:
         if turn is not MISSING and turn not in ("landing", "winders"):
             err(f"{vp}.turn", f"turn must be landing or winders, got {stringify(turn)}.")
             continue
+        stringers = get(vi, "stringers")
+        if stringers is not MISSING and stringers not in ("sides", "centre", "none"):
+            err(f"{vp}.stringers", f"stringers must be sides, centre or none, got {stringify(stringers)}.")
+            continue
         treads = get(vi, "treads")
         if treads is not MISSING and treads not in ("open", "solid"):
             err(f"{vp}.treads", f"treads must be open or solid, got {stringify(treads)}.")

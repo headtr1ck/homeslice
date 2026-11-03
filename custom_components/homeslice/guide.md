@@ -178,7 +178,9 @@ longer side), `start` (turning stairs: the side the first flight runs along; the
 spiral or a curved stair turn away from it), `entry` (metres of floor before the first step),
 `railing: glass|metal|wood` (a handrail on the open side; none against a wall; upstairs, a
 railing round the well's open edges, except where one steps off), `treads: open|solid` (open:
-floating steps with gaps, the default; solid: closed down to the floor), `finish` (the steps'
+floating steps with gaps, the default; solid: closed down to the floor), `stringers:
+sides|centre|none` (open steps in flights: a board each side, one under the middle, or none;
+default a steel carrier under each step), `finish` (the steps'
 finish, any floor finish: wood by default, concrete, tile_white…).
 
 ### Furniture

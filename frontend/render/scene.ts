@@ -18,7 +18,7 @@ import { LineSegmentsGeometry } from "three/examples/jsm/lines/LineSegmentsGeome
 import type { RoofPart, Room, House, Level, LightType, PieceInput, Section, Side, Vec2, Vertical } from "../model/types";
 import { innerPolygon, type Wall, type WallOpening } from "../model/walls";
 import { bbox, clipHalfPlane, innermost, labelPoint, nestedIn, overlap, pointInPolygon } from "../model/geometry";
-import { galleryRails, stairFrame, stairHole, stairRail, stairTreads } from "../model/stairs";
+import { galleryRails, stairStringers, stairFrame, stairHole, stairRail, stairTreads } from "../model/stairs";
 
 /** `isometric`: parallel lines stay parallel; `perspective`: walls lean, like a photo. */
 export type Projection = "isometric" | "perspective";
@@ -1614,6 +1614,8 @@ export class HouseRenderer {
       tread.rotateX(-Math.PI / 2);
       tread.translate(0, t.top - 0.05, 0);
       g.add(this.mesh(tread, wood));
+      // stringers carry the steps instead (or nothing: floating steps)
+      if (v.stringers && v.shape === "straight") continue;
       // dark steel carrier under the tread
       const carrier = new THREE.ExtrudeGeometry(shapeOf(normalize(shrink(t.poly, 0.06))), { depth: 0.04, bevelEnabled: false });
       carrier.rotateX(-Math.PI / 2);
@@ -1629,6 +1631,18 @@ export class HouseRenderer {
         bar.position.set(x, rise / 2, y);
         g.add(bar);
       }
+    }
+    // the stringers: a board along each flight (its top edge just under the steps' fronts)
+    for (const s of stairStringers(v, rise)) {
+      const a = new THREE.Vector3(s.a[0], s.za - 0.16, s.a[1]);
+      const b = new THREE.Vector3(s.b[0], s.zb - 0.16, s.b[1]);
+      const len = a.distanceTo(b);
+      if (len < 0.05) continue;
+      const board = this.mesh(new THREE.BoxGeometry(0.05, 0.24, len), v.stringers === "centre" ? steel : wood);
+      board.position.copy(a).add(b).multiplyScalar(0.5);
+      board.lookAt(b);
+      board.userData.stringer = true;
+      g.add(board);
     }
     if (v.shape === "spiral") {
       // the post the steps turn round
