@@ -1391,6 +1391,16 @@ test.describe.serial("editor", () => {
     assert((await room("kitchen")).furniture[0].options?.handle === "handleless", `options: ${JSON.stringify((await room("kitchen")).furniture[0].options)}`);
     await page.locator('homeslice-panel .inspector [data-option="handle"] button[data-value="bar"]').click();
     assert(!(await room("kitchen")).furniture[0].options, "the piece's own handle written down");
+    // an older name: shown as the base unit with three drawers; a change writes the base unit
+    await page.evaluate(() => {
+      const m = structuredClone(window.panel._model);
+      m.levels.find((l) => l.id === window.panel._level).rooms.find((r) => r.id === "kitchen").furniture[0].model = "modern:kitchen_drawers";
+      window.panel.commit(m);
+    });
+    assert((await page.locator('homeslice-panel .inspector [data-option="fronts"] button[aria-checked="true"]').getAttribute("data-value")) === "drawers_3", "old drawer unit not shown as three drawers");
+    await page.locator('homeslice-panel .inspector [data-option="fronts"] button[data-value="shelves"]').click();
+    const folded = (await room("kitchen")).furniture[0];
+    assert(folded.model === "modern:kitchen_base" && folded.options?.fronts === "shelves", `folded: ${JSON.stringify(folded)}`);
     await page.evaluate(() => (window.panel._furn = { room: "kitchen", index: 1 }));
     await page.locator("homeslice-panel .inspector button[data-finish]").nth(1).click();
     assert((await room("kitchen")).furniture[1].finish, "no colour for a piece without a model");

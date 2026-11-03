@@ -2370,7 +2370,7 @@
   },
   {
    "model": "modern:kitchen_base",
-   "name": "Base unit, drawer and door",
+   "name": "Base unit",
    "group": "kitchen",
    "type": "kitchen",
    "size": [
@@ -2407,53 +2407,14 @@
     1.2
    ],
    "options": {
-    "handle": [
-     "bar",
-     "knob",
-     "handleless",
-     "push"
-    ]
-   }
-  },
-  {
-   "model": "modern:kitchen_drawers",
-   "name": "Base unit, drawers",
-   "group": "kitchen",
-   "type": "kitchen",
-   "size": [
-    0.6,
-    0.62,
-    0.91
-   ],
-   "finishes": [
-    "white",
-    "anthracite",
-    "oak",
-    "green",
-    "blue",
-    "black",
-    "walnut"
-   ],
-   "accents": [
-    "marble",
-    "concrete",
-    "terrazzo",
-    "white",
-    "oak",
-    "black",
-    "anthracite"
-   ],
-   "widths": [
-    0.3,
-    0.45,
-    0.5,
-    0.6,
-    0.8,
-    0.9,
-    1,
-    1.2
-   ],
-   "options": {
+    "fronts": [
+     "drawer_door",
+     "door",
+     "drawers_2",
+     "drawers_3",
+     "oven",
+     "shelves"
+    ],
     "handle": [
      "bar",
      "knob",
@@ -2498,6 +2459,10 @@
     1.2
    ],
    "options": {
+    "fronts": [
+     "doors",
+     "drawer"
+    ],
     "handle": [
      "bar",
      "knob",
@@ -2647,39 +2612,6 @@
    "widths": [
     0.6,
     0.8,
-    0.9
-   ]
-  },
-  {
-   "model": "modern:kitchen_oven",
-   "name": "Oven under the worktop",
-   "group": "kitchen",
-   "type": "kitchen",
-   "size": [
-    0.6,
-    0.62,
-    0.91
-   ],
-   "finishes": [
-    "white",
-    "anthracite",
-    "oak",
-    "green",
-    "blue",
-    "black",
-    "walnut"
-   ],
-   "accents": [
-    "marble",
-    "concrete",
-    "terrazzo",
-    "white",
-    "oak",
-    "black",
-    "anthracite"
-   ],
-   "widths": [
-    0.6,
     0.9
    ]
   },

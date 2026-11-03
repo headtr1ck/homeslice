@@ -7,7 +7,7 @@ import { describe, expect, it } from "vitest";
 import en from "./i18n/en.json";
 import de from "./i18n/de.json";
 import { FURNITURE, FURNITURE_TYPES } from "./model/furniture";
-import { FINISHES, MODERN, MODERN_GROUPS, defaultKind } from "./model/modern";
+import { FINISHES, FOLDED, MODERN, MODERN_GROUPS, defaultKind, resolveKind } from "./model/modern";
 import { buildModern } from "./render/modern";
 
 /** Triangles a single piece may have (a garden of trees must still run on a tablet). */
@@ -38,6 +38,30 @@ describe("Modern pieces", () => {
       expect(FURNITURE[k.type], k.id).toBeDefined();
       expect(k.finishes.length, k.id).toBeGreaterThan(0);
       for (const f of k.finishes) expect(FINISHES[f], `${k.id}: finish ${f}`).toBeDefined();
+    }
+  });
+
+  it("every option's every value builds, each with a name in English and German", () => {
+    for (const k of kinds)
+      for (const [key, values] of Object.entries(k.options ?? {})) {
+        expect((en as Record<string, string>)[`option.${key}`], `option.${key}`).toBeDefined();
+        for (const value of values) {
+          expect((en as Record<string, string>)[`option.${key}_${value}`], `option.${key}_${value}`).toBeDefined();
+          expect((de as Record<string, string>)[`option.${key}_${value}`], `de option.${key}_${value}`).toBeDefined();
+          const piece = buildModern(k.id, [k.size[0], k.size[1]], k.size[2], undefined, undefined, { [key]: value });
+          expect(piece, `${k.id} ${key}=${value}`).not.toBeNull();
+          expect(hasNaN(piece!), `${k.id} ${key}=${value}: NaN`).toBe(false);
+        }
+      }
+  });
+
+  it("older names are a piece with options, and still draw", () => {
+    expect(resolveKind("kitchen_drawers")).toEqual({ id: "kitchen_base", options: { fronts: "drawers_3" } });
+    expect(resolveKind("kitchen_drawers", { handle: "knob" }).options).toEqual({ fronts: "drawers_3", handle: "knob" });
+    for (const [old, { kind, options }] of Object.entries(FOLDED)) {
+      expect(MODERN[old], `${old} is no longer in the library`).toBeUndefined();
+      for (const [key, value] of Object.entries(options)) expect(MODERN[kind].options?.[key], `${old}: ${key}`).toContain(value);
+      expect(buildModern(old, [0.6, 0.62], 0.91), old).not.toBeNull();
     }
   });
 

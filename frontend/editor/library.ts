@@ -4,7 +4,7 @@
 // lights and defaults) with the model that shows it.
 
 import { FURNITURE, FURNITURE_GROUPS } from "../model/furniture";
-import { MODERN_GROUPS, defaultKind } from "../model/modern";
+import { MODERN_GROUPS, defaultKind, resolveKind } from "../model/modern";
 import type { FurnitureMount, FurnitureType, PieceInput } from "../model/types";
 
 export type LibrarySource = "builtin" | "polyhaven" | "sketchfab" | "custom";
@@ -253,7 +253,7 @@ export function filterGroups(groups: LibraryGroup[], query: string, typeName: (t
 /** A placed piece seen from straight above (assets/plan): its own piece's, else its type's. */
 export function planPicture(f: { type: FurnitureType; model?: string; mount?: FurnitureMount }): string {
   if (f.model === "builtin") return asset(`plan/builtin/${f.type}.png`);
-  if (f.model?.startsWith("modern:")) return asset(`plan/modern/${f.model.slice(7)}.png`);
+  if (f.model?.startsWith("modern:")) return asset(`plan/modern/${resolveKind(f.model.slice(7)).id}.png`);
   // no model or a Kenney one (no longer bundled): the type's own piece
   const kind = !f.model || f.model.startsWith("kenney:") ? defaultKind(f.type, f.mount) : undefined;
   if (kind) return asset(`plan/modern/${kind}.png`);

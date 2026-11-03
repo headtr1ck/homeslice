@@ -25,7 +25,7 @@ import { misalignedWalls } from "../model/checks";
 import { migrateHouse } from "../model/migrate";
 import { FURNITURE, FURNITURE_TYPES, mountOf } from "../model/furniture";
 import { loadModel } from "../render/models";
-import { FINISHES, MODERN, defaultKind } from "../model/modern";
+import { FINISHES, MODERN, defaultKind, resolveKind } from "../model/modern";
 import { FINISHES_BY_ID, FINISH_GROUPS, FINISH_LIST, type Surface } from "../model/finishes";
 import { finishPreview } from "../render/finishes";
 import {
@@ -4123,7 +4123,10 @@ export class HomeslicePanel extends LitElement {
     const set = (patch: Partial<FurnitureInput>) => this.commit(updateFurniture(m, this._level, r.id, sel.index, patch));
     const [w, d] = f.size ?? FURNITURE[f.type].size;
     // the built-in piece it is drawn as: named, or the type's own when it names none
-    const kindId = f.model?.startsWith("modern:") ? f.model.slice(7) : f.model ? undefined : defaultKind(f.type, mountOf(f));
+    const named = f.model?.startsWith("modern:") ? f.model.slice(7) : f.model ? undefined : defaultKind(f.type, mountOf(f));
+    // an older name (kitchen_drawers) is a piece with options (kitchen_base, fronts: drawers_3)
+    const resolved = named ? resolveKind(named, f.options) : undefined;
+    const kindId = resolved?.id;
     const kind = kindId ? MODERN[kindId] : undefined;
     const size = (axis: 0 | 1) => (e: Event) => {
       const v = Number((e.target as HTMLInputElement).value);
@@ -4161,17 +4164,19 @@ export class HomeslicePanel extends LitElement {
           </div>`
         : nothing}
       ${Object.entries(kind?.options ?? {}).map(([key, values]) => {
-        const current = f.options?.[key] && values.includes(f.options[key]) ? f.options[key] : values[0];
+        const have = resolved?.options ?? {};
+        const current = have[key] && values.includes(have[key]) ? have[key] : values[0];
         return html`<div class="choices" role="radiogroup" aria-label=${this.t(`option.${key}` as StringKey)} data-option=${key}>
           <span class="muted">${this.t(`option.${key}` as StringKey)}</span>
           ${values.map(
             (x, i) => html`<button role="radio" class=${current === x ? "active" : ""} aria-checked=${current === x} data-value=${x}
               @click=${() => {
                 // the first is the piece's own: no need to write it down
-                const next = { ...(f.options ?? {}) };
+                const next = { ...have };
                 if (i === 0) delete next[key];
                 else next[key] = x;
-                set({ options: Object.keys(next).length ? next : undefined });
+                // an older name is written as the piece it is now
+                set({ options: Object.keys(next).length ? next : undefined, ...(named !== kindId && f.model ? { model: `modern:${kindId}` } : {}) });
               }}>${this.t(`option.${key}_${x}` as StringKey)}</button>`,
           )}
         </div>`;

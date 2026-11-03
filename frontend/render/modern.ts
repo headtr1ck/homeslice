@@ -6,7 +6,7 @@
 import * as THREE from "three";
 import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
-import { FABRIC, FINISHES, MODERN } from "../model/modern";
+import { FABRIC, FINISHES, MODERN, resolveKind } from "../model/modern";
 import { fabricTexture, finishLook } from "./finishes";
 import { BUILDERS as CAR_HATCHBACK } from "./modern/car-hatchback";
 import { BUILDERS as CAR_ESTATE } from "./modern/car-estate";
@@ -312,7 +312,7 @@ export type Handle = "bar" | "knob" | "handleless" | "push";
  * Doors or drawer fronts in a grid, with joints between them. `handle` is the piece's own
  * handle; a piece whose fronts have one takes the handle chosen for it (options.handle).
  */
-export function fronts(b: Builder, x0: number, w: number, y0: number, h: number, z: number, n: number, m: THREE.Material, rows = 1, own?: Handle, handleM: THREE.Material = mat(C.black)) {
+export function fronts(b: Builder, x0: number, w: number, y0: number, h: number, z: number, n: number, m: THREE.Material, rows = 1, own?: Handle, handleM: THREE.Material = mat(C.black), drawers = rows > 1) {
   const chosen = b.options.handle as Handle | undefined;
   const handle: Handle | undefined = own && chosen && ["bar", "knob", "handleless", "push"].includes(chosen) ? chosen : own;
   const cw = w / n;
@@ -331,7 +331,8 @@ export function fronts(b: Builder, x0: number, w: number, y0: number, h: number,
   for (let i = 0; i < n; i++)
     for (let r = 0; r < rows; r++) {
       b.box(cw - 0.004, rh - 0.004 - rail, 0.018, x0 + cw * (i + 0.5), y0 + rh * r + 0.002, z + 0.009, m, 0.003);
-      if (handle === "bar") b.box(rows > 1 ? Math.min(0.2, cw * 0.4) : 0.012, rows > 1 ? 0.012 : Math.min(0.3, rh * 0.25), 0.02, x0 + cw * (i + 0.5) + (rows > 1 ? 0 : (i % 2 ? -1 : 1) * (cw / 2 - 0.05)), y0 + rh * r + (rows > 1 ? rh - 0.06 : rh * 0.5), z + 0.028, handleM);
+      // drawers: a bar across the top; doors: upright at the side they open on
+      if (handle === "bar") b.box(drawers ? Math.min(0.2, cw * 0.4) : 0.012, drawers ? 0.012 : Math.min(0.3, rh * 0.25), 0.02, x0 + cw * (i + 0.5) + (drawers ? 0 : (i % 2 ? -1 : 1) * (cw / 2 - 0.05)), y0 + rh * r + (drawers ? rh - 0.06 : rh * 0.5), z + 0.028, handleM);
       if (handle === "knob") b.sphere(0.015, x0 + cw * (i + 0.5), y0 + rh * (r + 0.5), z + 0.03, handleM, 1, 1, 1, 8);
     }
 }
@@ -1502,24 +1503,36 @@ const BASE_BUILDERS: Record<string, Build> = {
   heat_pump: (b, w, d, h, f) => outdoorUnit(b, w, d, h, f, false),
   // ----- kitchen, piece by piece (fronts in the finish, the worktop in the accent) -----
   kitchen_base: (b, w, d, h, f, _c, a) => {
+    // what is behind the fronts (options.fronts): see model/modern.ts BASE_FRONTS
+    const layout = b.options.fronts ?? "drawer_door";
+    if (layout === "shelves") return openBase(b, w, d, h, f, a);
     const u = kitchenBase(b, w, d, h, a, f);
-    const n = Math.max(1, Math.round(w / 0.6));
-    fronts(b, -w / 2, w, u.y1 - 0.17, 0.17, u.fz, n, f, 1, "bar");
-    fronts(b, -w / 2, w, u.y0, u.y1 - u.y0 - 0.17, u.fz, n, f, 1, "bar");
-  },
-  kitchen_drawers: (b, w, d, h, f, _c, a) => {
-    const u = kitchenBase(b, w, d, h, a, f);
-    const n = Math.max(1, Math.round(w / 0.9));
-    const rows = [0.17, 0.27, u.y1 - u.y0 - 0.44];
-    let y = u.y1;
-    for (const rh of rows) {
-      y -= rh;
-      fronts(b, -w / 2, w, y, rh, u.fz, n, f, 1, "bar");
+    const doors = Math.max(1, Math.round(w / 0.6));
+    const drawers = Math.max(1, Math.round(w / 0.9));
+    const tall = u.y1 - u.y0;
+    const stack = (rows: number[]) => {
+      let y = u.y1;
+      for (const rh of rows) {
+        y -= rh;
+        fronts(b, -w / 2, w, y, rh, u.fz, drawers, f, 1, "bar", undefined, true);
+      }
+    };
+    if (layout === "door") fronts(b, -w / 2, w, u.y0, tall, u.fz, doors, f, 1, "bar");
+    else if (layout === "drawers_2") stack([tall / 2, tall / 2]);
+    else if (layout === "drawers_3") stack([0.17, 0.27, tall - 0.44]);
+    else if (layout === "oven") oven(b, w, u, f);
+    else {
+      fronts(b, -w / 2, w, u.y1 - 0.17, 0.17, u.fz, doors, f, 1, "bar", undefined, true);
+      fronts(b, -w / 2, w, u.y0, tall - 0.17, u.fz, doors, f, 1, "bar");
     }
   },
   kitchen_sink_unit: (b, w, d, h, f, _c, a) => {
     const u = kitchenBase(b, w, d, h, a, f);
-    fronts(b, -w / 2, w, u.y0, u.y1 - u.y0, u.fz, Math.max(1, Math.round(w / 0.45)), f, 1, "bar");
+    if (b.options.fronts === "drawer") {
+      // a fixed panel in front of the basin, one deep pull-out below it
+      fronts(b, -w / 2, w, u.y1 - 0.17, 0.17, u.fz, 1, f, 1);
+      fronts(b, -w / 2, w, u.y0, u.y1 - u.y0 - 0.17, u.fz, 1, f, 1, "bar", undefined, true);
+    } else fronts(b, -w / 2, w, u.y0, u.y1 - u.y0, u.fz, Math.max(1, Math.round(w / 0.45)), f, 1, "bar");
     const bw = Math.min(w - 0.16, 0.7);
     const steel = mat(C.steel, { metalness: 0.6, roughness: 0.3 });
     b.box(bw + 0.04, 0.006, d - 0.2, 0, h, 0.03, steel, 0.01);
@@ -1599,10 +1612,6 @@ const BASE_BUILDERS: Record<string, Build> = {
     // touch controls at the front
     for (let i = 0; i < 5; i++)
       b.add(new THREE.CircleGeometry(0.005, 8), mat("#c9cdd1", { emissive: "#c9cdd1", emissiveIntensity: 0.3 }), -gw * 0.05 + i * 0.022, top, gd / 2 - 0.05).rotation.x = -Math.PI / 2;
-  },
-  kitchen_oven: (b, w, d, h, f, _c, a) => {
-    const u = kitchenBase(b, w, d, h, a, f);
-    oven(b, w, u, f);
   },
   kitchen_dishwasher: (b, w, d, h, f, _c, a) => {
     const u = kitchenBase(b, w, d, h, a, f);
@@ -4676,6 +4685,19 @@ export function hollow(b: Builder, w: number, h: number, d: number, x: number, z
 }
 
 /** A kitchen base unit: plinth, carcass and worktop; where its fronts go. */
+/** A base unit without fronts: a box open to the front with two shelves, under the worktop. */
+function openBase(b: Builder, w: number, d: number, h: number, f: THREE.Material, a: THREE.Material) {
+  const t = 0.018;
+  const top = 0.04;
+  const inner = h - top - 0.1;
+  b.box(w - 0.02, 0.1, d - 0.08, 0, 0, back(d) + (d - 0.08) / 2, mat(C.black));
+  b.box(w, t, d - 0.03, 0, 0.1, back(d) + (d - 0.03) / 2, f);
+  b.box(w, inner, t, 0, 0.1, back(d) + t / 2, f);
+  for (const sx of [-1, 1]) b.box(t, inner, d - 0.03, sx * (w / 2 - t / 2), 0.1, back(d) + (d - 0.03) / 2, f);
+  for (let s = 1; s <= 2; s++) b.box(w - 2 * t, t, d - 0.06, 0, 0.1 + (inner * s) / 3, back(d) + (d - 0.06) / 2, f);
+  b.box(w, top, d, 0, h - top, 0, a, 0.004);
+}
+
 /** A base unit's plinth, body (in the fronts' colour, its sides show) and worktop; where its fronts go. */
 export function kitchenBase(b: Builder, w: number, d: number, h: number, top: THREE.Material, body: THREE.Material) {
   const t = 0.04;
@@ -5401,15 +5423,16 @@ const BUILDERS: Record<string, Build> = {
   ...HOBBY,
 };
 
-export function buildModern(kind: string, size: [number, number], height: number, finish?: string, accent?: string, options: Record<string, string> = {}): THREE.Group | null {
+export function buildModern(name: string, size: [number, number], height: number, finish?: string, accent?: string, chosen: Record<string, string> = {}): THREE.Group | null {
+  // an older name stands for a piece with options
+  const { id: kind, options } = resolveKind(name, chosen);
   const def = MODERN[kind];
   const build = BUILDERS[kind];
   if (!def || !build) return null;
   const color = finish && FINISHES[finish] ? finish : def.finishes[0];
   const accentColor = accent && FINISHES[accent] && def.accents ? accent : (def.accents?.[0] ?? "black");
   // only the options the piece offers, with values it knows
-  const chosen = Object.fromEntries(Object.entries(options).filter(([k, val]) => def.options?.[k]?.includes(val)));
-  const b = new Builder(chosen);
+  const b = new Builder(Object.fromEntries(Object.entries(options).filter(([k, val]) => def.options?.[k]?.includes(val))));
   const fabricLike =
     ["sofa", "armchair", "bed", "rug"].includes(def.type) || kind.startsWith("sofa") || def.finishes === FABRIC || ["garden_sofa", "chair_office", "curtains", "dog_bed", "lounge_ottoman", "gaming_chair"].includes(kind);
   const fabric = fabricLike && !SHARED[color] ? fabricTexture(FINISHES[color]) : null;
