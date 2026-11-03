@@ -100,6 +100,8 @@
   "editor.wall_solid": "Wand",
   "editor.wall_open": "Offen",
   "editor.wall_hint": "Offen: Hier wird keine Wand gebaut, z. B. bei einer offenen Küche. Die Räume bleiben getrennt (eigener Bereich, Boden und Geräte).",
+  "editor.wall_of_slanted": "{room}, eine schräge Wand",
+  "editor.wall_between_slanted": "Zwischen {a} und {b} (eine schräge Wand: die Einstellungen gelten auf ganzer Länge)",
   "editor.side_north": "oben",
   "editor.side_south": "unten",
   "editor.side_east": "rechts",

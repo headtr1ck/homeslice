@@ -100,6 +100,8 @@
   "editor.wall_solid": "Mur",
   "editor.wall_open": "Ouvert",
   "editor.wall_hint": "Ouvert : aucun mur n'est construit ici, p. ex. une cuisine ouverte. Les pièces restent distinctes (zone, revêtement de sol et appareils propres).",
+  "editor.wall_of_slanted": "{room}, un mur en biais",
+  "editor.wall_between_slanted": "Entre {a} et {b} (un mur en biais : ses réglages valent sur toute sa longueur)",
   "editor.side_north": "haut",
   "editor.side_south": "bas",
   "editor.side_east": "droit",

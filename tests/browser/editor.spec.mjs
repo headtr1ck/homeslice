@@ -109,7 +109,40 @@ test.describe.serial("editor", () => {
     const sel = await page.evaluate(() => ({ room: window.panel._room, wall: window.panel._wall }));
     assert(!sel.room && sel.wall && [sel.wall.a, sel.wall.b].sort().join() === "hall,kitchen", `selected: ${JSON.stringify(sel)}`);
     assert((await page.locator("homeslice-panel .inspector h2").textContent()) === "Wall", "no wall panel");
+    assert((await page.locator("homeslice-panel svg.plan .wall-halo").count()) >= 1, "the selected wall isn't highlighted");
+    await shot(page, "editor-wall-selected");
     // (the kitchen selected again for the next test)
+    await page.keyboard.press("Escape");
+    await page.evaluate(() => (window.panel._room = "kitchen"));
+    await page.waitForTimeout(150);
+  });
+
+  test("a slanted inside wall is selected by a click and opened all along", async () => {
+    const before = await model();
+    await page.evaluate(() => {
+      const m = structuredClone(window.panel._model);
+      const rooms = m.levels[0].rooms;
+      // the hall/kitchen wall slanted: from (3, 0) to (2.5, 4)
+      rooms.find((r) => r.id === "hall").polygon = [[0, 0], [3, 0], [2.5, 4], [0, 4]];
+      delete rooms.find((r) => r.id === "hall").rect;
+      rooms.find((r) => r.id === "kitchen").polygon = [[3, 0], [8, 0], [8, 4], [2.5, 4]];
+      delete rooms.find((r) => r.id === "kitchen").rect;
+      window.panel.commit(m);
+      window.panel.clearSelection();
+    });
+    await page.waitForTimeout(200);
+    const [x, y] = await page.evaluate(() => {
+      const v = window.panel._view;
+      const r = window.panel.shadowRoot.querySelector("svg.plan").getBoundingClientRect();
+      return [r.left + 2.75 * v.scale + v.ox, r.top + 2 * v.scale + v.oy];
+    });
+    await page.mouse.click(x, y);
+    const sel = await page.evaluate(() => window.panel._wall);
+    assert(sel && [sel.a, sel.b].sort().join() === "hall,kitchen" && sel.side === null, `selected: ${JSON.stringify(sel)}`);
+    await page.locator("homeslice-panel .inspector .segmented button", { hasText: "Open" }).click();
+    const walls = (await model()).levels[0].walls ?? [];
+    assert(walls.some((w) => w.between && w.between.includes("hall") && w.between.includes("kitchen") && !w.side && !w.type), `walls: ${JSON.stringify(walls)}`);
+    await page.evaluate((m) => window.panel.commit(m), before);
     await page.keyboard.press("Escape");
     await page.evaluate(() => (window.panel._room = "kitchen"));
     await page.waitForTimeout(150);

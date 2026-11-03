@@ -100,6 +100,8 @@
   "editor.wall_solid": "Wall",
   "editor.wall_open": "Open",
   "editor.wall_hint": "Open: no wall is built here, e.g. an open kitchen. The rooms stay separate (own area, flooring and devices).",
+  "editor.wall_of_slanted": "{room}, a slanted wall",
+  "editor.wall_between_slanted": "Between {a} and {b} (a slanted wall: its settings hold all along)",
   "editor.side_north": "top",
   "editor.side_south": "bottom",
   "editor.side_east": "right",

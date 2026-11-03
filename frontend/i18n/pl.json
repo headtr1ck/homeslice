@@ -100,6 +100,8 @@
   "editor.wall_solid": "Ściana",
   "editor.wall_open": "Otwarte",
   "editor.wall_hint": "Otwarte: nie ma tu ściany, np. otwarta kuchnia. Pokoje pozostają osobne (własny obszar, posadzka i urządzenia).",
+  "editor.wall_of_slanted": "{room}, ściana ukośna",
+  "editor.wall_between_slanted": "Między {a} a {b} (ściana ukośna: ustawienia obowiązują na całej długości)",
   "editor.side_north": "u góry",
   "editor.side_south": "na dole",
   "editor.side_east": "po prawej",

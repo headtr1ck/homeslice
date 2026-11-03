@@ -100,6 +100,8 @@
   "editor.wall_solid": "Muur",
   "editor.wall_open": "Open",
   "editor.wall_hint": "Open: hier komt geen muur, bijv. bij een open keuken. De kamers blijven gescheiden (eigen ruimte, vloer en apparaten).",
+  "editor.wall_of_slanted": "{room}, een schuine muur",
+  "editor.wall_between_slanted": "Tussen {a} en {b} (een schuine muur: de instellingen gelden over de hele lengte)",
   "editor.side_north": "boven",
   "editor.side_south": "onder",
   "editor.side_east": "rechts",

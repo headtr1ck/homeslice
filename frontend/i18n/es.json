@@ -100,6 +100,8 @@
   "editor.wall_solid": "Pared",
   "editor.wall_open": "Abierta",
   "editor.wall_hint": "Abierta: aquí no hay pared, p. ej. en una cocina abierta. Las habitaciones siguen separadas (con su propia área, suelo y dispositivos).",
+  "editor.wall_of_slanted": "{room}, una pared oblicua",
+  "editor.wall_between_slanted": "Entre {a} y {b} (una pared oblicua: sus ajustes valen en toda su longitud)",
   "editor.side_north": "superior",
   "editor.side_south": "inferior",
   "editor.side_east": "derecho",

@@ -467,21 +467,44 @@ export function setBoundaryOpen(model: HouseInput, levelId: string, a: string, b
 }
 
 /** The own thickness of one side (seen from `a`) of the wall between two rooms, if set. */
-export function boundaryThickness(model: HouseInput, levelId: string, a: string, b: string, side: Side): number | undefined {
+/** Whether the wall between two rooms is open all along (a slanted wall has no side to open alone). */
+export function boundaryOpenAll(model: HouseInput, levelId: string, a: string, b: string): boolean {
+  return (level(model, levelId).walls ?? []).some((w) => !!w.between && (w.type ?? "open") === "open" && !w.side && w.between.includes(a) && w.between.includes(b));
+}
+
+/** Opens (or builds) the wall between two rooms all along. */
+export function setBoundaryOpenAll(model: HouseInput, levelId: string, a: string, b: string, open: boolean): HouseInput {
+  const m = clone(model);
+  const l = level(m, levelId);
+  const others = (l.walls ?? []).filter((w) => !(w.between && w.between.includes(a) && w.between.includes(b) && (w.type ?? "open") === "open"));
+  l.walls = open ? [...others, { between: [a, b] }] : others;
+  if (!l.walls.length) delete l.walls;
+  return m;
+}
+
+/** The thickness of the wall between two rooms on one side (seen from `a`), or all along (null). */
+export function boundaryThickness(model: HouseInput, levelId: string, a: string, b: string, side: Side | null): number | undefined {
   let found: number | undefined;
   for (const w of level(model, levelId).walls ?? []) {
     if (!w.between || w.type !== "wall" || w.thickness === undefined) continue;
     const [x, y] = w.between;
     if (!((x === a && y === b) || (x === b && y === a))) continue;
-    if (!w.side || (x === a ? w.side : OPPOSITE[w.side]) === side) found = w.thickness;
+    if (!w.side || (side && (x === a ? w.side : OPPOSITE[w.side]) === side)) found = w.thickness;
   }
   return found;
 }
 
 /** Gives one side (seen from `a`) of the wall between two rooms its own thickness; undefined: the house's. */
-export function setBoundaryThickness(model: HouseInput, levelId: string, a: string, b: string, side: Side, thickness: number | undefined): HouseInput {
+export function setBoundaryThickness(model: HouseInput, levelId: string, a: string, b: string, side: Side | null, thickness: number | undefined): HouseInput {
   const m = clone(model);
   const l = level(m, levelId);
+  if (!side) {
+    // all along (a slanted wall): one entry for the pair
+    l.walls = (l.walls ?? []).filter((w) => !(w.between && w.type === "wall" && w.between.includes(a) && w.between.includes(b)));
+    if (thickness !== undefined) l.walls.push({ between: [a, b], type: "wall", thickness: round(thickness) });
+    if (!l.walls.length) delete l.walls;
+    return m;
+  }
   const mine = (w: WallInput) => !!w.between && w.type === "wall" && w.between.includes(a) && w.between.includes(b) && (!w.side || (w.between[0] === a ? w.side : OPPOSITE[w.side]) === side);
   // an entry for all sides keeps applying to the others
   const whole = (l.walls ?? []).find((w) => mine(w) && !w.side);

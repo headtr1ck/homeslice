@@ -138,6 +138,8 @@ import {
   openSides,
   outlineScope,
   setBoundaryOpen,
+  setBoundaryOpenAll,
+  boundaryOpenAll,
   setOutlineAuto,
   setOwnOutline,
   removeVertex,
@@ -550,7 +552,8 @@ export class HomeslicePanel extends LitElement {
   /** Level being dragged in the level list (display indexes, top first). */
   private _levelDrag: { id: string; from: number; over: number; startY: number; dy: number; step: number; moved: boolean } | null = null;
   /** Selected wall between two rooms: the rooms and its side as seen from `a`. */
-  private _wall: { a: string; b: string; side: Side } | null = null;
+  /** A selected inside wall: its rooms and side (seen from `a`; null for a slanted wall). */
+  private _wall: { a: string; b: string; side: Side | null } | null = null;
   /** The wall view: one side of a room seen from inside it, and what is being dragged there. */
   private _wallView: { room: string; side: Side; sel?: string } | null = null;
   private robotPolledAt = 0;
@@ -2956,7 +2959,7 @@ export class HomeslicePanel extends LitElement {
 
   /** Walls of the level being edited (derived from the current model). */
   /** The inside wall under a plan point (as clicking it selects it), the selected room's side first. */
-  private insideWallAt(p: Vec2): { a: string; b: string; side: Side; line: [Vec2, Vec2]; thickness: number } | null {
+  private insideWallAt(p: Vec2): { a: string; b: string; side: Side | null; line: [Vec2, Vec2]; thickness: number } | null {
     let best: Wall | null = null;
     let dist = Infinity;
     for (const w of this.levelWalls()) {
@@ -2971,7 +2974,7 @@ export class HomeslicePanel extends LitElement {
     const b = best.rooms.find((r) => r !== a) ?? "";
     const own = this.levelInputRoomPolygon(a);
     const side = own ? sideOfRoom(own, best.line[0], best.line[1]) : null;
-    return side ? { a, b, side, line: best.line, thickness: best.thickness } : null;
+    return { a, b, side, line: best.line, thickness: best.thickness };
   }
 
   private levelWalls(): Wall[] {
@@ -4514,13 +4517,21 @@ export class HomeslicePanel extends LitElement {
     if ((w.type === "interior" || w.type === "open") && w.rooms.length >= 1) {
       const [a, b = ""] = w.rooms;
       const own = this.levelInputRoomPolygon(a);
+      // (a slanted wall has no side: its settings then hold all along)
       const side = own ? sideOfRoom(own, w.line[0], w.line[1]) : null;
-      if (side) hit = svg`<line class="wall-hit" data-wall=${JSON.stringify({ a, b, side, line: w.line, thickness: w.thickness })} x1=${ax} y1=${ay} x2=${bx} y2=${by} stroke-width="14"></line>`;
+      hit = svg`<line class="wall-hit" data-wall=${JSON.stringify({ a, b, side, line: w.line, thickness: w.thickness })} x1=${ax} y1=${ay} x2=${bx} y2=${by} stroke-width=${Math.max(14, w.thickness * this._view.scale)}></line>`;
     }
-    if (w.type === "open") return svg`<line class="wall open ${selected ? "selected" : ""}" x1=${ax} y1=${ay} x2=${bx} y2=${by}></line>${hit}`;
+
+    // the selected wall stands out: a halo round it, a dot at each end
+    const halo = (width: number) =>
+      selected
+        ? svg`<line class="wall-halo" x1=${ax} y1=${ay} x2=${bx} y2=${by} stroke-width=${width + 10}></line>
+            <circle class="wall-end" cx=${ax} cy=${ay} r="4"></circle><circle class="wall-end" cx=${bx} cy=${by} r="4"></circle>`
+        : nothing;
+    if (w.type === "open") return svg`${halo(2)}<line class="wall open ${selected ? "selected" : ""}" x1=${ax} y1=${ay} x2=${bx} y2=${by}></line>${hit}`;
     const width = Math.max(2, w.thickness * this._view.scale);
     const outside = w.type !== "interior";
-    return svg`<line class="wall ${w.type} ${(outside && this._room === OUTLINE) || selected ? "selected" : ""}" x1=${ax} y1=${ay} x2=${bx} y2=${by} stroke-width=${width}></line>${hit}
+    return svg`${halo(width)}<line class="wall ${w.type} ${(outside && this._room === OUTLINE) || selected ? "selected" : ""}" x1=${ax} y1=${ay} x2=${bx} y2=${by} stroke-width=${width}></line>${hit}
       ${outside ? svg`<line class="wall-hit" data-outline="1" x1=${ax} y1=${ay} x2=${bx} y2=${by} stroke-width=${Math.max(12, width)}></line>` : nothing}
       ${w.openings.map((o) => {
         const [x1, y1] = along(o.start);
@@ -5521,7 +5532,7 @@ export class HomeslicePanel extends LitElement {
       .filter((x): x is { side: Side; wall: Wall } => !!x.side);
   }
 
-  private renderWallInspector(sel: { a: string; b: string; side: Side }) {
+  private renderWallInspector(sel: { a: string; b: string; side: Side | null }) {
     const m = this._model!;
     const l = this.levelInput!;
     const name = (id: string) => {
@@ -5531,31 +5542,35 @@ export class HomeslicePanel extends LitElement {
     // one room's wall, nothing on its other side (a gap to the outside wall, an empty space)
     if (!sel.b)
       return html`<h2>${this.t("editor.wall")}</h2>
-        <p class="muted">${this.t("editor.wall_of", { room: name(sel.a), side: this.t(`editor.side_${sel.side}` as StringKey) })}</p>
+        <p class="muted">${sel.side ? this.t("editor.wall_of", { room: name(sel.a), side: this.t(`editor.side_${sel.side}` as StringKey) }) : this.t("editor.wall_of_slanted", { room: name(sel.a) })}</p>
         <p class="muted">${this.t("editor.wall_alone_hint")}</p>
         <div class="row wall-views">
           <span class="muted">${this.t("editor.wall_view")}</span>
-          <button @click=${() => (this._wallView = { room: sel.a, side: sel.side })}>${name(sel.a)}</button>
+          ${sel.side ? html`<button @click=${() => (this._wallView = { room: sel.a, side: sel.side! })}>${name(sel.a)}</button>` : nothing}
           <button @click=${() => {
             this._wall = null;
             this._room = sel.a;
           }}>${this.t("editor.wall_select_room", { room: name(sel.a) })}</button>
         </div>`;
     const all = [...new Set(this.boundary(sel.a, sel.b).map((x) => x.side))];
-    const open = openSides(m, this._level, sel.a, sel.b, all).includes(sel.side);
-    const set = (o: boolean) => this.commit(setBoundaryOpen(m, this._level, sel.a, sel.b, sel.side, o, all));
+    const side = sel.side;
+    // a slanted wall: open or built all along
+    const open = side ? openSides(m, this._level, sel.a, sel.b, all).includes(side) : boundaryOpenAll(m, this._level, sel.a, sel.b);
+    const set = (o: boolean) => this.commit(side ? setBoundaryOpen(m, this._level, sel.a, sel.b, side, o, all) : setBoundaryOpenAll(m, this._level, sel.a, sel.b, o));
     return html`<h2>${this.t("editor.wall")}</h2>
-      <p class="muted">${this.t("editor.wall_between", { a: name(sel.a), b: name(sel.b), side: this.t(`editor.side_${sel.side}` as StringKey) })}</p>
+      <p class="muted">${side ? this.t("editor.wall_between", { a: name(sel.a), b: name(sel.b), side: this.t(`editor.side_${side}` as StringKey) }) : this.t("editor.wall_between_slanted", { a: name(sel.a), b: name(sel.b) })}</p>
       <div class="segmented" role="radiogroup">
         <button role="radio" aria-checked=${!open} class=${!open ? "active" : ""} @click=${() => set(false)}>${this.t("editor.wall_solid")}</button>
         <button role="radio" aria-checked=${open} class=${open ? "active" : ""} @click=${() => set(true)}>${this.t("editor.wall_open")}</button>
       </div>
       <p class="muted">${this.t("editor.wall_hint")}</p>
-      <div class="row wall-views">
-        <span class="muted">${this.t("editor.wall_view")}</span>
-        <button @click=${() => (this._wallView = { room: sel.a, side: sel.side })}>${name(sel.a)}</button>
-        <button @click=${() => (this._wallView = { room: sel.b, side: OPPOSITE[sel.side] })}>${name(sel.b)}</button>
-      </div>
+      ${side
+        ? html`<div class="row wall-views">
+            <span class="muted">${this.t("editor.wall_view")}</span>
+            <button @click=${() => (this._wallView = { room: sel.a, side })}>${name(sel.a)}</button>
+            <button @click=${() => (this._wallView = { room: sel.b, side: OPPOSITE[side] })}>${name(sel.b)}</button>
+          </div>`
+        : nothing}
       ${open
         ? nothing
         : (() => {
@@ -7708,6 +7723,18 @@ export class HomeslicePanel extends LitElement {
     }
     .wall.selected {
       stroke: var(--accent);
+    }
+    .wall-halo {
+      stroke: var(--accent);
+      stroke-opacity: 0.3;
+      stroke-linecap: round;
+      pointer-events: none;
+    }
+    .wall-end {
+      fill: var(--card-background-color, #fff);
+      stroke: var(--accent);
+      stroke-width: 2;
+      pointer-events: none;
     }
     .wall.open {
       stroke: #848b92;

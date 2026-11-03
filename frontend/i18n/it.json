@@ -100,6 +100,8 @@
   "editor.wall_solid": "Parete",
   "editor.wall_open": "Aperta",
   "editor.wall_hint": "Aperta: qui non c'è nessuna parete, es. una cucina a vista. Le stanze restano separate (area, pavimento e dispositivi propri).",
+  "editor.wall_of_slanted": "{room}, una parete obliqua",
+  "editor.wall_between_slanted": "Tra {a} e {b} (una parete obliqua: le impostazioni valgono per tutta la lunghezza)",
   "editor.side_north": "alto",
   "editor.side_south": "basso",
   "editor.side_east": "destro",

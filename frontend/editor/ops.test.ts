@@ -38,6 +38,8 @@ import {
   openSides,
   roomPolygon,
   setBoundaryOpen,
+  setBoundaryOpenAll,
+  boundaryOpenAll,
   setOwnOutline,
   snap,
   splitEdge,
@@ -1086,6 +1088,46 @@ describe("façade windows", () => {
     expect(readOpening(h, "first", { kind: "facade", index: 0 })).toMatchObject({ style: "split_single", split: 1.1, cover: "cover.nora" });
     const m = updateOpening(h, "first", { kind: "facade", index: 0 }, { style: "split" });
     expect(readOpening(m, "first", { kind: "facade", index: 0 })?.style).toBe("split");
+  });
+});
+
+describe("a slanted wall between two rooms", () => {
+  // two rooms meeting along a slanted line: no compass side to name the wall by
+  const slanted = (): HouseInput => ({
+    schema: 2,
+    id: "s",
+    outline: { rect: [0, 0, 8, 4] },
+    levels: [
+      {
+        id: "g",
+        rooms: [
+          { id: "living", polygon: [[0, 0], [5, 0], [3, 4], [0, 4]] },
+          { id: "kitchen", polygon: [[5, 0], [8, 0], [8, 4], [3, 4]] },
+        ],
+      },
+    ],
+  });
+  const between = (m: HouseInput) => {
+    const h = expandHouse(m).house!;
+    return deriveWalls(h.levels[0], h.walls).filter((w) => w.rooms.includes("living") && w.rooms.includes("kitchen"));
+  };
+
+  it("opens and closes all along", () => {
+    expect(between(slanted())[0].type).toBe("interior");
+    let m = setBoundaryOpenAll(slanted(), "g", "living", "kitchen", true);
+    expect(boundaryOpenAll(m, "g", "kitchen", "living")).toBe(true);
+    expect(between(m).every((w) => w.type === "open")).toBe(true);
+    m = setBoundaryOpenAll(m, "g", "kitchen", "living", false);
+    expect(boundaryOpenAll(m, "g", "living", "kitchen")).toBe(false);
+    expect(m.levels[0].walls).toBeUndefined();
+  });
+
+  it("takes a thickness all along", () => {
+    let m = setBoundaryThickness(slanted(), "g", "living", "kitchen", null, 0.2);
+    expect(boundaryThickness(m, "g", "kitchen", "living", null)).toBe(0.2);
+    expect(between(m)[0].thickness).toBeCloseTo(0.2);
+    m = setBoundaryThickness(m, "g", "living", "kitchen", null, undefined);
+    expect(m.levels[0].walls).toBeUndefined();
   });
 });
 
