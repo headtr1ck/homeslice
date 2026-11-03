@@ -4084,8 +4084,7 @@ export class HomeslicePanel extends LitElement {
     this.commit(updateFurniture(this._model!, this._level, sel.room, sel.index, { rotation: (f.rotation ?? 0) + by }));
   }
 
-  /** Furniture on the plan: outlines with a mark at the front; draggable in objects mode. */
-  /** Furniture on the plan: the piece seen from above at its size, its name and size when selected. */
+  /** Furniture on the plan: the piece seen from above at its size, an arrow at its front, its name and size when selected. */
   private renderFurniture() {
     const m = this._model!;
     return svg`${(this.levelInput?.rooms ?? []).flatMap((r) => {
@@ -4101,10 +4100,19 @@ export class HomeslicePanel extends LitElement {
           <image href=${planPicture(f)} x=${(-w * k) / 2} y=${(-d * k) / 2} width=${w * k} height=${d * k} preserveAspectRatio="none"
             transform=${f.mirror ? "scale(-1 1)" : ""}></image>
           <rect x=${(-w * k) / 2} y=${(-d * k) / 2} width=${w * k} height=${d * k} rx="2"><title>${label}</title></rect>
+          ${this.frontArrow(w * k, d * k)}
         </g>
         ${sel ? svg`<text class="furniture-label" x=${cx} y=${cy + (Math.max(w, d) * k) / 2 + 16} text-anchor="middle">${label}</text>` : nothing}`;
       });
     })}`;
+  }
+
+  /** A small arrow at a piece's front edge (south before it is turned: its back is to the north), pointing out. */
+  private frontArrow(w: number, d: number) {
+    const a = Math.min(7, w / 4, d / 4);
+    if (a < 2.5) return nothing;
+    const y = d / 2;
+    return svg`<path class="front" d="M ${-a} ${y - a} L 0 ${y} L ${a} ${y - a}"></path>`;
   }
 
   private renderFurnitureInspector(sel: { room: string; index: number }) {
@@ -8393,6 +8401,18 @@ export class HomeslicePanel extends LitElement {
     }
     .furniture image {
       opacity: 0.9;
+    }
+    .furniture path.front {
+      fill: none;
+      stroke: rgba(60, 64, 70, 0.55);
+      stroke-width: 1.5;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      pointer-events: none;
+    }
+    .furniture.selected path.front {
+      stroke: var(--accent);
+      stroke-width: 2;
     }
     .furniture-label {
       font-size: 11px;

@@ -3953,7 +3953,10 @@ export class HouseRenderer {
     const from = this.levels.map((l) => ({ opacity: l.hoverOpacity, lift: l.hoverLift }));
     const to = this.levels.map((_, i) => (index !== null && i > index ? { opacity: HOVER_FADE, lift: this.view.explode * 0.6 + 0.8 } : { opacity: 1, lift: 0 }));
     cancelAnimationFrame(this.hoverAnimation);
+    // a hover cut short still ends for whoever waits for it
+    this.hoverDone?.();
     return new Promise((resolve) => {
+      this.hoverDone = resolve;
       const start = performance.now();
       const frame = (now: number) => {
         const t = Math.min(1, (now - start) / HOVER_MS);
@@ -3965,7 +3968,10 @@ export class HouseRenderer {
         });
         this.draw();
         if (t < 1) this.hoverAnimation = requestAnimationFrame(frame);
-        else resolve();
+        else {
+          this.hoverDone = undefined;
+          resolve();
+        }
       };
       this.hoverAnimation = requestAnimationFrame(frame);
     });
@@ -4079,6 +4085,7 @@ export class HouseRenderer {
 
   /** Places the camera so the framed box fills the canvas. */
   private focusDone?: () => void;
+  private hoverDone?: () => void;
   private walkView: { levelId: string; at: Vec2; yaw: number; pitch: number } | null = null;
 
   /**

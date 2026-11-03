@@ -1335,6 +1335,8 @@ test.describe.serial("editor", () => {
     assert(!(await room("kitchen")).furniture && (await room("living")).furniture?.[0]?.type === "table", "table not moved into the living room");
     await page.keyboard.press("r");
     assert((await room("living")).furniture[0].rotation === 90, "not turned");
+    // its front is marked with an arrow, turned with it
+    assert((await page.locator("homeslice-panel svg.plan g.furniture.selected path.front").count()) === 1, "no front arrow");
     // Ctrl+D: a second one right next to it (turned: to the south), selected
     await page.keyboard.press("Control+d");
     const pair = (await room("living")).furniture;

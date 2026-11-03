@@ -2082,10 +2082,11 @@ export class HomesliceCard extends LitElement {
     this._level = this._level === id ? null : id;
     const index = this._level ? this.house.levels.find((l) => l.id === this._level)?.index ?? null : null;
     this._hover = null;
-    await this.renderer.setHover(null);
+    // busy from the start: whoever waits for the floor change waits through the hover's end too
     this.transitioning = true;
     this._labels = [];
     this._lampButtons = [];
+    await this.renderer.setHover(null);
     await this.renderer.setFocus(index);
     this.transitioning = false;
     this.placeLabels();
