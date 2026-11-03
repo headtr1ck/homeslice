@@ -148,6 +148,36 @@ test.describe.serial("editor", () => {
     await page.waitForTimeout(150);
   });
 
+  test("a wall split by a corner: one half opened, the other stays", async () => {
+    const before = await model();
+    const toPage = (p) => page.evaluate(([x, y]) => {
+      const v = window.panel._view;
+      const r = window.panel.shadowRoot.querySelector("svg.plan").getBoundingClientRect();
+      return { x: r.left + x * v.scale + v.ox, y: r.top + y * v.scale + v.oy };
+    }, p);
+    // the hall/kitchen wall (x 3) split at y 2, as a double-click on it does
+    await page.evaluate(() => {
+      const m = structuredClone(window.panel._model);
+      const k = m.levels[0].rooms.find((r) => r.id === "kitchen");
+      k.polygon = [[3, 0], [8, 0], [8, 4], [3, 4], [3, 2]];
+      delete k.rect;
+      window.panel.commit(m);
+      window.panel.clearSelection();
+    });
+    await page.waitForTimeout(150);
+    const p = await toPage([3, 1]);
+    await page.mouse.click(p.x, p.y);
+    const sel = await page.evaluate(() => window.panel._wall);
+    assert(sel && JSON.stringify(sel.line.map((q) => q.map((v) => Math.round(v * 100) / 100)).sort()) === "[[3,0],[3,2]]", `picked: ${JSON.stringify(sel)}`);
+    await page.locator("homeslice-panel .inspector .segmented button", { hasText: "Open" }).click();
+    const types = await page.evaluate(() => window.panel.levelWalls().filter((w) => w.rooms.includes("hall") && w.rooms.includes("kitchen")).map((w) => `${w.type}:${Math.round(Math.min(w.a[1], w.b[1]))}-${Math.round(Math.max(w.a[1], w.b[1]))}`).sort());
+    assert(JSON.stringify(types) === '["interior:2-4","open:0-2"]', `walls: ${JSON.stringify(types)}`);
+    await page.evaluate((m) => window.panel.commit(m), before);
+    await page.keyboard.press("Escape");
+    await page.evaluate(() => (window.panel._room = "kitchen"));
+    await page.waitForTimeout(150);
+  });
+
   test("dragging a shared wall moves both rooms; undo and redo", async () => {
     // the wall between hall (x 0–3) and kitchen (x 3–8)
     const handle = page.locator('homeslice-panel svg.plan rect.edge-handle[data-at="[[3,4],[3,0]]"], homeslice-panel svg.plan rect.edge-handle[data-at="[[3,0],[3,4]]"]');

@@ -216,6 +216,19 @@ const TOUR: { id: "floors" | "room" | "reshape" | "opening" | "furniture" | "sav
 ];
 type TourCounts = { rooms: number; openings: number; furniture: number };
 
+/** What is left of a wall segment once a piece of it is taken out: up to two segments. */
+function remainder(whole: [Vec2, Vec2], piece: [Vec2, Vec2]): [Vec2, Vec2][] {
+  const [w0, w1] = whole;
+  const len = Math.hypot(w1[0] - w0[0], w1[1] - w0[1]);
+  if (len < 1e-6) return [];
+  const t = piece.map((p) => project(p, w0, w1).t).sort((x, y) => x - y);
+  const at = (d: number): Vec2 => [w0[0] + ((w1[0] - w0[0]) * d) / len, w0[1] + ((w1[1] - w0[1]) * d) / len];
+  const out: [Vec2, Vec2][] = [];
+  if (t[0] > 0.01) out.push([w0, at(t[0])]);
+  if (t[1] < len - 0.01) out.push([at(t[1]), w1]);
+  return out;
+}
+
 /** Whether two wall segments lie on each other (one's middle on the other): the same wall, if split or merged since. */
 function overlaps(l: [Vec2, Vec2], m: [Vec2, Vec2]): boolean {
   const on = (seg: [Vec2, Vec2], p: Vec2) => {
@@ -2440,7 +2453,8 @@ export class HomeslicePanel extends LitElement {
     }
     this._stair = null;
     const wallHit = target.closest("[data-wall]") as SVGElement | null;
-    this._wall = wallHit ? JSON.parse(wallHit.dataset.wall!) : null;
+    // the piece of the wall between the corners nearest the click (a wall split by a corner: one half)
+    this._wall = wallHit ? this.wallPiece(JSON.parse(wallHit.dataset.wall!), world) : null;
     if (wallHit) {
       // drag just this piece of wall, e.g. to line its face up with another wall
       const { line, thickness } = JSON.parse(wallHit.dataset.wall!) as { line: [Vec2, Vec2]; thickness: number };
@@ -2987,7 +3001,30 @@ export class HomeslicePanel extends LitElement {
     const b = best.rooms.find((r) => r !== a) ?? "";
     const own = this.levelInputRoomPolygon(a);
     const side = own ? sideOfRoom(own, best.line[0], best.line[1]) : null;
-    return { a, b, side, line: best.line, thickness: best.thickness };
+    return this.wallPiece({ a, b, side, line: best.line, thickness: best.thickness }, p);
+  }
+
+  /**
+   * A wall narrowed to the piece around a point: between the corners of its two rooms that lie on
+   * it (one added on a straight wall splits it), so that piece alone can be opened.
+   */
+  private wallPiece<T extends { a: string; b: string; line: [Vec2, Vec2] }>(sel: T, p: Vec2): T {
+    const [s0, s1] = sel.line;
+    const len = Math.hypot(s1[0] - s0[0], s1[1] - s0[1]);
+    if (len < 1e-6) return sel;
+    const cuts = [0, len];
+    for (const id of [sel.a, sel.b]) {
+      for (const q of (id && this.levelInputRoomPolygon(id)) || []) {
+        const pr = project(q, s0, s1);
+        if (pr.distance < 0.01 && pr.t > 0.01 && pr.t < len - 0.01) cuts.push(pr.t);
+      }
+    }
+    if (cuts.length === 2) return sel;
+    cuts.sort((x, y) => x - y);
+    const t = Math.min(len, Math.max(0, project(p, s0, s1).t));
+    const i = Math.max(0, cuts.findIndex((c) => c >= t) - 1);
+    const at = (d: number): Vec2 => [s0[0] + ((s1[0] - s0[0]) * d) / len, s0[1] + ((s1[1] - s0[1]) * d) / len];
+    return { ...sel, line: [at(cuts[i]), at(cuts[Math.min(cuts.length - 1, i + 1)])] };
   }
 
   private levelWalls(): Wall[] {
@@ -4536,11 +4573,13 @@ export class HomeslicePanel extends LitElement {
     }
 
     // the selected wall stands out: a halo round it, a dot at each end
-    const halo = (width: number) =>
-      selected
-        ? svg`<line class="wall-halo" x1=${ax} y1=${ay} x2=${bx} y2=${by} stroke-width=${width + 10}></line>
-            <circle class="wall-end" cx=${ax} cy=${ay} r="4"></circle><circle class="wall-end" cx=${bx} cy=${by} r="4"></circle>`
-        : nothing;
+    const halo = (width: number) => {
+      if (!selected) return nothing;
+      // just the piece picked (a wall split by a corner: one half)
+      const [[hx0, hy0], [hx1, hy1]] = sel?.line ? [this.toScreen(sel.line[0]), this.toScreen(sel.line[1])] : [[ax, ay], [bx, by]];
+      return svg`<line class="wall-halo" x1=${hx0} y1=${hy0} x2=${hx1} y2=${hy1} stroke-width=${width + 10}></line>
+        <circle class="wall-end" cx=${hx0} cy=${hy0} r="4"></circle><circle class="wall-end" cx=${hx1} cy=${hy1} r="4"></circle>`;
+    };
     if (w.type === "open") return svg`${halo(2)}<line class="wall open ${selected ? "selected" : ""}" x1=${ax} y1=${ay} x2=${bx} y2=${by}></line>${hit}`;
     const width = Math.max(2, w.thickness * this._view.scale);
     const outside = w.type !== "interior";
@@ -5571,10 +5610,20 @@ export class HomeslicePanel extends LitElement {
     const pieces = this.levelWalls().filter((w) => (w.type === "interior" || w.type === "open") && w.rooms.includes(sel.a) && w.rooms.includes(sel.b));
     const piece = sel.line ? pieces.find((w) => overlaps(w.line, sel.line!)) : undefined;
     const open = piece ? piece.type === "open" : side ? openSides(m, this._level, sel.a, sel.b, all).includes(side) : boundaryOpenAll(m, this._level, sel.a, sel.b);
+    // the clicked piece may be part of a longer wall (split by a corner): the rest keeps its state
+    const part = piece && sel.line ? sel.line : piece?.line;
+    const rest = piece && part ? remainder(piece.line, part) : [];
     const set = (o: boolean) =>
       this.commit(
-        piece
-          ? setOpenSegments(m, this._level, sel.a, sel.b, pieces.filter((w) => (w === piece ? o : w.type === "open")).map((w) => w.line), pieces.length)
+        piece && part
+          ? setOpenSegments(
+              m,
+              this._level,
+              sel.a,
+              sel.b,
+              [...pieces.filter((w) => w !== piece && w.type === "open").map((w) => w.line), ...(piece.type === "open" ? rest : []), ...(o ? [part] : [])],
+              pieces.length + rest.length,
+            )
           : side
             ? setBoundaryOpen(m, this._level, sel.a, sel.b, side, o, all)
             : setBoundaryOpenAll(m, this._level, sel.a, sel.b, o),
@@ -5596,9 +5645,9 @@ export class HomeslicePanel extends LitElement {
       ${open
         ? nothing
         : (() => {
-            const own = (piece ? segmentThickness(m, this._level, sel.a, sel.b, piece.line) : undefined) ?? boundaryThickness(m, this._level, sel.a, sel.b, sel.side);
+            const own = (part ? segmentThickness(m, this._level, sel.a, sel.b, part) : undefined) ?? boundaryThickness(m, this._level, sel.a, sel.b, sel.side);
             const house = m.walls?.interior ?? DEFAULTS.walls.interior;
-            return html`${this.cmInput(this.t("editor.wall_thickness"), own, house, (v) => this.commit(piece ? setSegmentThickness(m, this._level, sel.a, sel.b, piece.line, v) : setBoundaryThickness(m, this._level, sel.a, sel.b, sel.side, v)))}
+            return html`${this.cmInput(this.t("editor.wall_thickness"), own, house, (v) => this.commit(part ? setSegmentThickness(m, this._level, sel.a, sel.b, part, v) : setBoundaryThickness(m, this._level, sel.a, sel.b, sel.side, v)))}
               <p class="muted">${this.t("editor.wall_thickness_hint", { cm: cm(house) })}</p>`;
           })()}`;
   }
