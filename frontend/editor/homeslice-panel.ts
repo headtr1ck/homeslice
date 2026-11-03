@@ -20,7 +20,7 @@ import { closedFaces, faceAt } from "../model/faces";
 import type { Building, DormerInput, EnergyInput, LevelInput, RoofInput, RoofPartInput, RoofWindowInput, SectionInput, FurnitureInput, FurnitureMount, FurnitureType, HouseInput, Issue, LightType, OpeningInput, OpeningSource, OpeningType, PieceInput, RoomInput, ShapeInput, Side, StairShape, Vec2, VerticalInput } from "../model/types";
 import { deriveWalls, innerPolygon, sideOfRoom, type Wall, type WallOpening } from "../model/walls";
 import { HouseRenderer } from "../render/scene";
-import { stairHole, stairPath, stairTreads } from "../model/stairs";
+import { stairHoleOn, stairPath, stairTreads } from "../model/stairs";
 import { misalignedWalls } from "../model/checks";
 import { migrateHouse } from "../model/migrate";
 import { FURNITURE, FURNITURE_TYPES, mountOf } from "../model/furniture";
@@ -3883,7 +3883,7 @@ export class HomeslicePanel extends LitElement {
           const sel = v.id === this._stair;
           const flight = v.kind === "stairs" && idx < v.to;
           return svg`<g data-stair=${v.id} class="stair ${sel ? "selected" : ""}">
-            ${idx > v.from ? svg`<polygon class="stairwell" points=${pts(stairHole(v))}></polygon>` : nothing}
+            ${idx > v.from ? svg`<polygon class="stairwell" points=${pts(stairHoleOn(v, house!.vertical, idx))}></polygon>` : nothing}
             <polygon class="stair-hit" points=${pts(v.polygon)}></polygon>
             ${flight ? stairTreads(v, house!.levels[idx].height).map((t) => svg`<polygon class="stair-step" points=${pts(t.poly)}></polygon>`) : nothing}
             ${flight ? svg`<polyline class="stair-path" marker-end="url(#arrow)" points=${pts(stairPath(v))}></polyline>` : nothing}

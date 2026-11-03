@@ -18,7 +18,7 @@ import { LineSegmentsGeometry } from "three/examples/jsm/lines/LineSegmentsGeome
 import type { RoofPart, Room, House, Level, LightType, PieceInput, Section, Side, Vec2, Vertical } from "../model/types";
 import { innerPolygon, type Wall, type WallOpening } from "../model/walls";
 import { bbox, clipHalfPlane, innermost, labelPoint, nestedIn, overlap, pointInPolygon } from "../model/geometry";
-import { galleryRails, stairStringers, stairFrame, stairHole, stairRail, stairTreads } from "../model/stairs";
+import { galleryRails, stairStringers, stairFrame, stairHoleOn, stairRail, stairTreads } from "../model/stairs";
 
 /** `isometric`: parallel lines stay parallel; `perspective`: walls lean, like a photo. */
 export type Projection = "isometric" | "perspective";
@@ -340,8 +340,9 @@ export function roofGeometry(faces: { pts: THREE.Vector3[]; along: THREE.Vector3
 }
 
 function holesFor(level: Level, vertical: Vertical[]): Vec2[][] {
-  // a stairwell cuts the floors it leads up to, not the one it starts on
-  return vertical.filter((v) => level.index > v.from && level.index <= v.to).map(stairHole);
+  // a stairwell cuts the floors it leads up to, not the one it starts on (nor the floor before
+  // the first step of a stair starting there)
+  return vertical.filter((v) => level.index > v.from && level.index <= v.to).map((v) => stairHoleOn(v, vertical, level.index));
 }
 
 /** Lamps lighting the scene at once (a fixed number: changing it would rebuild every shader). */

@@ -395,3 +395,40 @@ export function galleryRails(v: Vertical, walls: { a: Vec2; b: Vec2; thickness: 
   });
   return out;
 }
+
+/**
+ * A stairwell's hole on a floor it arrives at, less the floor before the first step of a stair
+ * starting there (stairs stacked in one stairwell: the floor where the next flight starts stays).
+ */
+export function stairHoleOn(v: Vertical, vertical: Vertical[], index: number): Vec2[] {
+  let hole = stairHole(v);
+  for (const s of vertical) if (s !== v && s.kind === "stairs" && s.from === index && s.entry > 0) hole = trimStrip(hole, entryStrip(s));
+  return hole;
+}
+
+/** The floor before a stair's first step, as a box (x0, y0, x1, y1). */
+function entryStrip(s: Vertical): [number, number, number, number] {
+  const { W, plan } = stairFrame(s);
+  const a = plan([0, 0]);
+  const b = plan([s.entry, W]);
+  return [Math.min(a[0], b[0]), Math.min(a[1], b[1]), Math.max(a[0], b[0]), Math.max(a[1], b[1])];
+}
+
+/** A rectangular hole with a strip across one of its ends taken off (anything else as it is). */
+function trimStrip(hole: Vec2[], [sx0, sy0, sx1, sy1]: [number, number, number, number]): Vec2[] {
+  const { min, max } = bbox(hole);
+  const square = hole.length === 4 && hole.every((p) => (Math.abs(p[0] - min[0]) < 1e-6 || Math.abs(p[0] - max[0]) < 1e-6) && (Math.abs(p[1] - min[1]) < 1e-6 || Math.abs(p[1] - max[1]) < 1e-6));
+  if (!square) return hole;
+  let [x0, y0, x1, y1] = [min[0], min[1], max[0], max[1]];
+  const e = 0.02;
+  if (sx0 <= x0 + e && sx1 >= x1 - e) {
+    // across the whole width: at the north or south end
+    if (sy0 <= y0 + e && sy1 > y0) y0 = Math.max(y0, sy1);
+    else if (sy1 >= y1 - e && sy0 < y1) y1 = Math.min(y1, sy0);
+  } else if (sy0 <= y0 + e && sy1 >= y1 - e) {
+    if (sx0 <= x0 + e && sx1 > x0) x0 = Math.max(x0, sx1);
+    else if (sx1 >= x1 - e && sx0 < x1) x1 = Math.min(x1, sx0);
+  }
+  if (x1 - x0 < 0.05 || y1 - y0 < 0.05) return hole;
+  return [[x0, y0], [x1, y0], [x1, y1], [x0, y1]];
+}

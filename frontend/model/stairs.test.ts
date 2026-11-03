@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { bbox } from "./geometry";
-import { galleryRails, stairPath, stairRail, stairStringers, stairTreads } from "./stairs";
+import { galleryRails, stairHoleOn, stairPath, stairRail, stairStringers, stairTreads } from "./stairs";
 import type { Vertical } from "./types";
 
 type Form = Vertical["shape"] | "l_turn" | "u_turn";
@@ -125,4 +125,18 @@ describe("stairs", () => {
     expect(stairStringers(stair("straight", rect, { stringers: "centre" }), 2.66)).toHaveLength(1);
     expect(stairStringers(stair("spiral", [0, 0, 2, 2], { stringers: "sides" }), 2.66)).toEqual([]);
   });
+
+  it("stairs stacked in one stairwell: the floor before the upper one's first step stays", () => {
+    const rect: [number, number, number, number] = [3, 5, 2.6, 2.35];
+    // basement (0) to ground (1), then ground to the top (3), a metre of floor before its first step
+    const lower = { ...stair("u_turn", rect), id: "down", from: 0, to: 1 };
+    const upper = { ...stair("u_turn", rect), id: "up", from: 1, to: 3, entry: 1 };
+    const hole = stairHoleOn(lower, [lower, upper], 1);
+    // climbing east from x 3: the strip x 3–4 is floor
+    expect(bbox(hole).min[0]).toBeCloseTo(4);
+    expect(bbox(hole).max[0]).toBeCloseTo(5.6);
+    // on another floor, or without an upper stair: the whole stairwell
+    expect(bbox(stairHoleOn(lower, [lower], 1)).min[0]).toBeCloseTo(3);
+  });
 });
+
