@@ -20,7 +20,7 @@ import {
   sideOf,
   sub,
 } from "./geometry";
-import type { Issue, Level, Opening, OpeningSource, OpeningStyle, OpeningType, Side, Vec2, WallThickness, WallType } from "./types";
+import type { Building, Issue, Level, Opening, OpeningSource, OpeningStyle, OpeningType, Side, Vec2, WallThickness, WallType } from "./types";
 
 export const SNAP = 0.05;
 
@@ -83,8 +83,8 @@ interface Piece {
   a: Vec2;
   b: Vec2;
   rooms: Set<string>;
-  /** On a building standing on its own (never a party wall). */
-  annex?: boolean;
+  /** On a building standing on its own (never a party wall): its roof and walls. */
+  annex?: Building;
   /** Direction along the (positively oriented) outline, when the piece lies on it. */
   outline: [Vec2, Vec2] | null;
 }
@@ -101,9 +101,9 @@ export function deriveWalls(level: Level, thickness: WallThickness, issues: Issu
   // 1. snapping: the outline first, so its corners win
   const points: Vec2[] = [];
   const snap = (p: Vec2): Vec2 => points.find((c) => dist(c, p) < SNAP) ?? (points.push(p), p);
-  const sources: { poly: Vec2[]; room: string | null; annex?: boolean }[] = [];
+  const sources: { poly: Vec2[]; room: string | null; annex?: Building }[] = [];
   if (level.outline.length) sources.push({ poly: level.outline.map(snap), room: null });
-  for (const a of level.annexes) sources.push({ poly: a.map(snap), room: null, annex: true });
+  level.annexes.forEach((a, i) => sources.push({ poly: a.map(snap), room: null, annex: level.annexBuildings?.[i] ?? { roof: "shed", pitch: 8, open: false } }));
   for (const r of level.rooms) if (r.kind === "room") sources.push({ poly: r.polygon.map(snap), room: r.id });
 
   // 2. split at T-junctions
@@ -130,7 +130,7 @@ export function deriveWalls(level: Level, thickness: WallThickness, issues: Issu
         if (!piece) pieces.set(key, (piece = { a: p, b: q, rooms: new Set(), outline: null }));
         if (room === null) {
           piece.outline = [p, q];
-          if (annex) piece.annex = true;
+          if (annex) piece.annex = annex;
         }
         else piece.rooms.add(room);
       }
@@ -153,6 +153,8 @@ export function deriveWalls(level: Level, thickness: WallThickness, issues: Issu
   const outdoorInside = level.rooms.filter((r) => r.kind === "outdoor");
   const typeOf = (piece: Piece): WallType => {
     if (!piece.outline) return isOpen(piece) ? "open" : "interior";
+    // a carport: a roof on posts
+    if (piece.annex?.open) return "open";
     if (!piece.rooms.size && outdoorInside.length) {
       const [a, b] = piece.outline;
       const n = outwardNormal(a, b);
@@ -169,7 +171,7 @@ export function deriveWalls(level: Level, thickness: WallThickness, issues: Issu
   const segs: Seg[] = [...pieces.values()].map((p) => {
     const [a, b] = p.outline ?? [p.a, p.b];
     const type = typeOf(p);
-    return { a, b, type, rooms: p.rooms, directed: !!p.outline, own: type === "interior" ? ownThickness(p) : undefined };
+    return { a, b, type, rooms: p.rooms, directed: !!p.outline, own: type === "interior" ? ownThickness(p) : type === "exterior" ? p.annex?.thickness : undefined };
   });
   const collinear = (s: Seg, t: Seg) => project(t.a, s.a, s.b).distance < 1e-4 && project(t.b, s.a, s.b).distance < 1e-4;
   let merged = true;

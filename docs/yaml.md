@@ -74,6 +74,9 @@ vertical:
     shape: straight                     # u_turn (two flights joined by winders), l_turn (a right
                                         # angle with a landing) or spiral (round a post)
     railing: metal                      # optional handrail on the open side: glass, metal, wood
+                                        # (and upstairs round the well, where no wall is)
+    treads: open                        # open (floating, gaps between) or solid (closed to the floor)
+    finish: wood                        # the steps: any floor finish (concrete, tile_white…)
     up: east                            # direction the first flight climbs
     entry: 0                            # floor before the first step (stairs that start further in)
 facade: brick_red                       # optional: the outside of the exterior walls
@@ -138,7 +141,22 @@ Home Assistant's energy settings; `details:` adds more readings to an item's cal
 
 A garden shed, a detached garage or a garden house: draw its rooms (kind `room`) apart from
 the house, wholly outside the outline. Such a group of rooms is a building of its own, with
-outside walls (never a party wall), a floor slab and a low shed roof.
+outside walls (never a party wall), a floor slab and a low shed roof. One of its rooms can
+set the building's roof and walls (the editor shows them in that room's panel):
+
+```yaml
+      - id: shed
+        rect: [15, 14.4, 3, 2.4]
+        building:
+          roof: gable                   # shed (default, 8°), gable, hip or flat
+          pitch: 25                     # degrees
+          roof_finish: roof_metal       # default: the house's roof
+          thickness: 0.1                # outside walls, metres; default: the house's
+          facade: wood_cladding         # outside walls' finish; default: the house's facade
+      - id: carport
+        rect: [15.2, -4.5, 3, 5.5]
+        building: { open: true, roof: flat }   # a roof on posts, no walls
+```
 
 `robots:` places robot vacuums and lawn mowers with their dock. A live position is set up
 in the editor, and so is `map:` (the robot's map picture on the card while it cleans:

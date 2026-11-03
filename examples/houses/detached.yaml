@@ -110,7 +110,6 @@ levels:
           - { type: tree_small, model: "modern:tree_fruit", at: [7.5, 15.6] }
           - { type: tree_small, model: "modern:tree_birch", at: [1.5, 2.0] }
           - { type: hedge, model: "modern:hedge_leafy", at: [8.75, 17.6], size: [17.4, 0.7] }
-          - { type: item, model: "modern:garden_shed", at: [16.0, 15.8] }
           - { type: flower_bed, model: "modern:raised_bed", at: [6.5, 13.4] }
           - { type: item, model: "modern:sprinkler", at: [8.0, 14.0], entity: switch.sprinkler }
           - { type: floor_lamp, model: "modern:garden_light", at: [9.3, 9.0], entity: light.garden }
@@ -132,6 +131,20 @@ levels:
           - { type: floor_lamp, model: "modern:garden_light", at: [8.1, 1.6], entity: light.front_garden }
           - { type: item, model: "modern:wheelie_bins", at: [12.6, 4.4] }
       - { id: drive, area_id: front_garden, kind: outdoor, rect: [11, -5, 3.5, 5], floor: paving }
+      # buildings of their own: a timber shed with a gable roof, a carport on posts
+      - id: shed
+        name: Garden shed
+        rect: [15, 14.4, 3, 2.4]
+        floor: wood
+        building: { roof: gable, pitch: 25, thickness: 0.1, roof_finish: roof_metal, facade: wood_cladding }
+      - id: carport
+        name: Carport
+        area_id: front_garden
+        rect: [15.2, -4.5, 3, 5.5]
+        floor: paving
+        building: { open: true, roof: flat, roof_finish: roof_metal }
+        furniture:
+          - { type: car, model: "modern:car_hatchback", at: [1.5, 2.8], finish: red }
     walls:
       - { between: [kitchen, living] }   # open plan
     openings:
@@ -148,6 +161,8 @@ levels:
       - { room: living, side: east, at: 2.9, width: 1.0 }
       - { room: living, side: west, at: 1.4, width: 1.6 }
       - { room: garage, side: north, at: 0.45, width: 2.6, type: garage_door, cover: cover.garage_door }
+      - { room: shed, side: west, at: 0.7, width: 0.9, type: door }
+      - { room: shed, side: south, at: 1.0, width: 1.0, sill: 1.0, height: 0.8 }
   - id: first
     floor_id: first_floor
     rooms:

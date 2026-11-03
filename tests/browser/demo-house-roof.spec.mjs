@@ -279,7 +279,14 @@ test.describe.serial("demo house, roof (1)", () => {
     await act(page, () => page.evaluate(() => window.card.hass.pushModel(window.__demoModel)));
   });
 
-  test("stairs: a spiral with a glass railing, an L-shaped one with a metal handrail", async () => {
+  test("stairs: a spiral with a glass railing, an L-shaped one with a metal handrail, a railing round the well upstairs", async () => {
+    const rails = (style) =>
+      page.evaluate((style) => {
+        let n = 0;
+        window.card.renderer.object.traverse((o) => o.userData.railing === style && n++);
+        return n;
+      }, style);
+    const before = { glass: await rails("glass"), metal: await rails("metal") };
     for (const [shape, railing, rect] of [["spiral", "glass", [6, 4, 2, 2]], ["l_turn", "metal", [5, 4, 3, 2]]]) {
       await act(page, () =>
         page.evaluate(
@@ -293,11 +300,35 @@ test.describe.serial("demo house, roof (1)", () => {
       );
       const problems = await page.evaluate(() => window.card._issues.map((i) => i.message));
       assert(!problems.length, `${shape}: ${JSON.stringify(problems)}`);
+      // upstairs the spiral's well is open to the west; the L's is walled in all round
+      const added = (await rails(railing)) - before[railing];
+      assert(shape === "spiral" ? added > 0 : added === 0, `${shape}: ${added} railings round the well upstairs`);
       await act(page, () => page.locator("homeslice-card button", { hasText: "Ground Floor" }).click());
       await page.waitForTimeout(800);
       await shot(page, `demo-stairs-${shape}`);
       await act(page, () => page.locator("homeslice-card button", { hasText: "All floors" }).click());
     }
+    await act(page, () => page.evaluate(() => window.card.hass.pushModel(window.__demoModel)));
+  });
+
+  test("stairs with solid steps in concrete", async () => {
+    await act(page, () =>
+      page.evaluate(() => {
+        const m = structuredClone(window.__demoModel);
+        Object.assign(m.vertical[0], { treads: "solid", finish: "concrete" });
+        window.card.hass.pushModel(m);
+      }),
+    );
+    const solid = await page.evaluate(() => {
+      let n = 0;
+      window.card.renderer.object.traverse((o) => o.userData.solidStep && n++);
+      return n;
+    });
+    assert(solid > 10, `solid steps: ${solid}`);
+    await act(page, () => page.locator("homeslice-card button", { hasText: "Ground Floor" }).click());
+    await page.waitForTimeout(800);
+    await shot(page, "demo-stairs-solid");
+    await act(page, () => page.locator("homeslice-card button", { hasText: "All floors" }).click());
     await act(page, () => page.evaluate(() => window.card.hass.pushModel(window.__demoModel)));
   });
 

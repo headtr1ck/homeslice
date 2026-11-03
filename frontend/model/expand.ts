@@ -32,6 +32,7 @@ import type {
   OpeningType,
   Robot,
   Room,
+  Building,
   ShapeInput,
   Side,
   Vec2,
@@ -270,6 +271,8 @@ export function expandHouse(input: unknown): ExpandResult {
 
     const roomIds = new Set<string>();
     const rooms: Room[] = [];
+    // rooms that set their building's roof and walls
+    const buildingRooms: { polygon: Vec2[]; building: Building; path: string }[] = [];
     (li.rooms ?? []).forEach((ri, i) => {
       const rp = `${lp}.rooms.${ri?.id ?? i}`;
       if (!ri?.id) return err(rp, "Every room needs an id.");
@@ -294,6 +297,21 @@ export function expandHouse(input: unknown): ExpandResult {
       }
       if (ri.railing !== undefined && !["glass", "metal", "wood"].includes(ri.railing)) err(`${rp}.railing`, `railing must be glass, metal or wood, got ${JSON.stringify(ri.railing)}.`);
       if (ri.underfloor !== undefined && !(typeof ri.underfloor === "string" && ri.underfloor.includes("."))) err(`${rp}.underfloor`, "underfloor must be an entity id, e.g. climate.….");
+      if (ri.building !== undefined) {
+        const b = ri.building;
+        const bp = `${rp}.building`;
+        if (!b || typeof b !== "object" || Array.isArray(b)) err(bp, "building must be a mapping, e.g. {roof: gable, pitch: 25, thickness: 0.12}.");
+        else if (b.roof !== undefined && !["shed", "gable", "hip", "flat"].includes(b.roof)) err(`${bp}.roof`, `roof must be shed, gable, hip or flat, got ${JSON.stringify(b.roof)}.`);
+        else if (b.pitch !== undefined && !(typeof b.pitch === "number" && b.pitch >= 0 && b.pitch <= 60)) err(`${bp}.pitch`, `pitch is in degrees, 0 to 60; got ${JSON.stringify(b.pitch)}.`);
+        else if (b.roof_finish !== undefined && !finishOk(b.roof_finish, ROOF_FINISHES)) err(`${bp}.roof_finish`, `roof_finish must be ${ROOF_HINT}, got ${JSON.stringify(b.roof_finish)}.`);
+        else if (b.thickness !== undefined && !(typeof b.thickness === "number" && b.thickness > 0 && b.thickness < 1)) err(`${bp}.thickness`, `thickness is in metres, e.g. 0.12; got ${JSON.stringify(b.thickness)}.`);
+        else if (b.facade !== undefined && !finishOk(b.facade, WALL_FINISHES)) err(`${bp}.facade`, `facade must be ${WALL_HINT}, got ${JSON.stringify(b.facade)}.`);
+        else if (b.open !== undefined && typeof b.open !== "boolean") err(`${bp}.open`, `open must be true or false, got ${JSON.stringify(b.open)}.`);
+        else {
+          const roof = b.roof ?? "shed";
+          buildingRooms.push({ polygon, path: bp, building: { roof, pitch: b.pitch ?? (roof === "shed" ? 8 : roof === "flat" ? 0 : 30), open: !!b.open, ...(b.roof_finish ? { finish: b.roof_finish } : {}), ...(b.thickness ? { thickness: b.thickness } : {}), ...(b.facade ? { facade: b.facade } : {}) } });
+        }
+      }
       const kind = ri.kind ?? "room";
       const { min } = bbox(polygon);
       const lights: Room["lights"] = [];
@@ -497,6 +515,8 @@ export function expandHouse(input: unknown): ExpandResult {
     // a roof level has no storey of its own: it sits on the floor below
     const height = li.height ?? (kind === "roof" ? 0 : DEFAULTS.levelHeight);
     const slab = li.slab ?? (kind === "roof" ? 0 : DEFAULTS.slab);
+    for (const r of buildingRooms)
+      if (!annexes.some((a) => pointInPolygon(labelPoint(r.polygon), a))) warn(r.path, "building is for a room standing apart from the house (a shed, a garage); this one is part of the house.");
     const levelOut = {
       id: li.id,
       kind,
@@ -511,6 +531,8 @@ export function expandHouse(input: unknown): ExpandResult {
       outer: [] as Vec2[],
       annexes,
       annexesOuter: [] as Vec2[][],
+      // each building: what one of its rooms says, else a shed roof and the house's walls
+      annexBuildings: annexes.map((a) => buildingRooms.find((r) => pointInPolygon(labelPoint(r.polygon), a))?.building ?? { roof: "shed" as const, pitch: 8, open: false }),
       partyWalls: li.party_walls ?? h.party_walls ?? [],
       rooms,
       openings,
@@ -537,7 +559,10 @@ export function expandHouse(input: unknown): ExpandResult {
     const terraces = level.rooms.filter((r) => r.kind === "outdoor").map((r) => r.polygon);
     const halves = facadeHalves(level.outline, level.partyWalls, walls, (p) => terraces.some((t) => pointInPolygon(p, t)));
     level.outer = offsetEdges(level.outline, halves);
-    level.annexesOuter = level.annexes.map((a) => offsetEdges(a, facadeHalves(a, [], walls)));
+    level.annexesOuter = level.annexes.map((a, i) => {
+      const b = level.annexBuildings[i];
+      return b.open ? a : offsetEdges(a, facadeHalves(a, [], { ...walls, exterior: b.thickness ?? walls.exterior }));
+    });
   }
 
   // façade openings: placed on each listed level in the room behind that stretch of wall
@@ -608,6 +633,8 @@ export function expandHouse(input: unknown): ExpandResult {
     const stairShape = vi.shape ?? "straight";
     if (!["straight", "u_turn", "l_turn", "spiral"].includes(stairShape)) return err(vp, `shape must be straight, u_turn, l_turn or spiral, got "${stairShape}".`);
     if (vi.railing !== undefined && !["glass", "metal", "wood"].includes(vi.railing)) return err(vp, `railing must be glass, metal or wood, got "${vi.railing}".`);
+    if (vi.treads !== undefined && !["open", "solid"].includes(vi.treads)) return err(`${vp}.treads`, `treads must be open or solid, got ${JSON.stringify(vi.treads)}.`);
+    if (vi.finish !== undefined && !finishOk(vi.finish, FLOOR_FINISHES)) return err(`${vp}.finish`, `finish must be ${FLOOR_HINT}, got ${JSON.stringify(vi.finish)}.`);
     const { min, max } = bbox(polygon);
     const up = vi.up ?? (max[0] - min[0] >= max[1] - min[1] ? "east" : "south");
     if (!SIDES.includes(up)) return err(vp, `up must be one of ${SIDES.join(", ")}, got "${up}".`);
@@ -617,7 +644,7 @@ export function expandHouse(input: unknown): ExpandResult {
     const length = up === "east" || up === "west" ? max[0] - min[0] : max[1] - min[1];
     const entry = vi.entry ?? 0;
     if (typeof entry !== "number" || entry < 0 || entry > length - 0.5) return err(vp, `entry must be between 0 and ${(length - 0.5).toFixed(2)} m (the stairwell is ${length.toFixed(2)} m long), got ${entry}.`);
-    vertical.push({ id: vi.id, kind: vi.kind ?? "stairs", polygon, from, to, shape: stairShape, up, start, entry, ...(vi.railing ? { railing: vi.railing } : {}) });
+    vertical.push({ id: vi.id, kind: vi.kind ?? "stairs", polygon, from, to, shape: stairShape, up, start, entry, ...(vi.treads ? { treads: vi.treads } : {}), ...(vi.railing ? { railing: vi.railing } : {}), ...(vi.finish ? { finish: vi.finish } : {}) });
   });
 
   // every house has a roof (defaults unless set); cards decide whether it is drawn

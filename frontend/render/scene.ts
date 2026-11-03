@@ -18,7 +18,7 @@ import { LineSegmentsGeometry } from "three/examples/jsm/lines/LineSegmentsGeome
 import type { RoofPart, Room, House, Level, LightType, PieceInput, Side, Vec2, Vertical } from "../model/types";
 import { innerPolygon, type Wall, type WallOpening } from "../model/walls";
 import { bbox, innermost, labelPoint, nestedIn, overlap, pointInPolygon } from "../model/geometry";
-import { stairFrame, stairHole, stairRail, stairTreads } from "../model/stairs";
+import { galleryRails, stairFrame, stairHole, stairRail, stairTreads } from "../model/stairs";
 
 /** `isometric`: parallel lines stay parallel; `perspective`: walls lean, like a photo. */
 export type Projection = "isometric" | "perspective";
@@ -748,6 +748,20 @@ export class HouseRenderer {
       slab.rotateX(-Math.PI / 2);
       slab.translate(0, -level.slab, 0);
       g.add(this.mesh(slab, this.lambert(COLORS.slab)));
+      const building = level.annexBuildings?.[i] ?? { roof: "shed", pitch: 8, open: false };
+      // a carport: a post in each corner holds the roof
+      if (building.open) {
+        const post = this.lambert(COLORS.tread);
+        const c = labelPoint(level.annexes[i]);
+        for (const p of level.annexes[i]) {
+          const d = Math.hypot(c[0] - p[0], c[1] - p[1]) || 1;
+          const m = this.mesh(new THREE.BoxGeometry(0.12, level.height, 0.12), post);
+          // just inside the corner
+          m.position.set(p[0] + ((c[0] - p[0]) / d) * 0.1, level.height / 2, p[1] + ((c[1] - p[1]) / d) * 0.1);
+          m.userData.post = true;
+          g.add(m);
+        }
+      }
       const inside = labelPoint(level.annexes[i]);
       const covered = (this.model?.levels ?? []).some((l) => l.index > level.index && l.kind !== "roof" && (pointInPolygon(inside, l.outline) || l.annexes.some((a) => pointInPolygon(inside, a))));
       if (!this.view.roof || covered) return;
@@ -756,14 +770,14 @@ export class HouseRenderer {
         {
           id: `annex_${i}`,
           polygon: outer,
-          // a low shed roof, falling along the longer side
-          shape: "shed",
+          // a low shed roof by default, falling along the longer side; a ridge along it
+          shape: building.roof,
           angle: max[0] - min[0] >= max[1] - min[1] ? 0 : 90,
-          pitch: 8,
+          pitch: building.pitch,
           overhang: 0.2,
           offset: 0,
           high: max[0] - min[0] >= max[1] - min[1] ? "north" : "west",
-          finish: this.model?.roof.finish ?? "roof_clay",
+          finish: building.finish ?? this.model?.roof.finish ?? "roof_clay",
           dormers: [],
           windows: [],
           furniture: [],
@@ -823,6 +837,8 @@ export class HouseRenderer {
     for (const room of level.rooms) if (room.railing && room.kind === "outdoor" && this.view.showOutdoor) this.railing(g, level, room);
     // free-standing railings: galleries, the edges of a stairwell
     for (const r of level.railings ?? []) this.railingSegment(g, r.a, r.b, 0, r.style);
+    // a stair with a railing has one round its well upstairs too
+    for (const v of vertical) if (v.railing && v.to === level.index) for (const [a, b] of galleryRails(v, walls)) this.railingSegment(g, a, b, 0, v.railing);
     for (const room of level.rooms) for (const c of room.cameras ?? []) this.camera3d(g, c);
 
     // walls, split around openings; each face in its room's finish (or the facade's)
@@ -843,7 +859,13 @@ export class HouseRenderer {
     const faceFinish = (w: Wall, n: Vec2): string | undefined => {
       const mid: Vec2 = [(w.a[0] + w.b[0]) / 2 + n[0] * (w.thickness / 2 + 0.05), (w.a[1] + w.b[1]) / 2 + n[1] * (w.thickness / 2 + 0.05)];
       const room = innermost(rooms, mid);
-      if (!room) return w.type === "exterior" ? this.facade : undefined;
+      if (!room && w.type === "exterior") {
+        // a building of its own may have its own
+        const inside: Vec2 = [(w.a[0] + w.b[0]) / 2 - n[0] * (w.thickness / 2 + 0.05), (w.a[1] + w.b[1]) / 2 - n[1] * (w.thickness / 2 + 0.05)];
+        const i = level.annexes.findIndex((a) => pointInPolygon(inside, a));
+        return (i >= 0 ? level.annexBuildings?.[i]?.facade : undefined) ?? this.facade;
+      }
+      if (!room) return undefined;
       // the room's wall on its north side faces south, and so on
       const side: Side = Math.abs(n[0]) > Math.abs(n[1]) ? (n[0] > 0 ? "west" : "east") : n[1] > 0 ? "north" : "south";
       return room.wallSides?.[side] ?? room.wall;
@@ -1561,9 +1583,19 @@ export class HouseRenderer {
     const g = new THREE.Group();
     const { L, W, plan } = stairFrame(v);
     const rise = level.height; // up to the ceiling: the real rise would poke out above the walls
-    const wood = this.lambert(COLORS.tread);
+    const look = v.finish ? this.finish(v.finish) : null;
+    const wood = look ? this.lambert(look.color, { map: look.map }) : this.lambert(COLORS.tread);
     const steel = this.lambert(COLORS.steel);
     for (const t of stairTreads(v, rise)) {
+      if (v.treads === "solid") {
+        // a closed step, down to the floor
+        const block = new THREE.ExtrudeGeometry(shapeOf(normalize(t.poly)), { depth: t.top, bevelEnabled: false });
+        block.rotateX(-Math.PI / 2);
+        const m = this.mesh(block, wood);
+        m.userData.solidStep = true;
+        g.add(m);
+        continue;
+      }
       const tread = new THREE.ExtrudeGeometry(shapeOf(normalize(t.poly)), { depth: 0.05, bevelEnabled: false });
       tread.rotateX(-Math.PI / 2);
       tread.translate(0, t.top - 0.05, 0);

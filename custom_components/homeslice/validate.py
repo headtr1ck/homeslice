@@ -448,6 +448,24 @@ def validate(house: Any) -> list[dict[str, str]]:
             underfloor = get(ri, "underfloor")
             if underfloor is not MISSING and not (isinstance(underfloor, str) and "." in underfloor):
                 err(f"{rp}.underfloor", "underfloor must be an entity id, e.g. climate.….")
+            building = get(ri, "building")
+            if building is not MISSING:
+                bp = f"{rp}.building"
+                broof, bpitch, bfinish, bthick, bfacade, bopen = (get(building, k) for k in ("roof", "pitch", "roof_finish", "thickness", "facade", "open")) if isinstance(building, dict) else (MISSING,) * 6
+                if not isinstance(building, dict):
+                    err(bp, "building must be a mapping, e.g. {roof: gable, pitch: 25, thickness: 0.12}.")
+                elif broof is not MISSING and broof not in ("shed", "gable", "hip", "flat"):
+                    err(f"{bp}.roof", f"roof must be shed, gable, hip or flat, got {stringify(broof)}.")
+                elif bpitch is not MISSING and not (is_num(bpitch) and 0 <= bpitch <= 60):
+                    err(f"{bp}.pitch", f"pitch is in degrees, 0 to 60; got {stringify(bpitch)}.")
+                elif bfinish is not MISSING and not finish_ok(bfinish, catalog()["roof_finishes"]):
+                    err(f"{bp}.roof_finish", f"roof_finish must be {ROOF_HINT}, got {stringify(bfinish)}.")
+                elif bthick is not MISSING and not (is_num(bthick) and 0 < bthick < 1):
+                    err(f"{bp}.thickness", f"thickness is in metres, e.g. 0.12; got {stringify(bthick)}.")
+                elif bfacade is not MISSING and not finish_ok(bfacade, wall_finishes):
+                    err(f"{bp}.facade", f"facade must be {WALL_HINT}, got {stringify(bfacade)}.")
+                elif bopen is not MISSING and not isinstance(bopen, bool):
+                    err(f"{bp}.open", f"open must be true or false, got {stringify(bopen)}.")
             for j, light in enumerate(items(get(ri, "lights"))):
                 entity = get(light, "entity")
                 if not isinstance(entity, str) or not entity.startswith("light."):
@@ -692,6 +710,14 @@ def validate(house: Any) -> list[dict[str, str]]:
         rail = get(vi, "railing")
         if rail is not MISSING and rail not in ("glass", "metal", "wood"):
             err(vp, f'railing must be glass, metal or wood, got "{text(rail)}".')
+            continue
+        treads = get(vi, "treads")
+        if treads is not MISSING and treads not in ("open", "solid"):
+            err(f"{vp}.treads", f"treads must be open or solid, got {stringify(treads)}.")
+            continue
+        sfinish = get(vi, "finish")
+        if sfinish is not MISSING and not finish_ok(sfinish, catalog()["floor_finishes"]):
+            err(f"{vp}.finish", f"finish must be {FLOOR_HINT}, got {stringify(sfinish)}.")
             continue
         (minx, miny), (maxx, maxy) = bbox(polygon)
         up = nullish(get(vi, "up"), "east" if maxx - minx >= maxy - miny else "south")

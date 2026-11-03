@@ -1706,6 +1706,12 @@
   "editor.railing_glass": "Szkło",
   "editor.railing_metal": "Metalowe pręty",
   "editor.railing_wood": "Drewno",
+  "editor.building": "Budynek",
+  "editor.building_hint": "To pomieszczenie stoi osobno od domu: osobny budynek z własnym dachem i własnymi ścianami.",
+  "editor.building_open": "Otwarty: dach na słupach (wiata garażowa)",
+  "editor.building_thickness": "Grubość ścian (m)",
+  "editor.building_facade": "Ściany zewnętrzne",
+  "editor.building_roof": "Pokrycie dachu",
   "editor.roof_shape": "Kształt",
   "editor.roof_shape_gable": "Dwuspadowy",
   "editor.roof_shape_hip": "Czterospadowy",
@@ -1919,5 +1925,9 @@
   "editor.stairs_l_turn": "Zabiegowe w L, ze spocznikiem",
   "editor.stairs_spiral": "Kręcone",
   "editor.stairs_railing": "Poręcz",
-  "editor.stairs_railing_none": "Brak (przy ścianie)"
+  "editor.stairs_railing_none": "Brak (przy ścianie)",
+  "editor.stairs_treads": "Stopnie",
+  "editor.stairs_treads_open": "Otwarte (ażurowe, z przerwami)",
+  "editor.stairs_treads_solid": "Pełne (zamknięte do podłogi)",
+  "editor.stairs_finish": "Wykończenie stopni"
 }

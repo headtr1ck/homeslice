@@ -1706,6 +1706,12 @@
   "editor.railing_glass": "Glas",
   "editor.railing_metal": "Metallstäbe",
   "editor.railing_wood": "Holz",
+  "editor.building": "Gebäude",
+  "editor.building_hint": "Dieser Raum steht getrennt vom Haus: ein eigenes Gebäude mit eigenem Dach und eigenen Wänden.",
+  "editor.building_open": "Offen: ein Dach auf Pfosten (ein Carport)",
+  "editor.building_thickness": "Wandstärke (m)",
+  "editor.building_facade": "Außenwände",
+  "editor.building_roof": "Dacheindeckung",
   "editor.roof_shape": "Form",
   "editor.roof_shape_gable": "Satteldach",
   "editor.roof_shape_hip": "Walmdach",
@@ -1919,5 +1925,9 @@
   "editor.stairs_l_turn": "Viertelgewendelt, mit Podest",
   "editor.stairs_spiral": "Wendeltreppe",
   "editor.stairs_railing": "Geländer",
-  "editor.stairs_railing_none": "Keins (an der Wand)"
+  "editor.stairs_railing_none": "Keins (an der Wand)",
+  "editor.stairs_treads": "Stufen",
+  "editor.stairs_treads_open": "Offen (schwebend, mit Lücken)",
+  "editor.stairs_treads_solid": "Massiv (bis zum Boden geschlossen)",
+  "editor.stairs_finish": "Belag der Stufen"
 }

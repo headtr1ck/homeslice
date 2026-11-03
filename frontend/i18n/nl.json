@@ -1706,6 +1706,12 @@
   "editor.railing_glass": "Glas",
   "editor.railing_metal": "Metalen spijlen",
   "editor.railing_wood": "Hout",
+  "editor.building": "Gebouw",
+  "editor.building_hint": "Deze ruimte staat los van het huis: een eigen gebouw, met een eigen dak en eigen muren.",
+  "editor.building_open": "Open: een dak op palen (een carport)",
+  "editor.building_thickness": "Wanddikte (m)",
+  "editor.building_facade": "Buitenmuren",
+  "editor.building_roof": "Dakbedekking",
   "editor.roof_shape": "Vorm",
   "editor.roof_shape_gable": "Zadeldak",
   "editor.roof_shape_hip": "Schilddak",
@@ -1919,5 +1925,9 @@
   "editor.stairs_l_turn": "L-vormig, met overloop",
   "editor.stairs_spiral": "Wenteltrap",
   "editor.stairs_railing": "Leuning",
-  "editor.stairs_railing_none": "Geen (tegen een muur)"
+  "editor.stairs_railing_none": "Geen (tegen een muur)",
+  "editor.stairs_treads": "Treden",
+  "editor.stairs_treads_open": "Open (zwevend, met tussenruimte)",
+  "editor.stairs_treads_solid": "Dicht (gesloten tot de vloer)",
+  "editor.stairs_finish": "Afwerking van de treden"
 }

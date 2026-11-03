@@ -40,7 +40,10 @@ previous version, so a save can be undone in the editor (⚙ → Restore previou
   lowest level's. Good when the rooms are the house; set a shape when the outside differs.
 - A building standing on its own (a garden shed, a detached garage, a garden house): its
   rooms (kind `room`, with their `area_id`) drawn apart from the house, wholly outside the
-  outline. It gets outside walls, a floor slab and a low roof of its own.
+  outline. It gets outside walls, a floor slab and a low roof of its own. One of its rooms
+  may set the building's roof and walls: `building: {roof: shed|gable|hip|flat, pitch: 25,
+  roof_finish: roof_metal, thickness: 0.12, facade: wood_cladding}`; `open: true` is a
+  carport (a roof on posts, no walls). A room of the house with `building` gets a warning.
 - Positions inside a room (lights, furniture) are metres east and south of the room's
   north-west corner (of its bounding box), not plan coordinates.
 
@@ -168,7 +171,10 @@ two flights at a right angle with a landing; spiral: round a post, in a square s
 `up: east|west|north|south` (the direction the first flight climbs; default along the
 longer side), `start` (u_turn, l_turn: the side the first flight runs along; the second
 flight, or a spiral, turns away from it), `entry` (metres of floor before the first step),
-`railing: glass|metal|wood` (a handrail on the open side; none against a wall).
+`railing: glass|metal|wood` (a handrail on the open side; none against a wall; upstairs, a
+railing round the well's open edges, except where one steps off), `treads: open|solid` (open:
+floating steps with gaps, the default; solid: closed down to the floor), `finish` (the steps'
+finish, any floor finish: wood by default, concrete, tile_white…).
 
 ### Furniture
 

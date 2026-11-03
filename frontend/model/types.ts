@@ -48,6 +48,8 @@ export interface RoomInput extends ShapeInput {
   awning?: string;
   /** An outdoor area as a balcony or roof terrace: a solid floor and a railing on its free edges (`glass`, `metal` or `wood`). */
   railing?: "glass" | "metal" | "wood";
+  /** On a room of a building standing on its own (a shed, a garage, a carport): that building's roof and walls. */
+  building?: BuildingInput;
   /**
    * Underfloor heating: the entity that says it heats (a climate entity, a valve, a switch
    * or binary sensor). Its loops glow in the floor while it does.
@@ -61,6 +63,31 @@ export interface RoomInput extends ShapeInput {
   /** Cameras in this room: where they hang and what they see. */
   cameras?: CameraInput[];
   furniture?: FurnitureInput[];
+}
+
+export interface BuildingInput {
+  /** `shed` (default), `gable`, `hip` or `flat`. */
+  roof?: "shed" | "gable" | "hip" | "flat";
+  /** Degrees (default 8 for a shed roof, 0 for a flat one, 30 otherwise). */
+  pitch?: number;
+  /** The roof's covering (default: the house's). */
+  roof_finish?: string;
+  /** Outside walls' thickness in metres (default: the house's), e.g. 0.12 for timber. */
+  thickness?: number;
+  /** The outside walls' finish (default: the house's facade), e.g. wood_cladding. */
+  facade?: string;
+  /** No walls: a roof on posts (a carport). */
+  open?: boolean;
+}
+
+/** A building standing on its own, as drawn: its roof and walls. */
+export interface Building {
+  roof: "shed" | "gable" | "hip" | "flat";
+  pitch: number;
+  finish?: string;
+  thickness?: number;
+  facade?: string;
+  open: boolean;
 }
 
 export type FurnitureType =
@@ -344,6 +371,10 @@ export interface VerticalInput extends ShapeInput {
   shape?: StairShape;
   /** A handrail on the open side (none by default). */
   railing?: "glass" | "metal" | "wood";
+  /** `open` (default): floating treads on a steel carrier, gaps between; `solid`: closed steps down to the floor. */
+  treads?: "open" | "solid";
+  /** The steps' finish, like a floor's: wood (default), concrete, tile_white, carpet… */
+  finish?: string;
   /** Compass direction the first flight climbs towards (default: along the longer side). */
   up?: Side;
   /** u_turn, l_turn: the side of the stairwell the first flight runs along (spiral: turns away from it). */
@@ -661,6 +692,8 @@ export interface Level {
    */
   annexes: Vec2[][];
   annexesOuter: Vec2[][];
+  /** Each one's roof and walls (same order). */
+  annexBuildings: Building[];
   partyWalls: Side[];
   rooms: Room[];
   openings: Opening[];
@@ -685,6 +718,8 @@ export interface Vertical {
   start: Side;
   entry: number;
   railing?: "glass" | "metal" | "wood";
+  treads?: "open" | "solid";
+  finish?: string;
 }
 
 export interface House {

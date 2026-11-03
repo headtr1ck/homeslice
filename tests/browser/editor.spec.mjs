@@ -74,6 +74,32 @@ test.describe.serial("editor", () => {
     assert(updates.at(-1)?.area_id === "kitchen" && updates.at(-1).temperature_entity_id, `area update: ${JSON.stringify(updates)}`);
   });
 
+  test("a shed apart from the house: its building's roof and walls in the room panel", async () => {
+    const before = await model();
+    await page.evaluate(() => {
+      const m = structuredClone(window.panel._model);
+      m.levels[0].rooms.push({ id: "shed", name: "Shed", rect: [12, 1, 3, 2] });
+      window.panel.commit(m);
+      window.panel._room = "shed";
+    });
+    await page.locator("homeslice-panel .inspector h4[data-building]").waitFor();
+    await page.locator("homeslice-panel .inspector select[data-building-roof]").selectOption("gable");
+    assert(JSON.stringify((await room("shed")).building) === JSON.stringify({ roof: "gable" }), `building: ${JSON.stringify((await room("shed")).building)}`);
+    const thick = page.locator("homeslice-panel .inspector label", { hasText: "Wall thickness" }).locator("input");
+    await thick.fill("0.12");
+    await thick.dispatchEvent("change");
+    assert((await room("shed")).building.thickness === 0.12, "thickness");
+    // a carport: no walls, so no thickness to set
+    await page.locator("homeslice-panel .inspector input[data-building-open]").check();
+    assert((await room("shed")).building.open === true, "open");
+    assert((await thick.count()) === 0, "thickness still shown for an open building");
+    // a room of the house has no building section
+    await page.evaluate(() => (window.panel._room = "kitchen"));
+    await page.locator("homeslice-panel .inspector h2", { hasText: "Kitchen" }).waitFor();
+    assert((await page.locator("homeslice-panel .inspector h4[data-building]").count()) === 0, "the kitchen is part of the house");
+    await page.evaluate((m) => window.panel.commit(m), before);
+  });
+
   test("dragging a shared wall moves both rooms; undo and redo", async () => {
     // the wall between hall (x 0–3) and kitchen (x 3–8)
     const handle = page.locator('homeslice-panel svg.plan rect.edge-handle[data-at="[[3,4],[3,0]]"], homeslice-panel svg.plan rect.edge-handle[data-at="[[3,0],[3,4]]"]');

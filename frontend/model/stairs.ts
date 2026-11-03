@@ -176,3 +176,50 @@ export function stairRail(v: Vertical, rise: number): { at: Vec2; z: number; foo
   const w = W * 0.95 - 0.02;
   return [{ at: plan([E, w]), z: H, foot: 0 }, ...treads.map((t, i) => ({ at: plan([E + ((L - E) * (i + 1)) / treads.length, w]), z: t.top + H, foot: t.top }))];
 }
+
+/**
+ * The railing round a stairwell on the floor it leads up to: along the hole's edges, less
+ * the edge one steps off at and where a wall stands. Plan segments.
+ */
+export function galleryRails(v: Vertical, walls: { a: Vec2; b: Vec2; thickness: number }[]): [Vec2, Vec2][] {
+  if (v.kind !== "stairs") return [];
+  const { L, W, plan } = stairFrame(v);
+  const E = Math.min(v.entry, L - 0.3);
+  const fw = Math.min(1, W / 2, L / 2);
+  const local: Vec2[] = v.shape === "u_turn" ? [[E, 0], [L, 0], [L, W], [0, W], [0, W / 2], [E, W / 2]] : [[E, 0], [L, 0], [L, W], [E, W]];
+  // where the top step is: no railing there
+  const arrival: [Vec2, Vec2] =
+    v.shape === "u_turn" ? [[0, W / 2], [0, W]] : v.shape === "l_turn" ? [[L - fw, W], [L, W]] : v.shape === "spiral" ? [[E, 0], [E, W / 2]] : [[L, 0], [L, W]];
+  const blockers = [{ a: plan(arrival[0]), b: plan(arrival[1]), half: 0 }, ...walls.map((w) => ({ a: w.a, b: w.b, half: w.thickness / 2 }))];
+  const out: [Vec2, Vec2][] = [];
+  const pts = local.map(plan);
+  pts.forEach((p, i) => {
+    const q = pts[(i + 1) % pts.length];
+    const len = Math.hypot(q[0] - p[0], q[1] - p[1]);
+    if (len < 1e-6) return;
+    const d: Vec2 = [(q[0] - p[0]) / len, (q[1] - p[1]) / len];
+    // the parts of the edge something already closes, as [from, to] along it
+    const cut: [number, number][] = [];
+    for (const b of blockers) {
+      const ta = (b.a[0] - p[0]) * d[0] + (b.a[1] - p[1]) * d[1];
+      const tb = (b.b[0] - p[0]) * d[0] + (b.b[1] - p[1]) * d[1];
+      const off = (s: Vec2) => Math.abs((s[0] - p[0]) * d[1] - (s[1] - p[1]) * d[0]);
+      const bl = Math.hypot(b.b[0] - b.a[0], b.b[1] - b.a[1]);
+      // parallel and on (or within) it
+      if (bl < 1e-6 || Math.abs(Math.abs(tb - ta) - bl) > 0.02 * bl || Math.max(off(b.a), off(b.b)) > b.half + 0.05) continue;
+      cut.push([Math.min(ta, tb) - b.half, Math.max(ta, tb) + b.half]);
+    }
+    cut.sort((x, y) => x[0] - y[0]);
+    let t = 0;
+    const keep = (t0: number, t1: number) => {
+      if (t1 - t0 > 0.15) out.push([[p[0] + d[0] * t0, p[1] + d[1] * t0], [p[0] + d[0] * t1, p[1] + d[1] * t1]]);
+    };
+    for (const [c0, c1] of cut) {
+      if (c0 > t) keep(t, Math.min(c0, len));
+      t = Math.max(t, c1);
+      if (t >= len) break;
+    }
+    if (t < len) keep(t, len);
+  });
+  return out;
+}

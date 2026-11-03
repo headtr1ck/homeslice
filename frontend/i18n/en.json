@@ -1706,6 +1706,12 @@
   "editor.railing_glass": "Glass",
   "editor.railing_metal": "Metal bars",
   "editor.railing_wood": "Wood",
+  "editor.building": "Building",
+  "editor.building_hint": "This room stands apart from the house: a building of its own, with its own roof and walls.",
+  "editor.building_open": "Open: a roof on posts (a carport)",
+  "editor.building_thickness": "Wall thickness (m)",
+  "editor.building_facade": "Outside walls",
+  "editor.building_roof": "Roof covering",
   "editor.roof_shape": "Shape",
   "editor.roof_shape_gable": "Gable",
   "editor.roof_shape_hip": "Hip",
@@ -1919,5 +1925,9 @@
   "editor.stairs_l_turn": "L-shaped, with a landing",
   "editor.stairs_spiral": "Spiral",
   "editor.stairs_railing": "Handrail",
-  "editor.stairs_railing_none": "None (against a wall)"
+  "editor.stairs_railing_none": "None (against a wall)",
+  "editor.stairs_treads": "Steps",
+  "editor.stairs_treads_open": "Open (floating, gaps between)",
+  "editor.stairs_treads_solid": "Solid (closed down to the floor)",
+  "editor.stairs_finish": "Steps' finish"
 }

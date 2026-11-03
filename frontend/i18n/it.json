@@ -1706,6 +1706,12 @@
   "editor.railing_glass": "Vetro",
   "editor.railing_metal": "Barre di metallo",
   "editor.railing_wood": "Legno",
+  "editor.building": "Edificio",
+  "editor.building_hint": "Questa stanza è separata dalla casa: un edificio a sé, con il proprio tetto e le proprie pareti.",
+  "editor.building_open": "Aperto: un tetto su pali (un posto auto coperto)",
+  "editor.building_thickness": "Spessore delle pareti (m)",
+  "editor.building_facade": "Pareti esterne",
+  "editor.building_roof": "Copertura del tetto",
   "editor.roof_shape": "Forma",
   "editor.roof_shape_gable": "A due falde",
   "editor.roof_shape_hip": "A padiglione",
@@ -1919,5 +1925,9 @@
   "editor.stairs_l_turn": "A L, con pianerottolo",
   "editor.stairs_spiral": "A chiocciola",
   "editor.stairs_railing": "Corrimano",
-  "editor.stairs_railing_none": "Nessuno (contro una parete)"
+  "editor.stairs_railing_none": "Nessuno (contro una parete)",
+  "editor.stairs_treads": "Gradini",
+  "editor.stairs_treads_open": "Aperti (sospesi, con spazi)",
+  "editor.stairs_treads_solid": "Pieni (chiusi fino a terra)",
+  "editor.stairs_finish": "Finitura dei gradini"
 }

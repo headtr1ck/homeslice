@@ -17,7 +17,7 @@ import de from "../i18n/de.json";
 import { DEFAULTS, LIGHT_TYPES, expandHouse } from "../model/expand";
 import { bbox, bendEdges, edgeDistance, labelPoint, normalizeOrientation, pointInPolygon, project, signedArea, within } from "../model/geometry";
 import { closedFaces, faceAt } from "../model/faces";
-import type { DormerInput, EnergyInput, LevelInput, RoofInput, RoofPartInput, RoofWindowInput, FurnitureInput, FurnitureMount, FurnitureType, HouseInput, Issue, LightType, OpeningInput, OpeningSource, OpeningType, PieceInput, RoomInput, ShapeInput, Side, StairShape, Vec2, VerticalInput } from "../model/types";
+import type { Building, DormerInput, EnergyInput, LevelInput, RoofInput, RoofPartInput, RoofWindowInput, FurnitureInput, FurnitureMount, FurnitureType, HouseInput, Issue, LightType, OpeningInput, OpeningSource, OpeningType, PieceInput, RoomInput, ShapeInput, Side, StairShape, Vec2, VerticalInput } from "../model/types";
 import { deriveWalls, innerPolygon, sideOfRoom, type Wall, type WallOpening } from "../model/walls";
 import { HouseRenderer } from "../render/scene";
 import { stairHole, stairPath, stairTreads } from "../model/stairs";
@@ -4783,6 +4783,7 @@ export class HomeslicePanel extends LitElement {
             ${r.awning ? this.invertedToggle(r.awning, "editor.awning_inverted") : nothing}
             <p class="muted">${this.t("editor.awning_hint")}</p>`
         : nothing}
+      ${(r.kind ?? "room") === "room" ? this.renderBuilding(r, set) : nothing}
       <div class="row wall-views">
         <span class="muted">${this.t("editor.wall_view")}</span>
         ${(["north", "east", "south", "west"] as Side[]).map((sd) => html`<button data-wall-view=${sd} @click=${() => (this._wallView = { room: r.id, side: sd })}>${this.t(`editor.side_${sd}` as StringKey)}</button>`)}
@@ -4806,6 +4807,54 @@ export class HomeslicePanel extends LitElement {
    * A finish picker: the current one (its picture and name), opening to every finish for
    * that surface in groups. `fallback` names what no finish means (the default).
    */
+  /** A room standing apart from the house (a shed, a garage, a carport): its building's roof and walls. */
+  private renderBuilding(r: RoomInput, set: (patch: Partial<RoomInput>) => void) {
+    const { house } = expandHouse(this._model!);
+    const level = house?.levels.find((x) => x.id === this._level);
+    const inside = labelPoint(roomPolygon(this._model!, r));
+    const i = level?.annexes.findIndex((a) => pointInPolygon(inside, a)) ?? -1;
+    if (!level || i < 0) return nothing;
+    const b = level.annexBuildings[i];
+    // the settings live on the room that has them, else on this one
+    const owner = this._model!.levels.find((l) => l.id === this._level)!.rooms.find((x) => x.building && pointInPolygon(labelPoint(roomPolygon(this._model!, x)), level.annexes[i])) ?? r;
+    const put = (patch: Partial<NonNullable<RoomInput["building"]>>) => {
+      const next = Object.fromEntries(Object.entries({ ...owner.building, ...patch }).filter(([, v]) => v !== undefined && v !== false));
+      const value = Object.keys(next).length ? next : undefined;
+      if (owner === r) set({ building: value });
+      else this.commit(updateRoom(this._model!, this._level, owner.id, { building: value }));
+    };
+    return html`<h4 data-building>${this.t("editor.building")}</h4>
+      <p class="muted">${this.t("editor.building_hint")}</p>
+      <div class="row">
+        <label>${this.t("editor.roof_shape")}
+          <select data-building-roof @change=${(e: Event) => put({ roof: (e.target as HTMLSelectElement).value as Building["roof"], pitch: undefined })}>
+            ${(["shed", "gable", "hip", "flat"] as const).map((v) => html`<option value=${v} ?selected=${b.roof === v}>${this.t(`editor.roof_shape_${v}`)}</option>`)}
+          </select>
+        </label>
+        <label>${this.t("editor.roof_pitch")}
+          <input type="number" min="0" max="60" step="1" .value=${String(b.pitch)} @change=${(e: Event) => {
+            const v = Number((e.target as HTMLInputElement).value);
+            if (v >= 0 && v <= 60) put({ pitch: v });
+          }} />
+        </label>
+      </div>
+      <label class="check"><input type="checkbox" data-building-open .checked=${b.open} @change=${(e: Event) => put({ open: (e.target as HTMLInputElement).checked || undefined })} /> ${this.t("editor.building_open")}</label>
+      ${b.open
+        ? nothing
+        : html`<label>${this.t("editor.building_thickness")}
+            <input type="number" min="0.05" max="0.99" step="0.01" placeholder=${String(house!.walls.exterior)} .value=${b.thickness === undefined ? "" : String(b.thickness)} @change=${(e: Event) => {
+              const raw = (e.target as HTMLInputElement).value;
+              const v = Number(raw);
+              if (!raw) put({ thickness: undefined });
+              else if (v > 0 && v < 1) put({ thickness: v });
+            }} />
+          </label>
+          <h4>${this.t("editor.building_facade")}</h4>
+          ${this.renderFinishPicker("wall", b.facade, (facade) => put({ facade }), this.t("editor.default"))}`}
+      <h4>${this.t("editor.building_roof")}</h4>
+      ${this.renderFinishPicker("roof", b.finish, (roof_finish) => put({ roof_finish }), this.t("editor.default"))}`;
+  }
+
   private renderFinishPicker(surface: Surface, current: string | undefined, pick: (id: string | undefined) => void, fallback: string) {
     const name = (id: string) => this.t(`surface.${id}` as StringKey);
     const list = FINISH_LIST.filter((f) => f.on.includes(surface));
@@ -7021,6 +7070,13 @@ export class HomeslicePanel extends LitElement {
                 ${(["metal", "wood", "glass"] as const).map((r) => html`<option value=${r} ?selected=${v.railing === r}>${this.t(`editor.railing_${r}`)}</option>`)}
               </select>
             </label>
+            <label>${this.t("editor.stairs_treads")}
+              <select data-stair-treads @change=${(e: Event) => set({ treads: (e.target as HTMLSelectElement).value === "solid" ? "solid" : undefined })}>
+                ${(["open", "solid"] as const).map((t) => html`<option value=${t} ?selected=${(v.treads ?? "open") === t}>${this.t(`editor.stairs_treads_${t}`)}</option>`)}
+              </select>
+            </label>
+            <h4>${this.t("editor.stairs_finish")}</h4>
+            ${this.renderFinishPicker("floor", v.finish, (finish) => set({ finish }), this.t("surface.wood"))}
             ${v.shape === "u_turn" || v.shape === "l_turn" || v.shape === "spiral"
               ? html`<label>${this.t("editor.stairs_start")}
                   <select @change=${(e: Event) => set({ start: (e.target as HTMLSelectElement).value as Side })}>

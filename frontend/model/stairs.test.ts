@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { bbox } from "./geometry";
-import { stairPath, stairRail, stairTreads } from "./stairs";
+import { galleryRails, stairPath, stairRail, stairTreads } from "./stairs";
 import type { Vertical } from "./types";
 
 const stair = (shape: Vertical["shape"], rect: [number, number, number, number], extra: Partial<Vertical> = {}): Vertical => {
@@ -46,5 +46,25 @@ describe("stairs", () => {
     expect(rail[0]).toMatchObject({ foot: 0, z: 0.9 });
     expect(rail.at(-1)!.z).toBeCloseTo(2.66 + 0.9);
     expect(stairRail(stair("u_turn", [0, 0, 3, 2]), 2.66)).toBeNull();
+  });
+
+  it("upstairs, a railing runs round the well: not where one steps off, nor along a wall", () => {
+    // 4 × 1 m, climbing east: one steps off at the east end
+    const v = stair("straight", [0, 0, 4, 1]);
+    const free = galleryRails(v, []);
+    const len = (s: [number, number][]) => Math.hypot(s[1][0] - s[0][0], s[1][1] - s[0][1]);
+    expect(free.reduce((t, s) => t + len(s), 0)).toBeCloseTo(4 + 4 + 1);
+    expect(free.some(([a, b]) => a[0] === 4 && b[0] === 4)).toBe(false);
+    // a wall along the south side (centre 0.1 m out, 0.2 thick) closes it there
+    const walled = galleryRails(v, [{ a: [-1, 1.1], b: [6, 1.1], thickness: 0.2 }]);
+    expect(walled.reduce((t, s) => t + len(s), 0)).toBeCloseTo(4 + 1);
+    // a wall across the middle of the north side leaves two pieces either side of it
+    const split = galleryRails(v, [{ a: [2, 0], b: [2, -3], thickness: 0.2 }]);
+    expect(split.filter(([a, b]) => a[1] === 0 && b[1] === 0)).toHaveLength(1);
+    // a perpendicular wall doesn't close anything
+    expect(split.reduce((t, s) => t + len(s), 0)).toBeCloseTo(9);
+    // an L: one steps off at the far end of the second flight
+    const l = galleryRails(stair("l_turn", [0, 0, 4, 3]), []);
+    expect(l.reduce((t, s) => t + len(s), 0)).toBeCloseTo(4 + 3 + 4 + 3 - 1);
   });
 });

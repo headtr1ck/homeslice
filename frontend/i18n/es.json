@@ -1706,6 +1706,12 @@
   "editor.railing_glass": "Vidrio",
   "editor.railing_metal": "Barrotes de metal",
   "editor.railing_wood": "Madera",
+  "editor.building": "Edificio",
+  "editor.building_hint": "Esta habitación está separada de la casa: un edificio propio, con su propio tejado y sus propias paredes.",
+  "editor.building_open": "Abierto: un tejado sobre postes (una cochera)",
+  "editor.building_thickness": "Grosor de las paredes (m)",
+  "editor.building_facade": "Paredes exteriores",
+  "editor.building_roof": "Cubierta del tejado",
   "editor.roof_shape": "Forma",
   "editor.roof_shape_gable": "A dos aguas",
   "editor.roof_shape_hip": "A cuatro aguas",
@@ -1919,5 +1925,9 @@
   "editor.stairs_l_turn": "En L, con rellano",
   "editor.stairs_spiral": "De caracol",
   "editor.stairs_railing": "Barandilla",
-  "editor.stairs_railing_none": "Ninguna (contra la pared)"
+  "editor.stairs_railing_none": "Ninguna (contra la pared)",
+  "editor.stairs_treads": "Peldaños",
+  "editor.stairs_treads_open": "Abiertos (flotantes, con huecos)",
+  "editor.stairs_treads_solid": "Macizos (cerrados hasta el suelo)",
+  "editor.stairs_finish": "Acabado de los peldaños"
 }

@@ -1706,6 +1706,12 @@
   "editor.railing_glass": "Verre",
   "editor.railing_metal": "Barreaux métalliques",
   "editor.railing_wood": "Bois",
+  "editor.building": "Bâtiment",
+  "editor.building_hint": "Cette pièce est séparée de la maison : un bâtiment à part, avec son propre toit et ses propres murs.",
+  "editor.building_open": "Ouvert : un toit sur poteaux (un carport)",
+  "editor.building_thickness": "Épaisseur des murs (m)",
+  "editor.building_facade": "Murs extérieurs",
+  "editor.building_roof": "Couverture du toit",
   "editor.roof_shape": "Forme",
   "editor.roof_shape_gable": "Deux pans",
   "editor.roof_shape_hip": "Quatre pans",
@@ -1919,5 +1925,9 @@
   "editor.stairs_l_turn": "En L, avec palier",
   "editor.stairs_spiral": "Colimaçon",
   "editor.stairs_railing": "Rampe",
-  "editor.stairs_railing_none": "Aucune (contre un mur)"
+  "editor.stairs_railing_none": "Aucune (contre un mur)",
+  "editor.stairs_treads": "Marches",
+  "editor.stairs_treads_open": "Ouvertes (flottantes, ajourées)",
+  "editor.stairs_treads_solid": "Pleines (fermées jusqu'au sol)",
+  "editor.stairs_finish": "Revêtement des marches"
 }

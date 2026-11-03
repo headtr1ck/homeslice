@@ -333,6 +333,39 @@ describe("deriveWalls", () => {
     expect(dw.filter((x) => x.rooms.includes("shed")).every((x) => x.type === "exterior")).toBe(true);
   });
 
+  it("a building of its own takes its roof and walls from one of its rooms: a timber shed, a carport on posts", () => {
+    const { house, issues } = expandHouse({
+      schema: 2,
+      id: "yard",
+      outline: { rect: [0, 0, 8, 6] },
+      levels: [
+        {
+          id: "g",
+          rooms: [
+            { id: "house", rect: [0, 0, 8, 6] },
+            { id: "shed", rect: [12, 1, 3, 2], building: { roof: "gable", pitch: 25, thickness: 0.12 } },
+            { id: "carport", rect: [0, 10, 3, 5], building: { open: true, roof: "flat" } },
+            // in the house: it says so
+            { id: "hall", rect: [1, 1, 1, 1], building: { roof: "hip" } },
+          ],
+        },
+      ],
+    });
+    expect(issues.map((i) => [i.severity, i.path])).toEqual([["warning", "levels.g.rooms.hall.building"]]);
+    const level = house!.levels[0];
+    const order = level.annexes.map((a) => a[0][0]);
+    const shed = level.annexBuildings[order.indexOf(12)];
+    const carport = level.annexBuildings[order.indexOf(0)];
+    expect(shed).toEqual({ roof: "gable", pitch: 25, thickness: 0.12, open: false });
+    expect(carport).toMatchObject({ roof: "flat", pitch: 0, open: true });
+    // the shed's outer face 6 cm out; the carport's is its outline
+    expect(Math.min(...level.annexesOuter[order.indexOf(12)].map((p) => p[0]))).toBeCloseTo(11.94);
+    expect(level.annexesOuter[order.indexOf(0)]).toEqual(level.annexes[order.indexOf(0)]);
+    const w = deriveWalls(level, house!.walls);
+    expect(w.filter((x) => x.rooms.includes("shed")).map((x) => [x.type, x.thickness])).toEqual(Array(4).fill(["exterior", 0.12]));
+    expect(w.filter((x) => x.rooms.includes("carport")).every((x) => x.type === "open")).toBe(true);
+  });
+
   it("measures rooms to the inside of their walls", async () => {
     const { innerPolygon } = await import("./walls");
     const { signedArea } = await import("./geometry");
