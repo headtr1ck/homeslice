@@ -452,6 +452,7 @@
   "editor.library_none": "Nessun risultato.",
   "editor.furniture_duplicate": "Duplica (Ctrl+D)",
   "editor.key_duplicate": "Duplica il mobile selezionato",
+  "editor.key_clipboard": "Copia, taglia o incolla il mobile selezionato (incollato sotto il puntatore)",
   "cardeditor.mode": "Aspetto",
   "cardeditor.mode_3d": "Casa 3D",
   "cardeditor.mode_tilted": "Pianta inclinata (pareti basse, un piano)",

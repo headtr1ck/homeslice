@@ -1879,17 +1879,24 @@ const BASE_BUILDERS: Record<string, Build> = {
   chair_wishbone: (b, w, d, h, f) => {
     // a woven seat, a bow of a backrest-armrest on its Y-shaped back support
     const cord = mat("#d9c49a", { roughness: 1 });
+    // the bow: half an ellipse round the back (at the chair's back edge), its ends forward as armrests
+    const r = w / 2 - 0.06;
+    const deep = 0.75 * r;
+    const cz = -d / 2 + 0.03 + deep;
+    const behind = (x: number) => cz - deep * Math.sqrt(Math.max(0, 1 - (x / r) ** 2));
     for (const sx of [-1, 1]) {
       b.rod(v(sx * (w / 2 - 0.04), 0, d / 2 - 0.04), v(sx * (w / 2 - 0.05), 0.44, d / 2 - 0.06), 0.016, f, 8);
-      b.rod(v(sx * (w / 2 - 0.05), 0, -d / 2 + 0.05), v(sx * (w / 2 - 0.08), h - 0.04, -d / 2 + 0.1), 0.016, f, 8);
+      const x = sx * (w / 2 - 0.08);
+      b.rod(v(sx * (w / 2 - 0.05), 0, -d / 2 + 0.05), v(x, h - 0.03, behind(x)), 0.016, f, 8);
     }
     b.box(w - 0.08, 0.035, d - 0.1, 0, 0.42, 0, cord, 0.012);
-    const bow = new THREE.TorusGeometry(w / 2 - 0.06, 0.018, 6, 24, Math.PI);
-    bow.rotateX(Math.PI / 2);
+    const bow = new THREE.TorusGeometry(r, 0.018, 6, 24, Math.PI);
+    bow.rotateX(-Math.PI / 2);
     bow.scale(1, 1, 0.75);
-    b.add(bow, f, 0, h - 0.03, -d / 2 + 0.1);
-    b.rod(v(0, 0.46, -d / 2 + 0.08), v(-0.06, h - 0.2, -d / 2 + 0.1), 0.012, f, 6);
-    b.rod(v(0, 0.46, -d / 2 + 0.08), v(0.06, h - 0.2, -d / 2 + 0.1), 0.012, f, 6);
+    b.add(bow, f, 0, h - 0.03, cz);
+    // the Y: one stem from the seat's back, forking up to the bow
+    b.rod(v(0, 0.44, -d / 2 + 0.08), v(0, 0.56, -d / 2 + 0.07), 0.012, f, 6);
+    for (const sx of [-1, 1]) b.rod(v(0, 0.56, -d / 2 + 0.07), v(sx * 0.07, h - 0.03, behind(sx * 0.07)), 0.012, f, 6);
   },
   chair_folding: (b, w, d, h, f, _c, a) => {
     for (const sx of [-1, 1]) {

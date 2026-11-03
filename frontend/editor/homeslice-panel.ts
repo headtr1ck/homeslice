@@ -489,6 +489,7 @@ export class HomeslicePanel extends LitElement {
     _pendingArea: { state: true },
     _stair: { state: true },
     _furn: { state: true },
+    _folded: { state: true },
     _shortcuts: { state: true },
     _palette: { state: true },
     _tip: { state: true },
@@ -700,6 +701,12 @@ export class HomeslicePanel extends LitElement {
   private _libraryError = "";
   /** Selected piece of furniture (objects mode). */
   private _furn: { room: string; index: number } | null = null;
+  /** Library groups folded shut (remembered in this browser). */
+  private _folded = new Set<string>(JSON.parse(readPref("homeslice-folded") ?? "[]") as string[]);
+  /** A piece copied with Ctrl+C or Ctrl+X, with where it came from. */
+  private _clip: { piece: FurnitureInput; level: string; room: string } | null = null;
+  /** Where the pointer is on the plan, for pasting there. */
+  private _planPointer: Vec2 | null = null;
   /** Unsaved changes found from an earlier visit, offered for restoring. */
   private _draft: { model: HouseInput; time: number; stale: boolean } | null = null;
   private draftTimer = 0;
@@ -1943,6 +1950,12 @@ export class HomeslicePanel extends LitElement {
     } else if ((e.key === "Delete" || e.key === "Backspace") && this._furn && this._model) {
       this.commit(deleteFurniture(this._model, this._level, this._furn.room, this._furn.index));
       this._furn = null;
+    } else if (mod && (e.key.toLowerCase() === "c" || e.key.toLowerCase() === "x") && this._furn && this._model && !String(window.getSelection() ?? "")) {
+      e.preventDefault();
+      this.copyFurniture(e.key.toLowerCase() === "x");
+    } else if (mod && e.key.toLowerCase() === "v" && this._clip && this._model) {
+      e.preventDefault();
+      this.pasteFurniture();
     } else if (mod && e.key.toLowerCase() === "d" && this._furn && this._model) {
       e.preventDefault();
       this.duplicateFurniture();
@@ -2471,6 +2484,7 @@ export class HomeslicePanel extends LitElement {
   }
 
   private onPlanMove(e: PointerEvent) {
+    this._planPointer = this.eventWorld(e);
     if (this._straighten?.a) this._straighten = { ...this._straighten, to: this.eventWorld(e) };
     if (this._tool === "assign" && this._assignArea && !this._drag) {
       const t = this.assignTarget(this.eventWorld(e));
@@ -3918,6 +3932,7 @@ export class HomeslicePanel extends LitElement {
       class="plan tool-${this._tool} ${this._underlayMove ? "underlay-move" : ""} ${this._underlay?.level === this._level && !this._underlayHidden ? "has-underlay" : ""}"
       @pointerdown=${this.onPlanDown}
       @pointermove=${this.onPlanMove}
+      @pointerleave=${() => (this._planPointer = null)}
       @pointerup=${this.onPlanUp}
       @pointercancel=${this.onPlanUp}
       @dblclick=${this.onPlanDoubleClick}
@@ -4937,8 +4952,8 @@ export class HomeslicePanel extends LitElement {
       return html`<h2>${this.t("editor.tool_opening")}</h2>
         <p class="muted">${this.t("editor.opening_library_hint")}</p>
         ${OPENING_GROUPS.map(
-          (g) => html`<h4>${this.t(`editor.opening_group_${g.id}` as StringKey)}</h4>
-        <div class="library openings">
+          (g) => html`${this.groupHead(`opening:${g.id}`, this.t(`editor.opening_group_${g.id}` as StringKey))}
+        ${this.isFolded(`opening:${g.id}`) ? nothing : html`<div class="library openings">
           ${g.presets.map(
             (p) => html`<button class="piece ${this._openingPreset === p.id ? "active" : ""}" draggable="true" data-preset=${p.id} aria-pressed=${this._openingPreset === p.id}
               @dragstart=${(e: DragEvent) => {
@@ -4952,7 +4967,7 @@ export class HomeslicePanel extends LitElement {
               <span>${this.t(`editor.opening_${p.id}` as StringKey)}</span>
             </button>`,
           )}
-        </div>`,
+        </div>`}`,
         )}
         ${this.renderOpeningDefaults()}`;
     if (this._tool === "furniture") {
@@ -6474,8 +6489,8 @@ export class HomeslicePanel extends LitElement {
       ${status}
       ${status === nothing && !groups.length ? html`<p class="muted">${this.t(source === "custom" && !this._libraryFilter ? "editor.library_no_uploads" : "editor.library_none")}</p>` : nothing}
       ${groups.map(
-        (g) => html`<h4>${this.t(`furniture.group_${g.id}` as StringKey)}</h4>
-          <div class="library">
+        (g) => html`${this.groupHead(`furniture:${g.id}`, this.t(`furniture.group_${g.id}` as StringKey))}
+          ${this.isFolded(`furniture:${g.id}`) ? nothing : html`<div class="library">
             ${g.items.map((item) => {
               const name = item.name ?? typeName(item.type);
               return html`<div class="piece-wrap">
@@ -6496,8 +6511,25 @@ export class HomeslicePanel extends LitElement {
                   : nothing}
               </div>`;
             })}
-          </div>`,
+          </div>`}`,
       )}`;
+  }
+
+  /** A library group's heading, which folds the group shut or open. */
+  private groupHead(key: string, title: string) {
+    const open = !this.isFolded(key);
+    return html`<h4 class="group-head"><button data-group=${key} aria-expanded=${open} @click=${() => {
+      const folded = new Set(this._folded);
+      if (open) folded.add(key);
+      else folded.delete(key);
+      this._folded = folded;
+      writePref("homeslice-folded", JSON.stringify([...folded]));
+    }}><ha-icon icon=${open ? "mdi:chevron-down" : "mdi:chevron-right"}></ha-icon>${title}</button></h4>`;
+  }
+
+  /** Whether a library group is folded shut (a search shows every group). */
+  private isFolded(key: string): boolean {
+    return this._folded.has(key) && !this._libraryFilter.trim();
   }
 
   /** Other words for a piece in English, German and the user's language (people search in the words they think in). */
@@ -6856,6 +6888,54 @@ export class HomeslicePanel extends LitElement {
     this._furn = { room: sel.room, index };
   }
 
+  /** The selected piece into the editor's clipboard; cut takes it out of the house too. */
+  private copyFurniture(cut: boolean) {
+    const sel = this._furn;
+    const f = sel ? this.levelInput?.rooms.find((r) => r.id === sel.room)?.furniture?.[sel.index] : undefined;
+    if (!sel || !f) return;
+    this._clip = { piece: structuredClone(f), level: this._level, room: sel.room };
+    if (cut) {
+      this.commit(deleteFurniture(this._model!, this._level, sel.room, sel.index));
+      this._furn = null;
+    }
+  }
+
+  /**
+   * The copied piece into the house, as it was (turn, size, colours, link): under the pointer when it is over a room of the plan,
+   * otherwise next to where it came from (or in the middle of the selected room on another floor).
+   */
+  private pasteFurniture() {
+    const clip = this._clip;
+    if (!clip) return;
+    const m = this._model!;
+    const rooms = (this.levelInput?.rooms ?? []).filter((r) => r.kind !== "void");
+    const piece = structuredClone(clip.piece);
+    const pointer = this._planPointer;
+    const under = pointer ? roomAt(m, rooms, pointer) : undefined;
+    let room = under;
+    let world: Vec2 | undefined = under ? pointer! : undefined;
+    if (!room) {
+      const home = clip.level === this._level ? rooms.find((r) => r.id === clip.room) : undefined;
+      if (home) {
+        const { min } = bbox(roomPolygon(m, home));
+        const [w] = piece.size ?? FURNITURE[piece.type].size;
+        const turned = ((piece.rotation ?? 0) / 90) % 2 === 1;
+        room = home;
+        world = turned ? [min[0] + piece.at[0], min[1] + piece.at[1] + w] : [min[0] + piece.at[0] + w, min[1] + piece.at[1]];
+      } else {
+        room = rooms.find((r) => r.id === this._room) ?? rooms[0];
+        if (!room) return;
+        world = labelPoint(this.inner(room));
+      }
+    }
+    const { min } = bbox(roomPolygon(m, room));
+    piece.at = [world![0] - min[0], world![1] - min[1]];
+    const { model, index } = addFurniture(m, this._level, room.id, piece);
+    this.commit(model);
+    this._room = room.id;
+    this._furn = { room: room.id, index };
+  }
+
   /** An entity a piece of furniture is: the area's own first, then all of the usual domains. */
   /**
    * What a piece is in Home Assistant: a searchable list of entities (by name, id, device
@@ -7130,6 +7210,7 @@ export class HomeslicePanel extends LitElement {
       ["C", "editor.key_section"],
       ["R (" + this.t("editor.mode_objects") + ")", "editor.key_turn"],
       ["Ctrl+D", "editor.key_duplicate"],
+      ["Ctrl+C / Ctrl+X / Ctrl+V", "editor.key_clipboard"],
       ["D", "editor.key_opening"],
       ["F", "editor.key_furniture"],
       ["E", "editor.key_devices"],
@@ -8502,6 +8583,22 @@ export class HomeslicePanel extends LitElement {
       width: 100%;
       box-sizing: border-box;
       margin-bottom: 4px;
+    }
+    h4.group-head button {
+      all: unset;
+      display: flex;
+      align-items: center;
+      gap: 2px;
+      width: 100%;
+      cursor: pointer;
+      font: inherit;
+    }
+    h4.group-head button:focus-visible {
+      outline: 2px solid var(--accent);
+    }
+    h4.group-head ha-icon {
+      --mdc-icon-size: 18px;
+      color: var(--secondary-text-color);
     }
     .library {
       display: grid;

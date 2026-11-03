@@ -452,6 +452,7 @@
   "editor.library_none": "Nothing found.",
   "editor.furniture_duplicate": "Duplicate (Ctrl+D)",
   "editor.key_duplicate": "Duplicate the selected furniture",
+  "editor.key_clipboard": "Copy, cut or paste the selected furniture (pasted under the pointer)",
   "cardeditor.mode": "Look",
   "cardeditor.mode_3d": "3D house",
   "cardeditor.mode_tilted": "Tilted plan (low walls, one floor)",

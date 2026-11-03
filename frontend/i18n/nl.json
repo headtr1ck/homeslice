@@ -452,6 +452,7 @@
   "editor.library_none": "Niets gevonden.",
   "editor.furniture_duplicate": "Dupliceren (Ctrl+D)",
   "editor.key_duplicate": "Het geselecteerde meubel dupliceren",
+  "editor.key_clipboard": "Het geselecteerde meubel kopiëren, knippen of plakken (onder de muisaanwijzer)",
   "cardeditor.mode": "Weergave",
   "cardeditor.mode_3d": "3D-huis",
   "cardeditor.mode_tilted": "Schuine plattegrond (lage muren, één verdieping)",

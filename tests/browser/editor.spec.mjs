@@ -1314,6 +1314,14 @@ test.describe.serial("editor", () => {
     // the room's inspector offers furniture: the furniture tool's library, for this room
     await page.locator("homeslice-panel .inspector button", { hasText: "Add furniture" }).click();
     await librarySource(page, "builtin");
+    // a group folds shut and open again
+    const head = page.locator("homeslice-panel .inspector h4.group-head button").first();
+    const shown = async () => page.locator("homeslice-panel .inspector .library").count();
+    const before = await shown();
+    await head.click();
+    assert((await shown()) === before - 1 && (await head.getAttribute("aria-expanded")) === "false", "group not folded");
+    await head.click();
+    assert((await shown()) === before, "group not unfolded");
     await page.locator('homeslice-panel .inspector .library button[data-key="modern:dining_table"]').click();
     assert((await room("kitchen")).furniture?.[0]?.type === "table", `kitchen: ${JSON.stringify((await room("kitchen")).furniture)}`);
     assert((await page.locator("homeslice-panel .inspector h2").textContent()) === "Table", "new table not selected");
@@ -1331,6 +1339,24 @@ test.describe.serial("editor", () => {
     await page.keyboard.press("Control+d");
     const pair = (await room("living")).furniture;
     assert(pair.length === 2 && pair[1].rotation === 90 && Math.abs(pair[1].at[1] - pair[0].at[1] - 1.8) < 1e-6, `duplicate: ${JSON.stringify(pair)}`);
+    // Ctrl+C, Ctrl+V: the piece as it was (turn, size, colours) under the pointer, in another room; Ctrl+X takes it out
+    await page.evaluate(() => {
+      const m = structuredClone(window.panel._model);
+      Object.assign(m.levels.find((l) => l.id === window.panel._level).rooms.find((r) => r.id === "living").furniture[1], { size: [1.4, 0.9], finish: "walnut" });
+      window.panel.commit(m);
+    });
+    await page.keyboard.press("Control+c");
+    await page.mouse.move(kb.x + kb.width * 0.5, kb.y + kb.height * 0.5);
+    await page.keyboard.press("Control+v");
+    const pasted = (await room("kitchen")).furniture;
+    assert(pasted?.length === 1 && pasted[0].rotation === 90 && pasted[0].finish === "walnut" && pasted[0].size?.[0] === 1.4, `pasted: ${JSON.stringify(pasted)}`);
+    assert((await room("living")).furniture.length === 2, "the copy moved the original");
+    await page.keyboard.press("Control+x");
+    assert(!(await room("kitchen")).furniture, "not cut");
+    await page.keyboard.press("Control+v");
+    assert((await room("kitchen")).furniture?.length === 1, "cut piece not pasted");
+    await page.keyboard.press("Delete");
+    await page.evaluate(() => (window.panel._furn = { room: "living", index: 1 }));
     await page.keyboard.press("Delete");
     await page.evaluate(() => (window.panel._furn = { room: "living", index: 0 }));
     await shot(page, "editor-furniture");

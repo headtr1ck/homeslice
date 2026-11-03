@@ -452,6 +452,7 @@
   "editor.library_none": "Nic nie znaleziono.",
   "editor.furniture_duplicate": "Duplikuj (Ctrl+D)",
   "editor.key_duplicate": "Duplikuj zaznaczony mebel",
+  "editor.key_clipboard": "Kopiuj, wytnij lub wklej zaznaczony mebel (wklejany pod kursorem)",
   "cardeditor.mode": "Wygląd",
   "cardeditor.mode_3d": "Dom 3D",
   "cardeditor.mode_tilted": "Pochylony plan (niskie ściany, jedno piętro)",

@@ -452,6 +452,7 @@
   "editor.library_none": "No se encontró nada.",
   "editor.furniture_duplicate": "Duplicar (Ctrl+D)",
   "editor.key_duplicate": "Duplicar el mueble seleccionado",
+  "editor.key_clipboard": "Copiar, cortar o pegar el mueble seleccionado (se pega bajo el puntero)",
   "cardeditor.mode": "Aspecto",
   "cardeditor.mode_3d": "Casa 3D",
   "cardeditor.mode_tilted": "Plano inclinado (paredes bajas, una planta)",
