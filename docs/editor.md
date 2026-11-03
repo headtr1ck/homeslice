@@ -33,6 +33,9 @@ house as YAML in and out; backup and restore.
 
 Save with `Ctrl+S`. Cards update at once. Can't find something? `Ctrl+K` (or the magnifier in
 the header) searches every tool, setting, floor and room.
+New to it? The first time, the editor offers a short guided tour: six things to do (pick a
+floor, draw a room, reshape it, a door or window, furniture, save), each ticked off when done.
+`?` restarts it.
 
 ## 1. Rooms & walls
 

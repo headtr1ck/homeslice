@@ -49,7 +49,11 @@ one toggle per lamp), tap a room for a popup with its devices (including the bli
 contacts of its windows), pick a floor to lift the floors above away. Hovering a floor
 highlights it and makes the floors above see-through. A house with sections (drawn in the
 editor with the Section tool) has a button for each: all floors cut along its line, seen
-from the side, like an architect's section; again (or a floor) shows the whole house.
+from the side, like an architect's section; again (or a floor) shows the whole house. **Side view**
+is a plain 2D drawing of every room at once from the side: each floor's rows of rooms stand
+side by side, the floors at their real heights, rooms warm while their lights are on, the
+back walls' windows and doors, the stairs; tap a room for its panel. **Turn** looks from the
+next side.
 
 ## All options
 

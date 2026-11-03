@@ -200,6 +200,17 @@ const TOOLS: { tool: Tool; icon: string; key: string; group?: "build" | "opening
   { tool: "section", icon: "mdi:box-cutter", key: "C" },
 ];
 
+/** The guided tour's steps: what to do, and the control it is about. */
+const TOUR: { id: "floors" | "room" | "reshape" | "opening" | "furniture" | "save"; target?: string }[] = [
+  { id: "floors", target: "aside.levels" },
+  { id: "room", target: 'aside.tools button[data-group="build"]' },
+  { id: "reshape", target: "svg.plan" },
+  { id: "opening", target: 'aside.tools button[data-group="openings"]' },
+  { id: "furniture", target: 'aside.tools button[data-tool="furniture"]' },
+  { id: "save", target: "header button.save" },
+];
+type TourCounts = { rooms: number; openings: number; furniture: number };
+
 /** More words each tool is found by in the command search. */
 const TOOL_WORDS: Record<Tool, string> = {
   select: "select move drag pick",
@@ -452,6 +463,7 @@ export class HomeslicePanel extends LitElement {
     _shortcuts: { state: true },
     _palette: { state: true },
     _tip: { state: true },
+    _tour: { state: true },
     _draft: { state: true },
     _settings: { state: true },
     _wallView: { state: true },
@@ -585,6 +597,9 @@ export class HomeslicePanel extends LitElement {
   private _palette: { q: string; i: number } | null = null;
   /** A tip right after doing something for the first time (each shown once in this browser). */
   private _tip: string | null = null;
+  /** The guided tour: its step (0 is the offer), and the house as that step began. */
+  private _tour: number | null = null;
+  private tourBase: { model: string; level: string; counts: TourCounts } | null = null;
   /** Show the rooms' inside lengths on the plan. */
   private _show: Record<Layer, boolean> = readLayers();
   /** A length being typed: where its field sits and what it changes. */
@@ -671,6 +686,7 @@ export class HomeslicePanel extends LitElement {
   private history = new History<HouseInput>();
   private renderer?: HouseRenderer;
   private previewTimer = 0;
+  private tourOffered = false;
   private fitted = "";
   private onKey = (e: KeyboardEvent) => this.handleKey(e);
 
@@ -2935,6 +2951,21 @@ export class HomeslicePanel extends LitElement {
   // ----- 3D preview -----
 
   protected override updated(changed: PropertyValues) {
+    if (this._tour !== null) {
+      if (changed.has("_model") || changed.has("_level") || changed.has("_saved")) this.checkTour();
+      this.markTourTarget();
+    } else if (changed.has("_tour")) this.markTourTarget();
+    // someone new, with a house open and no start screen: the tour, offered once
+    if (changed.has("_model") && this._model && this._tour === null && !this._start && !this.tourOffered) {
+      this.tourOffered = true;
+      let seen = false;
+      try {
+        seen = !!localStorage.getItem("homeslice-tour");
+      } catch {
+        seen = true;
+      }
+      if (!seen) this.startTour(true);
+    }
     if (changed.has("_dimEdit") && this._dimEdit) {
       const input = this.renderRoot.querySelector("input.dim-input") as HTMLInputElement | null;
       input?.focus();
@@ -3584,7 +3615,8 @@ export class HomeslicePanel extends LitElement {
               ? html`<div class="start-next" role="status" data-start-next><ha-icon icon="mdi:flag-checkered"></ha-icon><span>${this._startNext}</span>
                   <button class="close" aria-label=${this.t("editor.hint_hide")} @click=${() => (this._startNext = null)}>×</button></div>`
               : nothing}${this.renderHint()}</div>
-          ${this._tip
+          ${this.renderTour()}
+          ${this._tip && this._tour === null
             ? html`<div class="start-next tip" role="status" data-tip><ha-icon icon="mdi:lightbulb-on-outline"></ha-icon><span>${this._tip}</span>
                 <button class="close" aria-label=${this.t("editor.hint_hide")} @click=${() => (this._tip = null)}>×</button></div>`
             : nothing}
@@ -6781,6 +6813,7 @@ export class HomeslicePanel extends LitElement {
       { id: "settings", label: this.t("editor.house_settings"), words: "yaml backup restore download export walls thickness", run: () => (this._settings = {}) },
       { id: "checklist", label: this.t("editor.checklist"), words: "todo problems missing areas blinds contacts", run: () => (this._checklist = true) },
       { id: "shortcuts", label: this.t("editor.shortcuts"), key: "?", words: "keys keyboard help", run: () => (this._shortcuts = true) },
+      { id: "tour", label: this.t("editor.tour"), words: "tour guide tutorial help introduction learn", run: () => this.startTour() },
       { id: "save", label: this.t("editor.save"), key: "Ctrl+S", words: "store", run: () => void this.save() },
       {
         id: "start-over",
@@ -6840,6 +6873,93 @@ export class HomeslicePanel extends LitElement {
     </div>`;
   }
 
+  // ----- the guided tour -----
+
+  /** Starts the tour (from ? or the search), or offers it once to someone new. */
+  private startTour(offer = false) {
+    this._shortcuts = false;
+    this._tip = null;
+    this._tour = offer ? 0 : 1;
+    this.tourBase = this.tourSnapshot();
+  }
+
+  private endTour() {
+    this._tour = null;
+    this.tourBase = null;
+    try {
+      localStorage.setItem("homeslice-tour", "done");
+    } catch {
+      // no storage: offered again next time, harmless
+    }
+  }
+
+  private tourSnapshot() {
+    const m = this._model;
+    const counts: TourCounts = { rooms: 0, openings: 0, furniture: 0 };
+    for (const l of m?.levels ?? []) {
+      counts.rooms += l.rooms.length;
+      counts.openings += l.openings?.length ?? 0;
+      for (const r of l.rooms) counts.furniture += r.furniture?.length ?? 0;
+    }
+    counts.openings += m?.facade_openings?.length ?? 0;
+    return { model: JSON.stringify(m), level: this._level, counts };
+  }
+
+  /** A step is done once its thing happened: the next one begins. */
+  private checkTour() {
+    const step = this._tour !== null ? TOUR[this._tour - 1] : undefined;
+    if (!step || !this.tourBase) return;
+    const now = this.tourSnapshot();
+    const base = this.tourBase;
+    const done =
+      step.id === "floors" ? now.level !== base.level
+      : step.id === "room" ? now.counts.rooms > base.counts.rooms
+      : step.id === "reshape" ? now.model !== base.model && now.counts.rooms === base.counts.rooms
+      : step.id === "opening" ? now.counts.openings > base.counts.openings
+      : step.id === "furniture" ? now.counts.furniture > base.counts.furniture
+      : step.id === "save" ? !this.dirty
+      : false;
+    if (done) this.nextTourStep();
+  }
+
+  private nextTourStep() {
+    if (this._tour === null) return;
+    this._tour += 1;
+    this.tourBase = this.tourSnapshot();
+  }
+
+  private renderTour() {
+    if (this._tour === null) return nothing;
+    if (this._tour === 0)
+      return html`<div class="tour" role="dialog" data-tour="offer" aria-label=${this.t("editor.tour")}>
+        <h3>${this.t("editor.tour_offer_title")}</h3>
+        <p>${this.t("editor.tour_offer")}</p>
+        <div class="row"><button class="primary" data-tour-start @click=${() => this.startTour()}>${this.t("editor.tour_start")}</button>
+          <button data-tour-skip @click=${() => this.endTour()}>${this.t("editor.tour_no")}</button></div>
+      </div>`;
+    const step = TOUR[this._tour - 1];
+    if (!step)
+      return html`<div class="tour" role="dialog" data-tour="done" aria-label=${this.t("editor.tour")}>
+        <h3>${this.t("editor.tour_done_title")}</h3>
+        <p>${this.t("editor.tour_done")}</p>
+        <div class="row"><button class="primary" data-tour-close @click=${() => this.endTour()}>${this.t("editor.tour_close")}</button></div>
+      </div>`;
+    return html`<div class="tour" role="dialog" data-tour=${step.id} aria-label=${this.t("editor.tour")}>
+      <p class="muted">${this.t("editor.tour_step", { n: String(this._tour), of: String(TOUR.length) })}</p>
+      <p>${this.t(`editor.tour_${step.id}` as StringKey)}</p>
+      <div class="row"><button data-tour-next @click=${() => this.nextTourStep()}>${this.t("editor.tour_next")}</button>
+        <button data-tour-skip @click=${() => this.endTour()}>${this.t("editor.tour_skip")}</button></div>
+    </div>`;
+  }
+
+  /** The control a tour step is about glows. */
+  private markTourTarget() {
+    const root = this.renderRoot as ShadowRoot;
+    root.querySelectorAll(".tour-target").forEach((el) => el.classList.remove("tour-target"));
+    const step = this._tour ? TOUR[this._tour - 1] : undefined;
+    if (step?.target) root.querySelector(step.target)?.classList.add("tour-target");
+  }
+
   private renderShortcuts() {
     const keys: [string, StringKey][] = [
       ["V", "editor.key_select"],
@@ -6869,6 +6989,7 @@ export class HomeslicePanel extends LitElement {
       <div @click=${(e: Event) => e.stopPropagation()}>
         <h2>${this.t("editor.shortcuts")}</h2>
         <dl>${keys.map(([k, what]) => html`<dt><kbd>${k}</kbd></dt><dd>${this.t(what)}</dd>`)}</dl>
+        <button data-tour-restart @click=${() => this.startTour()}>${this.t("editor.tour_restart")}</button>
       </div>
     </div>`;
   }
@@ -8988,6 +9109,40 @@ export class HomeslicePanel extends LitElement {
       border: 1px solid var(--divider-color, #444);
       color: inherit;
       text-decoration: none;
+    }
+    .tour {
+      position: absolute;
+      right: 12px;
+      bottom: 12px;
+      z-index: 3;
+      width: min(340px, calc(100% - 24px));
+      padding: 12px 14px;
+      border-radius: 12px;
+      background: var(--card-background-color, #1c1c1c);
+      border: 1px solid var(--primary-color, #03a9f4);
+      box-shadow: 0 6px 24px rgba(0, 0, 0, 0.4);
+    }
+    .tour h3 {
+      margin: 0 0 6px;
+      font-size: 16px;
+    }
+    .tour p {
+      margin: 0 0 10px;
+    }
+    .tour-target {
+      outline: 3px solid var(--primary-color, #03a9f4);
+      outline-offset: 2px;
+      animation: tour-glow 1.4s ease-in-out infinite;
+    }
+    @keyframes tour-glow {
+      50% {
+        outline-color: transparent;
+      }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .tour-target {
+        animation: none;
+      }
     }
     .start-next.tip {
       position: absolute;

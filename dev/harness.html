@@ -9,6 +9,11 @@
   #root { width: 100%; max-width: 1600px; padding: 16px; box-sizing: border-box; }
 </style>
 <script>
+  // the editor's tour is offered once; tests that want it open the harness with ?tour
+  try {
+    if (!location.search.includes("tour")) localStorage.setItem("homeslice-tour", "done");
+    else localStorage.removeItem("homeslice-tour");
+  } catch {}
   // minimal stand-ins for HA's own elements
   customElements.define("ha-card", class extends HTMLElement {
     connectedCallback() { this.style.display = "block"; }

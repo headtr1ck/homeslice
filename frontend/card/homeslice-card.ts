@@ -4,10 +4,12 @@ import { formatNumber, loadLanguage, localize, type StringKey } from "../i18n/lo
 import { expandHouse } from "../model/expand";
 import { labelPoint } from "../model/geometry";
 import { walkStep } from "../model/walk";
-import type { FurnitureMount, FurnitureType, House, Issue, Room, Vec2 } from "../model/types";
+import type { FurnitureMount, FurnitureType, House, Issue, Room, Side, Vec2 } from "../model/types";
 import { defaultKind, kindTags, type Tag } from "../model/modern";
 import { areaLightRooms, listedLights, placeLights, type PlacedLight } from "../model/lights";
 import { deriveWalls, innerPolygon, type Wall } from "../model/walls";
+import { sideDrawing, sideLayout, type SideDrawing } from "../model/sideview";
+import { stairTreads } from "../model/stairs";
 import { formatPower, readEnergy, type EnergyPrefs, type EnergyReading } from "../ha/energy";
 import { pollPosition, polledPositions, readRobot, robotAlerts, robotStatus, type RobotReading, type RobotStatus } from "../ha/robots";
 import { deviceLook } from "../ha/devices";
@@ -374,6 +376,9 @@ async function preloadCard(helpers: CardHelpers, type: string) {
   await Promise.race([customElements.whenDefined(tag), new Promise((r) => setTimeout(r, 3000))]);
 }
 
+/** The side view turned a quarter clockwise. */
+const SIDE_TURN: Record<Side, Side> = { north: "east", east: "south", south: "west", west: "north" };
+
 export class HomesliceCard extends LitElement {
   static override properties = {
     _issues: { state: true },
@@ -398,6 +403,7 @@ export class HomesliceCard extends LitElement {
     _people: { state: true },
     _level: { state: true },
     _section: { state: true },
+    _side: { state: true },
     _popup: { state: true },
     _hover: { state: true },
     _readout: { state: true },
@@ -457,6 +463,9 @@ export class HomesliceCard extends LitElement {
   private _level: string | null = null;
   /** The section shown (all floors, cut along its line), if any. */
   private _section: string | null = null;
+  /** The side view (every room at once, from the side) and the way it looks, if shown. */
+  private _side: Side | null = null;
+  private sideCache: { house: House; look: Side; drawing: SideDrawing } | null = null;
   private _popup: Popup | null = null;
   /** Level under the mouse (or under a hovered floor button). */
   private _hover: number | null = null;
@@ -1962,9 +1971,80 @@ export class HomesliceCard extends LitElement {
     return (entrance ?? house.levels.find((l) => l.rooms.some((r) => r.kind === "outdoor")) ?? house.levels[0])?.id ?? null;
   }
 
+  /**
+   * The side view: every room at once from the side (from where the camera is, or turned to
+   * `look`). Again: the whole house.
+   */
+  private async selectSide(look?: Side) {
+    if (!this.renderer || !this.house) return;
+    let next: Side | null = look ?? null;
+    if (!look && !this._side) {
+      // looking from where the camera is now
+      const a = ((this.renderer.orientation.azimuth % 360) + 360) % 360;
+      next = (["south", "west", "north", "east"] as Side[])[Math.round(a / 90) % 4];
+    }
+    this._side = next;
+    this._section = null;
+    this._level = null;
+    this._labels = [];
+    this._lampButtons = [];
+    // the 3D house behind it shows everything again
+    await this.renderer.setSection(null, false);
+    await this.renderer.setFocus(null, false);
+    this.placeLabels();
+    this.dispatchEvent(new CustomEvent("homeslice-rendered"));
+  }
+
+  /** The side view's drawing, made again when the house or the look changes. */
+  private sideDrawingFor(look: Side): SideDrawing | null {
+    if (!this.house) return null;
+    if (this.sideCache?.house !== this.house || this.sideCache.look !== look)
+      this.sideCache = { house: this.house, look, drawing: sideDrawing(this.house, this.walls, sideLayout(this.house, look), stairTreads) };
+    return this.sideCache.drawing;
+  }
+
+  /** Where a point of the side drawing (metres) is on the card: as the SVG's viewBox fits it. */
+  private sideToScreen(drawing: SideDrawing, x: number, y: number): { x: number; y: number } {
+    const canvas = this.renderRoot.querySelector("canvas");
+    const w = canvas?.clientWidth ?? 0;
+    const h = canvas?.clientHeight ?? 0;
+    const b = drawing.bounds;
+    const scale = Math.min(w / (b.x1 - b.x0), h / (b.y1 - b.y0));
+    return { x: (w - (b.x1 - b.x0) * scale) / 2 + (x - b.x0) * scale, y: (h - (b.y1 - b.y0) * scale) / 2 + (b.y1 - y) * scale };
+  }
+
+  /** The side view, drawn: rooms, walls and slabs, windows and doors, stairs. */
+  private renderSide(look: Side) {
+    const dr = this.sideDrawingFor(look);
+    if (!dr) return nothing;
+    const b = dr.bounds;
+    const rect = (r: { x0: number; x1: number; y0: number; y1: number }) => ({ x: r.x0, y: -r.y1, w: r.x1 - r.x0, h: r.y1 - r.y0 });
+    return html`<svg class="side-view" viewBox="${b.x0} ${-b.y1} ${b.x1 - b.x0} ${b.y1 - b.y0}" preserveAspectRatio="xMidYMid meet" role="img" aria-label=${this.t("card.side_view_hint")}>
+      ${dr.rooms.map((r) => {
+        const q = rect(r);
+        const on = !!this.hass && lightsLook(this.hass, this.roomLights(r.key)) !== null;
+        return svg`<rect class="room ${on ? "on" : ""}" data-room=${r.key} x=${q.x} y=${q.y} width=${q.w} height=${q.h} @click=${() => this.openPopup(r.key)}></rect>`;
+      })}
+      ${dr.steps.map((s) => {
+        const q = rect(s);
+        return svg`<rect class="step" x=${q.x} y=${q.y} width=${q.w} height=${q.h}></rect>`;
+      })}
+      ${dr.openings.map((o) => {
+        const q = rect(o);
+        return svg`<rect class=${o.kind} x=${q.x} y=${q.y} width=${q.w} height=${q.h}></rect>`;
+      })}
+      ${dr.bars.map((w) => {
+        const q = rect(w);
+        return svg`<rect class="bar" x=${q.x} y=${q.y} width=${q.w} height=${q.h}></rect>`;
+      })}
+      <line class="ground" x1=${b.x0} x2=${b.x1} y1="0.3" y2="0.3"></line>
+    </svg>`;
+  }
+
   /** Shows a section: all floors, cut along its line, seen across it. Again: the whole house. */
   private async selectSection(id: string) {
     if (!this.renderer || !this.house) return;
+    this._side = null;
     const section = this._section === id ? null : (this.house.sections.find((s) => s.id === id) ?? null);
     this._section = section?.id ?? null;
     this._labels = [];
@@ -1987,9 +2067,10 @@ export class HomesliceCard extends LitElement {
     if (!this.renderer || !this.house) return;
     // a plan shows one floor all the time
     if (this.plan && (id === null || id === this._level)) return;
-    // a floor (or the whole house) ends a section
-    if (this._section) {
+    // a floor (or the whole house) ends a section or the side view
+    if (this._section || this._side) {
       this._section = null;
+      this._side = null;
       await this.renderer.setSection(null);
       if (id === null) {
         this._level = null;
@@ -2178,6 +2259,8 @@ export class HomesliceCard extends LitElement {
   }
 
   private hoverLevel(index: number | null) {
+    // the side view shows every floor as it is
+    if (this._side) return;
     // plans don't lift floors (side by side, nothing is above anything)
     if (!this.renderer || this.transitioning || index === this._hover || this.plan || this.config.floors === "all") return;
     this._hover = index;
@@ -2439,12 +2522,21 @@ export class HomesliceCard extends LitElement {
     }
     const roofed = this.renderer.roofVisible();
     const labels: Label[] = [];
+    // the side view: a label in each drawn room, a little over its floor
+    const side = this._side ? this.sideDrawingFor(this._side) : null;
     for (const r of this.rooms) {
+      if (side) {
+        const box = side.rooms.find((x) => x.key === r.key);
+        if (!box) continue;
+        const p = this.sideToScreen(side, (box.x0 + box.x1) / 2, box.y0 + Math.min(1.2, (box.y1 - box.y0) / 2));
+        labels.push({ key: r.key, levelIndex: r.levelIndex, ...p, name: this.roomName(r), values: this.roomValues(r), lux: this.luxText(r), areaId: r.room.areaId, ...this.roomSensors(r.room, r.levelId), hasLights: this.roomLights(r.key).length > 0, on: lightsLook(this.hass, this.roomLights(r.key)) !== null });
+        continue;
+      }
       if (!this.renderer.isLevelVisible(r.levelId)) continue;
       // with a level focused, only that level gets labels
       if (this._level && r.levelId !== this._level) continue;
       // under the roof nothing can be seen
-      if (roofed && !this._section && r.levelIndex === this.house!.levels.length - 1) continue;
+      if (roofed && !this._section && !this._side && r.levelIndex === this.house!.levels.length - 1) continue;
       // cut by a section: the label goes into the part that stays
       const at = this.renderer.sectionShown ? this.renderer.sectionLabelPoint(r.room.polygon) : r.point;
       const p = at && this.renderer.project(r.levelId, at, 0.05);
@@ -2464,6 +2556,18 @@ export class HomesliceCard extends LitElement {
       });
     }
     this._labels = labels;
+    if (side) {
+      // the drawing has rooms only: the rest of the overlays wait for the 3D house
+      this._lampButtons = [];
+      this._energyLabels = [];
+      this._robotLabels = [];
+      this._dockAlerts = [];
+      this._badges = [];
+      this._openingBadges = [];
+      this._ruleMarks = [];
+      this._sunTimes = [];
+      return;
+    }
     // single lamps on the focused level, in rooms with more than one
     const buttons: LampButton[] = [];
     if (this._level && this.renderer.isLevelVisible(this._level)) {
@@ -2535,10 +2639,21 @@ export class HomesliceCard extends LitElement {
                       <ha-icon icon="mdi:box-cutter"></ha-icon> ${s.name}
                     </button>`,
                   )}
+              ${this.plan || this._walking || !this.house.levels.some((l) => l.rooms.some((r) => r.kind === "room"))
+                ? nothing
+                : html`<button class="section ${this._side ? "active" : ""}" data-side-view title=${this.t("card.side_view_hint")} @click=${() => this.selectSide()}>
+                      <ha-icon icon="mdi:view-column-outline"></ha-icon> ${this.t("card.side_view")}
+                    </button>
+                    ${this._side
+                      ? html`<button class="section" data-side-turn title=${this.t("card.side_turn")} @click=${() => this.selectSide(SIDE_TURN[this._side!])}>
+                          <ha-icon icon="mdi:rotate-right"></ha-icon> ${this.t("card.side_turn")}
+                        </button>`
+                      : nothing}`}
             </nav>`
           : nothing}
         <div class="wrap">
           ${this.renderOverlays("behind")}
+          ${this._side ? this.renderSide(this._side) : nothing}
           <canvas
             class="${this.interactive ? "interactive" : ""} ${this.plan ? "swipe" : ""}"
             @click=${this.onCanvasClick}
@@ -3760,6 +3875,43 @@ export class HomesliceCard extends LitElement {
     }
     .levels button.hover {
       border-color: var(--primary-color);
+    }
+    .side-view {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      /* over the canvas, under the labels */
+      z-index: 0;
+      background: var(--ha-card-background, var(--card-background-color, #1c1f24));
+    }
+    .side-view .room {
+      fill: color-mix(in srgb, var(--primary-text-color, #e6e6e6) 14%, transparent);
+      cursor: pointer;
+      transition: fill 0.3s;
+    }
+    .side-view .room:hover {
+      fill: color-mix(in srgb, var(--primary-text-color, #e6e6e6) 22%, transparent);
+    }
+    .side-view .room.on {
+      fill: color-mix(in srgb, #ffc35a 45%, transparent);
+    }
+    .side-view .bar {
+      fill: var(--primary-text-color, #e6e6e6);
+      opacity: 0.85;
+    }
+    .side-view .window {
+      fill: color-mix(in srgb, #7fb6d8 55%, transparent);
+    }
+    .side-view .door {
+      fill: color-mix(in srgb, #b08360 60%, transparent);
+    }
+    .side-view .step {
+      fill: color-mix(in srgb, var(--primary-text-color, #e6e6e6) 35%, transparent);
+    }
+    .side-view .ground {
+      stroke: var(--secondary-text-color, #999);
+      stroke-width: 0.05;
     }
     .levels button.section {
       display: flex;
