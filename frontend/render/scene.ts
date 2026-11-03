@@ -748,7 +748,8 @@ export class HouseRenderer {
     // slab under the level
     if (level.outer.length) {
       // (under the outside walls too)
-      const slab = new THREE.ExtrudeGeometry(shapeOf(level.outer, holes), { depth: level.slab, bevelEnabled: false });
+      // (a stairwell in a building of its own cuts that one's floor)
+      const slab = new THREE.ExtrudeGeometry(shapeOf(level.outer, holes.filter((h) => pointInPolygon(labelPoint(h), level.outer))), { depth: level.slab, bevelEnabled: false });
       slab.rotateX(-Math.PI / 2);
       slab.translate(0, -level.slab, 0);
       g.add(this.mesh(slab, this.lambert(COLORS.slab)));
@@ -756,7 +757,9 @@ export class HouseRenderer {
     // buildings of their own (a shed, a detached garage): their slab, and a roof where
     // nothing stands on them
     level.annexesOuter.forEach((outer, i) => {
-      const slab = new THREE.ExtrudeGeometry(shapeOf(outer, []), { depth: level.slab, bevelEnabled: false });
+      // a loft over a garage: its stairs come up through it
+      const own = holes.filter((h) => pointInPolygon(labelPoint(h), level.annexes[i]));
+      const slab = new THREE.ExtrudeGeometry(shapeOf(outer, own), { depth: level.slab, bevelEnabled: false });
       slab.rotateX(-Math.PI / 2);
       slab.translate(0, -level.slab, 0);
       g.add(this.mesh(slab, this.lambert(COLORS.slab)));

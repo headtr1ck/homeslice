@@ -397,6 +397,28 @@ test.describe.serial("demo house, roof (1)", () => {
     await act(page, () => page.evaluate(() => window.card.hass.pushModel(window.__demoModel)));
   });
 
+  test("a garage with a loft: a building of its own on two floors, stairs up, one roof on top", async () => {
+    await act(page, () =>
+      page.evaluate(() => {
+        const m = structuredClone(window.__demoModel);
+        m.levels[0].rooms.push({ id: "garage", name: "Garage", rect: [10, 0, 4, 6], building: { roof: "gable", pitch: 35, roof_finish: "roof_slate" } });
+        m.levels[1].rooms.push({ id: "loft", name: "Loft", rect: [10, 0, 4, 6] });
+        m.vertical.push({ id: "garage_stairs", rect: [10.3, 4.8, 3, 1], from: m.levels[0].id, to: m.levels[1].id, up: "east" });
+        window.card.hass.pushModel(m);
+      }),
+    );
+    const state = await page.evaluate(() => ({
+      issues: window.card._issues.map((i) => i.message),
+      roofs: window.card.renderer.annexRoofs.map((r) => r.levelIndex),
+      buildings: window.card.house.levels.map((l) => l.annexBuildings.map((b) => b.roof)),
+    }));
+    assert(!state.issues.length, JSON.stringify(state.issues));
+    // a roof over the loft only; both floors the gable building
+    assert(JSON.stringify(state.roofs) === "[1]" && JSON.stringify(state.buildings) === '[["gable"],["gable"]]', JSON.stringify(state));
+    await shot(page, "demo-garage-loft");
+    await act(page, () => page.evaluate(() => window.card.hass.pushModel(window.__demoModel)));
+  });
+
   test("curved walls: a bowed front, its rooms and walls following the arc", async () => {
     await act(page, () =>
       page.evaluate(() => {

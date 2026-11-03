@@ -160,6 +160,10 @@ set the building's roof and walls (the editor shows them in that room's panel):
         building: { open: true, roof: flat }   # a roof on posts, no walls
 ```
 
+Such a building can have upper floors, like a garage with a loft: draw the loft as a room on
+the next level over the garage, and stairs between them like the house's. Its settings, set on
+a room of any of its floors, count for all of them, and the roof sits on its top floor.
+
 `robots:` places robot vacuums and lawn mowers with their dock. A live position is set up
 in the editor, and so is `map:` (the robot's map picture on the card while it cleans:
 `{entity: image.…, size: [w, h], origin: [x, y], scale: 0.0125, rotation: 0}`); see

@@ -43,7 +43,10 @@ previous version, so a save can be undone in the editor (⚙ → Restore previou
   outline. It gets outside walls, a floor slab and a low roof of its own. One of its rooms
   may set the building's roof and walls: `building: {roof: shed|gable|hip|flat, pitch: 25,
   roof_finish: roof_metal, thickness: 0.12, facade: wood_cladding}`; `open: true` is a
-  carport (a roof on posts, no walls). A room of the house with `building` gets a warning.
+  carport (a roof on posts, no walls). A room of the house with `building` gets a warning. A
+building of its own can have upper floors (a garage with a loft): rooms on the next level over
+the same footprint; its stairs are `vertical` like the house's; its settings (on a room of any
+of its floors) count for all of them; the roof sits on its top floor.
 - Positions inside a room (lights, furniture) are metres east and south of the room's
   north-west corner (of its bounding box), not plan coordinates.
 

@@ -533,7 +533,8 @@ export function expandHouse(input: unknown): ExpandResult {
       annexes,
       annexesOuter: [] as Vec2[][],
       // each building: what one of its rooms says, else a shed roof and the house's walls
-      annexBuildings: annexes.map((a) => buildingRooms.find((r) => pointInPolygon(labelPoint(r.polygon), a))?.building ?? { roof: "shed" as const, pitch: 8, open: false }),
+      // (none set here: from its floors above or below, see further down)
+      annexBuildings: annexes.map((a) => buildingRooms.find((r) => pointInPolygon(labelPoint(r.polygon), a))?.building) as Building[],
       partyWalls: li.party_walls ?? h.party_walls ?? [],
       rooms,
       openings,
@@ -554,6 +555,24 @@ export function expandHouse(input: unknown): ExpandResult {
     // (a house just started, rooms still to draw: nothing to show yet, but it can be kept)
     else warn(w.path, "No rooms yet: draw rooms (outline: auto follows them) or set outline on the house or this level.");
   }
+  // a building of its own over several floors (a garage with a loft) is one building: a floor
+  // with no settings of its own takes those of the nearest floor of it that has them
+  const set = new Map(levels.map((l) => [l, [...l.annexBuildings]] as const));
+  for (const level of levels)
+    level.annexBuildings = level.annexes.map((a, i) => {
+      const own = set.get(level)![i];
+      if (own) return own;
+      const near = levels
+        .filter((l) => l !== level)
+        .sort((p, q) => Math.abs(p.index - level.index) - Math.abs(q.index - level.index))
+        .map((l) => {
+          // the same building: one floor's footprint over the other's
+          const k = l.annexes.findIndex((o) => pointInPolygon(labelPoint(a), o) || pointInPolygon(labelPoint(o), a));
+          return k >= 0 ? set.get(l)![k] : undefined;
+        })
+        .find((b): b is Building => !!b);
+      return near ?? { roof: "shed", pitch: 8, open: false };
+    });
   // the outside walls' outer face: the outline (their centre line) out by half of each
   for (const level of levels) {
     if (!level.outline.length) continue;

@@ -333,6 +333,26 @@ describe("deriveWalls", () => {
     expect(dw.filter((x) => x.rooms.includes("shed")).every((x) => x.type === "exterior")).toBe(true);
   });
 
+  it("a garage with a loft: a building of its own on two floors, one building's settings for both", () => {
+    const { house, issues } = expandHouse({
+      schema: 2,
+      id: "loft",
+      outline: { rect: [0, 0, 8, 6] },
+      vertical: [{ id: "ladder", rect: [12.3, 0.3, 2.5, 0.9], from: "ground", to: "first" }],
+      levels: [
+        { id: "ground", rooms: [{ id: "house", rect: [0, 0, 8, 6] }, { id: "garage", rect: [12, 0, 4, 6], building: { roof: "gable", pitch: 30, thickness: 0.2 } }] },
+        { id: "first", rooms: [{ id: "bed", rect: [0, 0, 8, 6] }, { id: "loft", rect: [12, 0, 4, 6] }] },
+      ],
+    });
+    expect(issues).toEqual([]);
+    const [ground, first] = house!.levels;
+    expect(ground.annexes).toHaveLength(1);
+    expect(first.annexes).toHaveLength(1);
+    // the loft takes the garage's settings: its roof is the gable one, its walls as thin
+    expect(first.annexBuildings[0]).toEqual(ground.annexBuildings[0]);
+    expect(deriveWalls(first, house!.walls).filter((w) => w.rooms.includes("loft")).map((w) => [w.type, w.thickness])).toEqual(Array(4).fill(["exterior", 0.2]));
+  });
+
   it("a building of its own takes its roof and walls from one of its rooms: a timber shed, a carport on posts", () => {
     const { house, issues } = expandHouse({
       schema: 2,
