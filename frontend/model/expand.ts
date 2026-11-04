@@ -182,8 +182,10 @@ export function expandHouse(input: unknown): ExpandResult {
       if (!(size[0] > 0 && size[1] > 0)) return err(fp, "size must be [width, depth] in metres.");
       const mount = fi.mount ?? def.mount ?? "floor";
       if (!["floor", "wall", "ceiling"].includes(mount)) return err(fp, `mount must be floor, wall or ceiling, got ${JSON.stringify(fi.mount)}.`);
-      const elevation = mount === "ceiling" ? null : mount === "wall" ? (fi.elevation ?? def.elevation ?? 1.2) : 0;
+      // floor pieces stand on the floor, or on what they were placed on (a toaster on the worktop)
+      const elevation = mount === "ceiling" ? null : mount === "wall" ? (fi.elevation ?? def.elevation ?? 1.2) : (fi.elevation ?? 0);
       if (fi.height !== undefined && !(typeof fi.height === "number" && fi.height > 0)) return err(fp, "height must be in metres.");
+      if (fi.elevation !== undefined && !(typeof fi.elevation === "number" && fi.elevation >= 0)) return err(fp, "elevation must be metres above the floor.");
       if (fi.model !== undefined && !(typeof fi.model === "string" && MODEL_REF.test(fi.model)))
         return err(fp, `model must be modern:<kind>, polyhaven:<id>, custom:<id>, piece:<id> or builtin, got ${JSON.stringify(fi.model)}.`);
       if (fi.model?.startsWith("piece:") && !pieceIds.has(fi.model!.slice(6))) return err(fp, `model ${fi.model} names no piece in pieces (pieces: ${[...pieceIds].join(", ") || "none"}).`);

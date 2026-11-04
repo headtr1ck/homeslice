@@ -96,6 +96,7 @@ const MUTATIONS: [string, (h: House) => unknown][] = [
   ["furniture bad size", (h) => ((L(h).rooms[0].furniture = [{ type: "sofa", at: [1, 1], size: [0, 1] }]), h)],
   ["furniture bad mount", (h) => ((L(h).rooms[0].furniture = [{ type: "sofa", at: [1, 1], mount: "roof" }]), h)],
   ["furniture bad height", (h) => ((L(h).rooms[0].furniture = [{ type: "sofa", at: [1, 1], height: -1 }]), h)],
+  ["furniture bad elevation", (h) => ((L(h).rooms[0].furniture = [{ type: "item", at: [1, 1], elevation: -0.5 }]), h)],
   ["furniture bad model", (h) => ((L(h).rooms[0].furniture = [{ type: "sofa", at: [1, 1], model: "ikea:klippan" }]), h)],
   ["furniture model number", (h) => ((L(h).rooms[0].furniture = [{ type: "sofa", at: [1, 1], model: 3 }]), h)],
   ["furniture bad accent", (h) => ((L(h).rooms[0].furniture = [{ type: "sofa", at: [1, 1], accent: ["black"] }]), h)],

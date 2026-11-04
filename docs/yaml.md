@@ -115,6 +115,7 @@ levels:
           - { type: sofa, at: [3, 6.5] }
           - { type: table, at: [3, 2], rotation: 90 }
           - { type: tv, at: [3, 7.8], rotation: 180, mount: wall, elevation: 1 }  # wall, ceiling
+          - { type: item, model: modern:toaster, at: [1, 0.3], elevation: 0.91 }  # on the worktop (the editor writes it)
           - { type: sofa_corner, at: [2, 3], mirror: true }                    # flipped left to right
           - { type: sofa, at: [3, 4], model: polyhaven:Sofa_01, size: [1.57, 0.66], height: 0.8 }
           - { type: wardrobe, at: [5, 0.4], model: modern:wardrobe_sliding, finish: walnut, accent: black, size: [2, 0.65], height: 2.2 }

@@ -1,7 +1,7 @@
 // The furniture catalogue: default sizes (width × depth × height, metres), where a
 // piece is mounted, and the library groups the editor shows them in.
 
-import type { FurnitureMount, FurnitureType } from "./types";
+import type { FurnitureMount, FurnitureType, Vec2 } from "./types";
 
 export interface FurnitureDefaults {
   size: [number, number];
@@ -75,4 +75,36 @@ export const FURNITURE_GROUPS: { id: string; types: FurnitureType[] }[] = [
 /** Where a piece hangs: its own mount, else its type's. */
 export function mountOf(f: { type: FurnitureType; mount?: FurnitureMount }): FurnitureMount {
   return f.mount ?? FURNITURE[f.type]?.mount ?? "floor";
+}
+
+/** Pieces with a top other things stand on. */
+const SURFACES: FurnitureType[] = ["kitchen", "table", "desk", "coffee_table", "side_table", "nightstand", "shelf", "washer", "dryer", "sink"];
+/** Small things that stand on a surface when placed on one: a toaster on the worktop, a lamp on a desk. */
+const ON_SURFACES: FurnitureType[] = ["item", "table_lamp", "plant", "tv"];
+
+/** A piece as placed: centred on `at`, turned by `rotation` degrees clockwise. */
+export type Footprint = { type: FurnitureType; at: Vec2; rotation?: number; size: [number, number]; height: number; mount: FurnitureMount; elevation?: number };
+
+/** Is `p` within a piece's footprint? */
+function within(f: Footprint, p: Vec2): boolean {
+  const r = ((f.rotation ?? 0) * Math.PI) / 180;
+  const dx = p[0] - f.at[0];
+  const dy = p[1] - f.at[1];
+  const x = dx * Math.cos(r) + dy * Math.sin(r);
+  const y = -dx * Math.sin(r) + dy * Math.cos(r);
+  return Math.abs(x) <= f.size[0] / 2 + 1e-6 && Math.abs(y) <= f.size[1] / 2 + 1e-6;
+}
+
+/**
+ * Where a small floor piece stands when placed among `others`: on the top of the surface
+ * under its centre (the highest, where they overlap), else on the floor (0). A surface is
+ * larger than what stands on it. Undefined for pieces that always stand on the floor.
+ */
+export function surfaceUnder(piece: Footprint, others: Footprint[]): number | undefined {
+  if (piece.mount !== "floor" || !ON_SURFACES.includes(piece.type)) return undefined;
+  let top = 0;
+  for (const s of others)
+    if (s.mount === "floor" && SURFACES.includes(s.type) && s.size[0] * s.size[1] > piece.size[0] * piece.size[1] && within(s, piece.at))
+      top = Math.max(top, (s.elevation ?? 0) + s.height);
+  return top;
 }

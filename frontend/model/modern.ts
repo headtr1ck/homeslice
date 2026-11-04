@@ -17,6 +17,8 @@ export interface ModernKind {
   accents?: string[];
   /** The widths it is sold in (metres), offered in the editor; any other width still works. */
   widths?: number[];
+  /** The heights it is made in (metres), offered in the editor like the widths. */
+  heights?: number[];
   /**
    * Choices the drawing follows, each with its values (the first is the default), e.g.
    * `handle: ["bar", "knob", "handleless", "push"]`. A piece stores its choice as
@@ -57,10 +59,12 @@ const WOOD = ["oak", "white", "walnut", "black", "anthracite"];
 export const FABRIC = ["grey", "beige", "anthracite", "green", "blue", "terracotta", "pink"];
 const LAMP = ["black", "white", "oak", "sand"];
 const POT = ["white", "terracotta", "anthracite", "concrete", "sand", "green", "pink", "black"];
-const FRONTS = ["white", "anthracite", "oak", "green", "blue", "black", "walnut"];
 const WORKTOP = ["marble", "concrete", "terrazzo", "white", "oak", "black", "anthracite"];
 const TAPS = ["chrome", "black", "brass"];
 const HANDLES = ["black", "chrome", "brass", "oak"];
+/** Every kitchen cabinet's colours, so units, shelves and panels match; `own` first (its default). */
+const CABINET = ["white", "anthracite", "oak", "walnut", "green", "blue", "black", "grey", "beige", "concrete", "marble", "terrazzo"];
+const cabinet = (own = "white") => [own, ...CABINET.filter((x) => x !== own)];
 const PAINT = ["silver", "white", "black", "anthracite", "blue", "red", "green"];
 
 const k = (id: string, type: FurnitureType, size: [number, number, number], finishes: string[], more: Partial<ModernKind> = {}): ModernKind => ({ id, type, size, finishes, ...more });
@@ -193,24 +197,27 @@ export const MODERN_GROUPS: { id: string; kinds: ModernKind[] }[] = [
   {
     id: "kitchen",
     kinds: [
-      k("kitchen", "kitchen", [3.0, 0.62, 0.91], ["white", "anthracite", "oak", "green", "blue", "black"], { accents: WORKTOP, options: PUSH }),
-      k("kitchen_island", "kitchen", [2.4, 1.0, 0.92], ["white", "anthracite", "oak", "green", "blue", "black"], { accents: WORKTOP }),
-      k("kitchen_upper", "kitchen_upper", [2.4, 0.35, 0.72], ["white", "anthracite", "oak", "green", "blue", "black"], { mount: "wall", elevation: 1.45, widths: UNIT, options: HANDLE }),
-      k("kitchen_tall", "fridge", [0.6, 0.62, 2.2], ["white", "anthracite", "oak", "green", "blue", "black"], { widths: [0.3, 0.45, 0.5, 0.6] }),
-      k("kitchen_base", "kitchen", [0.6, 0.62, 0.91], FRONTS, { accents: WORKTOP, widths: UNIT, options: { top: BASE_TOPS, fronts: BASE_FRONTS, ...HANDLE }, planBy: "top" }),
-      k("kitchen_dishwasher", "kitchen", [0.6, 0.62, 0.91], FRONTS, { accents: WORKTOP, widths: [0.45, 0.6], options: HANDLE }),
-      k("kitchen_corner", "kitchen", [1.0, 1.0, 0.91], FRONTS, { accents: WORKTOP, options: HANDLE }),
-      k("kitchen_pantry", "kitchen", [0.6, 0.62, 2.2], FRONTS, { widths: [0.3, 0.45, 0.5, 0.6], options: HANDLE }),
-      k("kitchen_pantry_mid", "kitchen", [0.6, 0.62, 1.45], FRONTS, { widths: [0.3, 0.45, 0.5, 0.6], options: HANDLE }),
-      k("kitchen_tall_fridge", "fridge", [0.6, 0.62, 2.2], FRONTS, { options: HANDLE }),
-      k("kitchen_tall_oven", "kitchen", [0.6, 0.62, 2.2], FRONTS, { options: HANDLE }),
-      k("kitchen_upper_glass", "kitchen_upper", [0.8, 0.35, 0.72], FRONTS, { mount: "wall", elevation: 1.45, widths: UNIT }),
-      k("kitchen_upper_open", "kitchen_upper", [0.8, 0.25, 0.72], ["oak", "white", "black", "walnut"], { mount: "wall", elevation: 1.45, widths: UNIT }),
+      k("kitchen", "kitchen", [3.0, 0.62, 0.91], cabinet(), { accents: WORKTOP, options: PUSH }),
+      k("kitchen_island", "kitchen", [2.4, 1.0, 0.92], cabinet(), { accents: WORKTOP }),
+      k("kitchen_upper", "kitchen_upper", [2.4, 0.35, 0.72], cabinet(), { mount: "wall", elevation: 1.45, widths: UNIT, options: HANDLE }),
+      k("kitchen_tall", "fridge", [0.6, 0.62, 2.2], cabinet(), { widths: [0.3, 0.45, 0.5, 0.6] }),
+      k("kitchen_base", "kitchen", [0.6, 0.62, 0.91], cabinet(), { accents: WORKTOP, widths: UNIT, options: { top: BASE_TOPS, fronts: BASE_FRONTS, ...HANDLE }, planBy: "top" }),
+      // a board on a unit's open side, often in another colour: as tall as a base, mid-height or tall unit
+      k("kitchen_panel", "kitchen", [0.02, 0.62, 0.91], cabinet("oak"), { heights: [0.91, 1.45, 2.2] }),
+      k("kitchen_dishwasher", "kitchen", [0.6, 0.62, 0.91], cabinet(), { accents: WORKTOP, widths: [0.45, 0.6], options: HANDLE }),
+      k("kitchen_corner", "kitchen", [1.0, 1.0, 0.91], cabinet(), { accents: WORKTOP, options: HANDLE }),
+      k("kitchen_pantry", "kitchen", [0.6, 0.62, 2.2], cabinet(), { widths: [0.3, 0.45, 0.5, 0.6], options: HANDLE }),
+      k("kitchen_pantry_mid", "kitchen", [0.6, 0.62, 1.45], cabinet(), { widths: [0.3, 0.45, 0.5, 0.6], options: HANDLE }),
+      k("kitchen_tall_fridge", "fridge", [0.6, 0.62, 2.2], cabinet(), { options: HANDLE }),
+      k("kitchen_tall_oven", "kitchen", [0.6, 0.62, 2.2], cabinet(), { options: HANDLE }),
+      k("kitchen_upper_glass", "kitchen_upper", [0.8, 0.35, 0.72], cabinet(), { mount: "wall", elevation: 1.45, widths: UNIT }),
+      k("kitchen_upper_open", "kitchen_upper", [0.8, 0.25, 0.72], cabinet("oak"), { mount: "wall", elevation: 1.45, widths: UNIT }),
       k("kitchen_hood", "kitchen_upper", [0.9, 0.5, 1.0], ["silver", "black", "white"], { mount: "wall", elevation: 1.55, widths: [0.6, 0.9, 1.2] }),
       k("fridge_freestanding", "fridge", [0.6, 0.66, 1.85], ["silver", "white", "black", "anthracite", "blue", "red"]),
       k("fridge_double", "fridge", [0.91, 0.72, 1.78], ["silver", "black", "white"]),
       k("microwave", "item", [0.48, 0.38, 0.28], ["silver", "black", "white"]),
       k("coffee_capsule", "item", [0.14, 0.38, 0.27], ["black", "red", "white", "silver"]),
+      k("coffee_automatic", "item", [0.26, 0.44, 0.37], ["black", "silver", "anthracite", "white"], { accents: ["chrome", "black"] }),
       k("coffee_portafilter", "item", [0.38, 0.42, 0.4], ["silver", "black", "white", "red"]),
       k("toaster", "item", [0.3, 0.18, 0.2], ["silver", "black", "white", "red", "green"]),
       k("kettle", "item", [0.22, 0.17, 0.25], ["silver", "black", "white", "red", "green"]),

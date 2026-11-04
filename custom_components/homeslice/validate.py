@@ -290,6 +290,10 @@ def validate(house: Any) -> list[dict[str, str]]:
             if height is not MISSING and not (is_num(height) and height > 0):
                 err(fp, "height must be in metres.")
                 continue
+            elevation = get(fi, "elevation")
+            if elevation is not MISSING and not (is_num(elevation) and elevation >= 0):
+                err(fp, "elevation must be metres above the floor.")
+                continue
             model = get(fi, "model")
             if model is not MISSING and not (isinstance(model, str) and MODEL_REF.match(model)):
                 err(fp, f"model must be modern:<kind>, polyhaven:<id>, custom:<id>, piece:<id> or builtin, got {stringify(model)}.")

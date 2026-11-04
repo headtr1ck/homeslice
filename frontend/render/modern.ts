@@ -678,6 +678,9 @@ const BASE_BUILDERS: Record<string, Build> = {
     // light under the cabinets
     b.box(w - 0.04, 0.008, 0.03, 0, -0.008, d / 2 - 0.06, mat("#fff6df", { emissive: "#fff2cc", emissiveIntensity: 0.4 }));
   },
+  kitchen_panel: (b, w, d, h, f) => {
+    b.box(w, h, d, 0, 0, 0, f, Math.min(0.003, w / 4));
+  },
   kitchen_tall: (b, w, d, h, f) => {
     b.box(w, h - 0.1, d - 0.03, 0, 0.1, back(d) + (d - 0.03) / 2, f);
     b.box(w - 0.02, 0.1, d - 0.08, 0, 0, back(d) + (d - 0.08) / 2, mat(C.black));
@@ -1646,6 +1649,25 @@ const BASE_BUILDERS: Record<string, Build> = {
     b.box(w * 0.9, 0.02, d * 0.75, 0, 0, d * 0.12, mat(C.steel, { metalness: 0.6, roughness: 0.3 }));
     b.box(w * 0.7, 0.04, 0.14, 0, h * 0.85, d * 0.2, mat(C.chrome, { metalness: 0.8, roughness: 0.2 }), 0.015)?.rotation.set(-0.3, 0, 0);
     b.cyl(0.035, 0.03, 0.07, 0, 0.02, d * 0.36, mat(C.ceramic), 14);
+  },
+  coffee_automatic: (b, w, d, h, f, _c, a) => {
+    // a bean-to-cup machine: a tall body, a display, the bean container's lid on top, a
+    // coffee spout over the drip tray and a cup under it
+    const dark = mat(C.black, { roughness: 0.35 });
+    b.box(w, h * 0.92, d * 0.86, 0, 0, -d * 0.07, f, 0.02);
+    // the recess the cup stands in: dark, with the spout block over it
+    b.box(w * 0.7, h * 0.48, 0.01, 0, 0.05, d * 0.36 + 0.004, dark, 0.004);
+    b.box(w * 0.36, h * 0.07, d * 0.16, 0, h * 0.42, d * 0.36 + d * 0.06, a, 0.008);
+    for (const s of [-1, 1]) b.cyl(0.005, 0.004, 0.02, s * w * 0.06, h * 0.4, d * 0.36 + d * 0.08, a, 8);
+    // drip tray with a grille
+    b.box(w * 0.86, 0.045, d * 0.22, 0, 0, d * 0.39, dark, 0.008);
+    b.box(w * 0.8, 0.004, d * 0.18, 0, 0.045, d * 0.39, mat(C.chrome, { metalness: 0.8, roughness: 0.25 }));
+    b.cyl(0.032, 0.027, 0.08, 0, 0.05, d * 0.4, mat(C.ceramic), 16);
+    // the panel: a screen with its buttons, set in the slanted top front
+    b.box(w * 0.86, h * 0.17, 0.012, 0, h * 0.67, d * 0.36 + 0.004, dark, 0.004);
+    b.box(w * 0.5, h * 0.1, 0.004, 0, h * 0.705, d * 0.36 + 0.012, mat(C.screen, { emissive: "#7fb6ff", emissiveIntensity: 0.25, roughness: 0.1 }), 0.003);
+    b.cyl(0.012, 0.012, 0.006, -w * 0.34, h * 0.75, d * 0.36 + 0.012, a, 12).rotation.x = Math.PI / 2;
+    b.box(w * 0.5, 0.012, d * 0.3, -w * 0.12, h * 0.92, -d * 0.18, dark, 0.006);
   },
   coffee_portafilter: (b, w, d, h, f) => {
     // a dual-boiler style espresso machine: steel body, group head, portafilter, steam wand, cups on top

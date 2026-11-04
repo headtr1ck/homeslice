@@ -2254,9 +2254,15 @@
     "white",
     "anthracite",
     "oak",
+    "walnut",
     "green",
     "blue",
-    "black"
+    "black",
+    "grey",
+    "beige",
+    "concrete",
+    "marble",
+    "terrazzo"
    ],
    "accents": [
     "marble",
@@ -2290,9 +2296,15 @@
     "white",
     "anthracite",
     "oak",
+    "walnut",
     "green",
     "blue",
-    "black"
+    "black",
+    "grey",
+    "beige",
+    "concrete",
+    "marble",
+    "terrazzo"
    ],
    "accents": [
     "marble",
@@ -2318,9 +2330,15 @@
     "white",
     "anthracite",
     "oak",
+    "walnut",
     "green",
     "blue",
-    "black"
+    "black",
+    "grey",
+    "beige",
+    "concrete",
+    "marble",
+    "terrazzo"
    ],
    "widths": [
     0.3,
@@ -2357,9 +2375,15 @@
     "white",
     "anthracite",
     "oak",
+    "walnut",
     "green",
     "blue",
-    "black"
+    "black",
+    "grey",
+    "beige",
+    "concrete",
+    "marble",
+    "terrazzo"
    ],
    "widths": [
     0.3,
@@ -2382,10 +2406,15 @@
     "white",
     "anthracite",
     "oak",
+    "walnut",
     "green",
     "blue",
     "black",
-    "walnut"
+    "grey",
+    "beige",
+    "concrete",
+    "marble",
+    "terrazzo"
    ],
    "accents": [
     "marble",
@@ -2433,6 +2462,36 @@
    }
   },
   {
+   "model": "modern:kitchen_panel",
+   "name": "Side panel",
+   "group": "kitchen",
+   "type": "kitchen",
+   "size": [
+    0.02,
+    0.62,
+    0.91
+   ],
+   "finishes": [
+    "oak",
+    "white",
+    "anthracite",
+    "walnut",
+    "green",
+    "blue",
+    "black",
+    "grey",
+    "beige",
+    "concrete",
+    "marble",
+    "terrazzo"
+   ],
+   "heights": [
+    0.91,
+    1.45,
+    2.2
+   ]
+  },
+  {
    "model": "modern:kitchen_dishwasher",
    "name": "Dishwasher, integrated",
    "group": "kitchen",
@@ -2446,10 +2505,15 @@
     "white",
     "anthracite",
     "oak",
+    "walnut",
     "green",
     "blue",
     "black",
-    "walnut"
+    "grey",
+    "beige",
+    "concrete",
+    "marble",
+    "terrazzo"
    ],
    "tags": [
     "appliance"
@@ -2490,10 +2554,15 @@
     "white",
     "anthracite",
     "oak",
+    "walnut",
     "green",
     "blue",
     "black",
-    "walnut"
+    "grey",
+    "beige",
+    "concrete",
+    "marble",
+    "terrazzo"
    ],
    "accents": [
     "marble",
@@ -2527,10 +2596,15 @@
     "white",
     "anthracite",
     "oak",
+    "walnut",
     "green",
     "blue",
     "black",
-    "walnut"
+    "grey",
+    "beige",
+    "concrete",
+    "marble",
+    "terrazzo"
    ],
    "widths": [
     0.3,
@@ -2561,10 +2635,15 @@
     "white",
     "anthracite",
     "oak",
+    "walnut",
     "green",
     "blue",
     "black",
-    "walnut"
+    "grey",
+    "beige",
+    "concrete",
+    "marble",
+    "terrazzo"
    ],
    "widths": [
     0.3,
@@ -2595,10 +2674,15 @@
     "white",
     "anthracite",
     "oak",
+    "walnut",
     "green",
     "blue",
     "black",
-    "walnut"
+    "grey",
+    "beige",
+    "concrete",
+    "marble",
+    "terrazzo"
    ],
    "options": {
     "handle": [
@@ -2623,10 +2707,15 @@
     "white",
     "anthracite",
     "oak",
+    "walnut",
     "green",
     "blue",
     "black",
-    "walnut"
+    "grey",
+    "beige",
+    "concrete",
+    "marble",
+    "terrazzo"
    ],
    "options": {
     "handle": [
@@ -2651,10 +2740,15 @@
     "white",
     "anthracite",
     "oak",
+    "walnut",
     "green",
     "blue",
     "black",
-    "walnut"
+    "grey",
+    "beige",
+    "concrete",
+    "marble",
+    "terrazzo"
    ],
    "widths": [
     0.3,
@@ -2682,8 +2776,16 @@
    "finishes": [
     "oak",
     "white",
+    "anthracite",
+    "walnut",
+    "green",
+    "blue",
     "black",
-    "walnut"
+    "grey",
+    "beige",
+    "concrete",
+    "marble",
+    "terrazzo"
    ],
    "widths": [
     0.3,
@@ -2787,6 +2889,27 @@
     "red",
     "white",
     "silver"
+   ]
+  },
+  {
+   "model": "modern:coffee_automatic",
+   "name": "Bean-to-cup coffee machine",
+   "group": "kitchen",
+   "type": "item",
+   "size": [
+    0.26,
+    0.44,
+    0.37
+   ],
+   "finishes": [
+    "black",
+    "silver",
+    "anthracite",
+    "white"
+   ],
+   "accents": [
+    "chrome",
+    "black"
    ]
   },
   {

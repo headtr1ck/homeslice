@@ -1325,7 +1325,7 @@ test.describe.serial("editor", () => {
     await page.locator('homeslice-panel .inspector .library button[data-key="modern:dining_table"]').click();
     assert((await room("kitchen")).furniture?.[0]?.type === "table", `kitchen: ${JSON.stringify((await room("kitchen")).furniture)}`);
     assert((await page.locator("homeslice-panel .inspector h2").textContent()) === "Table", "new table not selected");
-    const piece = await page.locator("homeslice-panel svg.plan g.furniture.selected rect").boundingBox();
+    const piece = await page.locator("homeslice-panel svg.plan g.furniture.selected rect:not(.hit)").boundingBox();
     const living = await page.locator('homeslice-panel svg.plan g[data-room="living"] polygon').boundingBox();
     // grab it off-centre: the room's lamp hangs over the middle
     await page.mouse.move(piece.x + 6, piece.y + 6);
@@ -1367,6 +1367,24 @@ test.describe.serial("editor", () => {
     await page.keyboard.press("Escape");
     await page.locator('homeslice-panel aside.tools button.tool[data-tool="select"]').click();
     assert(errors.length === 0, errors.join(" | "));
+  });
+
+  test("furniture: a side panel's heights to pick, and the thin panel can be clicked on the plan", async () => {
+    await page.keyboard.press("Escape");
+    await page.evaluate(() => {
+      const m = structuredClone(window.panel._model);
+      const kitchen = m.levels.find((l) => l.id === window.panel._level).rooms.find((r) => r.id === "kitchen");
+      kitchen.furniture = [{ type: "kitchen", model: "modern:kitchen_panel", at: [1, 1], size: [0.02, 0.62], height: 0.91 }];
+      window.panel.commit(m);
+      window.panel._furn = null;
+    });
+    const piece = page.locator('homeslice-panel g.furniture[data-furniture*="kitchen"] rect.hit');
+    await piece.click();
+    const heights = page.locator("homeslice-panel .inspector .heights button");
+    assert((await heights.allTextContents()).join(",") === "91,145,220", `heights: ${await heights.allTextContents()}`);
+    await page.locator('homeslice-panel .inspector .heights button[data-height="2.2"]').click();
+    assert((await room("kitchen")).furniture[0].height === 2.2, `height: ${(await room("kitchen")).furniture[0].height}`);
+    assert((await page.locator('homeslice-panel .inspector .heights button[data-height="2.2"]').getAttribute("aria-checked")) === "true", "220 not shown as picked");
   });
 
   test("furniture: a kitchen unit's widths to pick; a piece without a model still has its colours", async () => {
@@ -1463,7 +1481,7 @@ test.describe.serial("editor", () => {
     assert((await room("living")).furniture?.some((f) => f.type === "sofa"), `living: ${JSON.stringify((await room("living")).furniture)}`);
     assert((await page.locator("homeslice-panel .inspector h2").textContent()) === "Sofa", "dropped sofa not selected");
     // dragged close to the south wall, the sofa snaps flush against it (inside face: 10 − 0.18 m)
-    const sofaBox = await page.locator("homeslice-panel svg.plan g.furniture.selected rect").boundingBox();
+    const sofaBox = await page.locator("homeslice-panel svg.plan g.furniture.selected rect:not(.hit)").boundingBox();
     const near = await toPage([3, 9.25]);
     await page.mouse.move(sofaBox.x + 8, sofaBox.y + 8);
     await page.mouse.down();
@@ -1482,7 +1500,7 @@ test.describe.serial("editor", () => {
     // with snapping off, the mirror goes where it is dropped, not onto the wall
     const snapBox = page.locator("homeslice-panel .inspector label.snap-pieces input");
     await snapBox.uncheck();
-    const mirrorBox = await page.locator("homeslice-panel svg.plan g.furniture.selected rect").boundingBox();
+    const mirrorBox = await page.locator("homeslice-panel svg.plan g.furniture.selected rect:not(.hit)").boundingBox();
     await page.mouse.move(mirrorBox.x + mirrorBox.width / 2, mirrorBox.y + mirrorBox.height / 2);
     await page.mouse.down();
     await page.mouse.move(mirrorBox.x + 60, mirrorBox.y + mirrorBox.height / 2, { steps: 6 });

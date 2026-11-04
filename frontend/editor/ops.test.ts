@@ -551,6 +551,22 @@ describe("furniture", () => {
     expect(rooms(moved.model).right.furniture).toEqual([{ type: "sofa", at: [2, 4] }]);
     expect(rooms(deleteFurniture(moved.model, "g", "right", 0)).right.furniture).toBeUndefined();
   });
+
+  it("puts small pieces on the surface they are placed on, and back on the floor", () => {
+    // a worktop turned to run north–south, and a chair pushed under a table
+    let { model } = addFurniture(house(), "g", "left", { type: "kitchen", at: [1, 2], size: [2.4, 0.6], height: 0.91, rotation: 90 });
+    ({ model } = addFurniture(model, "g", "left", { type: "table", at: [3.5, 2] }));
+    const toaster = addFurniture(model, "g", "left", { type: "item", model: "modern:toaster", at: [1.1, 2.8], size: [0.3, 0.18], height: 0.2 });
+    expect(rooms(toaster.model).left.furniture![toaster.index].elevation).toBe(0.91);
+    const chair = addFurniture(toaster.model, "g", "left", { type: "chair", at: [3.5, 2] });
+    expect(rooms(chair.model).left.furniture![chair.index].elevation).toBeUndefined();
+    const lamp = addFurniture(chair.model, "g", "left", { type: "table_lamp", at: [3.6, 2.1] });
+    expect(rooms(lamp.model).left.furniture![lamp.index].elevation).toBe(0.75);
+    // off the worktop: on the floor again
+    const off = moveFurniture(lamp.model, "g", "left", toaster.index, [2.2, 2.8], "left");
+    expect(rooms(off.model).left.furniture![toaster.index].elevation).toBeUndefined();
+    expect(expandHouse(off.model).house!.levels[0].rooms.find((r) => r.id === "left")!.furniture.find((f) => f.type === "table_lamp")!.elevation).toBe(0.75);
+  });
 });
 
 describe("walls and building settings", () => {

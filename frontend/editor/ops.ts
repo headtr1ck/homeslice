@@ -3,6 +3,7 @@
 
 import { bbox, dist, edgeDistance, labelPoint, normalizeOrientation, pointInPolygon, project, signedArea } from "../model/geometry";
 import { expandHouse } from "../model/expand";
+import { FURNITURE, mountOf, surfaceUnder } from "../model/furniture";
 import { closedFaces, roomsOutline } from "../model/faces";
 import type {
   RoofPartInput, CameraInput, Coord, EnergyInput, FacadeOpeningInput, FurnitureInput, HouseInput, LevelInput, LightType, OpeningInput, OpeningSource, OpeningType, PieceInput, RoomInput, ShapeInput, RobotInput, RoofInput, Side, Vec2, VerticalInput, WallInput, WallThickness } from "../model/types";
@@ -1792,11 +1793,28 @@ export function copyRooms(model: HouseInput, fromLevel: string, toLevel: string)
 
 // ----- furniture -----
 
+/**
+ * A small piece onto the surface it was put on (a coffee machine on the worktop, a lamp
+ * on the nightstand), or back on the floor: its elevation, written when it is placed or
+ * moved, so the house file says where it stands. Changes `room` in place.
+ */
+function settle(room: RoomInput, index: number) {
+  const list = room.furniture ?? [];
+  const f = list[index];
+  if (!f) return;
+  const placed = (x: FurnitureInput) => ({ ...x, size: x.size ?? FURNITURE[x.type].size, height: x.height ?? FURNITURE[x.type].height, mount: mountOf(x) });
+  const top = surfaceUnder(placed(f), list.filter((_, i) => i !== index).map(placed));
+  if (top === undefined) return;
+  if (top > 0) f.elevation = round(top);
+  else delete f.elevation;
+}
+
 export function addFurniture(model: HouseInput, levelId: string, roomId: string, item: FurnitureInput): { model: HouseInput; index: number } {
   const m = clone(model);
   const room = level(m, levelId).rooms.find((r) => r.id === roomId);
   if (!room) return { model: m, index: -1 };
   room.furniture = [...(room.furniture ?? []), { ...item, at: [round(item.at[0]), round(item.at[1])] }];
+  settle(room, room.furniture.length - 1);
   return { model: m, index: room.furniture.length - 1 };
 }
 
@@ -1829,7 +1847,11 @@ export function moveFurniture(model: HouseInput, levelId: string, roomId: string
   if (!piece || !target) return { model, room: roomId, index };
   const { min } = bbox(roomPolygon(model, target));
   const at: [number, number] = [to[0] - min[0], to[1] - min[1]];
-  if (toRoom === roomId) return { model: updateFurniture(model, levelId, roomId, index, { at }), room: roomId, index };
+  if (toRoom === roomId) {
+    const m = updateFurniture(model, levelId, roomId, index, { at });
+    settle(level(m, levelId).rooms.find((r) => r.id === roomId)!, index);
+    return { model: m, room: roomId, index };
+  }
   const removed = deleteFurniture(model, levelId, roomId, index);
   const added = addFurniture(removed, levelId, toRoom, { ...piece, at });
   return { model: added.model, room: toRoom, index: added.index };

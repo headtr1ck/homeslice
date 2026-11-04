@@ -4100,6 +4100,7 @@ export class HomeslicePanel extends LitElement {
           <image href=${planPicture(f)} x=${(-w * k) / 2} y=${(-d * k) / 2} width=${w * k} height=${d * k} preserveAspectRatio="none"
             transform=${f.mirror ? "scale(-1 1)" : ""}></image>
           <rect x=${(-w * k) / 2} y=${(-d * k) / 2} width=${w * k} height=${d * k} rx="2"><title>${label}</title></rect>
+          ${w * k < 10 || d * k < 10 ? svg`<rect class="hit" x=${-Math.max(w * k, 10) / 2} y=${-Math.max(d * k, 10) / 2} width=${Math.max(w * k, 10)} height=${Math.max(d * k, 10)}></rect>` : nothing}
           ${this.frontArrow(w * k, d * k)}
         </g>
         ${sel ? svg`<text class="furniture-label" x=${cx} y=${cy + (Math.max(w, d) * k) / 2 + 16} text-anchor="middle">${label}</text>` : nothing}`;
@@ -4130,7 +4131,7 @@ export class HomeslicePanel extends LitElement {
     const kind = kindId ? MODERN[kindId] : undefined;
     const size = (axis: 0 | 1) => (e: Event) => {
       const v = Number((e.target as HTMLInputElement).value);
-      if (!(v > 0.05)) return;
+      if (!(v > 0.005)) return;
       const next: [number, number] = axis === 0 ? [v, d] : [w, v];
       const def = FURNITURE[f.type].size;
       set({ size: next[0] === def[0] && next[1] === def[1] ? undefined : next });
@@ -4143,8 +4144,8 @@ export class HomeslicePanel extends LitElement {
         </select>
       </label>
       <div class="row">
-        <label>${this.t("editor.furniture_width")}<input type="number" min="0.1" step="0.05" .value=${String(w)} @change=${size(0)} /></label>
-        <label>${this.t("editor.furniture_depth")}<input type="number" min="0.1" step="0.05" .value=${String(d)} @change=${size(1)} /></label>
+        <label>${this.t("editor.furniture_width")}<input type="number" min="0.01" step="0.05" .value=${String(w)} @change=${size(0)} /></label>
+        <label>${this.t("editor.furniture_depth")}<input type="number" min="0.01" step="0.05" .value=${String(d)} @change=${size(1)} /></label>
         <label>${this.t("editor.furniture_height")}<input type="number" min="0.02" step="0.05" .value=${String(f.height ?? FURNITURE[f.type].height)} @change=${(e: Event) => {
           const v = Number((e.target as HTMLInputElement).value);
           if (v > 0) set({ height: v === FURNITURE[f.type].height ? undefined : v });
@@ -4160,6 +4161,16 @@ export class HomeslicePanel extends LitElement {
                   const def = FURNITURE[f.type].size;
                   set({ size: x === def[0] && d === def[1] ? undefined : [x, d] });
                 }}>${Math.round(x * 100)}</button>`;
+            })}
+          </div>`
+        : nothing}
+      ${kind?.heights
+        ? html`<div class="widths heights" role="radiogroup" aria-label=${this.t("editor.furniture_heights")}>
+            <span class="muted">${this.t("editor.furniture_heights")}</span>
+            ${kind.heights.map((x) => {
+              const on = Math.abs((f.height ?? FURNITURE[f.type].height) - x) < 0.001;
+              return html`<button role="radio" class=${on ? "active" : ""} aria-checked=${on} data-height=${x}
+                @click=${() => set({ height: x === FURNITURE[f.type].height ? undefined : x })}>${Math.round(x * 100)}</button>`;
             })}
           </div>`
         : nothing}
@@ -8435,6 +8446,10 @@ export class HomeslicePanel extends LitElement {
     .furniture.editable:hover rect {
       stroke: rgba(60, 64, 70, 0.5);
       stroke-width: 1;
+    }
+    /* a thin piece (a side panel) can still be caught */
+    .furniture rect.hit {
+      stroke: none;
     }
     .furniture image {
       opacity: 0.9;

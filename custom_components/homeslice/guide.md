@@ -193,6 +193,8 @@ accent, options, entity, readings}]`.
   clockwise; 0 means the piece's back is to the **north** (a sofa at 0 faces south).
 - `size: [width, depth]` and `height` in metres (default by type or model).
 - `mount`: `floor`, `wall` (back against a wall, `elevation` above the floor) or `ceiling`.
+  A floor piece with an `elevation` stands that high: the editor writes it for small
+  things put on a worktop, table, desk or shelf (a toaster at `elevation: 0.91`).
 - `model` picks how it looks: `modern:<kind>` (a built-in piece drawn to its size, with
   `finish` and, for pieces with a second colour, `accent`: legs, frame, shade),
   `polyhaven:<id>`, `custom:<id>` or `builtin` (simple shapes). Without one, the type's
@@ -203,8 +205,9 @@ accent, options, entity, readings}]`.
   `modern:kitchen_base`: `top` is `none`, `sink`, `hob_gas`, `hob_ceran`, `hob_electric` or
   `hob_downdraft`; `fronts` is `drawer_door`, `door`, `drawers_2`, `drawers_3`,
   `panel_drawer`, `oven` or `shelves`; `handle` is `bar`, `knob`, `handleless` or `push`,
-  e.g. `options: {top: sink, fronts: panel_drawer, handle: handleless}`. A kind's `widths` are the widths it
-  is sold in; any width still works.
+  e.g. `options: {top: sink, fronts: panel_drawer, handle: handleless}`. A kind's `widths` and `heights` are the
+  sizes it is made in; any size still works. `modern:kitchen_panel` is a side panel (2 cm)
+  for a unit's open side, in its own colour.
 - `entity`: what the piece is in Home Assistant, and the card shows its state: a lamp's
   `light.…` glows, a TV's `media_player.…` lights its screen, a fireplace's `switch.…`
   burns, a fan's `fan.…` or an air conditioner's `climate.…` turns and shows heating or
