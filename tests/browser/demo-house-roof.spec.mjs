@@ -65,6 +65,37 @@ test.describe.serial("demo house, roof (1)", () => {
     await shot(page, "demo-furniture-detailed");
   });
 
+  test("the same built-in piece twice is built once: the copies share its geometry", async () => {
+    await act(page, async () => {
+      await page.evaluate(() => {
+        const m = structuredClone(window.__demoModel);
+        m.levels[0].rooms.find((r) => r.id === "living").furniture = [
+          { type: "chair", at: [1, 1] },
+          { type: "chair", at: [2, 1] },
+          { type: "chair", at: [3, 1], finish: "black" },
+        ];
+        window.card.hass.pushModel(m);
+      });
+      await page.evaluate(() => window.card.renderer.modelsReady());
+    });
+    const r = await page.evaluate(() => {
+      const level = window.card.renderer.object.getObjectByName("ground");
+      const geos = [];
+      // the three chairs: in a row, a metre apart (the garden has pieces of its own)
+      const pieces = level.children.filter((g) => g.children[0]?.userData.detailed);
+      const first = pieces.find((g) => [1, 2].every((dx) => pieces.some((h) => Math.abs(h.position.x - g.position.x - dx) < 1e-6 && Math.abs(h.position.z - g.position.z) < 1e-6)));
+      for (const dx of [0, 1, 2]) {
+        const g = pieces.find((h) => first && Math.abs(h.position.x - first.position.x - dx) < 1e-6 && Math.abs(h.position.z - first.position.z) < 1e-6);
+        const own = new Set();
+        g?.children[0].traverse((o) => o.isMesh && own.add(o.geometry));
+        geos.push(own);
+      }
+      const same = (a, b) => [...a].every((x) => b.has(x));
+      return { n: geos.filter((x) => x.size).length, twins: geos.length >= 3 && same(geos[0], geos[1]), black: geos.length >= 3 && [...geos[2]].some((x) => geos[0].has(x)) };
+    });
+    assert(r.n >= 3 && r.twins && !r.black, `chairs: ${JSON.stringify(r)}`);
+  });
+
   test("painted floors and walls: finishes per room, an accent wall, the facade", async () => {
     await act(page, () =>
       page.evaluate(() => {

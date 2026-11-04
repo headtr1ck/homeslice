@@ -510,6 +510,8 @@ export class HouseRenderer {
   private roof: THREE.Group | null = null;
   /** Furniture materials of the level being built. */
   private furnitureMaterials = new Map<string, THREE.MeshLambertMaterial>();
+  /** Built-in pieces built for this house, by what they look like: copies share the geometry. */
+  private modernBuilt = new Map<string, THREE.Group | null>();
   /** Detailed furniture models' materials turned into the level's, per level being built. */
   private modelMaterials = new Map<THREE.Material, THREE.MeshLambertMaterial>();
   /** Bumped on every rebuild, so models that arrive late skip a house that is gone. */
@@ -672,6 +674,7 @@ export class HouseRenderer {
     cancelAnimationFrame(this.hoverAnimation);
     this.generation++;
     this.pendingModels = [];
+    this.modernBuilt.clear();
     this.root.traverse((o) => {
       // loaded models share their geometry between pieces and cards
       if (o instanceof THREE.Mesh && !o.userData.shared) o.geometry.dispose();
@@ -3381,7 +3384,10 @@ export class HouseRenderer {
           if (o instanceof THREE.Mesh) o.material = Array.isArray(o.material) ? o.material.map(convert) : convert(o.material);
         });
       } else if (mod && "kind" in how) {
-        piece = (mod as typeof import("./modern")).buildModern(how.kind, f.size, f.height, f.finish, f.accent, f.options);
+        // the same piece again (a row of chairs, kitchen units): built once, the copies share its geometry
+        const key = JSON.stringify([how.kind, f.size, f.height, f.finish, f.accent, f.options]);
+        if (!this.modernBuilt.has(key)) this.modernBuilt.set(key, (mod as typeof import("./modern")).buildModern(how.kind, f.size, f.height, f.finish, f.accent, f.options));
+        piece = this.modernBuilt.get(key)?.clone() ?? null;
         piece?.traverse((o) => {
           if (o instanceof THREE.Mesh) o.material = Array.isArray(o.material) ? o.material.map(convert) : convert(o.material);
         });
