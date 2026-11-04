@@ -5,6 +5,7 @@
 // walls grow outwards from the room edge: those edges move out by the wall, since our
 // outline is the house's outer face.
 import { bbox, normalizeOrientation, pointInPolygon } from "../model/geometry";
+import { onWallCentres } from "./outer-faces";
 import type { FurnitureInput, FurnitureType, HouseInput, LevelInput, LightInput, LightType, OpeningInput, RoomInput, Side, Vec2, VerticalInput, WallInput } from "../model/types";
 import { withOutlines } from "./outline";
 
@@ -223,6 +224,12 @@ export interface PlanImport {
 
 /** A plan export (or backup, `.storage` file, simple plan) as a Homeslice house. */
 export function planToHouse(text: string, id = "home"): PlanImport {
+  const plan = planOnOuterFaces(text, id);
+  return { ...plan, house: onWallCentres(plan.house) };
+}
+
+/** The plan as read: its outline and outside rooms on the walls' outer face (marked schema 1, see outer-faces.ts). */
+export function planOnOuterFaces(text: string, id = "home"): PlanImport {
   let j: Json;
   try {
     j = JSON.parse(text);

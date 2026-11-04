@@ -1,0 +1,601 @@
+schema: 2
+id: apartment
+name: Apartment
+outline:
+  rect:
+    - 0.12
+    - 0.18
+    - 10.76
+    - 8.14
+party_walls:
+  - east
+  - west
+facade: render_grey
+levels:
+  - id: flat
+    name: Third floor
+    floor_id: third_floor
+    rooms:
+      - id: bedroom
+        area_id: bedroom
+        rect:
+          - 0.12
+          - 0.18
+          - 3.88
+          - 4.32
+        floor: oak_grey
+        wall: paint_sage
+        furniture:
+          - size:
+              - 1.8
+              - 2.15
+            height: 1.25
+            type: bed
+            model: modern:bed_upholstered
+            at:
+              - 1.195
+              - 2.12
+            rotation: 270
+          - size:
+              - 0.45
+              - 0.38
+            height: 0.5
+            type: nightstand
+            model: modern:nightstand
+            at:
+              - 0.31
+              - 0.82
+            rotation: 270
+          - size:
+              - 0.45
+              - 0.38
+            height: 0.5
+            type: nightstand
+            model: modern:nightstand
+            at:
+              - 0.31
+              - 3.42
+            rotation: 270
+          - size:
+              - 0.3
+              - 0.3
+            height: 0.38
+            type: table_lamp
+            model: modern:table_lamp_mushroom
+            at:
+              - 0.31
+              - 0.82
+            rotation: 270
+            mount: wall
+            elevation: 0.5
+            entity: light.bedside
+          - size:
+              - 2
+              - 0.65
+            height: 2.2
+            type: wardrobe
+            model: modern:wardrobe_sliding
+            at:
+              - 3.495
+              - 1.27
+            rotation: 90
+          - size:
+              - 1.4
+              - 2.2
+            height: 0.04
+            type: rug
+            model: modern:rug_shaggy
+            at:
+              - 2.08
+              - 2.12
+          - size:
+              - 0.35
+              - 0.35
+            height: 0.85
+            type: plant
+            model: modern:snake_plant
+            at:
+              - 3.48
+              - 3.97
+      - id: bath
+        area_id: bathroom
+        rect:
+          - 4
+          - 0.18
+          - 2.5
+          - 2.42
+        floor: tile_hex
+        wall: tile_subway
+        furniture:
+          - size:
+              - 1.2
+              - 0.9
+            height: 2.1
+            type: shower
+            model: modern:shower_glass
+            at:
+              - 0.66
+              - 0.63
+          - size:
+              - 0.37
+              - 0.55
+            height: 0.8
+            type: toilet
+            model: modern:toilet_wall
+            at:
+              - 2.165
+              - 0.82
+            rotation: 90
+          - size:
+              - 0.8
+              - 0.47
+            height: 0.85
+            type: sink
+            model: modern:vanity
+            at:
+              - 0.295
+              - 1.72
+            rotation: 270
+          - size:
+              - 0.6
+              - 0.6
+            height: 0.85
+            type: washer
+            model: modern:washer
+            at:
+              - 2.14
+              - 2.06
+            rotation: 90
+            entity: sensor.washer_remaining
+      - id: hall
+        area_id: hall
+        polygon:
+          - - 4
+            - 2.6
+          - - 6.5
+            - 2.6
+          - - 6.5
+            - 0.18
+          - - 8.3
+            - 0.18
+          - - 8.3
+            - 4.5
+          - - 4
+            - 4.5
+        floor: tile_cement
+        furniture:
+          - size:
+              - 1.3
+              - 0.4
+            height: 2
+            type: wardrobe
+            model: modern:hall_wardrobe
+            at:
+              - 4.04
+              - 1.12
+            rotation: 90
+          - size:
+              - 0.8
+              - 0.24
+            height: 1.05
+            type: shelf
+            model: modern:shoe_cabinet
+            at:
+              - 2.68
+              - 1.42
+            rotation: 270
+          - size:
+              - 0.8
+              - 2
+            height: 0.012
+            type: rug
+            model: modern:rug_runner
+            at:
+              - 3.4
+              - 2.02
+          - size:
+              - 0.5
+              - 0.03
+            height: 1.1
+            mount: wall
+            elevation: 0.9
+            type: mirror
+            model: modern:mirror_wall
+            at:
+              - 2.58
+              - 0.62
+            rotation: 270
+      - id: office
+        area_id: office
+        rect:
+          - 8.3
+          - 0.18
+          - 2.58
+          - 4.32
+        floor: oak_light
+        furniture:
+          - size:
+              - 1.4
+              - 0.7
+            height: 0.75
+            type: desk
+            model: modern:desk
+            at:
+              - 1.26
+              - 0.53
+          - size:
+              - 0.6
+              - 0.6
+            height: 1.05
+            type: chair
+            model: modern:chair_office
+            at:
+              - 1.26
+              - 1.22
+            rotation: 180
+          - size:
+              - 0.4
+              - 0.25
+            height: 0.6
+            type: table_lamp
+            model: modern:desk_lamp
+            at:
+              - 1.8
+              - 0.32
+            mount: wall
+            elevation: 0.75
+            entity: light.desk_lamp
+          - size:
+              - 1.6
+              - 0.35
+            height: 2.1
+            type: shelf
+            model: modern:bookshelf_wide
+            at:
+              - 2.285
+              - 2.42
+            rotation: 90
+          - size:
+              - 0.85
+              - 0.85
+            height: 0.85
+            type: armchair
+            model: modern:lounge_chair
+            at:
+              - 0.6
+              - 2.22
+            rotation: 270
+      - id: living
+        area_id: living_room
+        rect:
+          - 0.12
+          - 4.5
+          - 6.88
+          - 3.82
+        floor: oak_herringbone
+        wall: paint_warm
+        furniture:
+          - size:
+              - 1.8
+              - 0.4
+            height: 0.45
+            type: shelf
+            model: modern:tv_board
+            at:
+              - 0.32
+              - 1.75
+            rotation: 270
+          - size:
+              - 1.45
+              - 0.06
+            height: 0.84
+            mount: wall
+            elevation: 1
+            type: tv
+            model: modern:tv_wall
+            at:
+              - 0.15
+              - 1.75
+            rotation: 270
+            entity: media_player.living_room_tv
+          - size:
+              - 2.4
+              - 1.8
+            height: 0.02
+            type: rug
+            model: modern:rug_berber
+            at:
+              - 1.88
+              - 1.75
+            rotation: 90
+          - size:
+              - 1.2
+              - 0.6
+            height: 0.4
+            type: coffee_table
+            model: modern:coffee_table
+            at:
+              - 1.88
+              - 1.75
+            rotation: 90
+          - size:
+              - 2.2
+              - 0.95
+            height: 0.8
+            type: sofa
+            model: modern:sofa
+            at:
+              - 3.28
+              - 1.8
+            rotation: 90
+          - size:
+              - 0.55
+              - 0.55
+            height: 1.55
+            type: floor_lamp
+            model: modern:floor_lamp_tripod
+            at:
+              - 3.58
+              - 0.38
+            entity: light.floor_lamp
+          - size:
+              - 0.9
+              - 0.9
+            height: 1.15
+            type: plant
+            model: modern:monstera
+            at:
+              - 0.63
+              - 3.15
+          - size:
+              - 1.1
+              - 1.1
+            height: 0.75
+            type: table
+            model: modern:dining_table_round
+            at:
+              - 5.48
+              - 1.6
+          - size:
+              - 0.55
+              - 0.51
+            height: 0.76
+            type: chair
+            model: modern:chair_wishbone
+            at:
+              - 4.73
+              - 1.6
+            rotation: 270
+          - size:
+              - 0.55
+              - 0.51
+            height: 0.76
+            type: chair
+            model: modern:chair_wishbone
+            at:
+              - 6.23
+              - 1.6
+            rotation: 90
+          - size:
+              - 0.55
+              - 0.51
+            height: 0.76
+            type: chair
+            model: modern:chair_wishbone
+            at:
+              - 5.48
+              - 2.35
+            rotation: 180
+          - size:
+              - 0.5
+              - 0.5
+            height: 0.8
+            mount: ceiling
+            type: ceiling_lamp
+            model: modern:pendant_rattan
+            at:
+              - 5.48
+              - 1.6
+            entity: light.dining
+      - id: kitchen
+        area_id: kitchen
+        rect:
+          - 7
+          - 4.5
+          - 3.88
+          - 3.82
+        floor: terrazzo
+        furniture:
+          - type: fridge
+            model: modern:kitchen_tall_fridge
+            at:
+              - 1.06
+              - 0.37
+          - size:
+              - 2.4
+              - 0.62
+            height: 0.91
+            type: kitchen
+            model: modern:kitchen
+            at:
+              - 2.56
+              - 0.37
+          - size:
+              - 2.4
+              - 0.35
+            height: 0.72
+            mount: wall
+            elevation: 1.45
+            type: kitchen_upper
+            model: modern:kitchen_upper
+            at:
+              - 2.56
+              - 0.235
+          - size:
+              - 2
+              - 0.95
+            height: 0.92
+            type: kitchen
+            model: modern:kitchen_island
+            at:
+              - 2.5
+              - 2
+          - size:
+              - 0.4
+              - 0.4
+            height: 0.75
+            type: stool
+            model: modern:bar_stool
+            at:
+              - 2
+              - 2.95
+            rotation: 180
+          - size:
+              - 0.4
+              - 0.4
+            height: 0.75
+            type: stool
+            model: modern:bar_stool
+            at:
+              - 3
+              - 2.95
+            rotation: 180
+          - size:
+              - 0.38
+              - 0.38
+            height: 0.9
+            mount: ceiling
+            type: ceiling_lamp
+            model: modern:pendant_bell
+            at:
+              - 2
+              - 2
+            entity: light.kitchen_island
+          - size:
+              - 0.38
+              - 0.38
+            height: 0.9
+            mount: ceiling
+            type: ceiling_lamp
+            model: modern:pendant_bell
+            at:
+              - 3
+              - 2
+            entity: light.kitchen_island
+      - id: balcony
+        area_id: balcony
+        kind: outdoor
+        rect:
+          - 1
+          - 8.5
+          - 5.5
+          - 1.8
+        floor: decking
+        railing: glass
+        furniture:
+          - size:
+              - 1.5
+              - 0.7
+            height: 0.72
+            type: table
+            model: modern:bistro_set
+            at:
+              - 1.2
+              - 0.9
+          - size:
+              - 1.2
+              - 0.4
+            height: 0.9
+            type: plant
+            model: modern:planter_box
+            at:
+              - 5.2
+              - 0.9
+            rotation: 90
+          - size:
+              - 0.25
+              - 0.25
+            height: 0.55
+            type: floor_lamp
+            model: modern:lantern
+            at:
+              - 4.4
+              - 1.5
+            entity: light.balcony
+    walls:
+      - between:
+          - living
+          - kitchen
+    openings:
+      - room: hall
+        side: north
+        at: 2.75
+        width: 1
+        type: door
+        style: entrance_strip
+        lock: lock.front_door
+        contact: binary_sensor.front_door
+      - room: hall
+        side: south
+        at: 1
+        width: 0.9
+        type: door
+        style: glass
+      - room: bath
+        side: south
+        at: 0.9
+        width: 0.8
+        type: door
+      - room: bedroom
+        side: east
+        at: 2.92
+        width: 0.8
+        type: door
+        hinge: right
+      - room: office
+        side: west
+        at: 3.02
+        width: 0.8
+        type: door
+      - room: bedroom
+        side: north
+        at: 1.08
+        width: 1.4
+        cover: cover.bedroom
+      - room: bath
+        side: north
+        at: 1.4
+        width: 0.6
+        sill: 1.4
+        height: 0.7
+      - room: office
+        side: north
+        at: 0.7
+        width: 1.2
+        sill: 1
+        height: 1.2
+        blind: cover.office
+        blind_style: venetian
+      - room: living
+        side: south
+        at: 0.48
+        width: 1.4
+        cover: cover.living_room
+      - room: living
+        side: south
+        at: 2.88
+        width: 2
+        type: door
+        style: sliding_glass
+        cover: cover.balcony_door
+        contact: binary_sensor.balcony_door
+      - room: living
+        side: south
+        at: 5.28
+        width: 1.2
+        cover: cover.living_room
+      - room: kitchen
+        side: south
+        at: 1
+        width: 1.6
+        cover: cover.kitchen

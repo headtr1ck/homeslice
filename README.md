@@ -15,10 +15,11 @@ lights, blinds, doors, climate, energy flows and people live on it. Free and ope
 
 ![Homeslice in motion: 3D by day, lights coming on, shutters and a door, night, the white model and the blueprint, one floor, the tilted and the flat plan, all floors, rain and the sun's path](docs/images/showreel.webp)
 
-> [!WARNING]
-> **Early alpha.** Homeslice changes quickly: the house format, the card's options and the
-> editor may change between versions without migration, and there will be bugs. Keep a copy
-> of your house (editor → ⚙ → *Download* YAML). Feedback and issues are very welcome.
+> [!NOTE]
+> **Beta.** Since 0.1.0 the house format is stable: a house saved by one version opens in
+> every later one. The card and the editor still grow and there will be bugs, so keep a
+> copy of your house now and then (editor → ⚙ → *Download* YAML). Feedback and issues are
+> very welcome.
 
 ## Why Homeslice
 
@@ -42,8 +43,10 @@ lights, blinds, doors, climate, energy flows and people live on it. Free and ope
 - **3D, 2.5D and 2D from one house.** Exploded 3D, tilted plan, flat plan, all floors side
   by side; day, night, white model or blueprint look — switch per card, not per drawing.
 - **400+ furniture pieces, plus whole libraries.** Built-in pieces resize sensibly and
-  react (screens show what plays, fans turn); add Poly Haven models, Sketchfab models with
-  your own account, or your own glTF files.
+  react (screens show what plays, fans turn). Kitchens are planned unit by unit: base and
+  tall units in standard widths with a choice of fronts, sinks, hobs, ovens, fridges and
+  handles, side panels, and appliances that stand on the worktop. Add Poly Haven models,
+  Sketchfab models with your own account, or your own glTF files.
 - **Made for wall tablets.** Draws only when something changes, a low-quality mode, kiosk
   options, time travel through the last day, a walk-through at eye level.
 - **Private and free, for good.** Runs locally: no cloud, no telemetry, no account. No paid

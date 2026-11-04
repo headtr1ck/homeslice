@@ -174,8 +174,7 @@ def validate(house: Any) -> list[dict[str, str]]:
         err("", "The house file is empty or not a mapping.")
         return issues
     h = house
-    # 1: an older file (its outline on the walls' outer face), read as 2 by the frontend
-    if get(h, "schema") not in (1, 2) or isinstance(get(h, "schema"), bool):
+    if get(h, "schema") != 2 or isinstance(get(h, "schema"), bool):
         err("schema", f"Unsupported schema {stringify(get(h, 'schema'))}; expected 2.")
     levels_in = get(h, "levels")
     if not isinstance(levels_in, list) or not levels_in:

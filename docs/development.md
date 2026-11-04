@@ -53,3 +53,9 @@ changing a piece, run `node scripts/thumbnails.mjs` (pictures) and
 Publish a GitHub release with a tag like `v0.1.0`. The *Release* workflow builds the
 frontend, sets that version in `manifest.json` and attaches `homeslice.zip`, which HACS
 installs and offers as an update.
+
+Since 0.1.0 the house format only grows. `tests/frozen/<version>/` keeps houses saved by
+releases, and both validators and the editor must open them without errors
+(`frontend/model/frozen.test.ts`, `tests/test_validate.py`): a change that breaks one
+needs a way for the old file to keep working (an alias, like `FOLDED` in
+`frontend/model/modern.ts`). Add a folder for each release that adds to the format.

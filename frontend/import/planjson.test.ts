@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { expandHouse } from "../model/expand";
-import { planToHouse } from "./planjson";
+import { planOnOuterFaces, planToHouse } from "./planjson";
 
 /** A two-floor plan in the other cards' export format: rooms on the walls' centre lines inside. */
 const plan = {
@@ -40,7 +40,7 @@ const plan = {
 
 describe("plans from other 3D floor-plan cards", () => {
   it("rooms grow to the outer face, open walls, doors on their edge, lamps, cameras, stairs", () => {
-    const { house, skipped } = planToHouse(JSON.stringify(plan));
+    const { house, skipped } = planOnOuterFaces(JSON.stringify(plan));
     expect(skipped).toEqual([]);
     const [ground, first] = house.levels;
     expect(ground).toMatchObject({ id: "ground_floor", floor_id: "ground_floor", height: 2.5 });
@@ -60,8 +60,10 @@ describe("plans from other 3D floor-plan cards", () => {
     expect(house.vertical).toEqual([{ id: "stairs_1", rect: [6.74, 2.24, 1, 2], from: "ground_floor", to: "first_floor", shape: "straight", up: "north" }]);
     expect(first.rooms[0].floor).toBe("carpet");
     expect(house.roof).toEqual({ shape: "gable", pitch: 35 });
-    // a house Homeslice takes as it is
-    expect(expandHouse(house).issues.filter((i) => i.severity === "error")).toEqual([]);
+    // put on the walls' centre lines, a house Homeslice takes as it is
+    const imported = planToHouse(JSON.stringify(plan)).house;
+    expect(imported.schema).toBe(2);
+    expect(expandHouse(imported).issues.filter((i) => i.severity === "error")).toEqual([]);
   });
 
   it("reads the simple format, in centimetres", () => {

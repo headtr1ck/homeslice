@@ -338,13 +338,17 @@ test.describe.serial("editor, starting from scratch", () => {
     await page.waitForFunction(() => window.panel._settings?.paste?.includes("Bedroom"), null, { timeout: 5000 });
     const house = parse(await page.evaluate(() => window.panel._settings.paste));
     const [living, bedroom] = house.levels[0].rooms;
-    assert(living.name === "Living" && JSON.stringify(living.polygon[0]) === "[0,0]", `living: ${JSON.stringify(living)}`);
-    assert(bedroom.polygon.some(([x]) => x === 8.2), `bedroom: ${JSON.stringify(bedroom)}`);
+    // the outside walls (36 cm, the default) centred on the outline: the rooms reach their middle
+    const corners = (r) => r.polygon ?? [[r.rect[0], r.rect[1]], [r.rect[0] + r.rect[2], r.rect[1] + r.rect[3]]];
+    const near = (a, b) => Math.abs(a - b) < 1e-6;
+    assert(house.schema === 2, `schema: ${house.schema}`);
+    assert(living.name === "Living" && corners(living).some(([x, y]) => near(x, 0.18) && near(y, 0.18)), `living: ${JSON.stringify(living)}`);
+    assert(corners(bedroom).some(([x]) => near(x, 8.02)), `bedroom: ${JSON.stringify(bedroom)}`);
     const types = house.levels[0].openings.map((o) => `${o.type}:${o.room}:${o.side}`).sort();
     assert(JSON.stringify(types) === JSON.stringify(["door:bedroom:west", "window:living:north"].sort()) || JSON.stringify(types) === JSON.stringify(["door:living:east", "window:living:north"].sort()), `openings: ${types}`);
     assert(living.furniture[0].type === "sofa" && living.furniture[0].rotation === 180 && bedroom.furniture[0].type === "bed", `furniture: ${JSON.stringify([living.furniture, bedroom.furniture])}`);
     // an outline around the rooms, so it can be used as it is
-    assert(house.outline?.polygon?.length === 4, `outline: ${JSON.stringify(house.outline)}`);
+    assert(house.outline?.polygon?.length === 4 || house.outline?.rect?.length === 4, `outline: ${JSON.stringify(house.outline)}`);
     await page.locator("homeslice-panel textarea.yaml").fill("");
     await page.evaluate(() => window.panel.shadowRoot.activeElement?.blur());
     await page.locator("homeslice-panel header button[aria-label='House settings']").click();
@@ -374,13 +378,19 @@ test.describe.serial("editor, starting from scratch", () => {
     assert(st?.paste, `nothing imported: ${JSON.stringify(st)}`);
     const house = parse(st.paste);
     const [kitchen, living] = house.levels[0].rooms;
-    assert(kitchen.id === "kitchen" && JSON.stringify(kitchen.polygon.flat().filter((v) => v === 6).length) === "2", `kitchen: ${JSON.stringify(kitchen)}`);
-    assert(living.name === "Living room" && living.polygon.some(([x]) => x === 12), `living: ${JSON.stringify(living)}`);
-    assert(JSON.stringify(kitchen.lights) === JSON.stringify([{ entity: "light.kitchen", at: [3, 4] }]), `light: ${JSON.stringify(kitchen.lights)}`);
+    // outside walls (36 cm, the default) centred on the outline; the wall between the rooms stays at 6 m
+    const xs = (r) => (r.polygon ? r.polygon.map(([x]) => x) : [r.rect[0], r.rect[0] + r.rect[2]]);
+    const near = (a, b) => Math.abs(a - b) < 1e-6;
+    assert(house.schema === 2, `schema: ${house.schema}`);
+    assert(kitchen.id === "kitchen" && xs(kitchen).some((x) => near(x, 0.18)) && xs(kitchen).some((x) => near(x, 6)), `kitchen: ${JSON.stringify(kitchen)}`);
+    assert(living.name === "Living room" && xs(living).some((x) => near(x, 11.82)), `living: ${JSON.stringify(living)}`);
+    // the light where it was: 3 m east and 4 m south of the plan's corner
+    assert(kitchen.lights?.length === 1 && kitchen.lights[0].entity === "light.kitchen" && near(kitchen.lights[0].at[0] + 0.18, 3) && near(kitchen.lights[0].at[1] + 0.18, 4), `light: ${JSON.stringify(kitchen.lights)}`);
     const sensor = living.furniture?.[0];
     assert(sensor?.entity === "sensor.living_temperature" && sensor.mount === "wall", `sensor: ${JSON.stringify(sensor)}`);
-    const corners = (house.outline?.polygon ?? []).map((p) => p.join()).sort();
-    assert(JSON.stringify(corners) === JSON.stringify(["0,0", "0,8", "12,0", "12,8"]), `outline: ${JSON.stringify(house.outline)}`);
+    const o = house.outline?.rect ?? [];
+    const corners = house.outline?.polygon ? house.outline.polygon.map((p) => p.join()).sort() : [`${o[0]},${o[1]}`, `${+(o[0] + o[2]).toFixed(3)},${+(o[1] + o[3]).toFixed(3)}`];
+    assert(JSON.stringify(corners) === JSON.stringify(["0.18,0.18", "11.82,7.82"]) || JSON.stringify(corners) === JSON.stringify(["0.18,0.18", "0.18,7.82", "11.82,0.18", "11.82,7.82"]), `outline: ${JSON.stringify(house.outline)}`);
     await page.locator("homeslice-panel textarea.yaml").fill("");
     await page.evaluate(() => window.panel.shadowRoot.activeElement?.blur());
     await page.locator("homeslice-panel header button[aria-label='House settings']").click();
@@ -462,7 +472,7 @@ test.describe.serial("editor, starting from scratch", () => {
     await page.locator("homeslice-panel textarea.yaml").fill("levels: [oops");
     await page.locator("homeslice-panel .inspector button", { hasText: "Check and apply" }).click();
     assert(await page.locator("homeslice-panel ul.problems li").count(), "no problem shown for broken YAML");
-    await page.locator("homeslice-panel textarea.yaml").fill("schema: 1\nid: x\nlevels:\n  - id: g\n    rooms:\n      - { id: a }");
+    await page.locator("homeslice-panel textarea.yaml").fill("schema: 2\nid: x\nlevels:\n  - id: g\n    rooms:\n      - { id: a }");
     await page.locator("homeslice-panel .inspector button", { hasText: "Check and apply" }).click();
     const problems = await page.locator("homeslice-panel ul.problems").textContent();
     assert(problems.includes("rect"), `expected a fix-it message: ${problems}`);
@@ -494,7 +504,7 @@ test.describe.serial("editor, starting from scratch", () => {
     const prompt = await page.evaluate(() => window.copied.at(-1));
     assert(prompt.startsWith("Please draw my home for Homeslice") && prompt.includes("guide for AI assistants") && prompt.includes("House: test_house"), `prompt: ${prompt.slice(0, 200)}`);
     // an assistant's answer with a mistake: the errors can go straight back to it
-    await page.locator("homeslice-panel textarea.yaml").fill("schema: 1\nid: x\nlevels:\n  - id: g\n    rooms:\n      - { id: a }");
+    await page.locator("homeslice-panel textarea.yaml").fill("schema: 2\nid: x\nlevels:\n  - id: g\n    rooms:\n      - { id: a }");
     await page.locator("homeslice-panel .inspector button", { hasText: "Check and apply" }).click();
     await page.locator("homeslice-panel .inspector button", { hasText: "Copy errors for the assistant" }).click();
     const errorsText = await page.evaluate(() => window.copied.at(-1));

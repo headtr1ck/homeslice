@@ -4,7 +4,6 @@
 
 import { roomsOutlines } from "./faces";
 import { bbox, bendEdges, edges, labelPoint, normalizeOrientation, offsetEdges, outwardNormal, pointInPolygon, rectPolygon, sideOf, signedArea } from "./geometry";
-import { migrateHouse } from "./migrate";
 import { facadeHalves } from "./walls";
 import { FURNITURE } from "./furniture";
 import { FLOOR_FINISHES, ROOF_FINISHES, WALL_FINISHES } from "./finishes";
@@ -95,8 +94,8 @@ export function expandHouse(input: unknown): ExpandResult {
     return { house: null, issues };
   }
   // an older file (its outline on the walls' outer face) is read as it is meant
-  const h = migrateHouse(input as HouseInput);
-  if (h.schema !== 2 && h.schema !== 1) err("schema", `Unsupported schema ${JSON.stringify(h.schema)}; expected 2.`);
+  const h = input as HouseInput;
+  if (h.schema !== 2) err("schema", `Unsupported schema ${JSON.stringify(h.schema)}; expected 2.`);
   if (!Array.isArray(h.levels) || h.levels.length === 0) {
     err("levels", "A house needs at least one level.");
     return { house: null, issues };

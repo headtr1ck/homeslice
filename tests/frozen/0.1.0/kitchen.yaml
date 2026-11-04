@@ -1,0 +1,28 @@
+# Kitchen pieces as 0.1.0 writes them, and older names it still reads.
+schema: 2
+id: kitchen
+name: Kitchen
+outline: { rect: [0, 0, 6, 4] }
+levels:
+  - id: ground
+    rooms:
+      - id: kitchen
+        rect: [0, 0, 6, 4]
+        furniture:
+          - { type: kitchen, at: [0.3, 0.31], model: modern:kitchen_base, size: [0.6, 0.62], height: 0.91 }
+          - { type: kitchen, at: [0.9, 0.31], model: modern:kitchen_base, size: [0.6, 0.62], height: 0.91, options: { top: sink, fronts: panel_drawer, handle: handleless } }
+          - { type: kitchen, at: [1.6, 0.31], model: modern:kitchen_base, size: [0.8, 0.62], height: 0.91, finish: green, accent: oak, options: { top: hob_downdraft, fronts: drawers_2, handle: push } }
+          - { type: kitchen, at: [2.01, 0.31], model: modern:kitchen_panel, size: [0.02, 0.62], height: 0.91, finish: walnut }
+          - { type: kitchen, at: [2.32, 0.31], model: modern:kitchen_tall, size: [0.6, 0.62], height: 2.2, options: { fronts: oven_microwave, handle: knob } }
+          - { type: kitchen, at: [2.92, 0.31], model: modern:kitchen_tall, size: [0.6, 0.62], height: 2.0, options: { fronts: fridge_freezer } }
+          - { type: kitchen, at: [3.37, 0.31], model: modern:kitchen_tall, size: [0.3, 0.62], height: 2.2, options: { fronts: apothecary } }
+          - { type: kitchen_upper, at: [0.9, 0.18], model: modern:kitchen_upper, size: [1.2, 0.35], height: 0.72, options: { handle: bar } }
+          - { type: item, at: [0.4, 0.3], model: modern:coffee_automatic, elevation: 0.91 }
+          - { type: item, at: [1.0, 0.3], model: modern:toaster, elevation: 0.91 }
+          # older names: read as the base and tall unit with the matching choices
+          - { type: kitchen, at: [4.0, 0.31], model: modern:kitchen_drawers, size: [0.6, 0.62], height: 0.91 }
+          - { type: kitchen, at: [4.6, 0.31], model: modern:kitchen_sink_unit, size: [0.6, 0.62], height: 0.91, options: { fronts: drawer } }
+          - { type: kitchen, at: [5.2, 0.31], model: modern:kitchen_hob_gas, size: [0.6, 0.62], height: 0.91 }
+          - { type: kitchen, at: [4.0, 3.69], model: modern:kitchen_pantry, size: [0.6, 0.62], height: 2.2, rotation: 180 }
+          - { type: fridge, at: [4.6, 3.69], model: modern:kitchen_tall_fridge, size: [0.6, 0.62], height: 2.2, rotation: 180 }
+          - { type: kitchen, at: [5.2, 3.69], model: modern:kitchen_tall_oven, size: [0.6, 0.62], height: 2.2, rotation: 180 }

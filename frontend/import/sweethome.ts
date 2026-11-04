@@ -3,6 +3,7 @@
 // with x east and y south, as in our plan. Rooms there follow the inner faces of the walls;
 // ours sit on the walls' centre lines, so each room grows by half a wall.
 import { unzipSync, strFromU8 } from "three/examples/jsm/libs/fflate.module.js";
+import { onWallCentres } from "./outer-faces";
 import { bbox, normalizeOrientation } from "../model/geometry";
 import { offsetPolygon } from "../model/route";
 import { withOutlines } from "./outline";
@@ -163,5 +164,5 @@ export function sweetHomeToHouse(xml: string, id = "home"): HouseInput {
   }
   // the outline around each floor's rooms (Sweet Home 3D has none of its own)
   const house: HouseInput = { schema: 1, id, name: home.getAttribute("name") ?? "Imported house", levels: levels.filter((l) => l.rooms.length) };
-  return withOutlines(house, (l) => l.rooms.map((r) => (r.polygon ?? []) as Vec2[]));
+  return onWallCentres(withOutlines(house, (l) => l.rooms.map((r) => (r.polygon ?? []) as Vec2[])));
 }

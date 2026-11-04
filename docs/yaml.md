@@ -26,8 +26,10 @@ Broken links (deleted areas, floors, entities) show up under *Settings → Repai
 Metres; `x` points east, `y` points south (north is up, as on a printed plan). Levels are
 listed bottom to top. Walls are generated from the rooms: you never draw them. Every line is a wall centre
 line: the rooms' and the outline's (outside walls are centred on it, half sticking out).
-Older files with `schema: 1` had the outline on the walls' outer face; they load converted,
-and the editor saves them as `schema: 2`.
+
+Since 0.1.0 (the first beta) the format only grows: a house saved by one version opens in
+every later one. A piece that becomes a choice of another (a drawer unit is now the base
+unit with `fronts: drawers_3`) keeps its old name working.
 
 ## Example
 

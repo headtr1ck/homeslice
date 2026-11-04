@@ -20,3 +20,14 @@ CASES = json.loads((Path(__file__).parent / "validation_cases.json").read_text(e
 def test_same_errors_as_the_editor(case) -> None:
     got = [{"path": i["path"], "message": i["message"]} for i in errors(case["house"])]
     assert got == case["errors"]
+
+
+FROZEN = sorted((Path(__file__).parent / "frozen").glob("*/*.yaml"))
+
+
+@pytest.mark.parametrize("path", FROZEN, ids=[f"{p.parent.name}/{p.name}" for p in FROZEN])
+def test_houses_saved_by_earlier_releases_still_pass(path: Path) -> None:
+    """The beta's promise: what a release saved (tests/frozen/<version>/), later ones accept."""
+    import yaml
+
+    assert errors(yaml.safe_load(path.read_text(encoding="utf-8"))) == []

@@ -265,5 +265,4 @@ line, what lies beyond it in the `look` direction); the line runs across the loo
 - Furniture `at` in plan coordinates instead of room coordinates.
 - Inventing entity, area or floor ids: use only those in the context.
 - Levels in the wrong order (bottom first) or a level per area instead of per floor.
-- Forgetting `schema: 2`. (Files with `schema: 1` measured the outline on the walls' outer
-  face; they still load, converted.)
+- Forgetting `schema: 2`.

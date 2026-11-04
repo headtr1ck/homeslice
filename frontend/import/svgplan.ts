@@ -3,6 +3,7 @@
 // (light.kitchen) become that entity at their middle. SVG units are scaled so the drawing
 // is as wide as the person says; y points down in both, so north stays up.
 import { wallSnap } from "../editor/ops";
+import { onWallCentres } from "./outer-faces";
 import { withOutlines } from "./outline";
 import { bbox, normalizeOrientation } from "../model/geometry";
 import type { FurnitureInput, HouseInput, LevelInput, RoomInput, Vec2 } from "../model/types";
@@ -203,5 +204,5 @@ export function svgToHouse(svg: string, width: number, id = "home"): SvgImport {
   }
   const level: LevelInput = { id: "ground", name: "Ground floor", rooms: rooms.map(({ poly: _p, ...r }) => r) };
   const house = withOutlines<HouseInput>({ schema: 1, id, levels: [level] }, () => [rooms.map((r) => r.poly)].flat());
-  return { house, rooms: rooms.length, entities };
+  return { house: onWallCentres(house), rooms: rooms.length, entities };
 }

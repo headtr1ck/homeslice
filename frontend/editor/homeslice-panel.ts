@@ -22,7 +22,6 @@ import { deriveWalls, innerPolygon, sideOfRoom, type Wall, type WallOpening } fr
 import { HouseRenderer } from "../render/scene";
 import { stairHoleOn, stairPath, stairTreads } from "../model/stairs";
 import { misalignedWalls } from "../model/checks";
-import { migrateHouse } from "../model/migrate";
 import { FURNITURE, FURNITURE_TYPES, mountOf } from "../model/furniture";
 import { loadModel } from "../render/models";
 import { FINISHES, MODERN, defaultKind, resolveKind } from "../model/modern";
@@ -980,7 +979,7 @@ export class HomeslicePanel extends LitElement {
     const st = this._start!;
     const name = st.name.trim() || model.name || this.t("editor.new_house_default_name");
     const id = st.replace ? this._house : uniqueId(this._houses.map((h) => h.id), slug(name, "home"));
-    const m: HouseInput = { ...migrateHouse(model), id, name };
+    const m: HouseInput = { ...model, id, name };
     try {
       await this._hass!.callWS({ type: "homeslice/model/save", house: id, model: m });
     } catch (e) {
@@ -1378,8 +1377,7 @@ export class HomeslicePanel extends LitElement {
     if (this.dirty && !confirm(this.t("editor.discard"))) return;
     const model = await this._hass!.callWS<HouseInput>({ type: "homeslice/model", house: id });
     this._house = id;
-    // an older file is brought up to date at once (saved like that with the next save)
-    this._model = migrateHouse(model);
+    this._model = model;
     this._saved = JSON.stringify(model);
     this.history = new History();
     this._level = this.entranceLevel(model);
@@ -1552,8 +1550,7 @@ export class HomeslicePanel extends LitElement {
     // a field's change event can fire again when it loses focus: no empty undo steps
     if (JSON.stringify(next) === JSON.stringify(previous)) return;
     this.history.push(previous);
-    // (a pasted or restored older file: brought up to date)
-    this._model = migrateHouse(next);
+    this._model = next;
   }
 
   private undo() {

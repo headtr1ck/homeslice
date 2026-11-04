@@ -173,8 +173,8 @@ the tablets' downloads light too. Models kept before this are made light once, b
 
 ## Backup, YAML and restore
 
-- Editor → ⚙ → *Download* saves the house as YAML. Homeslice is in early alpha: keep a
-  copy and expect to adjust it after updates.
+- Editor → ⚙ → *Download* saves the house as YAML. A house saved by one version opens in
+  every later one, but a copy of your own is always a good idea.
 - Paste a house in the editor's *House settings* (*Replace the house with this YAML*); the
   [house format](yaml.md) describes it.
 - Every save keeps the previous version: editor → ⚙ → *Restore the version from …*.

@@ -120,10 +120,10 @@ test.describe.serial("editor, the start screen", () => {
     const prompt = await page.evaluate(() => navigator.clipboard.readText());
     assert(prompt.includes("Robot vacuum maps") && prompt.includes("12.5 mm per pixel") && prompt.includes('"Kitchen"'), `prompt: ${prompt.slice(-600)}`);
     // a broken answer: what is wrong, to send back
-    await ai.locator("textarea[data-start-paste]").fill("```yaml\nschema: 1\nid: x\nlevels: []\n```");
+    await ai.locator("textarea[data-start-paste]").fill("```yaml\nschema: 2\nid: x\nlevels: []\n```");
     await ai.locator("button[data-start-paste-use]").click();
     await ai.locator("ul.problems li").first().waitFor({ timeout: 3000 });
-    const good = "Sure:\n```yaml\nschema: 1\nid: x\nname: AI house\noutline: auto\nlevels:\n  - id: ground_floor\n    floor_id: ground_floor\n    rooms:\n      - { id: kitchen, area_id: kitchen, rect: [0, 0, 4, 4] }\n      - { id: living, area_id: living_room, rect: [4, 0, 5, 4] }\n```";
+    const good = "Sure:\n```yaml\nschema: 2\nid: x\nname: AI house\noutline: auto\nlevels:\n  - id: ground_floor\n    floor_id: ground_floor\n    rooms:\n      - { id: kitchen, area_id: kitchen, rect: [0, 0, 4, 4] }\n      - { id: living, area_id: living_room, rect: [4, 0, 5, 4] }\n```";
     await ai.locator("textarea[data-start-paste]").fill(good);
     await ai.locator("button[data-start-paste-use]").click();
     await page.waitForFunction(() => window.panel._model?.levels?.[0]?.rooms?.length === 2, null, { timeout: 5000 });

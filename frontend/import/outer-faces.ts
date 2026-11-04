@@ -1,14 +1,15 @@
-// Older house files, brought up to date.
+// Plans measured on the outside of the house, put on wall centre lines.
 //
-// Schema 1 measured the outline on the outer face of the outside walls (they grew inwards
-// from it), and rooms along the outside reached that face; everything else sat on wall
-// centre lines. Schema 2 puts every line on a wall centre: the outline too, and the
-// outside walls are centred on it like any other.
+// The importers read plans whose outline is the outer face of the outside walls (they grow
+// inwards from it), and whose rooms along the outside reach that face; everything else is
+// on wall centre lines. A house file puts every line on a wall centre: the outline too,
+// and the outside walls are centred on it like any other. The importers mark what they
+// build `schema: 1` and hand it here, which returns the house file (schema 2).
 
-import { bbox, dist, edgeNormal, labelPoint, offsetEdges, pointInPolygon, project } from "./geometry";
-import type { Coord, HouseInput, LevelInput, RoomInput, ShapeInput, Side, Vec2, WallThickness } from "./types";
-import { roomsOutline } from "./faces";
-import { facadeHalves } from "./walls";
+import { bbox, dist, edgeNormal, labelPoint, offsetEdges, pointInPolygon, project } from "../model/geometry";
+import type { Coord, HouseInput, LevelInput, RoomInput, ShapeInput, Side, Vec2, WallThickness } from "../model/types";
+import { roomsOutline } from "../model/faces";
+import { facadeHalves } from "../model/walls";
 
 /** The schema files are written in. */
 export const SCHEMA = 2;
@@ -22,12 +23,12 @@ const DEFAULT_WALLS: WallThickness = { exterior: 0.36, interior: 0.12, party: 0.
 const round = (v: number) => Math.round(v * 1000) / 1000;
 
 /**
- * A schema 1 house as schema 2, the house standing exactly where it stood: each outline
+ * An imported plan (marked schema 1) as a house file, the house standing exactly where it stood: each outline
  * moves in by half its walls, with the corners of the rooms inside on it, and whatever is
  * measured from a room's or the outline's north-west corner (doors and windows, furniture,
  * façade openings) keeps its place. Anything else comes back as it is.
  */
-export function migrateHouse<T>(input: T): T {
+export function onWallCentres<T>(input: T): T {
   const h = input as unknown as HouseInput;
   if (!h || typeof h !== "object" || (h as { schema?: unknown }).schema !== 1 || !Array.isArray(h.levels)) return input;
   try {
@@ -177,7 +178,12 @@ function migrate(h: HouseInput): HouseInput {
         const shift: Vec2 = [round(before[0] - after[0]), round(before[1] - after[1])];
         const room: RoomInput = write(r, next);
         // pieces are placed from the room's north-west corner
-        if (room.furniture && (shift[0] || shift[1])) room.furniture = room.furniture.map((f) => (Array.isArray(f.at) ? { ...f, at: [round(f.at[0] + shift[0]), round(f.at[1] + shift[1])] } : f));
+        const by = (p: Vec2): Vec2 => (Array.isArray(p) ? [round(p[0] + shift[0]), round(p[1] + shift[1])] : p);
+        if (room.furniture && (shift[0] || shift[1])) room.furniture = room.furniture.map((f) => ({ ...f, at: by(f.at) }));
+        // and its lights (a strip's end, a row's spots) and cameras
+        if (room.lights && (shift[0] || shift[1]))
+          room.lights = room.lights.map((x) => ({ ...x, ...(x.at ? { at: by(x.at) } : {}), ...(x.to ? { to: by(x.to) } : {}), ...(x.spots ? { spots: x.spots.map(by) } : {}) }));
+        if (room.cameras && (shift[0] || shift[1])) room.cameras = room.cameras.map((c) => ({ ...c, at: by(c.at) }));
         // so are its doors and windows, along their side
         if (shift[0] || shift[1])
           l.openings = (l.openings ?? []).map((o) => (o.room === r.id && typeof o.at === "number" ? { ...o, at: round(o.at + shift[o.side === "north" || o.side === "south" ? 0 : 1]) } : o));

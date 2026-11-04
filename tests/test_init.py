@@ -20,7 +20,7 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry, async_
 DOMAIN = "homeslice"
 
 HOUSE_YAML = """
-schema: 1
+schema: 2
 id: home
 outline: { rect: [0, 0, 8, 10] }
 levels:
@@ -33,7 +33,7 @@ levels:
 def model(area: str = "living_room", cover: str | None = None) -> dict[str, Any]:
     openings = [{"room": "living", "side": "south", "at": 1, "width": 2, "cover": cover}] if cover else []
     return {
-        "schema": 1,
+        "schema": 2,
         "id": "home",
         "outline": {"rect": [0, 0, 8, 10]},
         "levels": [{"id": "ground", "rooms": [{"id": "living", "area_id": area, "rect": [0, 0, 8, 10]}], "openings": openings}],
@@ -552,7 +552,7 @@ async def test_llm_api_tools(hass: HomeAssistant, setup, hass_admin_user) -> Non
     tools = {t.name: t for t in api.tools}
     # (APIInstance.async_call_tool needs the conversation integration; call the tools themselves)
     call = lambda name, args: tools[name].async_call(hass, llm.ToolInput(name, args), context)  # noqa: E731
-    result = await call("homeslice_validate_house", {"yaml": "schema: 1\nlevels: []"})
+    result = await call("homeslice_validate_house", {"yaml": "schema: 2\nlevels: []"})
     assert result["valid"] is False and "at least one level" in result["issues"]
     saved = await call("homeslice_save_house", {"yaml": VALID_YAML.replace("living_room", "kitchen")})
     assert saved["saved"] is True and saved["house"] == "home"
@@ -566,7 +566,7 @@ async def test_http_api(hass: HomeAssistant, setup, hass_client) -> None:
     client = await hass_client()
     resp = await client.get("/api/homeslice/guide")
     assert resp.status == 200 and "Home Assistant context" in await resp.text()
-    resp = await client.post("/api/homeslice/validate", data="schema: 1\nlevels: [{id: g}]")
+    resp = await client.post("/api/homeslice/validate", data="schema: 2\nlevels: [{id: g}]")
     body = await resp.json()
     assert body["valid"] is False and body["issues"][0]["path"] == "levels.g"
     resp = await client.put("/api/homeslice/houses/home", data=VALID_YAML.replace("living_room", "kitchen"))
