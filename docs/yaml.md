@@ -121,6 +121,7 @@ levels:
           - { type: wardrobe, at: [5, 0.4], model: modern:wardrobe_sliding, finish: walnut, accent: black, size: [2, 0.65], height: 2.2 }
           - { type: kitchen, at: [7, 0.3], model: modern:kitchen_base, size: [0.8, 0.62], options: { top: sink, fronts: panel_drawer, handle: handleless } }
           # base units: top none|sink|hob_gas|hob_ceran|hob_electric|hob_downdraft; fronts drawer_door|door|drawers_2|drawers_3|panel_drawer|oven|shelves
+          # tall units (modern:kitchen_tall): fronts doors|drawers_doors|dishwasher|oven|oven_microwave|oven_steam|coffee|fridge|fridge_freezer|apothecary|niche
           - { type: car, at: [2, 3], model: modern:car_estate, entity: device_tracker.car, readings: [sensor.car_battery, sensor.car_range] }  # only while home
           # model: modern:<kind> | polyhaven:<id> | custom:<id> | builtin (default: the card's style)
       - { id: kitchen, area_id: kitchen, rect: [6, 0, 4, 8], floor: terrazzo, wall: tile_subway }

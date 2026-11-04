@@ -2363,9 +2363,9 @@
   },
   {
    "model": "modern:kitchen_tall",
-   "name": "Tall unit (fridge, oven)",
+   "name": "Tall unit",
    "group": "kitchen",
-   "type": "fridge",
+   "type": "kitchen",
    "size": [
     0.6,
     0.62,
@@ -2390,7 +2390,33 @@
     0.45,
     0.5,
     0.6
-   ]
+   ],
+   "heights": [
+    1.45,
+    2,
+    2.2
+   ],
+   "options": {
+    "fronts": [
+     "doors",
+     "drawers_doors",
+     "dishwasher",
+     "oven",
+     "oven_microwave",
+     "oven_steam",
+     "coffee",
+     "fridge",
+     "fridge_freezer",
+     "apothecary",
+     "niche"
+    ],
+    "handle": [
+     "bar",
+     "knob",
+     "handleless",
+     "push"
+    ]
+   }
   },
   {
    "model": "modern:kitchen_base",
@@ -2572,150 +2598,6 @@
     "oak",
     "black",
     "anthracite"
-   ],
-   "options": {
-    "handle": [
-     "bar",
-     "knob",
-     "handleless",
-     "push"
-    ]
-   }
-  },
-  {
-   "model": "modern:kitchen_pantry",
-   "name": "Tall cupboard",
-   "group": "kitchen",
-   "type": "kitchen",
-   "size": [
-    0.6,
-    0.62,
-    2.2
-   ],
-   "finishes": [
-    "white",
-    "anthracite",
-    "oak",
-    "walnut",
-    "green",
-    "blue",
-    "black",
-    "grey",
-    "beige",
-    "concrete",
-    "marble",
-    "terrazzo"
-   ],
-   "widths": [
-    0.3,
-    0.45,
-    0.5,
-    0.6
-   ],
-   "options": {
-    "handle": [
-     "bar",
-     "knob",
-     "handleless",
-     "push"
-    ]
-   }
-  },
-  {
-   "model": "modern:kitchen_pantry_mid",
-   "name": "Mid-height cupboard",
-   "group": "kitchen",
-   "type": "kitchen",
-   "size": [
-    0.6,
-    0.62,
-    1.45
-   ],
-   "finishes": [
-    "white",
-    "anthracite",
-    "oak",
-    "walnut",
-    "green",
-    "blue",
-    "black",
-    "grey",
-    "beige",
-    "concrete",
-    "marble",
-    "terrazzo"
-   ],
-   "widths": [
-    0.3,
-    0.45,
-    0.5,
-    0.6
-   ],
-   "options": {
-    "handle": [
-     "bar",
-     "knob",
-     "handleless",
-     "push"
-    ]
-   }
-  },
-  {
-   "model": "modern:kitchen_tall_fridge",
-   "name": "Tall unit with fridge",
-   "group": "kitchen",
-   "type": "fridge",
-   "size": [
-    0.6,
-    0.62,
-    2.2
-   ],
-   "finishes": [
-    "white",
-    "anthracite",
-    "oak",
-    "walnut",
-    "green",
-    "blue",
-    "black",
-    "grey",
-    "beige",
-    "concrete",
-    "marble",
-    "terrazzo"
-   ],
-   "options": {
-    "handle": [
-     "bar",
-     "knob",
-     "handleless",
-     "push"
-    ]
-   }
-  },
-  {
-   "model": "modern:kitchen_tall_oven",
-   "name": "Tall unit with oven and microwave",
-   "group": "kitchen",
-   "type": "kitchen",
-   "size": [
-    0.6,
-    0.62,
-    2.2
-   ],
-   "finishes": [
-    "white",
-    "anthracite",
-    "oak",
-    "walnut",
-    "green",
-    "blue",
-    "black",
-    "grey",
-    "beige",
-    "concrete",
-    "marble",
-    "terrazzo"
    ],
    "options": {
     "handle": [

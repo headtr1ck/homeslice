@@ -682,12 +682,45 @@ const BASE_BUILDERS: Record<string, Build> = {
     b.box(w, h, d, 0, 0, 0, f, Math.min(0.003, w / 4));
   },
   kitchen_tall: (b, w, d, h, f) => {
-    b.box(w, h - 0.1, d - 0.03, 0, 0.1, back(d) + (d - 0.03) / 2, f);
-    b.box(w - 0.02, 0.1, d - 0.08, 0, 0, back(d) + (d - 0.08) / 2, mat(C.black));
+    // what is behind the fronts (options.fronts): model/modern.ts TALL_FRONTS
+    tallUnit(b, w, d, h, f, []);
     const z = d / 2 - 0.03;
-    b.box(w - 0.004, h * 0.55, 0.018, 0, 0.1, z + 0.009, f, 0.003);
-    b.box(w - 0.004, 0.6, 0.018, 0, 0.1 + h * 0.55 + 0.004, z + 0.009, mat(C.screen, { roughness: 0.2 }), 0.003);
-    b.box(w - 0.004, h - 0.1 - h * 0.55 - 0.61, 0.018, 0, 0.1 + h * 0.55 + 0.608, z + 0.009, f, 0.003);
+    const doors = Math.max(1, Math.round(w / 0.6));
+    const drawers = Math.max(1, Math.round(w / 0.9));
+    // from the plinth up: fixed parts, then doors to the top (shrunk to fit a low unit)
+    type Part = { h: number; draw: (y: number, ph: number) => void };
+    const door = (n = doors): Part["draw"] => (y, ph) => fronts(b, -w / 2, w, y, ph, z, n, f, 1, "bar");
+    const drawerRows = (rows: number): Part["draw"] => (y, ph) => fronts(b, -w / 2, w, y, ph, z, drawers, f, rows, "bar", undefined, true);
+    const appliance = (kind: "oven" | "microwave"): Part["draw"] => (y, ph) => applianceFront(b, Math.min(w, 0.6), y, ph, z, kind);
+    const one: Part["draw"] = (y, ph) => fronts(b, -w / 2, w, y, ph, z, 1, f, 1, "bar", undefined, true);
+    const parts: Part[] = (
+      {
+        doors: [{ h: (h - 0.1) * 0.45, draw: door() }],
+        drawers_doors: [{ h: 0.72, draw: drawerRows(3) }],
+        // a dishwasher at working height: a drawer under it
+        dishwasher: [{ h: 0.3, draw: drawerRows(1) }, { h: 0.82, draw: one }],
+        oven: [{ h: 0.6, draw: drawerRows(2) }, { h: 0.6, draw: appliance("oven") }],
+        oven_microwave: [{ h: 0.6, draw: drawerRows(2) }, { h: 0.6, draw: appliance("oven") }, { h: 0.38, draw: appliance("microwave") }],
+        oven_steam: [{ h: 0.45, draw: drawerRows(1) }, { h: 0.6, draw: appliance("oven") }, { h: 0.45, draw: appliance("oven") }],
+        coffee: [{ h: 0.72, draw: drawerRows(3) }, { h: 0.45, draw: (y, ph) => builtInCoffee(b, Math.min(w, 0.6), y, ph, z) }],
+        fridge: [{ h: 1.22, draw: door(1) }],
+        fridge_freezer: [{ h: 0.72, draw: door(1) }, { h: 1.0, draw: door(1) }],
+        // a pull-out larder: one front, its handle across the top
+        apothecary: [],
+        niche: [{ h: 0.6, draw: drawerRows(2) }, { h: 0.45, draw: (y, ph) => niche(b, w, y, ph, z) }],
+      } as Record<string, Part[]>
+    )[b.options.fronts ?? "doors"] ?? [];
+    const room = h - 0.1;
+    const fixed = parts.reduce((t, p) => t + p.h, 0);
+    // a low unit: the parts share what there is, leaving a door's worth on top
+    const k = fixed > room - 0.25 ? Math.max(0, room - 0.25) / fixed : 1;
+    let y = 0.1;
+    for (const p of parts) {
+      p.draw(y, p.h * k);
+      y += p.h * k;
+    }
+    if (b.options.fronts === "apothecary") one(y, h - y);
+    else door()(y, h - y);
   },
   bed: (b, w, d, h, f, _c, a) => bed(b, w, d, h, f, a),
   bed_single: (b, w, d, h, f, _c, a) => bed(b, w, d, h, f, a),
@@ -1558,20 +1591,6 @@ const BASE_BUILDERS: Record<string, Build> = {
     const side = b.box(Math.max(0.3, d - 0.62), h - t - 0.1, 0.018, 0, 0.1, 0, f, 0.003);
     side?.position.set(w / 2 - 0.009 + 0.001, 0.1 + (h - t - 0.1) / 2, -d / 2 + Math.max(0.3, d - 0.62) / 2);
     side?.rotation.set(0, Math.PI / 2, 0);
-  },
-  kitchen_pantry: (b, w, d, h, f) => tallUnit(b, w, d, h, f, [0.45, 0.55]),
-  kitchen_pantry_mid: (b, w, d, h, f) => tallUnit(b, w, d, h, f, [0.6, 0.4]),
-  kitchen_tall_fridge: (b, w, d, h, f) => tallUnit(b, w, d, h, f, [0.33, 0.47, 0.2]),
-  kitchen_tall_oven: (b, w, d, h, f) => {
-    // drawers, an oven at eye height, a microwave over it, a door on top
-    const z = d / 2 - 0.03;
-    tallUnit(b, w, d, h, f, []);
-    const y0 = 0.1;
-    fronts(b, -w / 2, w, y0, 0.6, z, 1, f, 2, "bar");
-    const oy = y0 + 0.62;
-    applianceFront(b, w, oy, 0.6, z, "oven");
-    applianceFront(b, w, oy + 0.62, 0.38, z, "microwave");
-    fronts(b, -w / 2, w, oy + 1.02, h - (oy + 1.02), z, 1, f, 1, "bar");
   },
   kitchen_upper_glass: (b, w, d, h, f) => {
     const n = Math.max(1, Math.round(w / 0.5));
@@ -4752,6 +4771,24 @@ export function oven(b: Builder, w: number, u: { y0: number; y1: number; fz: num
   const oh = Math.min(0.6, u.y1 - u.y0 - 0.12);
   applianceFront(b, w, u.y1 - oh - 0.01, oh, u.fz, "oven", knobs);
   fronts(b, -w / 2, w, u.y0, u.y1 - oh - 0.01 - u.y0, u.fz, 1, f, 1, "bar", undefined, true);
+}
+
+/** A built-in coffee machine in a tall unit: a steel front, its display and the spout over a cup. */
+function builtInCoffee(b: Builder, w: number, y: number, h: number, z: number) {
+  const steel = mat(C.steel, { metalness: 0.6, roughness: 0.35 });
+  b.box(w - 0.006, h - 0.004, 0.02, 0, y + 0.002, z + 0.01, mat(C.screen, { roughness: 0.15, metalness: 0.2 }), 0.004);
+  b.box(w - 0.006, 0.08, 0.022, 0, y + h - 0.08, z + 0.011, steel, 0.003);
+  b.box(w * 0.3, 0.04, 0.004, -w * 0.15, y + h - 0.06, z + 0.023, mat(C.screen, { emissive: "#7fb6ff", emissiveIntensity: 0.25, roughness: 0.1 }), 0.002);
+  b.box(w * 0.34, h * 0.62, 0.012, 0, y + 0.03, z + 0.016, mat(C.black, { roughness: 0.4 }), 0.004);
+  b.box(w * 0.14, 0.03, 0.05, 0, y + h * 0.55, z + 0.03, steel, 0.006);
+  b.cyl(0.028, 0.024, 0.07, 0, y + 0.04, z + 0.02, mat(C.ceramic), 14);
+}
+
+/** An open niche in a tall unit (for a microwave or the coffee machine one brings along). */
+function niche(b: Builder, w: number, y: number, h: number, z: number) {
+  // the dark inside, framed by the carcass, and the edge of its floor
+  b.box(w - 0.04, h - 0.03, 0.004, 0, y + 0.015, z + 0.002, mat("#3a3c40", { roughness: 0.9 }));
+  b.box(w - 0.04, 0.018, 0.006, 0, y + 0.015, z + 0.004, mat("#d9d6d0", { roughness: 0.8 }));
 }
 
 /** A tall unit with doors stacked by the given shares of its height. */

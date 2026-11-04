@@ -77,6 +77,8 @@ const KNOB = { handle: ["knob", "bar", "handleless", "push"] };
 const PUSH = { handle: ["push", "bar", "knob", "handleless"] };
 /** What a base unit has behind its fronts and in its worktop (render/modern.ts kitchen_base, TOPS). */
 const BASE_FRONTS = ["drawer_door", "door", "drawers_2", "drawers_3", "panel_drawer", "oven", "shelves"];
+/** What a tall unit has behind its fronts, from the plinth up (render/modern.ts kitchen_tall). */
+const TALL_FRONTS = ["doors", "drawers_doors", "dishwasher", "oven", "oven_microwave", "oven_steam", "coffee", "fridge", "fridge_freezer", "apothecary", "niche"];
 const BASE_TOPS = ["none", "sink", "hob_gas", "hob_ceran", "hob_electric", "hob_downdraft"];
 
 /**
@@ -92,6 +94,10 @@ export const FOLDED: Record<string, { kind: string; options: Record<string, stri
   kitchen_hob_ceran: { kind: "kitchen_base", options: { top: "hob_ceran", fronts: "oven" } },
   kitchen_hob_electric: { kind: "kitchen_base", options: { top: "hob_electric", fronts: "oven" } },
   kitchen_hob_downdraft: { kind: "kitchen_base", options: { top: "hob_downdraft", fronts: "drawers_2" } },
+  kitchen_pantry: { kind: "kitchen_tall", options: { fronts: "doors" } },
+  kitchen_pantry_mid: { kind: "kitchen_tall", options: { fronts: "doors" } },
+  kitchen_tall_fridge: { kind: "kitchen_tall", options: { fronts: "fridge_freezer" } },
+  kitchen_tall_oven: { kind: "kitchen_tall", options: { fronts: "oven_microwave" } },
 };
 
 /** A built-in piece by its name, older names included: the piece and the options they stand for. */
@@ -200,16 +206,12 @@ export const MODERN_GROUPS: { id: string; kinds: ModernKind[] }[] = [
       k("kitchen", "kitchen", [3.0, 0.62, 0.91], cabinet(), { accents: WORKTOP, options: PUSH }),
       k("kitchen_island", "kitchen", [2.4, 1.0, 0.92], cabinet(), { accents: WORKTOP }),
       k("kitchen_upper", "kitchen_upper", [2.4, 0.35, 0.72], cabinet(), { mount: "wall", elevation: 1.45, widths: UNIT, options: HANDLE }),
-      k("kitchen_tall", "fridge", [0.6, 0.62, 2.2], cabinet(), { widths: [0.3, 0.45, 0.5, 0.6] }),
+      k("kitchen_tall", "kitchen", [0.6, 0.62, 2.2], cabinet(), { widths: [0.3, 0.45, 0.5, 0.6], heights: [1.45, 2.0, 2.2], options: { fronts: TALL_FRONTS, ...HANDLE } }),
       k("kitchen_base", "kitchen", [0.6, 0.62, 0.91], cabinet(), { accents: WORKTOP, widths: UNIT, options: { top: BASE_TOPS, fronts: BASE_FRONTS, ...HANDLE }, planBy: "top" }),
       // a board on a unit's open side, often in another colour: as tall as a base, mid-height or tall unit
       k("kitchen_panel", "kitchen", [0.02, 0.62, 0.91], cabinet("oak"), { heights: [0.91, 1.45, 2.2] }),
       k("kitchen_dishwasher", "kitchen", [0.6, 0.62, 0.91], cabinet(), { accents: WORKTOP, widths: [0.45, 0.6], options: HANDLE }),
       k("kitchen_corner", "kitchen", [1.0, 1.0, 0.91], cabinet(), { accents: WORKTOP, options: HANDLE }),
-      k("kitchen_pantry", "kitchen", [0.6, 0.62, 2.2], cabinet(), { widths: [0.3, 0.45, 0.5, 0.6], options: HANDLE }),
-      k("kitchen_pantry_mid", "kitchen", [0.6, 0.62, 1.45], cabinet(), { widths: [0.3, 0.45, 0.5, 0.6], options: HANDLE }),
-      k("kitchen_tall_fridge", "fridge", [0.6, 0.62, 2.2], cabinet(), { options: HANDLE }),
-      k("kitchen_tall_oven", "kitchen", [0.6, 0.62, 2.2], cabinet(), { options: HANDLE }),
       k("kitchen_upper_glass", "kitchen_upper", [0.8, 0.35, 0.72], cabinet(), { mount: "wall", elevation: 1.45, widths: UNIT }),
       k("kitchen_upper_open", "kitchen_upper", [0.8, 0.25, 0.72], cabinet("oak"), { mount: "wall", elevation: 1.45, widths: UNIT }),
       k("kitchen_hood", "kitchen_upper", [0.9, 0.5, 1.0], ["silver", "black", "white"], { mount: "wall", elevation: 1.55, widths: [0.6, 0.9, 1.2] }),

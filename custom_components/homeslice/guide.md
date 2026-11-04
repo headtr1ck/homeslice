@@ -205,7 +205,10 @@ accent, options, entity, readings}]`.
   `modern:kitchen_base`: `top` is `none`, `sink`, `hob_gas`, `hob_ceran`, `hob_electric` or
   `hob_downdraft`; `fronts` is `drawer_door`, `door`, `drawers_2`, `drawers_3`,
   `panel_drawer`, `oven` or `shelves`; `handle` is `bar`, `knob`, `handleless` or `push`,
-  e.g. `options: {top: sink, fronts: panel_drawer, handle: handleless}`. A kind's `widths` and `heights` are the
+  e.g. `options: {top: sink, fronts: panel_drawer, handle: handleless}`. Tall units are all
+  `modern:kitchen_tall`, `fronts` `doors`, `drawers_doors`, `dishwasher` (raised), `oven`,
+  `oven_microwave`, `oven_steam`, `coffee`, `fridge`, `fridge_freezer`, `apothecary` (a pull-out
+  larder) or `niche`. A kind's `widths` and `heights` are the
   sizes it is made in; any size still works. `modern:kitchen_panel` is a side panel (2 cm)
   for a unit's open side, in its own colour.
 - `entity`: what the piece is in Home Assistant, and the card shows its state: a lamp's
