@@ -1,8 +1,11 @@
 #!/usr/bin/env node
 // Large pictures of built-in pieces from four sides (front right above, front, side, top),
 // for working on their details: node scripts/preview-models.mjs car_estate car_suv:red
-// (an optional ":finish" each). Writes test-results/preview/<piece>.png and prints each
-// piece's triangle count.
+// (an optional ":finish" each). Writes test-results/preview/<piece>.png, the same views in a
+// check shading as <piece>-normals.png (magenta: the back of a one-sided face is seen, i.e. it is
+// inside out; yellow: normals point away from a face seen from the front; blue tint: the back
+// of a double-sided sheet, fine), and prints each piece's triangle count and how many of its
+// triangles have normals against their winding.
 import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync, existsSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import { join, resolve } from "node:path";
@@ -44,9 +47,12 @@ rmSync(out, { recursive: true });
 if (errors.length) console.error(errors.join("\n"));
 const target = join(root, "test-results/preview");
 mkdirSync(target, { recursive: true });
-for (const [key, { png, triangles }] of Object.entries(images)) {
-  const file = join(target, `${key.replace(/[:=]/g, "-")}.png`);
+for (const [key, { png, normals, triangles, against }] of Object.entries(images)) {
+  const name = key.replace(/[:=]/g, "-");
+  const file = join(target, `${name}.png`);
   writeFileSync(file, Buffer.from(png.split(",")[1], "base64"));
-  console.log(`${file}  (${Math.round(triangles)} triangles)`);
+  writeFileSync(join(target, `${name}-normals.png`), Buffer.from(normals.split(",")[1], "base64"));
+  const warn = against ? `, ${against} with normals against their winding` : "";
+  console.log(`${file}  (${Math.round(triangles)} triangles${warn}; check shading: ${name}-normals.png)`);
 }
 if (!Object.keys(images).length) process.exit(1);
