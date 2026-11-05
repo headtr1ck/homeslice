@@ -39,8 +39,18 @@ void main() {
   if (dot(n, v) < -0.3) { gl_FragColor = vec4(1.0, 0.85, 0.0, 1.0); return; }
   gl_FragColor = vec4(tint * (0.15 + 0.55 * max(dot(n, v), 0.0)), 1.0);
 }`;
-const check = (doubleSided: boolean) =>
-  new THREE.ShaderMaterial({ vertexShader: CHECK_VERTEX, fragmentShader: CHECK_FRAGMENT, side: THREE.DoubleSide, uniforms: { doubleSided: { value: doubleSided ? 1 : 0 } } });
+// Front faces are drawn first, back faces in a second pass pushed slightly back, so a back face
+// shows only where no front face covers it (not at a box's edges, where both have one depth).
+const check = (doubleSided: boolean, side: THREE.Side) =>
+  new THREE.ShaderMaterial({
+    vertexShader: CHECK_VERTEX,
+    fragmentShader: CHECK_FRAGMENT,
+    side,
+    polygonOffset: side === THREE.BackSide,
+    polygonOffsetFactor: 1,
+    polygonOffsetUnits: 4,
+    uniforms: { doubleSided: { value: doubleSided ? 1 : 0 } },
+  });
 
 /** Triangles of one-sided meshes whose normals point against their winding (the face's front). */
 function againstWinding(piece: THREE.Object3D): number {
@@ -92,30 +102,43 @@ function shoot(kind: string, finish?: string, options: Record<string, string> = 
     [0, 0, new THREE.Vector3(1, 0.15, 0)],
     [1, 0, new THREE.Vector3(0.001, 1, 0.001)],
   ];
-  const four = () => {
+  const four = (passes: (() => void)[] = [() => {}]) => {
     renderer.setScissorTest(true);
     for (const [cx, cy, dir] of views) {
       renderer.setViewport(cx * SIZE, cy * SIZE, SIZE, SIZE);
       renderer.setScissor(cx * SIZE, cy * SIZE, SIZE, SIZE);
-      const camera = new THREE.PerspectiveCamera(30, 1, 0.01, 100);
-      camera.position.copy(centre).addScaledVector(dir.clone().normalize(), (radius / Math.sin((15 * Math.PI) / 180)) * 1.02);
+      // near and far hug the piece: depth precision decides which of a thin part's faces wins
+      // at its edges, and a loose range shows the back ones there (false magenta in the check)
+      const distance = (radius / Math.sin((15 * Math.PI) / 180)) * 1.02;
+      const camera = new THREE.PerspectiveCamera(30, 1, Math.max(0.01, distance - radius * 1.1), distance + radius * 1.1);
+      camera.position.copy(centre).addScaledVector(dir.clone().normalize(), distance);
       if (dir.y > 0.9) camera.up.set(0, 0, -1);
       camera.lookAt(centre);
-      renderer.render(scene, camera);
+      passes.forEach((pass, i) => {
+        pass();
+        renderer.autoClear = i === 0;
+        renderer.render(scene, camera);
+      });
+      renderer.autoClear = true;
     }
     renderer.setScissorTest(false);
     return renderer.domElement.toDataURL("image/png");
   };
   const png = four();
   const against = againstWinding(piece);
-  const checks = { one: check(false), two: check(true) };
+  const meshes: [THREE.Mesh, boolean][] = [];
   piece.traverse((o) => {
     if (o instanceof THREE.Mesh) {
       const mats = Array.isArray(o.material) ? o.material : [o.material];
-      o.material = mats.some((m: THREE.Material) => m.side === THREE.DoubleSide) ? checks.two : checks.one;
+      meshes.push([o, mats.some((m: THREE.Material) => m.side === THREE.DoubleSide)]);
     }
   });
-  const normals = four();
+  const pass = (side: THREE.Side) => {
+    const one = check(false, side);
+    const two = check(true, side);
+    return () => meshes.forEach(([m, double]) => (m.material = double ? two : one));
+  };
+  const normals = four([pass(THREE.FrontSide), pass(THREE.BackSide)]);
   let triangles = 0;
   piece.traverse((o) => {
     if (o instanceof THREE.Mesh) {
