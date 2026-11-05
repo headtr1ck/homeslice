@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Large pictures of built-in pieces from four sides (front right above, front, side, top),
 // for working on their details: node scripts/preview-models.mjs car_estate car_suv:red
-// (an optional ":finish" each). Writes test-results/preview/<piece>.png, the same views in a
+// (an optional ":finish" each, then ":option=value" pairs; ":accent=chrome" picks the accent). Writes test-results/preview/<piece>.png, the same views in a
 // check shading as <piece>-normals.png (magenta: the back of a one-sided face is seen, i.e. it is
 // inside out; yellow: normals point away from a face seen from the front; blue tint: the back
 // of a double-sided sheet, fine), and prints each piece's triangle count and how many of its
@@ -14,7 +14,7 @@ import { chromium } from "playwright-core";
 
 const kinds = process.argv.slice(2);
 if (!kinds.length) {
-  console.error("usage: preview-models.mjs <piece>[:finish][:option=value] …");
+  console.error("usage: preview-models.mjs <piece>[:finish][:option=value][:accent=name] …");
   process.exit(2);
 }
 const root = resolve(import.meta.dirname, "..");

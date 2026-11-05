@@ -87,7 +87,8 @@ function againstWinding(piece: THREE.Object3D): number {
  *  check shading; and its triangles. */
 function shoot(kind: string, finish?: string, options: Record<string, string> = {}): Shot {
   const def = MODERN[kind];
-  const piece = buildModern(kind, [def.size[0], def.size[1]], def.size[2], finish, undefined, options);
+  const { accent, ...chosen } = options;
+  const piece = buildModern(kind, [def.size[0], def.size[1]], def.size[2], finish, accent, chosen);
   if (!piece) throw new Error(`no built-in piece ${kind}`);
   const scene = new THREE.Scene();
   scene.add(new THREE.HemisphereLight(0xffffff, 0x50555c, 1.2));
@@ -156,7 +157,7 @@ type Shot = { png: string; normals: string; triangles: number; against: number }
 const wanted = decodeURIComponent(location.hash.slice(1)).split(",").filter(Boolean);
 const out: Record<string, Shot> = {};
 for (const item of wanted) {
-  // piece[:finish][:option=value…]
+  // piece[:finish][:option=value…], accent=<name> picks the accent
   const [kind, finish, ...rest] = item.split(":");
   out[item] = shoot(kind, finish || undefined, Object.fromEntries(rest.map((o) => o.split("="))));
 }
