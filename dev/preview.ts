@@ -25,13 +25,15 @@ void main() {
 }`;
 const CHECK_FRAGMENT = `
 uniform float doubleSided;
+uniform float back;
 varying vec3 vNormal;
 varying vec3 vView;
 void main() {
   vec3 n = normalize(vNormal);
   vec3 v = normalize(vView);
   vec3 tint = vec3(1.0);
-  if (!gl_FrontFacing) {
+  // (not gl_FrontFacing: three flips the front face for BackSide materials, so it is true there)
+  if (back > 0.5) {
     if (doubleSided < 0.5) { gl_FragColor = vec4(1.0, 0.0, 1.0, 1.0); return; }
     n = -n;
     tint = vec3(0.7, 0.8, 1.0);
@@ -49,7 +51,7 @@ const check = (doubleSided: boolean, side: THREE.Side) =>
     polygonOffset: side === THREE.BackSide,
     polygonOffsetFactor: 1,
     polygonOffsetUnits: 4,
-    uniforms: { doubleSided: { value: doubleSided ? 1 : 0 } },
+    uniforms: { doubleSided: { value: doubleSided ? 1 : 0 }, back: { value: side === THREE.BackSide ? 1 : 0 } },
   });
 
 /** Triangles of one-sided meshes whose normals point against their winding (the face's front). */
