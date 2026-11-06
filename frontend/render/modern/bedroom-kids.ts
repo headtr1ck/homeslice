@@ -236,21 +236,6 @@ function bedLinen(b: Builder, o: { w: number; zBack: number; zFront: number; y: 
 
 // ----- beds -----
 
-function bedUpholstered(b: Builder, w: number, d: number, h: number, f: THREE.Material, a: THREE.Material, color: string, single: boolean) {
-  // a padded frame on short legs, a headboard in vertical channels
-  const legH = 0.07;
-  const hd = 0.1;
-  const zb = -d / 2;
-  taperLegs(b, w - 0.02, d - hd, legH + 0.01, 0.07, 0.018, a, 0.004, hd / 2);
-  rbox(b, w, 0.26, d - hd + 0.01, 0, legH, hd / 2 - 0.005, f, 0.035, 2);
-  rbox(b, w + 0.02, h - 0.03, hd, 0, 0.03, zb + hd / 2, f, 0.04, 2);
-  const groove = mat(shade(color, 0.62), { roughness: 1 });
-  const n = Math.max(2, Math.round(w / (single ? 0.22 : 0.26)));
-  const y0 = legH + 0.33;
-  for (let i = 1; i < n; i++) b.box(0.009, h - y0 - 0.06, 0.006, -w / 2 + (w / n) * i, y0, zb + hd, groove);
-  bedLinen(b, { w: w - 0.06, zBack: zb + hd + 0.01, zFront: d / 2 - 0.03, y: legH + 0.26, drop: 0.24, color, seed: single ? 5 : 3 });
-}
-
 function bedStorage(b: Builder, w: number, d: number, h: number, f: THREE.Material, a: THREE.Material, color: string) {
   // a box bed: two drawers on each long side, a wooden headboard with a capping shelf
   const hd = 0.05;
@@ -504,8 +489,6 @@ function teddy(b: Builder, x: number, y: number, z: number, s: number, ry = 0) {
 // ----- the pieces -----
 
 export const BUILDERS: Record<string, Build> = {
-  bed: (b, w, d, h, f, c, a) => bedUpholstered(b, w, d, h, f, a, c, false),
-  bed_single: (b, w, d, h, f, c, a) => bedUpholstered(b, w, d, h, f, a, c, true),
   bed_storage: (b, w, d, h, f, c, a) => bedStorage(b, w, d, h, f, a, c),
   bed_platform: (b, w, d, h, f, c) => {
     // a low platform wider and longer than the mattress, on a recessed dark base, a low headboard
