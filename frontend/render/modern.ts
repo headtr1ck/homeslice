@@ -425,15 +425,6 @@ export const shadeMat = (_finish: THREE.Material, color: string) =>
   ["black", "anthracite"].includes(color) ? mat(FINISHES[color], { side: THREE.DoubleSide }) : glowing(mat(C.shade, { side: THREE.DoubleSide }));
 
 const BASE_BUILDERS: Record<string, Build> = {
-  garden_sofa: (b, w, d, _h, f, _c, a) => {
-    // a frame of slats and thick cushions
-    const frame = a;
-    b.box(w, 0.3, d, 0, 0.05, 0, frame, 0.01);
-    b.box(w, 0.35, 0.08, 0, 0.35, back(d) + 0.04, frame, 0.01);
-    for (const sx of [-1, 1]) b.box(0.08, 0.3, d, sx * (w / 2 - 0.04), 0.35, 0, frame, 0.01);
-    sofaSeats(b, -w / 2 + 0.08, w - 0.16, 0.04, d - 0.08, f, true);
-    legs(b, w, d, 0.05, 0.05, 0.02, frame, true);
-  },
   soundbar: (b, w, d, h, f) => {
     b.box(w, h, d, 0, 0, 0, f, Math.min(h, d) * 0.45);
     b.pulser(0, h / 2, d / 2, () => b.box(w - 0.04, h * 0.7, 0.004, 0, h * 0.15, d / 2, mat(C.black, { roughness: 1 })));
@@ -483,69 +474,11 @@ const BASE_BUILDERS: Record<string, Build> = {
     b.box(w - 0.04, 0.01, d - 0.04, 0, bh - 0.04, 0, mat(C.soil));
     grass(b, random(29), w - 0.1, d - 0.1, h - bh, bh - 0.04, 140, ["#6f8f48", "#8aa35a", "#a6b46a"]);
   },
-  // ----- garden, more -----
-  deck_chair: (b, w, d, h, f, _c, a) => {
-    const wood = a;
-    for (const sx of [-1, 1]) {
-      const x = sx * (w / 2 - 0.02);
-      b.rod(v(x, 0, d / 2), v(x, h, -d / 2 + 0.05), 0.016, wood, 6);
-      b.rod(v(x, 0, -d / 2), v(x, h * 0.45, d / 2 - 0.05), 0.016, wood, 6);
-    }
-    const sling = new THREE.PlaneGeometry(w - 0.08, Math.hypot(h, d) * 0.85, 1, 8);
-    const pos = sling.attributes.position;
-    for (let i = 0; i < pos.count; i++) {
-      const t = pos.getY(i) / (Math.hypot(h, d) * 0.85) + 0.5;
-      pos.setZ(i, Math.sin(t * Math.PI) * 0.12);
-    }
-    sling.computeVertexNormals();
-    const m = b.add(sling, mat((f as THREE.MeshStandardMaterial).color.getStyle(), { side: THREE.DoubleSide, roughness: 1 }), 0, h * 0.55, 0);
-    m.rotation.x = -(Math.PI / 2 - Math.atan2(h * 0.9, d * 0.9));
-  },
-  hammock: (b, w, d, h, f, _c, a) => {
-    // a wooden frame (a post pair at each end, a beam on the ground) and a sagging cloth
-    const wood = a;
-    const top = h * 0.92;
-    for (const sx of [-1, 1]) {
-      const x = sx * (w / 2 - 0.05);
-      for (const sz of [-1, 1]) b.rod(v(x - sx * 0.15, 0, sz * (d / 2 - 0.05)), v(x, top, 0), 0.04, wood, 8);
-      b.box(0.08, 0.08, d, x - sx * 0.15, 0, 0, wood);
-    }
-    b.box(w - 0.3, 0.08, 0.08, 0, 0, 0, wood);
-    const len = w * 0.62;
-    const cloth = new THREE.PlaneGeometry(len, Math.min(0.9, d * 0.8), 16, 4);
-    const pos = cloth.attributes.position;
-    for (let i = 0; i < pos.count; i++) {
-      const t = pos.getX(i) / len;
-      const s2 = pos.getY(i) / Math.min(0.9, d * 0.8);
-      pos.setZ(i, -(1 - 4 * t * t) * h * 0.35 - (1 - 4 * s2 * s2) * 0.08);
-    }
-    cloth.computeVertexNormals();
-    const m = b.add(cloth, mat((f as THREE.MeshStandardMaterial).color.getStyle(), { side: THREE.DoubleSide, roughness: 1 }), 0, h * 0.75, 0);
-    m.rotation.x = -Math.PI / 2;
-    for (const sx of [-1, 1]) b.rod(v((sx * len) / 2, h * 0.75, 0), v(sx * (w / 2 - 0.07), top - 0.03, 0), 0.008, mat(C.linen), 4);
-  },
-  fence_slats: (b, w, d, h, f, _c, a) => {
-    const n = Math.max(1, Math.round(w / 1.8));
-    for (let i = 0; i <= n; i++) b.box(0.07, h, 0.07, -w / 2 + 0.035 + (i * (w - 0.07)) / n, 0, 0, a);
-    const rows = Math.max(3, Math.round(h / 0.12));
-    for (let r = 0; r < rows; r++) b.box(w - 0.02, (h / rows) * 0.72, Math.min(0.025, d), 0, 0.03 + (r * (h - 0.03)) / rows, 0.045, f);
-  },
   garden_light: (b, w, d, h, f) => {
     const r = Math.min(w, d) / 2;
     b.cyl(r, r, h - 0.08, 0, 0, 0, f, 20);
     b.cyl(r * 0.95, r * 0.95, 0.06, 0, h - 0.08, 0, glowing(mat("#fff3d6", { emissive: "#ffe2a8", emissiveIntensity: 0.6 })), 20);
     b.cyl(r * 1.05, r * 1.05, 0.02, 0, h - 0.02, 0, f, 20);
-  },
-  fire_pit: (b, w, d, h, f) => {
-    const r = Math.min(w, d) / 2;
-    const profile = [v(0.001, 0, 0), v(r * 0.3, 0, 0), v(r * 0.75, h * 0.35, 0), v(r, h * 0.8, 0), v(r * 0.98, h * 0.8, 0), v(r * 0.73, h * 0.38, 0), v(0.001, h * 0.3, 0)].map((p) => new THREE.Vector2(p.x, p.y));
-    b.add(new THREE.LatheGeometry(profile, 32), mat((f as THREE.MeshStandardMaterial).color.getStyle(), { side: THREE.DoubleSide, roughness: 0.9 }));
-    const rand = random(107);
-    for (let i = 0; i < 5; i++) {
-      const a = (i / 5) * Math.PI * 2;
-      b.rod(v(Math.cos(a) * r * 0.45, h * 0.35, Math.sin(a) * r * 0.45), v(Math.cos(a + 2.4) * r * 0.4, h * 0.5 + rand() * 0.05, Math.sin(a + 2.4) * r * 0.4), 0.035, mat(C.trunk), 6);
-    }
-    b.sphere(r * 0.25, 0, h * 0.42, 0, part(mat("#ff8a3a", { emissive: "#ff5a1a", emissiveIntensity: 0.8 }), "fire"), 1, 0.4, 1, 10);
   },
   raised_bed: (b, w, d, h, f) => {
     const t = 0.04;
@@ -603,17 +536,6 @@ const BASE_BUILDERS: Record<string, Build> = {
     for (const sx of [-1, 1]) for (const sz of [-1, 1]) b.box(0.05, h + 0.04, 0.05, sx * (w / 2 - 0.025), 0, sz * (d / 2 - 0.025), f);
     b.box(w - 0.06, h * 0.75, d - 0.06, 0, 0, 0, mat(C.soil, { roughness: 1 }));
     foliage(b, random(127), 0, h * 0.78, 0, w * 0.3, 0.05, d * 0.3, 25, 0.06, ["#7a8a3a", "#a08d4a"], true);
-  },
-  wheelbarrow: (b, w, d, h, f) => {
-    const tray = new THREE.CylinderGeometry(Math.SQRT1_2, Math.SQRT1_2 * 0.6, 0.3, 4, 1, false, Math.PI / 4);
-    tray.scale(w, 1, d * 0.55);
-    b.add(tray, f, 0, h - 0.17, d * 0.05);
-    b.add(new THREE.TorusGeometry(0.17, 0.05, 8, 20), mat(C.black), 0, 0.2, d / 2 - 0.2).rotation.y = Math.PI / 2;
-    for (const sx of [-1, 1]) {
-      b.rod(v(sx * 0.2, h - 0.25, -d / 2), v(sx * 0.06, 0.2, d / 2 - 0.2), 0.016, mat(C.steel), 6);
-      b.rod(v(sx * 0.18, h - 0.32, -d * 0.15), v(sx * 0.18, 0, -d * 0.2), 0.014, mat(C.steel), 6);
-      b.cyl(0.02, 0.02, 0.12, sx * 0.2, h - 0.25, -d / 2 + 0.06, mat(C.black), 8).rotation.x = Math.PI / 2 - 0.25;
-    }
   },
   rotary_dryer: (b, w, d, h, f) => {
     const r = Math.min(w, d) / 2;
@@ -700,40 +622,6 @@ const BASE_BUILDERS: Record<string, Build> = {
     }
     b.box(w, 0.03, d, 0, h - 0.03, 0, f, 0.004);
   },
-  path_stepping: (b, w, d, h, f) => {
-    const n = Math.max(2, Math.round(d / 0.6));
-    const rand = random(173);
-    for (let i = 0; i < n; i++) {
-      const geo = new THREE.CylinderGeometry(0.5, 0.5, h, 9);
-      geo.scale(w * (0.8 + rand() * 0.2), 1, (d / n) * 0.75);
-      b.add(geo, f, (rand() - 0.5) * w * 0.15, h / 2, -d / 2 + (d / n) * (i + 0.5)).rotation.y = rand() * 0.5;
-    }
-  },
-  fence_picket: (b, w, d, h, f) => {
-    const n = Math.max(2, Math.round(w / 0.12));
-    for (let i = 0; i < n; i++) {
-      const x = -w / 2 + (w / n) * (i + 0.5);
-      b.box(0.07, h - 0.06, Math.min(0.02, d), x, 0, 0.02, f);
-      b.add(new THREE.ConeGeometry(0.05, 0.08, 4).rotateY(Math.PI / 4).scale(1, 1, 0.3), f, x, h - 0.02, 0.02);
-    }
-    for (const y of [0.15, h - 0.25]) b.box(w, 0.07, 0.025, 0, y, -0.005, f);
-  },
-  fence_planks: (b, w, d, h, f) => {
-    const n = Math.max(1, Math.round(w / 1.8));
-    for (let i = 0; i <= n; i++) b.box(0.09, h + 0.05, 0.09, -w / 2 + 0.045 + (i * (w - 0.09)) / n, 0, -0.02, f);
-    const boards = Math.max(4, Math.round(w / 0.14));
-    for (let i = 0; i < boards; i++) b.box(w / boards - 0.012, h - 0.05, Math.min(0.02, d), -w / 2 + (w / boards) * (i + 0.5), 0.05, 0.035, f);
-  },
-  garden_gate: (b, w, d, h, f, _c, a) => {
-    for (const sx of [-1, 1]) b.box(0.1, h + 0.1, 0.1, sx * (w / 2 - 0.05), 0, 0, mat(C.black));
-    const gw = w - 0.24;
-    const boards = Math.max(4, Math.round(gw / 0.12));
-    for (let i = 0; i < boards; i++) b.box(gw / boards - 0.01, h - 0.1, 0.022, -gw / 2 + (gw / boards) * (i + 0.5), 0.06, 0.03, f);
-    for (const y of [0.2, h - 0.25]) b.box(gw, 0.08, 0.025, 0, y, 0.005, f);
-    b.rod(v(-gw / 2 + 0.05, 0.25, 0.01), v(gw / 2 - 0.05, h - 0.2, 0.01), 0.02, f, 6);
-    b.box(0.03, 0.12, 0.03, gw / 2 - 0.06, h * 0.55, 0.06, a, 0.006);
-    void d;
-  },
   aquarium: (b, w, d, h, f) => {
     const cab = Math.min(0.7, h * 0.55);
     b.box(w, cab, d, 0, 0, 0, f, 0.006);
@@ -810,68 +698,6 @@ const BASE_BUILDERS: Record<string, Build> = {
     b.box(w - 0.07, h - 0.07, 0.004, 0, 0.035, d / 2, mat("#f4f1ea"));
     art(b, w - 0.24, h - 0.22, 0.11, d / 2 + 0.003, c);
   },
-  bistro_set: (b, w, d, h, f, _c, a) => {
-    const r = Math.min(0.35, d / 2);
-    b.cyl(r, r, 0.025, 0, h - 0.025, 0, f, 32);
-    b.cyl(0.02, 0.02, h - 0.025, 0, 0, 0, a, 10);
-    for (let i = 0; i < 3; i++) {
-      const ang = (i / 3) * Math.PI * 2;
-      b.rod(v(0, 0.15, 0), v(Math.cos(ang) * r * 0.8, 0, Math.sin(ang) * r * 0.8), 0.012, a, 6);
-    }
-    for (const sx of [-1, 1]) {
-      const x = sx * (w / 2 - 0.22);
-      b.cyl(0.2, 0.2, 0.02, x, 0.45, 0, f, 24);
-      for (const sz of [-1, 1]) for (const dx of [-1, 1]) b.rod(v(x + dx * 0.14, 0.45, sz * 0.14), v(x + dx * 0.18, 0, sz * 0.18), 0.009, a, 6);
-      const back2 = new THREE.TorusGeometry(0.17, 0.01, 6, 20, Math.PI);
-      back2.rotateY(sx > 0 ? -Math.PI / 2 : Math.PI / 2);
-      b.add(back2, a, x + sx * 0.14, 0.62, 0);
-    }
-  },
-  fountain: (b, w, d, h, f) => {
-    const r = Math.min(w, d) / 2;
-    const water = mat("#5fb4d8", { transparent: true, opacity: 0.75, roughness: 0.05 });
-    b.add(new THREE.LatheGeometry([[0.001, 0], [r, 0], [r, 0.35], [r * 0.9, 0.35], [r * 0.9, 0.08], [0.001, 0.08]].map(([x, y]) => new THREE.Vector2(x, y)), 36), f);
-    b.cyl(r * 0.9, r * 0.9, 0.01, 0, 0.3, 0, water, 36);
-    b.cyl(0.08, 0.12, h * 0.55, 0, 0.08, 0, f, 16);
-    b.add(new THREE.LatheGeometry([[0.001, 0], [r * 0.45, 0.12], [r * 0.42, 0.14], [0.001, 0.05]].map(([x, y]) => new THREE.Vector2(x, y)), 28), f, 0, h * 0.6, 0);
-    b.cyl(r * 0.42, r * 0.42, 0.01, 0, h * 0.6 + 0.12, 0, water, 28);
-    b.cyl(0.03, 0.05, h * 0.25, 0, h * 0.6 + 0.1, 0, f, 12);
-    b.sphere(0.06, 0, h - 0.05, 0, f, 1, 1, 1, 14);
-  },
-  pond: (b, w, d, h, f) => {
-    const rand = random(313);
-    const s = new THREE.Shape();
-    for (let i = 0; i <= 24; i++) {
-      const ang = (i / 24) * Math.PI * 2;
-      const k = 0.85 + rand() * 0.15;
-      const p = new THREE.Vector2((Math.cos(ang) * w * k) / 2, (Math.sin(ang) * d * k) / 2);
-      if (i === 0) s.moveTo(p.x, p.y);
-      else s.lineTo(p.x, p.y);
-    }
-    // the water lights up with the pond's pump or light linked
-    b.add(new THREE.ShapeGeometry(s, 4).rotateX(-Math.PI / 2), glowing(part(mat("#3f7f9a", { roughness: 0.05 }), "water")), 0, h * 0.4, 0);
-    for (let i = 0; i < 24; i++) {
-      const ang = (i / 24) * Math.PI * 2;
-      b.sphere(0.12 + rand() * 0.08, (Math.cos(ang) * w) / 2, 0.05, (Math.sin(ang) * d) / 2, f, 1.3, 0.6, 1.1, 8);
-    }
-    for (let i = 0; i < 6; i++) b.add(new THREE.CircleGeometry(0.1, 12, 0.3, Math.PI * 1.8), leafMat("#4f8a3a"), (rand() - 0.5) * w * 0.5, h * 0.4 + 0.005, (rand() - 0.5) * d * 0.5).rotation.x = -Math.PI / 2;
-    b.sphere(0.04, w * 0.1, h * 0.4 + 0.03, 0, mat("#f4c6d6"), 1, 0.6, 1, 8);
-  },
-  string_lights: (b, w, d, h, f) => {
-    // two posts, a sagging string of warm bulbs
-    for (const sx of [-1, 1]) b.box(0.08, h, 0.08, sx * (w / 2 - 0.04), 0, 0, f);
-    const pts: THREE.Vector3[] = [];
-    for (let i = 0; i <= 20; i++) {
-      const t = i / 20;
-      pts.push(v(-w / 2 + 0.04 + t * (w - 0.08), h - 0.05 - Math.sin(t * Math.PI) * h * 0.15, 0));
-    }
-    b.add(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 40, 0.004, 4), mat(C.black));
-    for (let i = 1; i < 20; i += 1.5) {
-      const p = pts[Math.floor(i)];
-      bulb(b, p.x, p.y - 0.05, 0, 0.025);
-    }
-    void d;
-  },
   lantern: (b, w, d, h, f) => {
     const r = Math.min(w, d) / 2;
     b.box(r * 2, 0.03, r * 2, 0, 0, 0, f, 0.006);
@@ -921,18 +747,6 @@ const BASE_BUILDERS: Record<string, Build> = {
     b.cyl(0.12, 0.12, 0.02, 0, h - 0.07, back(d) + 0.06 + r * 0.9, mat(C.chrome, { metalness: 0.8, roughness: 0.25 }), 24);
     b.cyl(0.03, 0.03, 0.06, 0.08, 1.05, back(d) + 0.12, mat(C.chrome, { metalness: 0.8 }), 12).rotation.x = Math.PI / 2;
     b.rod(v(0.05, 1.3, back(d) + 0.11), v(0.05, 1.5, back(d) + 0.12), 0.012, mat(C.chrome, { metalness: 0.8 }), 8);
-  },
-  hose_reel: (b, w, d, h, f) => {
-    // a frame on two small wheels, the drum with green hose wound on it, a crank
-    const r = Math.min(h * 0.38, 0.28);
-    for (const sx of [-1, 1]) {
-      b.box(0.03, h - 0.05, 0.04, sx * (w / 2 - 0.03), 0.05, 0, f, 0.008);
-      b.add(new THREE.TorusGeometry(0.06, 0.02, 6, 16).rotateY(Math.PI / 2), mat(C.black), sx * (w / 2 - 0.02), 0.08, d * 0.25);
-    }
-    b.rod(v(-w / 2 + 0.03, h - 0.05, 0), v(w / 2 - 0.03, h - 0.05, 0), 0.015, f, 8);
-    b.add(new THREE.CylinderGeometry(r, r, w - 0.12, 24).rotateZ(Math.PI / 2), mat("#3c8a3c", { roughness: 0.7 }), 0, h * 0.5, 0);
-    for (const sx of [-1, 1]) b.add(new THREE.CylinderGeometry(r * 1.15, r * 1.15, 0.015, 24).rotateZ(Math.PI / 2), f, sx * (w / 2 - 0.07), h * 0.5, 0);
-    b.box(0.02, 0.12, 0.02, w / 2, h * 0.5 + 0.05, 0, f, 0.006);
   },
   bird_bath: (b, w, d, h, f) => {
     // a pedestal and a shallow bowl of water
@@ -1013,21 +827,6 @@ const BASE_BUILDERS: Record<string, Build> = {
     g.position.y = 0.12;
     b.g.add(g);
   },
-  adirondack_chair: (b, w, d, h, f) => {
-    // slanted slatted back, deep seat, wide arms
-    for (const sx of [-1, 1]) {
-      b.box(0.04, 0.4, 0.06, sx * (w / 2 - 0.08), 0, d / 2 - 0.12, f);
-      b.rod(v(sx * (w / 2 - 0.08), 0.05, -d / 2 + 0.15), v(sx * (w / 2 - 0.08), 0.4, d / 2 - 0.12), 0.025, f, 6);
-      b.box(0.13, 0.025, d * 0.6, sx * (w / 2 - 0.065), 0.6, d * 0.12, f, 0.006);
-    }
-    for (let i = 0; i < 5; i++) b.box(w - 0.18, 0.02, 0.07, 0, 0.32 - i * 0.03, d / 2 - 0.15 - i * 0.09, f, 0.004)?.rotation.set(0.3, 0, 0);
-    const n = 6;
-    for (let i = 0; i < n; i++) {
-      const slat = b.box(0.07, h * 0.75, 0.02, 0, 0, 0, f, 0.006);
-      slat?.position.set(-w * 0.3 + (i * w * 0.6) / (n - 1), 0.25 + h * 0.37, -d / 2 + 0.22);
-      slat?.rotation.set(-0.45, 0, 0);
-    }
-  },
   swing_bench: (b, w, d, h, f) => {
     // a two-seat bench hanging in an A-frame
     for (const sx of [-1, 1]) for (const sz of [-1, 1]) b.rod(v(sx * (w / 2 - 0.05), 0, sz * (d / 2 - 0.05)), v(sx * (w / 2 - 0.05), h - 0.05, 0), 0.045, f, 8);
@@ -1045,15 +844,6 @@ const BASE_BUILDERS: Record<string, Build> = {
     b.box(w, ph, d, 0, 0, 0, f, 0.01);
     b.box(w - 0.04, 0.01, d - 0.04, 0, ph - 0.03, 0, mat(C.soil));
     grass(b, random(397), w * 0.7, d * 0.7, h - ph, ph - 0.03, 120, ["#6f8f48", "#8aa35a", "#5b7a3c"], true);
-  },
-  sun_sail: (b, w, d, h, f) => {
-    // a triangular shade sail on three posts
-    const pts = [v(-w / 2, h, -d / 2), v(w / 2, h * 0.75, -d / 2 + 0.2), v(-w / 2 + 0.3, h * 0.8, d / 2)];
-    for (const p of pts) b.rod(v(p.x, 0, p.z), v(p.x, p.y + 0.15, p.z), 0.04, mat(C.steel), 8);
-    const geo = new THREE.BufferGeometry().setFromPoints(pts);
-    geo.setIndex([0, 1, 2]);
-    geo.computeVertexNormals();
-    b.add(geo, mat((f as THREE.MeshStandardMaterial).color.getStyle(), { side: THREE.DoubleSide, roughness: 1 }));
   },
 };
 

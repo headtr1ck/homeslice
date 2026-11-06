@@ -494,8 +494,8 @@ export const MODERN_GROUPS: { id: string; kinds: ModernKind[] }[] = [
       k("smart_display", "item", [0.2, 0.12, 0.14], ["white", "anthracite", "sand"]),
       k("siren", "item", [0.22, 0.1, 0.22], ["white", "anthracite"], { mount: "wall", elevation: 2.3 }),
       k("air_quality_monitor", "item", [0.1, 0.07, 0.16], ["white", "oak"]),
-      k("wall_switch", "item", [0.086, 0.012, 0.086], ["white", "black", "anthracite", "brass"], { mount: "wall", elevation: 1.05, options: { gangs: ["1", "2", "3"] } }),
-      k("wall_socket", "item", [0.086, 0.04, 0.086], ["white", "black", "anthracite", "brass"], { mount: "wall", elevation: 0.3, options: { gangs: ["1", "2", "3"] } }),
+      k("wall_switch", "item", [0.086, 0.012, 0.086], ["white", "black", "anthracite", "brass"], { mount: "wall", elevation: 1.05, widths: [0.086, 0.157, 0.228], options: { gangs: ["1", "2", "3"] } }),
+      k("wall_socket", "item", [0.086, 0.04, 0.086], ["white", "black", "anthracite", "brass"], { mount: "wall", elevation: 0.3, widths: [0.086, 0.157, 0.228], options: { gangs: ["1", "2", "3"] } }),
     ],
   },
   {
