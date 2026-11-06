@@ -2295,5 +2295,12 @@
   "option.rails_half": "Half",
   "option.rails_full": "All round",
   "card.no_house_hint": "Draw it in Homeslice in the sidebar, or start from your floors and areas there.",
-  "card.open_editor": "Open Homeslice"
+  "card.open_editor": "Open Homeslice",
+  "editor.clips": "How it goes",
+  "editor.clip_room": "Draw a room (R), double-click a wall for a corner",
+  "editor.clip_openings": "Doors & windows (D): pick one, click a wall",
+  "editor.clip_furniture": "Furniture (F): drag it onto a room, R turns it",
+  "editor.clip_floors": "+ Level, then stairs up to it (S)",
+  "editor.clip_balcony": "A balcony (B) and + Roof",
+  "editor.clip_lamp": "Link a lamp to its light"
 }

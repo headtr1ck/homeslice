@@ -1,4 +1,4 @@
-// Short loops of the editor's main gestures (docs/images/clips/<name>.webp), for the editor
+// Short loops of the editor's main gestures (assets/clips/<name>.webp), for the editor
 // guide and the README: drawing and reshaping a room, doors and windows, furniture, floors
 // and stairs, a balcony and the roof, a lamp linked to its light. The demo house on a
 // pretend Home Assistant, with a pointer drawn into the page (headless has none).
@@ -9,7 +9,7 @@ import { join } from "node:path";
 import { execFileSync } from "node:child_process";
 import { base, browser, fixture, icons, root, server, showcase } from "./demo-house.mjs";
 
-const outDir = join(root, "docs/images/clips");
+const outDir = join(root, "assets/clips");
 mkdirSync(outDir, { recursive: true });
 // recorded at 1000 × 625, scaled to 800 × 500: the editor's texts stay readable
 const VIEW = { width: 1000, height: 625 };

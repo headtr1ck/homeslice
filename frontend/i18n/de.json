@@ -2295,5 +2295,12 @@
   "option.rails_half": "Halb",
   "option.rails_full": "Rundum",
   "card.no_house_hint": "Zeichne es in Homeslice in der Seitenleiste oder beginne dort mit deinen Etagen und Bereichen.",
-  "card.open_editor": "Homeslice öffnen"
+  "card.open_editor": "Homeslice öffnen",
+  "editor.clips": "So geht's",
+  "editor.clip_room": "Raum zeichnen (R), Doppelklick auf eine Wand für eine Ecke",
+  "editor.clip_openings": "Türen & Fenster (D): eins wählen, auf eine Wand klicken",
+  "editor.clip_furniture": "Möbel (F): auf einen Raum ziehen, R dreht",
+  "editor.clip_floors": "+ Etage, dann eine Treppe hinauf (S)",
+  "editor.clip_balcony": "Ein Balkon (B) und + Dach",
+  "editor.clip_lamp": "Eine Lampe mit ihrem Licht verknüpfen"
 }

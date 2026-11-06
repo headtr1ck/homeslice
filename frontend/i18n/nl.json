@@ -2295,5 +2295,12 @@
   "option.rails_half": "Half",
   "option.rails_full": "Rondom",
   "card.no_house_hint": "Teken het in Homeslice in de zijbalk, of begin daar met je verdiepingen en ruimtes.",
-  "card.open_editor": "Homeslice openen"
+  "card.open_editor": "Homeslice openen",
+  "editor.clips": "Zo werkt het",
+  "editor.clip_room": "Ruimte tekenen (R), dubbelklik op een muur voor een hoek",
+  "editor.clip_openings": "Deuren & ramen (D): kies er een, klik op een muur",
+  "editor.clip_furniture": "Meubels (F): sleep naar een ruimte, R draait",
+  "editor.clip_floors": "+ Verdieping, dan de trap omhoog (S)",
+  "editor.clip_balcony": "Een balkon (B) en + Dak",
+  "editor.clip_lamp": "Een lamp aan zijn licht koppelen"
 }

@@ -189,6 +189,10 @@ const LIBRARY_ICONS: Record<LibrarySource, string> = { builtin: "mdi:shape-outli
 type FreeShape = { poly: Vec2[]; host?: { room: string; keep?: Vec2[] } };
 
 /** The tools: tool, icon, shortcut, and the toolbar button they share (its sub-tools, shown in a bar over the plan). */
+/** The editor's gestures as short loops (assets/clips, made by scripts/clips.mjs), shown with the keys. */
+const CLIPS = ["room", "openings", "furniture", "floors", "balcony", "lamp"] as const;
+const clipUrl = (name: string) => new URL(/* @vite-ignore */ `clips/${name}.webp`, import.meta.url).href;
+
 const TOOLS: { tool: Tool; icon: string; key: string; group?: "build" | "openings" | "devices" }[] = [
   { tool: "select", icon: "mdi:cursor-default-outline", key: "V" },
   { tool: "rect", icon: "mdi:vector-square-plus", key: "R", group: "build" },
@@ -7370,6 +7374,10 @@ export class HomeslicePanel extends LitElement {
     ];
     return html`<div class="shortcuts" role="dialog" aria-label=${this.t("editor.shortcuts")} @click=${() => (this._shortcuts = false)}>
       <div @click=${(e: Event) => e.stopPropagation()}>
+        <h2>${this.t("editor.clips")}</h2>
+        <div class="clips">
+          ${CLIPS.map((c) => html`<figure><img src=${clipUrl(c)} alt=${this.t(`editor.clip_${c}` as StringKey)} loading="lazy" /><figcaption>${this.t(`editor.clip_${c}` as StringKey)}</figcaption></figure>`)}
+        </div>
         <h2>${this.t("editor.shortcuts")}</h2>
         <dl>${keys.map(([k, what]) => html`<dt><kbd>${k}</kbd></dt><dd>${this.t(what)}</dd>`)}</dl>
         <button data-tour-restart @click=${() => this.startTour()}>${this.t("editor.tour_restart")}</button>
@@ -9219,6 +9227,32 @@ export class HomeslicePanel extends LitElement {
     }
     .shortcuts h2 {
       margin: 0 0 8px;
+    }
+    .shortcuts > div {
+      max-height: 90vh;
+      max-width: min(920px, 94vw);
+      overflow: auto;
+    }
+    .clips {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+    .clips figure {
+      margin: 0;
+    }
+    .clips img {
+      width: 100%;
+      aspect-ratio: 8 / 5;
+      border-radius: 8px;
+      display: block;
+      background: rgba(127, 127, 127, 0.15);
+    }
+    .clips figcaption {
+      font-size: 13px;
+      margin-top: 4px;
+      color: var(--secondary-text-color);
     }
     .shortcuts dl {
       display: grid;

@@ -2295,5 +2295,12 @@
   "option.rails_half": "Metà",
   "option.rails_full": "Completa",
   "card.no_house_hint": "Disegnala in Homeslice nella barra laterale, o parti lì dai tuoi piani e aree.",
-  "card.open_editor": "Apri Homeslice"
+  "card.open_editor": "Apri Homeslice",
+  "editor.clips": "Come si fa",
+  "editor.clip_room": "Disegnare una stanza (R), doppio clic su un muro per un angolo",
+  "editor.clip_openings": "Porte e finestre (D): sceglierne una, clic su un muro",
+  "editor.clip_furniture": "Arredi (F): trascina in una stanza, R ruota",
+  "editor.clip_floors": "+ Piano, poi la scala (S)",
+  "editor.clip_balcony": "Un balcone (B) e + Tetto",
+  "editor.clip_lamp": "Collegare una lampada alla sua luce"
 }

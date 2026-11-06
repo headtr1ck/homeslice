@@ -2295,5 +2295,12 @@
   "option.rails_half": "Media",
   "option.rails_full": "Completa",
   "card.no_house_hint": "Dibújala en Homeslice, en la barra lateral, o empieza allí con tus plantas y áreas.",
-  "card.open_editor": "Abrir Homeslice"
+  "card.open_editor": "Abrir Homeslice",
+  "editor.clips": "Así se hace",
+  "editor.clip_room": "Dibujar una habitación (R), doble clic en una pared para una esquina",
+  "editor.clip_openings": "Puertas y ventanas (D): elige una, haz clic en una pared",
+  "editor.clip_furniture": "Muebles (F): arrástralo a una habitación, R lo gira",
+  "editor.clip_floors": "+ Planta, luego la escalera (S)",
+  "editor.clip_balcony": "Un balcón (B) y + Tejado",
+  "editor.clip_lamp": "Vincular una lámpara a su luz"
 }

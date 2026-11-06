@@ -50,9 +50,12 @@ test.describe.serial("editor, guided tour", () => {
     assert((await page.evaluate(() => localStorage.getItem("homeslice-tour"))) === "done", "not remembered");
   });
 
-  test("restarted from the keys overlay", async () => {
+  test("restarted from the keys overlay, which shows the gestures as clips", async () => {
     await page.keyboard.press("Escape");
     await page.keyboard.press("?");
+    const clips = page.locator("homeslice-panel .shortcuts .clips img");
+    assert((await clips.count()) === 6, `clips: ${await clips.count()}`);
+    await page.waitForFunction(() => [...window.panel.shadowRoot.querySelectorAll(".shortcuts .clips img")].every((i) => i.complete && i.naturalWidth > 0), null, { timeout: 15000 });
     await page.locator("homeslice-panel [data-tour-restart]").click();
     assert((await step()) === "floors", `step: ${await step()}`);
     await page.locator("homeslice-panel [data-tour-skip]").click();

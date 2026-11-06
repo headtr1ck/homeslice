@@ -2295,5 +2295,12 @@
   "option.rails_half": "Demi",
   "option.rails_full": "Tout autour",
   "card.no_house_hint": "Dessinez-la dans Homeslice, dans la barre latérale, ou partez de vos étages et pièces.",
-  "card.open_editor": "Ouvrir Homeslice"
+  "card.open_editor": "Ouvrir Homeslice",
+  "editor.clips": "Comment faire",
+  "editor.clip_room": "Dessiner une pièce (R), double-clic sur un mur pour un angle",
+  "editor.clip_openings": "Portes et fenêtres (D) : en choisir une, cliquer sur un mur",
+  "editor.clip_furniture": "Meubles (F) : glisser sur une pièce, R tourne",
+  "editor.clip_floors": "+ Niveau, puis l'escalier (S)",
+  "editor.clip_balcony": "Un balcon (B) et + Toit",
+  "editor.clip_lamp": "Lier une lampe à sa lumière"
 }

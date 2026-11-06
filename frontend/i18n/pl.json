@@ -2295,5 +2295,12 @@
   "option.rails_half": "Połowa",
   "option.rails_full": "Dookoła",
   "card.no_house_hint": "Narysuj go w Homeslice na pasku bocznym albo zacznij tam od pięter i obszarów.",
-  "card.open_editor": "Otwórz Homeslice"
+  "card.open_editor": "Otwórz Homeslice",
+  "editor.clips": "Jak to działa",
+  "editor.clip_room": "Narysuj pokój (R), dwuklik na ścianie dodaje narożnik",
+  "editor.clip_openings": "Drzwi i okna (D): wybierz, kliknij ścianę",
+  "editor.clip_furniture": "Meble (F): przeciągnij do pokoju, R obraca",
+  "editor.clip_floors": "+ Piętro, potem schody (S)",
+  "editor.clip_balcony": "Balkon (B) i + Dach",
+  "editor.clip_lamp": "Połącz lampę z jej światłem"
 }
