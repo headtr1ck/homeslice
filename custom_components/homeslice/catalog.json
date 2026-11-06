@@ -1845,6 +1845,83 @@
    ]
   },
   {
+   "model": "modern:projector",
+   "name": "Projector",
+   "group": "living",
+   "type": "item",
+   "size": [
+    0.35,
+    0.3,
+    0.35
+   ],
+   "finishes": [
+    "white",
+    "black"
+   ],
+   "tags": [
+    "media_player",
+    "screen"
+   ],
+   "mount": "ceiling"
+  },
+  {
+   "model": "modern:speaker_subwoofer",
+   "name": "Subwoofer",
+   "group": "living",
+   "type": "item",
+   "size": [
+    0.38,
+    0.4,
+    0.4
+   ],
+   "finishes": [
+    "black",
+    "white",
+    "walnut"
+   ],
+   "tags": [
+    "media_player",
+    "speaker"
+   ]
+  },
+  {
+   "model": "modern:av_receiver",
+   "name": "AV receiver",
+   "group": "living",
+   "type": "item",
+   "size": [
+    0.43,
+    0.38,
+    0.16
+   ],
+   "finishes": [
+    "black",
+    "silver"
+   ],
+   "tags": [
+    "media_player",
+    "speaker"
+   ]
+  },
+  {
+   "model": "modern:cinema_seats",
+   "name": "Cinema seats",
+   "group": "living",
+   "type": "sofa",
+   "size": [
+    2.4,
+    1,
+    1.05
+   ],
+   "finishes": [
+    "black",
+    "anthracite",
+    "grey",
+    "terracotta",
+    "beige"
+   ]
+  },
+  {
    "model": "modern:dining_table",
    "name": "Dining table",
    "group": "dining",
@@ -2923,6 +3000,34 @@
    ]
   },
   {
+   "model": "modern:range_cooker",
+   "name": "Range cooker",
+   "group": "kitchen",
+   "type": "kitchen",
+   "size": [
+    0.9,
+    0.6,
+    0.91
+   ],
+   "finishes": [
+    "black",
+    "white",
+    "anthracite",
+    "green",
+    "blue",
+    "red",
+    "silver"
+   ],
+   "tags": [
+    "appliance"
+   ],
+   "accents": [
+    "chrome",
+    "brass",
+    "black"
+   ]
+  },
+  {
    "model": "modern:bed",
    "name": "Double bed",
    "group": "bedroom",
@@ -3789,6 +3894,21 @@
    ]
   },
   {
+   "model": "modern:tower_pc",
+   "name": "Tower PC",
+   "group": "office",
+   "type": "item",
+   "size": [
+    0.22,
+    0.47,
+    0.48
+   ],
+   "finishes": [
+    "black",
+    "white"
+   ]
+  },
+  {
    "model": "modern:slide",
    "name": "Slide",
    "group": "kids",
@@ -3971,6 +4091,22 @@
     "oak",
     "white",
     "black"
+   ]
+  },
+  {
+   "model": "modern:loft_bed",
+   "name": "Loft bed with desk",
+   "group": "kids",
+   "type": "bed_single",
+   "size": [
+    1,
+    2.08,
+    1.9
+   ],
+   "finishes": [
+    "white",
+    "oak",
+    "grey"
    ]
   },
   {
@@ -6489,6 +6625,26 @@
    ]
   },
   {
+   "model": "modern:sliding_gate",
+   "name": "Sliding gate",
+   "group": "outside",
+   "type": "fence",
+   "size": [
+    4,
+    0.1,
+    1.4
+   ],
+   "finishes": [
+    "anthracite",
+    "black",
+    "silver",
+    "oak"
+   ],
+   "tags": [
+    "cover"
+   ]
+  },
+  {
    "model": "modern:pendant_dome",
    "name": "Pendant, dome",
    "group": "lighting",
@@ -7009,6 +7165,61 @@
    "mount": "ceiling"
   },
   {
+   "model": "modern:light_bar",
+   "name": "Light bars",
+   "group": "lighting",
+   "type": "table_lamp",
+   "size": [
+    0.6,
+    0.1,
+    0.26
+   ],
+   "finishes": [
+    "black",
+    "white"
+   ],
+   "tags": [
+    "light"
+   ]
+  },
+  {
+   "model": "modern:light_pillar",
+   "name": "Light pillar",
+   "group": "lighting",
+   "type": "floor_lamp",
+   "size": [
+    0.3,
+    0.3,
+    1.45
+   ],
+   "finishes": [
+    "black",
+    "white",
+    "oak"
+   ],
+   "tags": [
+    "light"
+   ]
+  },
+  {
+   "model": "modern:orb_lamp",
+   "name": "Glowing orb lamp",
+   "group": "lighting",
+   "type": "table_lamp",
+   "size": [
+    0.16,
+    0.16,
+    0.15
+   ],
+   "finishes": [
+    "white",
+    "black"
+   ],
+   "tags": [
+    "light"
+   ]
+  },
+  {
    "model": "modern:smoke_detector",
    "name": "Smoke detector",
    "group": "smart",
@@ -7241,6 +7452,167 @@
    ],
    "mount": "wall",
    "elevation": 1.4
+  },
+  {
+   "model": "modern:wifi_router",
+   "name": "Wi-Fi router",
+   "group": "smart",
+   "type": "item",
+   "size": [
+    0.26,
+    0.16,
+    0.2
+   ],
+   "finishes": [
+    "white",
+    "black"
+   ]
+  },
+  {
+   "model": "modern:access_point",
+   "name": "Wi-Fi access point",
+   "group": "smart",
+   "type": "item",
+   "size": [
+    0.2,
+    0.2,
+    0.04
+   ],
+   "finishes": [
+    "white"
+   ],
+   "mount": "ceiling"
+  },
+  {
+   "model": "modern:nas",
+   "name": "NAS",
+   "group": "smart",
+   "type": "item",
+   "size": [
+    0.22,
+    0.24,
+    0.24
+   ],
+   "finishes": [
+    "black",
+    "white"
+   ]
+  },
+  {
+   "model": "modern:smart_display",
+   "name": "Smart display",
+   "group": "smart",
+   "type": "item",
+   "size": [
+    0.2,
+    0.12,
+    0.14
+   ],
+   "finishes": [
+    "white",
+    "anthracite",
+    "sand"
+   ],
+   "tags": [
+    "media_player",
+    "screen"
+   ]
+  },
+  {
+   "model": "modern:siren",
+   "name": "Siren",
+   "group": "smart",
+   "type": "item",
+   "size": [
+    0.22,
+    0.1,
+    0.22
+   ],
+   "finishes": [
+    "white",
+    "anthracite"
+   ],
+   "tags": [
+    "alarm"
+   ],
+   "mount": "wall",
+   "elevation": 2.3
+  },
+  {
+   "model": "modern:air_quality_monitor",
+   "name": "Air quality monitor",
+   "group": "smart",
+   "type": "item",
+   "size": [
+    0.1,
+    0.07,
+    0.16
+   ],
+   "finishes": [
+    "white",
+    "oak"
+   ],
+   "tags": [
+    "sensor"
+   ]
+  },
+  {
+   "model": "modern:wall_switch",
+   "name": "Light switch",
+   "group": "smart",
+   "type": "item",
+   "size": [
+    0.086,
+    0.012,
+    0.086
+   ],
+   "finishes": [
+    "white",
+    "black",
+    "anthracite",
+    "brass"
+   ],
+   "tags": [
+    "switch"
+   ],
+   "options": {
+    "gangs": [
+     "1",
+     "2",
+     "3"
+    ]
+   },
+   "mount": "wall",
+   "elevation": 1.05
+  },
+  {
+   "model": "modern:wall_socket",
+   "name": "Wall socket",
+   "group": "smart",
+   "type": "item",
+   "size": [
+    0.086,
+    0.04,
+    0.086
+   ],
+   "finishes": [
+    "white",
+    "black",
+    "anthracite",
+    "brass"
+   ],
+   "tags": [
+    "switch"
+   ],
+   "options": {
+    "gangs": [
+     "1",
+     "2",
+     "3"
+    ]
+   },
+   "mount": "wall",
+   "elevation": 0.3
   },
   {
    "model": "modern:ac_split",
@@ -7618,6 +7990,114 @@
    ]
   },
   {
+   "model": "modern:boiler",
+   "name": "Gas boiler",
+   "group": "climate",
+   "type": "item",
+   "size": [
+    0.44,
+    0.36,
+    0.72
+   ],
+   "finishes": [
+    "white",
+    "silver",
+    "anthracite"
+   ],
+   "tags": [
+    "climate",
+    "heating"
+   ],
+   "mount": "wall",
+   "elevation": 1.2
+  },
+  {
+   "model": "modern:boiler_floor",
+   "name": "Floor-standing boiler",
+   "group": "climate",
+   "type": "item",
+   "size": [
+    0.7,
+    0.9,
+    1.3
+   ],
+   "finishes": [
+    "white",
+    "red",
+    "anthracite",
+    "silver"
+   ],
+   "tags": [
+    "climate",
+    "heating"
+   ],
+   "options": {
+    "fuel": [
+     "oil",
+     "pellet"
+    ]
+   }
+  },
+  {
+   "model": "modern:ufh_manifold",
+   "name": "Underfloor heating manifold",
+   "group": "climate",
+   "type": "item",
+   "size": [
+    0.6,
+    0.14,
+    0.5
+   ],
+   "finishes": [
+    "silver",
+    "white"
+   ],
+   "tags": [
+    "climate",
+    "heating"
+   ],
+   "mount": "wall",
+   "elevation": 0.3
+  },
+  {
+   "model": "modern:ventilation_unit",
+   "name": "Ventilation unit (heat recovery)",
+   "group": "climate",
+   "type": "item",
+   "size": [
+    0.6,
+    0.4,
+    0.75
+   ],
+   "finishes": [
+    "white",
+    "silver"
+   ],
+   "tags": [
+    "fan"
+   ],
+   "mount": "wall",
+   "elevation": 1.2
+  },
+  {
+   "model": "modern:humidifier",
+   "name": "Humidifier",
+   "group": "climate",
+   "type": "item",
+   "size": [
+    0.24,
+    0.24,
+    0.38
+   ],
+   "finishes": [
+    "white",
+    "black"
+   ],
+   "tags": [
+    "humidifier"
+   ]
+  },
+  {
    "model": "modern:vacuum_stick",
    "name": "Cordless vacuum",
    "group": "utility",
@@ -7965,6 +8445,61 @@
    ]
   },
   {
+   "model": "modern:buffer_tank",
+   "name": "Buffer tank",
+   "group": "utility",
+   "type": "item",
+   "size": [
+    0.8,
+    0.8,
+    1.8
+   ],
+   "finishes": [
+    "silver",
+    "white",
+    "red",
+    "anthracite"
+   ],
+   "tags": [
+    "appliance"
+   ]
+  },
+  {
+   "model": "modern:water_softener",
+   "name": "Water softener",
+   "group": "utility",
+   "type": "item",
+   "size": [
+    0.32,
+    0.52,
+    1.05
+   ],
+   "finishes": [
+    "white",
+    "black",
+    "blue"
+   ],
+   "tags": [
+    "appliance"
+   ]
+  },
+  {
+   "model": "modern:utility_sink",
+   "name": "Utility sink",
+   "group": "utility",
+   "type": "sink",
+   "size": [
+    0.6,
+    0.55,
+    0.9
+   ],
+   "finishes": [
+    "white",
+    "silver",
+    "anthracite"
+   ]
+  },
+  {
    "model": "modern:vase_flowers",
    "name": "Vase with flowers",
    "group": "decor",
@@ -8229,6 +8764,91 @@
     "black",
     "oak"
    ]
+  },
+  {
+   "model": "modern:air_fryer",
+   "name": "Air fryer",
+   "group": "decor",
+   "type": "item",
+   "size": [
+    0.3,
+    0.38,
+    0.32
+   ],
+   "finishes": [
+    "black",
+    "white"
+   ],
+   "tags": [
+    "appliance"
+   ]
+  },
+  {
+   "model": "modern:food_processor",
+   "name": "Food processor with cooking",
+   "group": "decor",
+   "type": "item",
+   "size": [
+    0.33,
+    0.33,
+    0.34
+   ],
+   "finishes": [
+    "white",
+    "black"
+   ],
+   "tags": [
+    "appliance"
+   ]
+  },
+  {
+   "model": "modern:christmas_tree",
+   "name": "Christmas tree",
+   "group": "decor",
+   "type": "plant",
+   "size": [
+    1.2,
+    1.2,
+    2.1
+   ],
+   "finishes": [
+    "green"
+   ],
+   "tags": [
+    "light"
+   ],
+   "accents": [
+    "red",
+    "yellow",
+    "silver",
+    "white",
+    "blue"
+   ]
+  },
+  {
+   "model": "modern:pumpkin",
+   "name": "Pumpkin",
+   "group": "decor",
+   "type": "item",
+   "size": [
+    0.38,
+    0.38,
+    0.32
+   ],
+   "finishes": [
+    "terracotta",
+    "white",
+    "green"
+   ],
+   "tags": [
+    "light"
+   ],
+   "options": {
+    "carved": [
+     "lantern",
+     "plain"
+    ]
+   }
   },
   {
    "model": "modern:treadmill",
@@ -8593,6 +9213,157 @@
     "black",
     "brass"
    ]
+  },
+  {
+   "model": "modern:arcade_cabinet",
+   "name": "Arcade cabinet",
+   "group": "hobby",
+   "type": "item",
+   "size": [
+    0.65,
+    0.8,
+    1.75
+   ],
+   "finishes": [
+    "black",
+    "red",
+    "blue",
+    "white"
+   ]
+  },
+  {
+   "model": "modern:pet_feeder",
+   "name": "Automatic pet feeder",
+   "group": "hobby",
+   "type": "item",
+   "size": [
+    0.22,
+    0.3,
+    0.36
+   ],
+   "finishes": [
+    "white",
+    "black",
+    "grey"
+   ],
+   "tags": [
+    "appliance"
+   ]
+  },
+  {
+   "model": "modern:pet_fountain",
+   "name": "Pet water fountain",
+   "group": "hobby",
+   "type": "item",
+   "size": [
+    0.22,
+    0.22,
+    0.17
+   ],
+   "finishes": [
+    "white",
+    "grey",
+    "blue"
+   ],
+   "tags": [
+    "appliance"
+   ]
+  },
+  {
+   "model": "modern:litter_box",
+   "name": "Self-cleaning litter box",
+   "group": "hobby",
+   "type": "item",
+   "size": [
+    0.6,
+    0.65,
+    0.62
+   ],
+   "finishes": [
+    "white",
+    "grey",
+    "anthracite"
+   ],
+   "tags": [
+    "appliance"
+   ]
+  },
+  {
+   "model": "modern:tool_chest",
+   "name": "Tool chest",
+   "group": "hobby",
+   "type": "item",
+   "size": [
+    0.7,
+    0.47,
+    1
+   ],
+   "finishes": [
+    "red",
+    "black",
+    "anthracite",
+    "blue"
+   ]
+  },
+  {
+   "model": "modern:power_rack",
+   "name": "Power rack",
+   "group": "hobby",
+   "type": "item",
+   "size": [
+    1.3,
+    1.4,
+    2.2
+   ],
+   "finishes": [
+    "black",
+    "red",
+    "anthracite",
+    "white"
+   ]
+  },
+  {
+   "model": "modern:elliptical",
+   "name": "Elliptical trainer",
+   "group": "hobby",
+   "type": "item",
+   "size": [
+    0.7,
+    1.75,
+    1.6
+   ],
+   "finishes": [
+    "black",
+    "silver",
+    "white"
+   ]
+  },
+  {
+   "model": "modern:sauna_cabin",
+   "name": "Sauna cabin",
+   "group": "hobby",
+   "type": "item",
+   "size": [
+    2,
+    1.6,
+    2.05
+   ],
+   "finishes": [
+    "oak",
+    "walnut",
+    "black",
+    "sand"
+   ],
+   "tags": [
+    "climate",
+    "heating"
+   ],
+   "options": {
+    "heat": [
+     "finnish",
+     "infrared"
+    ]
+   }
   },
   {
    "model": "modern:barrel_sauna",
@@ -9111,6 +9882,92 @@
    ]
   },
   {
+   "model": "modern:hot_tub",
+   "name": "Hot tub",
+   "group": "garden",
+   "type": "item",
+   "size": [
+    2.2,
+    2.2,
+    0.9
+   ],
+   "finishes": [
+    "walnut",
+    "anthracite",
+    "grey",
+    "oak"
+   ],
+   "tags": [
+    "climate"
+   ]
+  },
+  {
+   "model": "modern:beach_chair",
+   "name": "Beach chair (Strandkorb)",
+   "group": "garden",
+   "type": "armchair",
+   "size": [
+    1.25,
+    0.85,
+    1.6
+   ],
+   "finishes": [
+    "blue",
+    "white",
+    "green",
+    "red",
+    "sand"
+   ]
+  },
+  {
+   "model": "modern:kamado_grill",
+   "name": "Kamado grill",
+   "group": "garden",
+   "type": "item",
+   "size": [
+    0.75,
+    0.7,
+    1.15
+   ],
+   "finishes": [
+    "green",
+    "black",
+    "red",
+    "anthracite"
+   ]
+  },
+  {
+   "model": "modern:lawn_mower",
+   "name": "Lawn mower",
+   "group": "garden",
+   "type": "item",
+   "size": [
+    0.55,
+    1.45,
+    1
+   ],
+   "finishes": [
+    "green",
+    "red",
+    "anthracite",
+    "blue"
+   ]
+  },
+  {
+   "model": "modern:snowman",
+   "name": "Snowman",
+   "group": "garden",
+   "type": "item",
+   "size": [
+    0.7,
+    0.7,
+    1.3
+   ],
+   "finishes": [
+    "white"
+   ]
+  },
+  {
    "model": "modern:motorcycle",
    "name": "Motorcycle",
    "group": "vehicles",
@@ -9324,6 +10181,165 @@
    ],
    "mount": "wall",
    "elevation": 1
+  },
+  {
+   "model": "modern:car_pickup",
+   "name": "Pickup truck",
+   "group": "vehicles",
+   "type": "car",
+   "size": [
+    2,
+    5.4,
+    1.85
+   ],
+   "finishes": [
+    "silver",
+    "white",
+    "black",
+    "anthracite",
+    "blue",
+    "red",
+    "green"
+   ],
+   "tags": [
+    "vehicle"
+   ]
+  },
+  {
+   "model": "modern:caravan",
+   "name": "Caravan",
+   "group": "vehicles",
+   "type": "car",
+   "size": [
+    2.3,
+    6.5,
+    2.6
+   ],
+   "finishes": [
+    "white",
+    "silver",
+    "beige"
+   ],
+   "tags": [
+    "vehicle"
+   ]
+  },
+  {
+   "model": "modern:motorhome",
+   "name": "Motorhome",
+   "group": "vehicles",
+   "type": "car",
+   "size": [
+    2.3,
+    7,
+    3
+   ],
+   "finishes": [
+    "white",
+    "silver",
+    "anthracite"
+   ],
+   "tags": [
+    "vehicle"
+   ]
+  },
+  {
+   "model": "modern:trailer",
+   "name": "Trailer",
+   "group": "vehicles",
+   "type": "item",
+   "size": [
+    1.5,
+    3,
+    0.9
+   ],
+   "finishes": [
+    "silver",
+    "anthracite",
+    "black"
+   ],
+   "tags": [
+    "vehicle"
+   ]
+  },
+  {
+   "model": "modern:column",
+   "name": "Column",
+   "group": "building",
+   "type": "item",
+   "size": [
+    0.3,
+    0.3,
+    2.5
+   ],
+   "finishes": [
+    "white",
+    "concrete",
+    "oak",
+    "anthracite",
+    "black",
+    "marble"
+   ],
+   "options": {
+    "shape": [
+     "round",
+     "square"
+    ]
+   }
+  },
+  {
+   "model": "modern:ceiling_beam",
+   "name": "Ceiling beam",
+   "group": "building",
+   "type": "item",
+   "size": [
+    3,
+    0.18,
+    0.24
+   ],
+   "finishes": [
+    "oak",
+    "walnut",
+    "white",
+    "concrete",
+    "black",
+    "anthracite"
+   ],
+   "mount": "ceiling"
+  },
+  {
+   "model": "modern:room_divider_slats",
+   "name": "Slatted room divider",
+   "group": "building",
+   "type": "item",
+   "size": [
+    1.2,
+    0.08,
+    2.5
+   ],
+   "finishes": [
+    "oak",
+    "walnut",
+    "black",
+    "white"
+   ]
+  },
+  {
+   "model": "modern:glass_partition",
+   "name": "Glass partition",
+   "group": "building",
+   "type": "item",
+   "size": [
+    2,
+    0.06,
+    2.5
+   ],
+   "finishes": [
+    "black",
+    "anthracite",
+    "white",
+    "brass"
+   ]
   }
  ],
  "finishes": [
