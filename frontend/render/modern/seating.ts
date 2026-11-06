@@ -75,8 +75,14 @@ const tone = (color: string, k: number, extra: THREE.MeshStandardMaterialParamet
   return mat("#" + c.getHexString(), extra);
 };
 
-/** Leather in a finish's colour: smooth with a soft sheen (black a touch lifted so it reads). */
-const leather = (color: string, k = 1) => tone(color, color === "black" ? 1.12 * k : k, { roughness: 0.42 });
+/**
+ * Leather in a finish's colour: smooth with a soft sheen. Every tone (the main hide, darker
+ * panels, buttons) is the colour scaled the same way, so black stays black, just a touch lifted.
+ */
+const leather = (color: string, k = 1) => {
+  const c = new THREE.Color(FINISHES[color] ?? color).multiplyScalar(color === "black" ? 1.15 * k : k);
+  return mat("#" + c.getHexString(), { roughness: 0.42 });
+};
 
 const accentFabrics = new Map<string, THREE.MeshStandardMaterial>();
 /** The accent as upholstery (a cushion in one of the fabric colours). */
@@ -243,6 +249,31 @@ function shellGeo(o: Shell): THREE.BufferGeometry[] {
 
 const shell = (b: Builder, o: Shell, f: M) => shellGeo(o).forEach((g) => b.add(g, f));
 
+/**
+ * Narrows a cushion (already placed) from the sides so it stays inside a shell's inner wall:
+ * the half ellipse rx × rz around (0, zc), as far forward as the arm ends at angle A.
+ */
+function fitInside(g: THREE.BufferGeometry, rx: number, rz: number, zc: number, A: number) {
+  const p = g.attributes.position;
+  const zEnd = zc - rz * Math.cos(A);
+  let half = 0;
+  for (let i = 0; i < p.count; i++) half = Math.max(half, Math.abs(p.getX(i)));
+  // squeezed across in proportion (not clipped), so no face folds over
+  for (let i = 0; i < p.count; i++) {
+    const z = Math.min(p.getZ(i), zEnd);
+    const u = (z - zc) / rz;
+    const lim = rx * Math.sqrt(Math.max(0, 1 - Math.min(1, u * u)));
+    if (half > lim) p.setX(i, (p.getX(i) * lim) / half);
+  }
+  g.computeVertexNormals();
+  boxUV(g);
+  return g;
+}
+
+/** Leg feet spread round an elliptical base (half axes ex × ez), at ±45° off the axes. */
+const ovalFeet = (ex: number, ez: number, k = 0.7): [number, number][] =>
+  [[-1, -1], [1, -1], [-1, 1], [1, 1]].map(([sx, sz]) => [sx * ex * k, sz * ez * k]);
+
 /** A smooth step from 0 at a to 1 at b. */
 const step = (a: number, b: number, x: number) => {
   const t = Math.min(1, Math.max(0, (x - a) / (b - a)));
@@ -334,30 +365,34 @@ export const BUILDERS: Record<string, Build> = {
     // a small tub chair: one curved back sweeping down into the arms, a round seat cushion, an
     // upholstered deck on slim splayed legs
     const legH = Math.min(0.17, h * 0.22);
-    const deck = Math.max(legH + 0.12, h * 0.48);
-    const seatTop = Math.min(0.47, h * 0.6);
-    const armTop = Math.min(0.62, h * 0.79);
+    const seatTop = Math.min(0.52, h * 0.6);
+    const deck = seatTop - Math.max(0.09, (seatTop - legH) * 0.35);
+    const armTop = Math.min(0.62 * Math.max(1, h / 0.78), h * 0.79);
     const t = 0.09;
+    const A = Math.PI * 0.6;
     const rx = w / 2 - t / 2;
     const rz = d * 0.56 - t / 2;
     const zc = -d / 2 + t / 2 + rz;
-    shell(b, { rx, rz, zc, A: Math.PI * 0.6, t, y0: legH + 0.04, top: (s) => h - (h - armTop) * step(0.25, 0.85, s) }, f);
+    shell(b, { rx, rz, zc, A, t, y0: legH + 0.04, top: (s) => h - (h - armTop) * step(0.25, 0.85, s) }, f);
     put(b, cushionGeo(w - 0.03, deck - legH, d - 0.03, { ex: 1, ey: 0.25, ez: 1, ws: 28, hs: 8 }), f, 0, (legH + deck) / 2, 0.005);
     const sw = 2 * rx - t;
     const sd = d / 2 - (zc - rz + t / 2) - 0.01;
-    put(b, cushionGeo(sw, seatTop - deck + 0.03, sd, { ex: 0.5, ey: 0.5, ez: 0.45, crown: 0.3, ws: 16, hs: 10 }), f, 0, (deck + seatTop) / 2, d / 2 - sd / 2 - 0.01);
+    const seat = cushionGeo(sw, seatTop - deck + 0.03, sd, { ex: 0.5, ey: 0.5, ez: 0.45, crown: 0.3, ws: 16, hs: 10 });
+    seat.translate(0, (deck + seatTop) / 2, d / 2 - sd / 2 - 0.01);
+    b.add(fitInside(seat, rx - t / 2 - 0.004, rz - t / 2 - 0.004, zc, A), f);
     // a loose back cushion inside the curve
     put(b, cushionGeo(sw * 0.7, (h - seatTop) * 0.7, 0.1, { ex: 0.4, ey: 0.4, ez: 0.6, crown: 0.1, bend: 0.05, ws: 14, hs: 10 }), f, 0, seatTop + (h - seatTop) * 0.36, zc - rz + t / 2 + 0.05, -0.15);
-    const ix = w / 2 - 0.07;
-    const iz = d / 2 - 0.08;
-    taperLegs(b, [[-ix, -iz], [ix, -iz], [-ix, iz], [ix, iz]], legH + 0.01, a, 0.017, 0.03);
+    // legs under the oval deck, splayed out
+    const splay = 0.03 * Math.min(1.4, legH / 0.17);
+    taperLegs(b, ovalFeet(w / 2 - 0.015, d / 2 - 0.015, 0.74), legH + 0.01, a, 0.017 * Math.max(1, Math.min(1.3, w / 0.7)), splay);
   },
 
   recliner: (b, w, d, h, f, c) => {
     // a padded recliner: a recessed plinth, chunky arms with padded tops, a thick seat, the
     // folded footrest across the front, a reclined back of three pillow rolls, a pull handle
     const plinth = 0.04;
-    const aw = Math.min(0.2, w * 0.24);
+    const aw = Math.min(0.26, w * 0.235);
+    const k = Math.min(1.5, Math.max(0.75, d / 0.95));
     const baseTop = Math.min(0.36, h * 0.34);
     const seatTop = Math.min(0.5, h * 0.48);
     const armTop = Math.min(0.64, h * 0.6);
@@ -380,17 +415,17 @@ export const BUILDERS: Record<string, Build> = {
     // the back: a frame and three pillows down its front, all leaning back
     const y0 = baseTop - 0.06;
     const bl = (h - y0) / Math.cos(lean) - 0.02;
-    const z0 = -d / 2 + 0.09 + bl * Math.sin(lean);
+    const z0 = -d / 2 + 0.09 * k + bl * Math.sin(lean);
     const at = (t: number, off: number) => [y0 + t * Math.cos(lean) + off * Math.sin(lean), z0 - t * Math.sin(lean) + off * Math.cos(lean)] as const;
     const [fy, fz] = at(bl / 2, 0);
-    put(b, cushionGeo(w - 2 * aw + 0.06, bl, 0.17, { ex: 0.2, ey: 0.25, ez: 0.4, ws: 12, hs: 8, pole: "z" }), f, 0, fy, fz, -lean);
+    put(b, cushionGeo(w - 2 * aw + 0.06, bl, 0.17 * k, { ex: 0.2, ey: 0.25, ez: 0.4, ws: 12, hs: 8, pole: "z" }), f, 0, fy, fz, -lean);
     const pw = w - 2 * aw - 0.03;
     const top = bl - 0.02;
     const from = seatTop - y0 - 0.02;
     const ph = (top - from) / 3;
     for (let i = 0; i < 3; i++) {
-      const [py, pz] = at(from + ph * (i + 0.5), 0.13 + (i === 2 ? 0.02 : 0));
-      put(b, cushionGeo(pw + (i === 2 ? 0.02 : 0), ph + 0.04, 0.17, { ex: 0.35, ey: 0.6, ez: 0.6, crown: 0.05, ws: 14, hs: 10, pole: "z" }), f, 0, py, pz, -lean);
+      const [py, pz] = at(from + ph * (i + 0.5), (0.13 + (i === 2 ? 0.02 : 0)) * k);
+      put(b, cushionGeo(pw + (i === 2 ? 0.02 : 0), ph + 0.04, 0.17 * k, { ex: 0.35, ey: 0.6, ez: 0.6, crown: 0.05, ws: 14, hs: 10, pole: "z" }), f, 0, py, pz, -lean);
     }
     // the pull handle on the right arm's outer side
     const hm = mat(c === "black" ? "#55585e" : C.black, { roughness: 0.45 });
@@ -399,20 +434,35 @@ export const BUILDERS: Record<string, Build> = {
   },
 
   armchair_swivel: (b, w, d, h, f, _c, a) => {
-    // a round tub on a swivel: a disc base and column in the accent, a round body, the back
+    // a round tub on a swivel: a disc base and column in the accent, a round drum body, the back
     // curving round into low arms, a round seat cushion
     const R = Math.min(w, d) / 2;
     const disc = 0.025;
     const col = Math.min(0.11, h * 0.14);
-    const deck = Math.max(col + 0.12, h * 0.48);
-    const seatTop = Math.min(0.46, h * 0.6);
-    const armTop = Math.min(0.6, h * 0.77);
+    const seatTop = Math.min(0.52, h * 0.6);
+    const deck = seatTop - Math.max(0.09, (seatTop - col) * 0.33);
+    const armTop = Math.min(0.6 * Math.max(1, h / 0.78), h * 0.77);
     const t = 0.1;
     b.cyl(R * 0.68, R * 0.72, disc, 0, 0, 0, a, 40);
     b.cyl(R * 0.62, R * 0.68, 0.006, 0, disc, 0, a, 40);
     b.cyl(0.045, 0.055, col - disc, 0, disc, 0, a, 20);
     b.cyl(R * 0.4, R * 0.4, 0.012, 0, col - 0.012, 0, a, 28);
-    put(b, cushionGeo(2 * R - 0.03, deck - col, 2 * R - 0.03, { ex: 1, ey: 0.2, ez: 1, ws: 32, hs: 8 }), f, 0, (col + deck) / 2, 0);
+    // the body: a straight-sided drum with softly rounded edges, its side inside the shell's
+    const rd = R - t * 0.45;
+    const e = Math.min(0.035, (deck - col) / 3);
+    const prof: THREE.Vector2[] = [new THREE.Vector2(0.001, col)];
+    for (let k = 0; k <= 4; k++) {
+      const q = (Math.PI / 2) * (k / 4);
+      prof.push(new THREE.Vector2(rd - e + e * Math.sin(q), col + e - e * Math.cos(q)));
+    }
+    for (let k = 0; k <= 4; k++) {
+      const q = (Math.PI / 2) * (k / 4);
+      prof.push(new THREE.Vector2(rd - e + e * Math.cos(q), deck - e + e * Math.sin(q)));
+    }
+    prof.push(new THREE.Vector2(0.001, deck));
+    const drum = new THREE.LatheGeometry(prof, 48);
+    boxUV(drum);
+    b.add(drum, f);
     shell(b, { rx: R - t / 2, rz: R - t / 2, zc: 0, A: Math.PI * 0.68, t, y0: col + 0.012, top: (s) => h - (h - armTop) * step(0.3, 0.8, s), segs: 34 }, f);
     const sr = R - t - 0.005;
     put(b, cushionGeo(2 * sr, seatTop - deck + 0.03, 2 * sr, { ex: 0.85, ey: 0.5, ez: 0.85, crown: 0.3, ws: 24, hs: 10 }), f, 0, (deck + seatTop) / 2, 0.01);
@@ -422,7 +472,7 @@ export const BUILDERS: Record<string, Build> = {
   papasan_chair: (b, w, d, h, _f, c, a, ac) => {
     // a big rattan bowl tipped back on a woven ring base, a thick round cushion in it
     const wick = wickerMat(c);
-    const pole = tone(c, c === "black" ? 1.18 : 0.78, { roughness: 0.7 });
+    const pole = tone(c, c === "black" ? 0.9 : 0.78, { roughness: 0.7 });
     const cush = accentFabric(ac, a);
     const R = Math.min(w, d) / 2 - 0.03;
     const tilt = 0.34;
@@ -465,7 +515,7 @@ export const BUILDERS: Record<string, Build> = {
     const bowl = new THREE.LatheGeometry(prof, 36);
     const wuv = bowl.attributes.uv.array as Float32Array;
     for (let i = 0; i < wuv.length; i++) wuv[i] *= i % 2 ? 2.5 : 3;
-    const T = matrix(0, by, 0.02, -tilt);
+    const T = matrix(0, by, -0.02, tilt);
     bowl.applyMatrix4(T);
     b.add(bowl, wick);
     const rim = new THREE.TorusGeometry(R, rimT, 6, 40);
@@ -572,20 +622,22 @@ export const BUILDERS: Record<string, Build> = {
     // a barrel chair: one channelled wall wrapping from the back round into the arms, nearly
     // the same height all round, a round seat cushion, short tapered legs
     const legH = Math.min(0.13, h * 0.18);
-    const deck = Math.max(legH + 0.12, h * 0.47);
-    const seatTop = Math.min(0.45, h * 0.61);
+    const seatTop = Math.min(0.5, h * 0.61);
+    const deck = seatTop - Math.max(0.08, (seatTop - legH) * 0.3);
     const t = 0.11;
+    const A = Math.PI * 0.6;
     const rx = w / 2 - t / 2;
     const rz = d * 0.55 - t / 2;
     const zc = -d / 2 + t / 2 + rz;
-    shell(b, { rx, rz, zc, A: Math.PI * 0.6, t, y0: legH + 0.01, top: (s) => h - 0.09 * step(0.4, 1, s), channels: 9, deep: 0.45 }, f);
+    shell(b, { rx, rz, zc, A, t, y0: legH + 0.01, top: (s) => h - 0.09 * step(0.4, 1, s), channels: 9, deep: 0.45 }, f);
     put(b, cushionGeo(w - 0.04, deck - legH, d - 0.03, { ex: 1, ey: 0.25, ez: 1, ws: 28, hs: 8 }), f, 0, (legH + deck) / 2, 0.005);
     const sw = 2 * rx - t - 0.01;
     const sd = d / 2 - (zc - rz + t / 2) - 0.01;
-    put(b, cushionGeo(sw, seatTop - deck + 0.03, sd, { ex: 0.6, ey: 0.5, ez: 0.5, crown: 0.3, ws: 18, hs: 10 }), f, 0, (deck + seatTop) / 2, d / 2 - sd / 2 - 0.01);
-    const ix = w / 2 - 0.1;
-    const iz = d / 2 - 0.1;
-    taperLegs(b, [[-ix, -iz], [ix, -iz], [-ix, iz], [ix, iz]], legH + 0.01, a, 0.022);
+    const seat = cushionGeo(sw, seatTop - deck + 0.03, sd, { ex: 0.6, ey: 0.5, ez: 0.5, crown: 0.3, ws: 18, hs: 10 });
+    seat.translate(0, (deck + seatTop) / 2, d / 2 - sd / 2 - 0.01);
+    b.add(fitInside(seat, rx - t / 2 - 0.004, rz - t / 2 - 0.004, zc, A), f);
+    // legs set in under the round deck
+    taperLegs(b, ovalFeet(w / 2 - 0.02, d / 2 - 0.015, 0.66), legH + 0.01, a, 0.022 * Math.max(1, Math.min(1.3, w / 0.75)));
   },
 
   armchair_slipper: (b, w, d, h, f, c, a) => {
@@ -630,7 +682,7 @@ export const BUILDERS: Record<string, Build> = {
     // a rattan armchair: a bent-pole frame (legs, arm loops, the back's arched loop, rails),
     // woven back and arm panels, a woven seat, cushions in the accent
     const wick = wickerMat(c);
-    const pole = tone(c, c === "black" ? 1.15 : 0.8, { roughness: 0.65 });
+    const pole = tone(c, c === "black" ? 0.9 : 0.8, { roughness: 0.65 });
     const cush = accentFabric(ac, a);
     const r = 0.018;
     const seatY = Math.min(0.36, h * 0.45);
@@ -682,7 +734,7 @@ export const BUILDERS: Record<string, Build> = {
     const sw = 2 * x - 2 * r - 0.01;
     const sd = zf - zb - 0.01;
     put(b, cushionGeo(sw, 0.1, sd, { ex: 0.2, ey: 0.5, ez: 0.2, crown: 0.2, ws: 14, hs: 10 }), cush, 0, seatY + 0.03, (zf + zb) / 2 + 0.01);
-    const ch = (armY - seatY) * 1.25;
+    const ch = (top - seatY) * 0.75;
     const cy = seatY + 0.08 + (ch / 2) * Math.cos(lean);
     put(b, cushionGeo(sw - 0.04, ch, 0.11, { ex: 0.3, ey: 0.35, ez: 0.6, crown: 0.1, ws: 14, hs: 10, pole: "z" }), cush, 0, cy, backZ(cy) + 0.065, -lean);
   },

@@ -643,40 +643,50 @@ export const BUILDERS: Record<string, Build> = {
     }
   },
   palm_kentia: (b, w, d, h, f) => {
-    // Howea: a clump of slender bare stalks rising from the pot, each opening into a long,
-    // broadly arching frond whose narrow leaflets spread from the rachis and hang at their tips
+    // Howea: a clump of slender bare stalks fanning out of the pot, each opening into a long
+    // frond that arches up and out and bends down only towards its tip, its narrow leaflets
+    // spreading from the rachis and hanging at their ends
     const rand = random(193);
     const k = Math.min(w, d);
     const ph = Math.min(0.36, h * 0.2);
     const soil = planter(b, k * 0.22, ph, f, "tall");
     const H = h - soil;
     const stalk = mat("#4f6534");
+    const leafLen = 0.3 * Math.min(1.3, k / 1.1 + 0.15);
+    // the frond's centre line reaches out to R, its leaflets a little further
+    const R = Math.max(0.12, k / 2 - 0.06);
     // three tiers: tall inner fronds, middle ones, low wide outer ones; each a bare stalk up
     // to `stem`, then the rachis arching up to `peak` and out and down to its tip
     const tiers = [
-      { n: 3, reach: 0.66, stem: 0.55, peak: 0.98, tip: 0.72 },
-      { n: 3, reach: 0.85, stem: 0.42, peak: 0.8, tip: 0.42 },
-      { n: 3, reach: 1, stem: 0.3, peak: 0.6, tip: 0.18 },
+      { n: 3, reach: 0.66, stem: 0.62, peak: 1, tip: 0.74 },
+      { n: 3, reach: 0.85, stem: 0.52, peak: 0.86, tip: 0.54 },
+      { n: 4, reach: 1, stem: 0.42, peak: 0.72, tip: 0.36 },
     ];
     let s = 0;
     for (const t of tiers)
       for (let i = 0; i < t.n; i++, s++) {
-        const a = (i / t.n) * TAU + s * 0.7 + rand() * 0.3;
+        // spread round evenly (the golden angle), so no side is bare or crowded at any size
+        const a = s * 2.39996 + rand() * 0.25;
         const ca = Math.cos(a);
         const sa = Math.sin(a);
-        // the stalks come up as a clump of four
-        const c = (s % 4) * (TAU / 4) + 0.4;
-        const base = v(Math.cos(c) * 0.035, soil - 0.03, Math.sin(c) * 0.035);
-        const reach = (k / 2 - 0.06) * t.reach * (0.92 + rand() * 0.08);
-        const y = (u: number) => soil + H * u * (0.96 + rand() * 0.04);
-        const at = (r: number, yy: number) => v(base.x * (1 - r / reach) + ca * r, yy, base.z * (1 - r / reach) + sa * r);
+        // the stalks rise from a small clump, each from the side it leans to
+        const base = v(ca * 0.03, soil - 0.03, sa * 0.03);
+        const reach = R * t.reach * (0.9 + rand() * 0.1);
+        const y = (u: number) => soil + H * u * (0.95 + rand() * 0.05);
+        const at = (r: number, yy: number) => v(base.x + ca * r, yy, base.z + sa * r);
         const peak = y(t.peak);
-        const pts = [base, at(reach * 0.1, y(t.stem)), at(reach * 0.3, peak - (peak - y(t.stem)) * 0.22), at(reach * 0.56, peak), at(reach * 0.78, peak - (peak - y(t.tip)) * 0.4), at(reach, y(t.tip))];
-        const curve = new THREE.CatmullRomCurve3(pts);
+        // (the rise and the fall no steeper than the arch is wide, so it stays an arch at any
+        // size: a narrow plant gets longer bare stalks instead)
+        const stem = Math.max(y(t.stem), peak - reach * 0.8);
+        const tip = Math.max(y(t.tip), peak - reach * 0.6);
+        // a bare stalk leaning out of the clump, the rachis rising on to its peak, then
+        // arching over and falling gently out to the tip
+        const pts = [base, at(reach * 0.2, stem), at(reach * 0.36, stem + (peak - stem) * 0.7), at(reach * 0.58, peak), at(reach * 0.8, peak - (peak - tip) * 0.45), at(reach, tip)];
+        const curve = new THREE.CatmullRomCurve3(pts, false, "centripetal");
         const from = Math.min(0.5, pts[0].distanceTo(pts[1]) / curve.getLength());
         // the bare stalk a little thicker than the rachis it carries
-        b.batch(tube([base, curve.getPointAt(from * 0.5), curve.getPointAt(from)], (u) => 0.011 - u * 0.003, 3, 5, false), stalk);
-        frond(b, curve, { from, pairs: 14, len: 0.3 * Math.min(1.25, k / 1.1 + 0.15), wid: 0.03, droop: 0.95, forward: 0.3, colors: ["#2b5a2c", "#356a33", "#2f612f"], rachis: "#46672f", r: 0.007, rand });
+        b.batch(tube([base, curve.getPointAt(from * 0.5), curve.getPointAt(from)], (u) => 0.009 - u * 0.002, 3, 5, false), stalk);
+        frond(b, curve, { from, pairs: 14, len: leafLen, wid: 0.028, droop: 0.5, forward: 0.5, colors: ["#2b5a2c", "#356a33", "#2f612f"], rachis: "#46672f", r: 0.007, rand });
       }
   },
   fern: (b, w, d, h, f) => {

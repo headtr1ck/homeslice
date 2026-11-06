@@ -125,30 +125,36 @@ export const BUILDERS: Record<string, Build> = {
     }
   },
   fence_planks: (b, w, d, h, f) => {
-    // a close-board fence: square posts with caps, a gravel board, overlapping vertical
-    // boards on rails at the back, a capping rail along the top
+    // a close-board fence: square posts with caps, a gravel board, vertical boards on rails in
+    // front of the posts, alternately in a back and a front row so each overlaps its neighbours
+    // (the rows apart by more than a board is thick, so no two boards meet), a capping rail
+    // over both rows and a counter batten under it. Laid out back to front across 0.1 m.
+    const q = Math.min(1, d / 0.1);
+    const Z = (z: number) => z * q; // a depth or position across the fence, for thin runs
     const ps = 0.09;
     const xs = postsAlong(w, ps, 1.8);
     const post = tint(f, 0.82);
-    const zb = Math.min(0.03, d * 0.3);
+    // posts from the back to z = 0.01, the rails let into them
     for (const x of xs) {
-      bbox(b, ps, h - 0.05, ps, x, 0, -0.01, post);
-      postCap(b, x, h - 0.05, -0.01, ps + 0.02, post);
+      bbox(b, ps, h - 0.05, Z(0.06), x, 0, Z(-0.02), post);
+      postCap(b, x, h - 0.05, Z(-0.02), ps + 0.02, post);
     }
-    const gravel = mat("#8e8a83", { roughness: 1 });
+    for (const y of [h * 0.18, h * 0.5, h * 0.82]) bbox(b, w - 0.04, 0.07, Z(0.035), 0, y, Z(-0.0075), post);
+    // the gravel board under both rows, a little proud of them, the boards standing on it
     const gb = Math.min(0.15, h * 0.1);
-    bbox(b, w - 0.01, gb, 0.025, 0, 0, zb, gravel);
-    for (const y of [h * 0.18, h * 0.5, h * 0.82]) bbox(b, w - 0.04, 0.07, 0.035, 0, y, -0.035, post);
+    bbox(b, w - 0.01, gb, Z(0.04), 0, 0, Z(0.03), mat("#8e8a83", { roughness: 1 }));
     const n = Math.max(4, Math.round(w / 0.105));
     const bw = w / n;
+    const t = Z(0.016);
+    const behind = tint(f, 0.9);
     for (let i = 0; i < n; i++) {
-      // each board overlaps the next: alternately a little forward, a little turned
+      // back row (on the rails, a shade darker) a little narrower, the front row covering its edges
       const x = -w / 2 + bw * (i + 0.5);
-      bbox(b, bw + 0.012, h - gb - 0.06, 0.016, x, gb, zb + (i % 2) * 0.006, f, 0, (i % 2 ? 1 : -1) * 0.05);
+      bbox(b, i % 2 ? bw + 0.016 : bw - 0.004, h - gb - 0.06, t, x, gb, Z(i % 2 ? 0.036 : 0.018), i % 2 ? f : behind);
     }
-    // the capping rail and its counter batten
-    bbox(b, w, 0.025, 0.06, 0, h - 0.06, zb - 0.002, post);
-    bbox(b, w, 0.02, 0.03, 0, h - 0.085, zb + 0.022, post);
+    // the capping rail over both rows and the counter batten in front under it
+    bbox(b, w, 0.025, Z(0.062), 0, h - 0.06, Z(0.019), post);
+    bbox(b, w, 0.02, Z(0.006), 0, h - 0.085, Z(0.047), post);
   },
   fence_picket: (b, w, d, h, f) => {
     // pointed pickets on two rails, square posts with caps every bay
@@ -287,25 +293,27 @@ export const BUILDERS: Record<string, Build> = {
     }
     band.holes.push(hole);
     b.batch(new THREE.ShapeGeometry(band, 1).rotateX(-Math.PI / 2), mat("#3b3f3a", { roughness: 1 }), matrix(0, wy - 0.004, 0));
-    // stones: big ones on the edge, smaller ones between and outside them
+    // stones: big ones on the edge, smaller ones between and outside them, all growing with the
+    // pond (the band they cover is a share of its size), as many as close the ring
+    const ss = Math.min(2.2, Math.max(0.5, Math.sqrt((w * d) / (2.6 * 1.8))));
     const stones = [f, tint(f, 0.85), tint(f, 1.12)];
     const stone = (a: number, k: number, size: number, i: number) => {
       const g = new THREE.IcosahedronGeometry(1, 0);
       const x = (Math.cos(a) * w * k) / 2;
       const z = (-Math.sin(a) * d * k) / 2;
-      b.batch(g, stones[i % 3], new THREE.Matrix4().compose(v(x, size * 0.25, z), new THREE.Quaternion().setFromEuler(new THREE.Euler(rand() * 0.3, rand() * TAU, rand() * 0.3)), v(size * (1.1 + rand() * 0.4), size * 0.5, size * (0.9 + rand() * 0.3))));
+      b.batch(g, stones[i % 3], new THREE.Matrix4().compose(v(x, Math.min(size * 0.25, wy * 0.6), z), new THREE.Quaternion().setFromEuler(new THREE.Euler(rand() * 0.3, rand() * TAU, rand() * 0.3)), v(size * (1.1 + rand() * 0.4), size * 0.5, size * (0.9 + rand() * 0.3))));
     };
-    const ring = Math.max(14, Math.round((Math.PI * (w + d)) / 2 / 0.24));
+    const ring = Math.max(14, Math.round((Math.PI * (w + d)) / 2 / (0.24 * ss)));
     for (let i = 0; i < ring; i++) {
       const a = (i / ring) * TAU + rand() * 0.08;
-      stone(a, edge(a) + 0.04, 0.1 + rand() * 0.05, i);
-      if (i % 2) stone(a + Math.PI / ring, edge(a) + 0.1 + rand() * 0.04, 0.06 + rand() * 0.03, i + 1);
+      stone(a, edge(a) + 0.04, (0.1 + rand() * 0.05) * ss, i);
+      if (i % 2) stone(a + Math.PI / ring, edge(a) + 0.1 + rand() * 0.04, (0.06 + rand() * 0.03) * ss, i + 1);
     }
     // lily pads (each with its notch), a flower on one
     const pad = leafMat("#4f8a3a");
     const pad2 = leafMat("#5f9a44");
     for (let i = 0; i < 7; i++) {
-      const pr = 0.07 + rand() * 0.06;
+      const pr = (0.07 + rand() * 0.06) * Math.sqrt(ss);
       const x = (rand() - 0.2) * w * 0.4;
       const z = (rand() - 0.5) * d * 0.45;
       b.batch(new THREE.CircleGeometry(pr, 14, 0.25, TAU - 0.5).rotateX(-Math.PI / 2), i % 2 ? pad : pad2, matrix(x, wy + 0.004, z, 0, rand() * TAU));
@@ -323,11 +331,20 @@ export const BUILDERS: Record<string, Build> = {
   // ----- seating -----
   garden_sofa: (b, w, d, h, f, color, a) => {
     // a lounge sofa: a frame with slatted arms and back, thick seat and back cushions, two
-    // scatter cushions
+    // scatter cushions (heights, slat counts and cushions all follow the size)
     const frame = a;
     const dark = mat("#26272a", { roughness: 0.8 });
+    const hy = Math.min(1, h / 0.7);
+    const sc = Math.max(1, Math.min(d / 0.8, h / 0.7, 1.4)); // bigger cushions on a bigger sofa
     const aw = 0.075;
     const armH = Math.min(0.6, h * 0.84);
+    /** n slats between y0 and y1, each sh tall (fewer and thinner where there's less room). */
+    const slats = (y0: number, y1: number, sh: number, pitch: number) => {
+      const n = Math.max(2, Math.floor((y1 - y0) / pitch));
+      const hh = Math.min(sh, ((y1 - y0) / n) * 0.55);
+      const step = (y1 - y0 - hh) / (n - 1);
+      return Array.from({ length: n }, (_, i) => [y0 + i * step, hh] as const);
+    };
     for (const sx of [-1, 1]) {
       const x = sx * (w / 2 - aw / 2);
       for (const z of [d / 2 - 0.03, -d / 2 + 0.03]) {
@@ -335,84 +352,106 @@ export const BUILDERS: Record<string, Build> = {
         bbox(b, aw * 0.8, 0.03, 0.045, x, 0, z, dark);
       }
       rbox(b, aw + 0.012, 0.035, d, x, armH - 0.035, 0, frame, 0.008);
-      for (let i = 0; i < 4; i++) bbox(b, aw * 0.5, 0.05, d - 0.08, x, 0.14 + i * ((armH - 0.24) / 3.4), 0, frame);
+      for (const [y, sh] of slats(0.14 * hy, armH - 0.08, 0.05, 0.1)) bbox(b, aw * 0.5, sh, d - 0.08, x, y, 0, frame);
     }
     // the base rails and a slatted back panel behind the cushions
-    for (const z of [d / 2 - 0.03, -d / 2 + 0.03]) rbox(b, w - 2 * aw, 0.1, 0.04, 0, 0.12, z, frame, 0.006);
+    for (const z of [d / 2 - 0.03, -d / 2 + 0.03]) rbox(b, w - 2 * aw, 0.1 * hy, 0.04, 0, 0.12 * hy, z, frame, 0.006);
     const back = h - 0.06;
-    for (let i = 0; i < 5; i++) bbox(b, w - 2 * aw, 0.06, 0.025, 0, 0.26 + i * ((back - 0.3) / 4.4), -d / 2 + 0.02, frame);
+    for (const [y, sh] of slats(0.26 * hy, back - 0.06, 0.06, 0.1)) bbox(b, w - 2 * aw, sh, 0.025, 0, y, -d / 2 + 0.02, frame);
     rbox(b, w - 2 * aw, 0.035, 0.05, 0, back - 0.035, -d / 2 + 0.03, frame, 0.008);
-    bbox(b, w - 2 * aw, 0.03, d - 0.08, 0, 0.19, 0, dark);
+    bbox(b, w - 2 * aw, 0.03, d - 0.08, 0, 0.19 * hy, 0, dark);
     // cushions
     const n = Math.max(1, Math.round((w - 2 * aw) / 0.75));
     const cw = (w - 2 * aw - 0.01) / n;
     const seatD = d - 0.2;
-    const seatY = 0.22;
-    const ct = Math.min(0.15, armH - seatY - 0.12);
+    const seatY = 0.22 * hy;
+    const ct = Math.min(0.15 * sc, armH - seatY - 0.12);
+    const bhgt = Math.min(0.42 * sc, back - seatY - ct + 0.02);
+    const bd = 0.15 * sc;
     for (let i = 0; i < n; i++) {
       const x = -w / 2 + aw + 0.005 + cw * (i + 0.5);
       rbox(b, cw - 0.012, ct, seatD, x, seatY, d / 2 - 0.02 - seatD / 2, f, 0.04, 0, 0, 2);
-      const bhgt = Math.min(0.42, back - seatY - ct + 0.02);
-      rbox(b, cw - 0.02, bhgt, 0.15, x, seatY + ct - 0.02, -d / 2 + 0.12, f, 0.045, -0.16, 0, 2);
+      rbox(b, cw - 0.02, bhgt, bd, x, seatY + ct - 0.02, -d / 2 + 0.045 + bd / 2, f, 0.045, -0.16, 0, 2);
     }
-    // scatter cushions in a contrasting colour, leaning in the corners
+    // scatter cushions in a contrasting colour, leaning in the corners: sized to the back
+    // cushions, their tops level with the back's
     const pillow = mat(color === "sand" ? "#5d7a60" : "#c9b38f", { roughness: 1 });
+    const p = Math.min(bhgt * 1.12, cw * 0.65);
+    const pt = p * 0.31;
     for (const sx of [-1, 1]) {
-      const geo = new RoundedBoxGeometry(0.4, 0.38, 0.12, 2, 0.05);
-      b.batch(geo, pillow, matrix(sx * (w / 2 - aw - 0.26), seatY + ct + 0.18, -d / 2 + 0.27, -0.28, sx * 0.25, sx * 0.08));
+      const geo = new RoundedBoxGeometry(p * 1.05, p, pt, 2, Math.min(0.05, pt * 0.42));
+      b.batch(geo, pillow, matrix(sx * (w / 2 - aw - p * 0.68), seatY + ct + p * 0.42, -d / 2 + 0.05 + bd + pt / 2, -0.28, sx * 0.25, sx * 0.08));
     }
   },
   adirondack_chair: (b, w, d, h, f) => {
     // the classic: sloping seat on long stringers, a tall fan of back slats with a curved top,
-    // broad flat arms on front legs with small brackets
+    // broad flat arms on front legs with small brackets (everything laid out from w × d × h)
+    const sx0 = w / 0.75;
+    const sz = d / 0.9;
+    const sy = h / 0.95;
     const fz = d / 2;
-    const legZ = fz - 0.16;
-    const legX = w / 2 - 0.1;
+    const aw = 0.14 * Math.min(1.25, Math.max(0.75, sx0));
+    const legX = w / 2 - 0.03 - aw / 2;
+    const legZ = fz - 0.16 * sz;
     const armY = Math.min(0.6, h * 0.64);
     const t = 0.022;
-    // stringers: from the front edge down to the ground at the back
-    const sf = v(0, 0.36, fz - 0.03);
-    const sb = v(0, 0.02, -d / 2 + 0.16);
+    // stringers: from the front edge down to the ground at the back; sf/sb on their top line
+    const sf = v(0, 0.36 * sy, fz - 0.03);
+    const sbz = -d / 2 + 0.16 * sz;
+    const slope = Math.atan2(sf.y - 0.06, sf.z - sbz);
+    const off = 0.05 / Math.cos(slope);
+    const topAt = (z: number) => sf.y - (sf.z - z) * Math.tan(slope);
+    const strX = legX - 0.035;
     for (const sx of [-1, 1]) {
-      const x = sx * (legX - 0.035);
-      beam(b, v(x, sf.y - 0.06, sf.z), v(x, sb.y, sb.z), 0.025, 0.1, f, 0.005);
+      const x = sx * strX;
+      beam(b, v(x, sf.y - off, sf.z), v(x, topAt(sbz) - off, sbz), 0.025, 0.1, f, 0.005);
       // front legs, outside the stringers
       rbox(b, 0.035, armY - 0.003, 0.085, sx * legX, 0, legZ, f, 0.005);
-      // arms: broad boards, a bracket under the front
-      rbox(b, 0.14, t, d * 0.7, sx * (legX + 0.01), armY, fz - 0.02 - d * 0.35, f, 0.006);
-      bbox(b, 0.03, 0.087, 0.08, sx * legX, armY - 0.09, legZ + 0.085, f);
     }
-    // the seat slats across, following the stringers' slope
-    const slope = Math.atan2(sf.y - sb.y, sf.z - sb.z);
-    const ns = 6;
-    for (let i = 0; i < ns; i++) {
-      const u = i / ns;
-      const z = sf.z - 0.04 - u * 0.48;
-      const y = sf.y - (sf.z - z) * Math.tan(slope);
-      rbox(b, legX * 2 - 0.03, t, 0.07, 0, y, z, f, 0.005, slope);
-    }
-    // the back: slats fanning out a little, leaning back, the middle tallest
-    const bb = v(0, 0.2, sf.z - 0.58);
-    const lean = 0.42;
+    // the back: slats fanning out a little, leaning back from a batten across the stringers,
+    // the middle tallest, the top just inside the back
+    const bz = -d / 2 + 0.36 * d;
+    const by = topAt(bz) + 0.022;
     const topY = h - 0.01;
-    const len = (topY - bb.y) / Math.cos(lean);
+    const topZ = -d / 2 + 0.03;
+    const lean = Math.atan2(bz - topZ, topY - by);
+    const len = (topY - by) / Math.cos(lean);
+    const span = w * 0.707;
     const nb = 7;
-    const span = Math.min(w - 0.22, 0.6);
+    rbox(b, 2 * strX + 0.025, 0.022, 0.06, 0, topAt(bz), bz - 0.01, f, 0.005, -slope);
     for (let i = 0; i < nb; i++) {
       const u = (i / (nb - 1)) * 2 - 1;
       const l = len * (1 - 0.13 * u * u);
       const x0 = u * span * 0.38;
       const x1 = u * span * 0.48;
-      const top = v(x1, bb.y + l * Math.cos(lean), bb.z - l * Math.sin(lean));
+      const top = v(x1, by + l * Math.cos(lean), bz - l * Math.sin(lean));
       // each turned a little, as on a curved back
-      beam(b, v(x0, bb.y, bb.z), top, span / nb - 0.018, t, f, 0.005, v(1, 0, -0.12 * u));
+      beam(b, v(x0, by, bz), top, span / nb - 0.018, t, f, 0.005, v(1, 0, -0.12 * u));
     }
     // rails behind the back: a low one, one at arm height carrying the arms, one high
-    for (const k of [0.12, 0.45, 0.72]) {
-      const y = bb.y + len * k * Math.cos(lean);
-      const z = bb.z - len * k * Math.sin(lean) - t;
+    const kArm = Math.min(0.8, Math.max(0.2, (armY - 0.03 - by) / (len * Math.cos(lean))));
+    let armBack = 0;
+    for (const k of [Math.min(0.12, kArm - 0.1), kArm, Math.min(0.9, kArm + 0.27)]) {
+      const y = by + len * k * Math.cos(lean);
+      const z = bz - len * k * Math.sin(lean) - t;
       const rw = (span * (0.36 + 0.12 * k) + 0.04) * 2;
-      rbox(b, k === 0.45 ? legX * 2 + 0.1 : rw, 0.06, 0.022, 0, y - 0.03, z - 0.01, f, 0.005, -lean);
+      rbox(b, k === kArm ? legX * 2 + aw * 0.7 : rw, 0.06, 0.022, 0, y - 0.03, z - 0.01, f, 0.005, -lean);
+      if (k === kArm) armBack = z - 0.02;
+    }
+    // arms: broad boards from the front back onto the rail, a bracket under the front
+    const armFront = fz - 0.02;
+    const al = armFront - armBack;
+    for (const sx of [-1, 1]) {
+      rbox(b, aw, t, al, sx * (legX + 0.01), armY, armFront - al / 2, f, 0.006);
+      bbox(b, 0.03, 0.087, 0.08, sx * legX, armY - 0.09, legZ + 0.085, f);
+    }
+    // the seat slats across, on the stringers from the front edge back to the back's batten
+    const L = sf.z - 0.04 - (bz + 0.03);
+    const ns = Math.max(4, Math.round(L / 0.08));
+    const sd = L / ns - 0.012;
+    for (let i = 0; i < ns; i++) {
+      const z = sf.z - 0.035 - sd / 2 - (i * L) / ns;
+      rbox(b, 2 * strX + 0.025, t, sd, 0, topAt(z), z, f, 0.005, -slope);
     }
   },
   deck_chair: (b, w, d, h, f, color, a) => {
@@ -467,11 +506,19 @@ export const BUILDERS: Record<string, Build> = {
       b.batch(g, stripe[i % 2]);
     }
   },
-  bistro_set: (b, w, d, h, f, _c, a) => {
+  bistro_set: (b0, w, d, h, f, _c, a) => {
     // a round bistro table on a three-legged stand, two folding chairs facing it: slatted
-    // seats, curved back bands, a tube frame in the accent
-    const r = Math.min(0.35, d / 2, w / 2 - 0.42);
-    const top = h - 0.026;
+    // seats, curved back bands, a tube frame in the accent. Both drawn at their usual size
+    // (table 0.72 m high, 0.66 m across) and scaled to w × d × h: the table round, the chairs
+    // drawn up to it.
+    const s = Math.min(2, Math.max(0.5, Math.min(w / 1.5, d / 0.7)));
+    const sy = h / 0.72;
+    const R = Math.min(0.33 * s, d / 2, w / 2 - 0.42 * s);
+    const ts = R / 0.33;
+    const scaled = (T: THREE.Matrix4) => ({ batch: (geo: THREE.BufferGeometry, m: M, M2?: THREE.Matrix4) => b0.batch(geo, m, M2 ? T.clone().multiply(M2) : T.clone()) }) as unknown as Builder;
+    const b = scaled(new THREE.Matrix4().makeScale(ts, sy, ts));
+    const r = 0.33;
+    const top = 0.72 - 0.026;
     lathe(b, [[0, 0], [r - 0.015, 0], [r, 0.008], [r, 0.02], [r - 0.006, 0.026], [0, 0.026]], f, 0, top, 0, 40);
     b.batch(new THREE.TorusGeometry(r * 0.8, 0.008, 6, 32).rotateX(Math.PI / 2), a, matrix(0, top - 0.008, 0));
     for (let i = 0; i < 4; i++) {
@@ -484,14 +531,14 @@ export const BUILDERS: Record<string, Build> = {
     for (let i = 0; i < 3; i++) {
       const ang = (i / 3) * TAU + Math.PI / 2;
       const c = Math.cos(ang);
-      const s = Math.sin(ang);
-      pipe(b, [v(c * 0.02, 0.2, s * 0.02), v(c * 0.12, 0.11, s * 0.12), v(c * 0.24, 0.025, s * 0.24), v(c * 0.29, 0.012, s * 0.29)], 0.011, a, 10, 6, false);
-      b.batch(new THREE.CylinderGeometry(0.02, 0.022, 0.012, 10), mat("#2c2d30"), matrix(c * 0.29, 0.006, s * 0.29));
+      const sn = Math.sin(ang);
+      pipe(b, [v(c * 0.02, 0.2, sn * 0.02), v(c * 0.12, 0.11, sn * 0.12), v(c * 0.24, 0.025, sn * 0.24), v(c * 0.29, 0.012, sn * 0.29)], 0.011, a, 10, 6, false);
+      b.batch(new THREE.CylinderGeometry(0.02, 0.022, 0.012, 10), mat("#2c2d30"), matrix(c * 0.29, 0.006, sn * 0.29));
     }
     // the chairs, each drawn facing +z and turned towards the table
     for (const sx of [-1, 1]) {
-      const T = matrix(sx * (w / 2 - 0.22), 0, 0, 0, -sx * Math.PI / 2);
-      const put = (geo: THREE.BufferGeometry, m: M) => b.batch(geo, m, T);
+      const T = matrix(sx * Math.min(w / 2 - 0.22 * s, R + 0.2 * s), 0, 0, 0, -sx * Math.PI / 2).multiply(new THREE.Matrix4().makeScale(s, sy, s));
+      const put = (geo: THREE.BufferGeometry, m: M) => b0.batch(geo, m, T);
       const tube = (pts: V3[], rr = 0.0105) => put(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), pts.length === 2 ? 1 : pts.length * 2, rr, 5, false), a);
       const seat = 0.45;
       const sw = 0.38;
