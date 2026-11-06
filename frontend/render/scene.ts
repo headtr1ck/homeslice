@@ -2665,7 +2665,8 @@ export class HouseRenderer {
 
   private ceilingOver(id: string | undefined, elevation: number | undefined, full: number, p: Vec2) {
     const roof = this.roofLevel;
-    if (!roof || elevation === undefined || !this.view.roof || id === roof.id) return full;
+    // (the roof shapes the floors under it whether it is drawn or not)
+    if (!roof || elevation === undefined || id === roof.id) return full;
     let ceiling = full;
     for (const part of roof.roofs) {
       const base = roof.elevation - elevation + part.offset;
@@ -2685,7 +2686,8 @@ export class HouseRenderer {
    */
   private trimUnderRoof(g: THREE.Group, level: Level) {
     const roofLevel = this.roofLevel;
-    if (!roofLevel || level.kind === "roof" || !this.view.roof) return;
+    // (also with the roof hidden: the walls keep the outline the roof gives them)
+    if (!roofLevel || level.kind === "roof") return;
     const parts = roofLevel.roofs
       .map((part) => ({ part, base: roofLevel.elevation - level.elevation + part.offset }))
       .filter(({ base }) => base < level.height - 0.01);

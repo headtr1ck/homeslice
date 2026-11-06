@@ -1304,6 +1304,19 @@ test.describe.serial("demo house, roof (3)", () => {
     assert(state.parts === 2 && state.panels === 2, `roof parts drawn: ${JSON.stringify(state)}`);
     assert(state.clipped > 0 && state.clipping, `walls under the lowered roof not trimmed: ${JSON.stringify(state)}`);
     await shot(page, "demo-roof-level");
+    // the roof hidden on the card: not drawn, but the walls keep the outline it gives them
+    await act(page, () => page.evaluate(() => window.card.setConfig({ ...window.card.config, roof: "hide" })).then(() => page.evaluate(() => (window.card.hass = window.card.hass))));
+    const hidden = await page.evaluate(() => {
+      const r = window.card.renderer;
+      let clipped = 0;
+      r.levels[r.levelIds.length - 2].group.traverse((o) => {
+        if (o.isMesh && o.userData.wallAt && [].concat(o.material).some((m) => m.clippingPlanes?.length)) clipped++;
+      });
+      return { parts: r.levels[r.levelIds.indexOf("roof")]?.group.children.length ?? 0, clipped, clipping: r.renderer.localClippingEnabled };
+    });
+    assert(hidden.parts === 0, `roof drawn though hidden: ${JSON.stringify(hidden)}`);
+    assert(hidden.clipped > 0 && hidden.clipping, `walls lose the roof's outline when it is hidden: ${JSON.stringify(hidden)}`);
+    await shot(page, "demo-roof-level-hidden");
     await act(page, () =>
       page.evaluate(() => {
         window.card.setConfig({ ...window.card.config, view: window.viewBefore });
