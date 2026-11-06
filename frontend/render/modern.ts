@@ -77,6 +77,36 @@ export function random(seed: number) {
 
 // ----- building blocks -----
 
+const textured = (m: THREE.Material) => !!(m as THREE.MeshStandardMaterial).map;
+
+/**
+ * Texture coordinates in metres for a shape made without them (a loft, a bent sheet):
+ * each triangle takes the plane it faces most, like a box's sides.
+ */
+export function projectedUVs(geo: THREE.BufferGeometry): THREE.BufferGeometry {
+  const g = geo.index ? geo.toNonIndexed() : geo;
+  const pos = g.attributes.position;
+  const uv = new Float32Array(pos.count * 2);
+  const a = new THREE.Vector3();
+  const e1 = new THREE.Vector3();
+  const e2 = new THREE.Vector3();
+  for (let t = 0; t < pos.count / 3; t++) {
+    a.fromBufferAttribute(pos, 3 * t);
+    e1.fromBufferAttribute(pos, 3 * t + 1).sub(a);
+    e2.fromBufferAttribute(pos, 3 * t + 2).sub(a);
+    const n = e1.cross(e2);
+    const [ax, ay, az] = [Math.abs(n.x), Math.abs(n.y), Math.abs(n.z)];
+    for (let k = 3 * t; k < 3 * t + 3; k++) {
+      const [x, y, z] = [pos.getX(k), pos.getY(k), pos.getZ(k)];
+      if (ay >= ax && ay >= az) uv.set([x, z], 2 * k);
+      else if (ax >= az) uv.set([z, y], 2 * k);
+      else uv.set([x, y], 2 * k);
+    }
+  }
+  g.setAttribute("uv", new THREE.BufferAttribute(uv, 2));
+  return g;
+}
+
 export class Builder {
   readonly g = new THREE.Group();
   /** Geometries merged per material at the end (plants: thousands of leaves, one mesh). */
@@ -88,6 +118,7 @@ export class Builder {
   constructor(readonly options: Record<string, string> = {}) {}
 
   add(geo: THREE.BufferGeometry, m: THREE.Material, x = 0, y = 0, z = 0) {
+    if (textured(m) && !geo.attributes.uv) geo = projectedUVs(geo);
     const mesh = new THREE.Mesh(geo, m);
     mesh.position.set(x, y, z);
     this.into.add(mesh);
@@ -162,9 +193,10 @@ export class Builder {
   batch(geo: THREE.BufferGeometry, m: THREE.Material, matrix?: THREE.Matrix4) {
     if (matrix) geo.applyMatrix4(matrix);
     const g = geo.index ? geo.toNonIndexed() : geo;
-    // only positions and normals: every batch merges
+    // only positions and normals (and, under a texture, coordinates made alike): every batch merges
     for (const name of Object.keys(g.attributes)) if (name !== "position" && name !== "normal") g.deleteAttribute(name);
     if (!g.attributes.normal) g.computeVertexNormals();
+    if (textured(m)) projectedUVs(g);
     let list = this.batches.get(m);
     if (!list) this.batches.set(m, (list = []));
     list.push(g);
