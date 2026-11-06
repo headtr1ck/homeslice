@@ -643,22 +643,41 @@ export const BUILDERS: Record<string, Build> = {
     }
   },
   palm_kentia: (b, w, d, h, f) => {
-    // Howea: slender stalks rising from the pot, wide arching fronds with long, softly hanging leaflets
+    // Howea: a clump of slender bare stalks rising from the pot, each opening into a long,
+    // broadly arching frond whose narrow leaflets spread from the rachis and hang at their tips
     const rand = random(193);
     const k = Math.min(w, d);
-    const ph = Math.min(0.38, h * 0.22);
-    const soil = planter(b, k * 0.24, ph, f, "tall");
-    const fronds = 7;
-    for (let s = 0; s < fronds; s++) {
-      const a = (s / fronds) * TAU + rand() * 0.5;
-      const tall = s % 3 === 0;
-      const base = v(Math.cos(a * 2) * 0.03, soil - 0.03, Math.sin(a * 2) * 0.03);
-      const out = (k / 2) * (tall ? 0.7 : 0.88 + rand() * 0.12);
-      const peak = soil + (h - soil) * (tall ? 0.98 : 0.66 + rand() * 0.16);
-      const pts = [base, v(Math.cos(a) * out * 0.08, soil + (peak - soil) * 0.55, Math.sin(a) * out * 0.08), v(Math.cos(a) * out * 0.18, peak - Math.min((peak - soil) * 0.06, out * 0.1), Math.sin(a) * out * 0.18), v(Math.cos(a) * out * 0.35, peak, Math.sin(a) * out * 0.35), v(Math.cos(a) * out * 0.72, peak - Math.min((h - soil) * 0.08, out * 0.2), Math.sin(a) * out * 0.72), v(Math.cos(a) * out, peak - Math.min((h - soil) * 0.26, out * 0.65), Math.sin(a) * out)];
-      const curve = new THREE.CatmullRomCurve3(pts);
-      frond(b, curve, { from: 0.36, pairs: 16, len: 0.3 * Math.min(1.2, k / 1.1 + 0.2), wid: 0.024, droop: 0.65, forward: 0.2, colors: ["#244a26", "#2f5a2e", "#2a522b"], rachis: "#3c5f30", r: 0.007, rand });
-    }
+    const ph = Math.min(0.36, h * 0.2);
+    const soil = planter(b, k * 0.22, ph, f, "tall");
+    const H = h - soil;
+    const stalk = mat("#4f6534");
+    // three tiers: tall inner fronds, middle ones, low wide outer ones; each a bare stalk up
+    // to `stem`, then the rachis arching up to `peak` and out and down to its tip
+    const tiers = [
+      { n: 3, reach: 0.66, stem: 0.55, peak: 0.98, tip: 0.72 },
+      { n: 3, reach: 0.85, stem: 0.42, peak: 0.8, tip: 0.42 },
+      { n: 3, reach: 1, stem: 0.3, peak: 0.6, tip: 0.18 },
+    ];
+    let s = 0;
+    for (const t of tiers)
+      for (let i = 0; i < t.n; i++, s++) {
+        const a = (i / t.n) * TAU + s * 0.7 + rand() * 0.3;
+        const ca = Math.cos(a);
+        const sa = Math.sin(a);
+        // the stalks come up as a clump of four
+        const c = (s % 4) * (TAU / 4) + 0.4;
+        const base = v(Math.cos(c) * 0.035, soil - 0.03, Math.sin(c) * 0.035);
+        const reach = (k / 2 - 0.06) * t.reach * (0.92 + rand() * 0.08);
+        const y = (u: number) => soil + H * u * (0.96 + rand() * 0.04);
+        const at = (r: number, yy: number) => v(base.x * (1 - r / reach) + ca * r, yy, base.z * (1 - r / reach) + sa * r);
+        const peak = y(t.peak);
+        const pts = [base, at(reach * 0.1, y(t.stem)), at(reach * 0.3, peak - (peak - y(t.stem)) * 0.22), at(reach * 0.56, peak), at(reach * 0.78, peak - (peak - y(t.tip)) * 0.4), at(reach, y(t.tip))];
+        const curve = new THREE.CatmullRomCurve3(pts);
+        const from = Math.min(0.5, pts[0].distanceTo(pts[1]) / curve.getLength());
+        // the bare stalk a little thicker than the rachis it carries
+        b.batch(tube([base, curve.getPointAt(from * 0.5), curve.getPointAt(from)], (u) => 0.011 - u * 0.003, 3, 5, false), stalk);
+        frond(b, curve, { from, pairs: 14, len: 0.3 * Math.min(1.25, k / 1.1 + 0.15), wid: 0.03, droop: 0.95, forward: 0.3, colors: ["#2b5a2c", "#356a33", "#2f612f"], rachis: "#46672f", r: 0.007, rand });
+      }
   },
   fern: (b, w, d, h, f) => {
     // Boston fern: a fountain of arching fronds, toothed with leaflets, spilling over the pot
