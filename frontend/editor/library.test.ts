@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import en from "../i18n/en.json";
 import type { FurnitureType } from "../model/types";
-import { builtinGroups, filterGroups, searchScore } from "./library";
+import { builtinGroups, filterGroups, modernGroups, searchScore } from "./library";
 
 const t = en as Record<string, string>;
 const typeName = (type: FurnitureType) => t[`furniture.${type}`] ?? type;
@@ -48,4 +48,10 @@ describe("searching the library", () => {
     // every word somewhere
     expect(searchScore(item, "tall fridge", typeName)).toBeGreaterThan(0);
   });
+});
+
+describe("search: the plain thing first", () => {
+  const items = modernGroups().flatMap((g) => g.items).map((i) => ({ ...i, name: (en as Record<string, string>)[i.nameKey!], tags: [...(i.tags ?? []), (en as Record<string, string>)[`alias.${i.key.slice(7)}`] ?? ""] }));
+  const first = (q: string) => [...items].map((i) => [searchScore(i, q, (t) => (en as Record<string, string>)[`furniture.${t}`] ?? t), i.name] as const).sort((a, b) => b[0] - a[0])[0][1];
+  it.each([["table", "Dining table"], ["bed", "Double bed"], ["fridge", "Fridge, free-standing"], ["sofa", "Sofa"]])("%s → %s", (q, name) => expect(first(q)).toBe(name));
 });

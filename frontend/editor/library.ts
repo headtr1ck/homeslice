@@ -263,7 +263,11 @@ export function searchScore(i: LibraryItem, query: string, typeName: (t: Furnitu
   const starts = (text: string) => text === q || text.startsWith(`${q} `);
   // what it is counts on top: a tree called "Deciduous tree" before a "Tree stump" (an item)
   const kind = type === q ? 2.5 : word(type) ? 1 : 0;
-  if (starts(name)) return 6 + kind;
+  // among equals the plainer name first: "Dining table" before "Table tennis table"
+  // (what follows a comma only says which: "Fridge, free-standing" is a plain fridge)
+  const plainer = -0.01 * plain((i.name ?? typeName(i.type)).split(",")[0]).split(" ").length;
+  // the word that names the thing, at either end ("Double bed", "Table lamp")
+  if (starts(name) || name.endsWith(` ${q}`)) return 6 + kind + plainer;
   if (word(name) || phrases.some((p) => p === q)) return 5 + kind;
   if (` ${name}`.includes(` ${q}`)) return 4 + kind; // the start of one of its name's words ("fri")
   if (kind || phrases.some(starts)) return 3 + kind;
