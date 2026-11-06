@@ -1,0 +1,117 @@
+# A flat on the third floor of an apartment block, for the demo site: neighbours behind
+# the east and west walls (party walls), the front door from the stairwell on the north side,
+# an open kitchen and living room onto a balcony. Pieces without a size take the
+# catalogue's (scripts/demo-model.mjs fills them in).
+schema: 2
+id: apartment
+name: Apartment
+outline: { rect: [0.12, 0.18, 10.76, 8.14] }
+party_walls: [east, west]
+facade: render_grey
+levels:
+  - id: flat
+    name: Third floor
+    floor_id: third_floor
+    rooms:
+      - id: bedroom
+        area_id: bedroom
+        rect: [0.12, 0.18, 3.88, 4.32]
+        floor: oak_grey
+        wall: paint_sage
+        furniture:
+          - { type: bed, model: "modern:bed_upholstered", at: [1.195, 2.12], rotation: 270 }
+          - { type: nightstand, model: "modern:nightstand", at: [0.31, 0.82], rotation: 270 }
+          - { type: nightstand, model: "modern:nightstand", at: [0.31, 3.42], rotation: 270 }
+          - { type: table_lamp, model: "modern:table_lamp_mushroom", at: [0.31, 0.82], rotation: 270, mount: wall, elevation: 0.5, entity: light.bedside }
+          - { type: wardrobe, model: "modern:wardrobe_sliding", at: [3.495, 1.27], rotation: 90 }
+          - { type: rug, model: "modern:rug_shaggy", at: [2.08, 2.12], size: [1.4, 2.2] }
+          - { type: plant, model: "modern:snake_plant", at: [3.48, 3.97] }
+      - id: bath
+        area_id: bathroom
+        rect: [4, 0.18, 2.5, 2.42]
+        floor: tile_hex
+        wall: tile_subway
+        furniture:
+          - { type: shower, model: "modern:shower_glass", at: [0.66, 0.63] }
+          - { type: toilet, model: "modern:toilet_wall", at: [2.165, 0.82], rotation: 90 }
+          - { type: sink, model: "modern:vanity", at: [0.295, 1.72], rotation: 270 }
+          - { type: washer, model: "modern:washer", at: [2.14, 2.06], rotation: 90, entity: sensor.washer_remaining }
+      # the hall: in from the stairwell, round the bathroom to the other rooms
+      - id: hall
+        area_id: hall
+        polygon: [[4, 2.6], [6.5, 2.6], [6.5, 0.18], [8.3, 0.18], [8.3, 4.5], [4, 4.5]]
+        floor: tile_cement
+        furniture:
+          - { type: wardrobe, model: "modern:hall_wardrobe", at: [4.04, 1.12], rotation: 90 }
+          - { type: shelf, model: "modern:shoe_cabinet", at: [2.68, 1.42], rotation: 270 }
+          - { type: rug, model: "modern:rug_runner", at: [3.4, 2.02], size: [0.8, 2.0] }
+          - { type: mirror, model: "modern:mirror_wall", at: [2.58, 0.62], rotation: 270 }
+      - id: office
+        area_id: office
+        rect: [8.3, 0.18, 2.58, 4.32]
+        floor: oak_light
+        furniture:
+          - { type: desk, model: "modern:desk", at: [1.26, 0.53] }
+          - { type: chair, model: "modern:chair_office", at: [1.26, 1.22], rotation: 180 }
+          - { type: table_lamp, model: "modern:desk_lamp", at: [1.8, 0.32], mount: wall, elevation: 0.75, entity: light.desk_lamp }
+          - { type: shelf, model: "modern:bookshelf_wide", at: [2.285, 2.42], rotation: 90 }
+          - { type: armchair, model: "modern:lounge_chair", at: [0.6, 2.22], rotation: 270 }
+      - id: living
+        area_id: living_room
+        rect: [0.12, 4.5, 6.88, 3.82]
+        floor: oak_herringbone
+        wall: paint_warm
+        furniture:
+          # the TV on the neighbour's wall, the sofa facing it
+          - { type: shelf, model: "modern:tv_board", at: [0.32, 1.75], rotation: 270 }
+          - { type: tv, model: "modern:tv_wall", at: [0.15, 1.75], rotation: 270, entity: media_player.living_room_tv }
+          - { type: rug, model: "modern:rug_berber", at: [1.88, 1.75], rotation: 90, size: [2.4, 1.8] }
+          - { type: coffee_table, model: "modern:coffee_table", at: [1.88, 1.75], rotation: 90 }
+          - { type: sofa, model: "modern:sofa", at: [3.28, 1.8], rotation: 90 }
+          - { type: floor_lamp, model: "modern:floor_lamp_tripod", at: [3.58, 0.38], entity: light.floor_lamp }
+          - { type: plant, model: "modern:monstera", at: [0.63, 3.15] }
+          # dining by the kitchen
+          - { type: table, model: "modern:dining_table_round", at: [5.48, 1.6] }
+          - { type: chair, model: "modern:chair_wishbone", at: [4.73, 1.6], rotation: 270 }
+          - { type: chair, model: "modern:chair_wishbone", at: [6.23, 1.6], rotation: 90 }
+          - { type: chair, model: "modern:chair_wishbone", at: [5.48, 2.35], rotation: 180 }
+          - { type: ceiling_lamp, model: "modern:pendant_rattan", at: [5.48, 1.6], entity: light.dining }
+      - id: kitchen
+        area_id: kitchen
+        rect: [7, 4.5, 3.88, 3.82]
+        floor: terrazzo
+        furniture:
+          - { type: fridge, model: "modern:kitchen_tall_fridge", at: [1.06, 0.37] }
+          - { type: kitchen, model: "modern:kitchen", at: [2.56, 0.37], size: [2.4, 0.62] }
+          - { type: kitchen_upper, model: "modern:kitchen_upper", at: [2.56, 0.235], size: [2.4, 0.35] }
+          - { type: kitchen, model: "modern:kitchen_island", at: [2.5, 2.0], size: [2.0, 0.95] }
+          - { type: stool, model: "modern:bar_stool", at: [2.0, 2.95], rotation: 180 }
+          - { type: stool, model: "modern:bar_stool", at: [3.0, 2.95], rotation: 180 }
+          - { type: ceiling_lamp, model: "modern:pendant_bell", at: [2.0, 2.0], entity: light.kitchen_island }
+          - { type: ceiling_lamp, model: "modern:pendant_bell", at: [3.0, 2.0], entity: light.kitchen_island }
+      - id: balcony
+        area_id: balcony
+        kind: outdoor
+        rect: [1, 8.5, 5.5, 1.8]
+        floor: decking
+        railing: glass
+        furniture:
+          - { type: table, model: "modern:bistro_set", at: [1.2, 0.9] }
+          - { type: plant, model: "modern:planter_box", at: [5.2, 0.9], rotation: 90 }
+          - { type: floor_lamp, model: "modern:lantern", at: [4.4, 1.5], entity: light.balcony }
+    walls:
+      - { between: [living, kitchen] }   # open plan
+    openings:
+      # the front door from the stairwell
+      - { room: hall, side: north, at: 2.75, width: 1.0, type: door, style: entrance_strip, lock: lock.front_door, contact: binary_sensor.front_door }
+      - { room: hall, side: south, at: 1.0, width: 0.9, type: door, style: glass }
+      - { room: bath, side: south, at: 0.9, width: 0.8, type: door }
+      - { room: bedroom, side: east, at: 2.92, width: 0.8, type: door, hinge: right }
+      - { room: office, side: west, at: 3.02, width: 0.8, type: door }
+      - { room: bedroom, side: north, at: 1.08, width: 1.4, cover: cover.bedroom }
+      - { room: bath, side: north, at: 1.4, width: 0.6, sill: 1.4, height: 0.7 }
+      - { room: office, side: north, at: 0.7, width: 1.2, sill: 1.0, height: 1.2, blind: cover.office, blind_style: venetian }
+      - { room: living, side: south, at: 0.48, width: 1.4, cover: cover.living_room }
+      - { room: living, side: south, at: 2.88, width: 2.0, type: door, style: sliding_glass, cover: cover.balcony_door, contact: binary_sensor.balcony_door }
+      - { room: living, side: south, at: 5.28, width: 1.2, cover: cover.living_room }
+      - { room: kitchen, side: south, at: 1.0, width: 1.6, cover: cover.kitchen }
