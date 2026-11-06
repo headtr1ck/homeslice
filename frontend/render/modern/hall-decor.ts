@@ -602,10 +602,13 @@ export const BUILDERS: Record<string, Build> = {
     b.add(lathe([[0.001, 0], [rb * 0.55, 0], [rb * 0.62, 0.012], [rb * 0.94, bh * 0.55], [rb, bh - 0.004], [rb * 1.02, bh], [rb * 0.98, bh], [rb * 0.92, bh * 0.55], [rb * 0.58, 0.016], [0.001, 0.016]], 24), chrome, 0, 0.058, bz);
     b.add(new THREE.TorusGeometry(0.022, 0.005, 6, 10, Math.PI).rotateZ(-Math.PI / 2), chrome, rb * 0.9, 0.058 + bh * 0.6, bz);
     const al = mat("#d8dadc", { metalness: 0.5, roughness: 0.4 });
-    b.cyl(0.006, 0.006, hy - R - 0.058 - bh * 0.4, 0, 0.058 + bh * 0.4, bz, al, 8);
-    const paddle = new THREE.Shape([new THREE.Vector2(-0.008, 0), new THREE.Vector2(0.008, 0), new THREE.Vector2(rb * 0.45, bh * 0.4), new THREE.Vector2(rb * 0.3, bh * 0.5), new THREE.Vector2(-rb * 0.3, bh * 0.5), new THREE.Vector2(-rb * 0.45, bh * 0.4)]);
-    paddle.holes.push(new THREE.Path([new THREE.Vector2(-0.004, bh * 0.08), new THREE.Vector2(-rb * 0.32, bh * 0.4), new THREE.Vector2(rb * 0.32, bh * 0.4), new THREE.Vector2(0.004, bh * 0.08)]));
-    b.add(new THREE.ExtrudeGeometry(paddle, { depth: 0.005, bevelEnabled: false }).rotateX(Math.PI).translate(0, bh * 0.5, 0.0025), al, 0, 0.058 + bh * 0.1 - bh * 0.0, bz);
+    // the beater turns while a linked mixer runs
+    b.spinner(0, 0, bz, "y", () => {
+      b.cyl(0.006, 0.006, hy - R - 0.058 - bh * 0.4, 0, 0.058 + bh * 0.4, bz, al, 8);
+      const paddle = new THREE.Shape([new THREE.Vector2(-0.008, 0), new THREE.Vector2(0.008, 0), new THREE.Vector2(rb * 0.45, bh * 0.4), new THREE.Vector2(rb * 0.3, bh * 0.5), new THREE.Vector2(-rb * 0.3, bh * 0.5), new THREE.Vector2(-rb * 0.45, bh * 0.4)]);
+      paddle.holes.push(new THREE.Path([new THREE.Vector2(-0.004, bh * 0.08), new THREE.Vector2(-rb * 0.32, bh * 0.4), new THREE.Vector2(rb * 0.32, bh * 0.4), new THREE.Vector2(0.004, bh * 0.08)]));
+      b.add(new THREE.ExtrudeGeometry(paddle, { depth: 0.005, bevelEnabled: false }).rotateX(Math.PI).translate(0, bh * 0.5, 0.0025), al, 0, 0.058 + bh * 0.1 - bh * 0.0, bz);
+    });
   },
   knife_block: (b, w, d, h, f) => {
     // a block leaning back, slots in its top, knife handles with steel bolsters and rivets

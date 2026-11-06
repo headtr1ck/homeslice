@@ -1251,7 +1251,7 @@ export const BUILDERS: Record<string, Build> = {
     // the control strip with lights and the thermostat
     const cy = h - lid - 0.06;
     bx(b, w * 0.22, 0.04, 0.006, -w * 0.33, cy, d / 2 - 0.001, mat("#d9dcdf"));
-    b.box(0.03, 0.02, 0.004, -w * 0.4, h * 0.85, d / 2 + 0.001, mat("#3fd27a", { emissive: "#3fd27a", emissiveIntensity: 0.6 }));
+    b.box(0.03, 0.02, 0.004, -w * 0.4, h * 0.85, d / 2 + 0.001, part(mat("#3fd27a", { emissive: "#3fd27a", emissiveIntensity: 0.6, name: "led" }), "led"));
     b.box(0.012, 0.012, 0.004, -w * 0.37, cy + 0.02, d / 2 + 0.003, mat("#e04a3a"));
     b.cyl(0.014, 0.014, 0.012, -w * 0.27, cy + 0.02, d / 2 + 0.004, mat(C.ceramic), 14).rotation.x = Math.PI / 2;
     bx(b, 0.003, 0.012, 0.004, -w * 0.27, cy + 0.016, d / 2 + 0.011, dark);

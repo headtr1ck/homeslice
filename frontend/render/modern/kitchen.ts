@@ -8,7 +8,7 @@
 // the appliances.
 import * as THREE from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
-import { C, back, glass, mat, random, roundedRect, surface, v, type Build, type Builder, type Handle } from "../modern";
+import { C, back, glass, mat, part, random, roundedRect, surface, v, type Build, type Builder, type Handle } from "../modern";
 
 // ----- geometry -----
 
@@ -171,9 +171,23 @@ const blackGlass = () => mat(C.screen, { roughness: 0.12, metalness: 0.2 });
 const rubber = () => mat("#1b1c1e", { roughness: 0.9 });
 const joint = () => mat("#232427", { roughness: 1 });
 const handleBlack = () => mat(C.black, { roughness: 0.45, metalness: 0.3 });
-const display = (color = "#7fb6ff") => mat(C.screen, { emissive: color, emissiveIntensity: 0.3, roughness: 0.1 });
 const frameGrey = () => mat("#3a3d42", { roughness: 0.3, metalness: 0.3 });
-const pane = () => mat("#2a363d", { roughness: 0.05, metalness: 0.3 });
+// Parts a linked appliance drives (scene.ts setDevice). Each is its own material (the name
+// keeps mat() from sharing it with a part of the same colour that should not react); unlinked
+// they look exactly like the plain ones.
+/** An oven's window: glows warm while the oven is on. */
+const cookPane = () => part(mat("#2a363d", { roughness: 0.05, metalness: 0.3, name: "cook" }), "cook");
+/** An appliance's display: lit while it is on. */
+const screenOf = (color = "#7fb6ff") => part(mat(C.screen, { emissive: color, emissiveIntensity: 0.3, roughness: 0.1, name: "screen" }), "screen");
+/** A small display or light used as a status light (green while it runs). */
+const ledOf = (color: string, extra: THREE.MeshStandardMaterialParameters = {}) => part(mat(color, { ...extra, name: "led" }), "led");
+/** A hob's zone rings: glow while the hob is on. */
+const cookOf = (color: string, extra: THREE.MeshStandardMaterialParameters = {}) => part(mat(color, { ...extra, name: "cook" }), "cook");
+/** A gas burner's ring of flames, shown only while a linked hob burns (a spray: hidden otherwise). */
+function flames(b: Builder, x: number, y: number, z: number, r: number) {
+  const m = part(mat("#6fa4ff", { emissive: "#3a72ff", emissiveIntensity: 1, roughness: 0.4, name: "flame" }), "fire");
+  b.spray(x, y, z, () => (b.add(new THREE.TorusGeometry(r, Math.max(0.0035, r * 0.08), 3, 18), m, x, y, z).rotation.x = Math.PI / 2));
+}
 
 // ----- unit parts -----
 
@@ -341,6 +355,7 @@ function hobGas(b: Builder, x: number, w: number, d: number, h: number) {
     b.cyl(r * 1.35, r * 1.5, 0.008, bx, y, bz, mat("#3a3c40", { metalness: 0.5, roughness: 0.4 }), 18);
     b.cyl(r, r * 1.05, 0.012, bx, y + 0.008, bz, iron, 18);
     b.cyl(r * 0.55, r * 0.6, 0.006, bx, y + 0.02, bz, mat("#2b2c2f", { roughness: 0.4 }), 14);
+    flames(b, bx, y + 0.016, bz, r * 1.12);
   }
   // two grates, each over a pair of burners: a frame, a bar between, fingers to the burners, feet
   const gy = y + 0.026;
@@ -369,7 +384,7 @@ function hobGas(b: Builder, x: number, w: number, d: number, h: number) {
 function hobCeran(b: Builder, x: number, w: number, d: number, h: number, gw = w - 0.04, gd = d - 0.06) {
   b.box(gw, 0.006, gd, x, h, 0, mat(C.screen, { roughness: 0.08, metalness: 0.2 }));
   const pw = w - 0.12;
-  const line = mat("#6a6d72", { roughness: 0.5 });
+  const line = cookOf("#6a6d72", { roughness: 0.5 });
   const top = h + 0.0065;
   for (const [dx, dz, r] of [[-0.25, -0.22, 0.09], [0.25, -0.22, 0.075], [-0.25, 0.22, 0.075], [0.25, 0.22, 0.1]] as const)
     for (const k of [1, 0.6]) b.add(new THREE.RingGeometry(r * k - 0.003, r * k, 32), line, x + dx * pw, top, dz * (d - 0.1)).rotation.x = -Math.PI / 2;
@@ -388,7 +403,7 @@ const TOPS: Record<string, (b: Builder, w: number, d: number, h: number) => void
     // the old kind: four cast-iron plates with chrome rims (knobs on the oven below)
     b.box(w - 0.06, 0.012, d - 0.1, 0, h, 0, mat(C.ceramic, { roughness: 0.4 }), 0.006);
     const pw = w - 0.12;
-    const plate = mat("#2a2b2e", { roughness: 0.7 });
+    const plate = cookOf("#2a2b2e", { roughness: 0.7 });
     const groove = mat("#3d3f43", { roughness: 0.6 });
     for (const [dx, dz, r] of [[-0.25, -0.22, 0.09], [0.25, -0.22, 0.072], [-0.25, 0.22, 0.072], [0.25, 0.22, 0.09]] as const) {
       const x = dx * pw;
@@ -406,7 +421,7 @@ const TOPS: Record<string, (b: Builder, w: number, d: number, h: number) => void
     const top = h + 0.0065;
     b.box(gw, 0.006, gd, 0, h, 0, mat(C.screen, { roughness: 0.08, metalness: 0.2 }), 0.004);
     const line = mat("#6a6d72");
-    const ring = (x: number, z: number, r: number) => (b.add(new THREE.RingGeometry(r - 0.003, r, 40), line, x, top, z).rotation.x = -Math.PI / 2);
+    const ring = (x: number, z: number, r: number) => (b.add(new THREE.RingGeometry(r - 0.003, r, 40), cookOf("#6a6d72"), x, top, z).rotation.x = -Math.PI / 2);
     ring(-gw * 0.3, gd * 0.12, Math.min(0.11, gw * 0.14));
     ring(-gw * 0.15, -gd * 0.25, Math.min(0.07, gw * 0.09));
     const fx = gw * 0.3;
@@ -442,13 +457,13 @@ function ovenDoor(b: Builder, x: number, w: number, y: number, h: number, z: num
       b.cyl(0.019, 0.019, 0.016, x + sx * w * 0.36, py, z + 0.03, chrome(), 14).rotation.x = Math.PI / 2;
       b.box(0.003, 0.012, 0.002, x + sx * w * 0.36, py + 0.002, z + 0.038, mat(C.black));
     }
-    b.box(w * 0.24, Math.min(0.03, ph * 0.4), 0.003, x, py - Math.min(0.015, ph * 0.2), z + 0.021, display());
+    b.box(w * 0.24, Math.min(0.03, ph * 0.4), 0.003, x, py - Math.min(0.015, ph * 0.2), z + 0.021, screenOf());
   }
   const dh = h - ph - 0.004;
   barHandle(b, x, y + dh - Math.min(0.045, dh * 0.12), zf, w * 0.76, false, chrome(), 0.03, 0.007);
   const wh = dh * 0.5;
   b.box(w * 0.72, wh + 0.05, 0.002, x, y + dh * 0.16 - 0.025, zf, frameGrey());
-  b.box(w * 0.62, wh, 0.003, x, y + dh * 0.16, zf, pane());
+  b.box(w * 0.62, wh, 0.003, x, y + dh * 0.16, zf, cookPane());
 }
 
 /** An oven or a built-in microwave in a tall unit. */
@@ -457,8 +472,8 @@ function applianceFront(b: Builder, w: number, y: number, h: number, z: number, 
   const zf = z + 0.02;
   b.box(w - 0.006, h - 0.004, 0.02, 0, y + 0.002, z + 0.01, blackGlass());
   b.box(w * 0.62, h * 0.76, 0.002, -w * 0.12, y + h * 0.12, zf, frameGrey());
-  b.box(w * 0.54, h * 0.6, 0.003, -w * 0.12, y + h * 0.2, zf, pane());
-  b.box(w * 0.16, 0.025, 0.003, w * 0.33, y + h * 0.7, zf, display("#7fe0a0"));
+  b.box(w * 0.54, h * 0.6, 0.003, -w * 0.12, y + h * 0.2, zf, cookPane());
+  b.box(w * 0.16, 0.025, 0.003, w * 0.33, y + h * 0.7, zf, screenOf("#7fe0a0"));
   for (let i = 0; i < 2; i++) b.cyl(0.011, 0.011, 0.006, w * 0.33, y + h * (0.46 - i * 0.18), zf, frameGrey(), 12).rotation.x = Math.PI / 2;
   barHandle(b, w * 0.22, y + h * 0.5, zf, h * 0.5, true, chrome(), 0.02, 0.006);
 }
@@ -475,8 +490,9 @@ function builtInCoffee(b: Builder, w: number, y: number, h: number, z: number) {
   const st = steel();
   b.box(w - 0.006, h - 0.004, 0.02, 0, y + 0.002, z + 0.01, blackGlass());
   b.box(w - 0.006, 0.08, 0.022, 0, y + h - 0.08, z + 0.011, st);
-  b.box(w * 0.3, 0.04, 0.003, -w * 0.15, y + h - 0.06, z + 0.021, display());
-  for (let i = 0; i < 3; i++) b.cyl(0.008, 0.008, 0.004, w * 0.12 + i * 0.03, y + h - 0.04, z + 0.022, mat("#c9cdd1"), 10).rotation.x = Math.PI / 2;
+  b.box(w * 0.3, 0.04, 0.003, -w * 0.15, y + h - 0.06, z + 0.021, screenOf());
+  // (the middle button doubles as its status light)
+  for (let i = 0; i < 3; i++) b.cyl(0.008, 0.008, 0.004, w * 0.12 + i * 0.03, y + h - 0.04, z + 0.022, i === 1 ? ledOf("#c9cdd1") : mat("#c9cdd1"), 10).rotation.x = Math.PI / 2;
   const bw = w * 0.36;
   const bh = h * 0.62;
   b.box(bw + 0.016, bh + 0.016, 0.002, 0, y + 0.022, z + 0.02, st);
@@ -570,7 +586,18 @@ export const BUILDERS: Record<string, Build> = {
         doors: [{ h: (h - 0.1) * 0.45, draw: door() }],
         drawers_doors: [{ h: 0.72, draw: drawerRows(3) }],
         // a dishwasher at working height: a drawer under it
-        dishwasher: [{ h: 0.3, draw: drawerRows(1) }, { h: 0.82, draw: one }],
+        dishwasher: [
+          { h: 0.3, draw: drawerRows(1) },
+          {
+            h: 0.82,
+            draw: (y, ph) => {
+              one(y, ph);
+              // a status light on the front's top edge, shown only while a linked dishwasher runs
+              const lx = w / 2 - 0.06;
+              b.spray(lx, y + ph - 0.02, z + 0.02, () => b.box(0.02, 0.005, 0.002, lx, y + ph - 0.02, z + 0.02, ledOf("#3fd27a", { emissive: "#3fd27a", emissiveIntensity: 0.6 })));
+            },
+          },
+        ],
         oven: [{ h: 0.6, draw: drawerRows(2) }, { h: 0.6, draw: appliance("oven") }],
         oven_microwave: [{ h: 0.6, draw: drawerRows(2) }, { h: 0.6, draw: appliance("oven") }, { h: 0.38, draw: appliance("microwave") }],
         oven_steam: [{ h: 0.45, draw: drawerRows(1) }, { h: 0.6, draw: appliance("oven") }, { h: 0.45, draw: appliance("oven") }],
@@ -637,7 +664,7 @@ export const BUILDERS: Record<string, Build> = {
     kFronts(b, -w / 2, w, u.y0, u.y1 - u.y0, u.fz, 1, f, 1, "bar");
     // its control strip and a status light show in the gap under the worktop
     b.box(w - 0.04, 0.004, 0.012, 0, u.y1 - 0.004, u.fz + 0.004, mat("#3a3d42", { metalness: 0.5, roughness: 0.4 }));
-    b.box(0.006, 0.003, 0.002, w / 2 - 0.06, u.y1 - 0.0035, u.fz + 0.011, mat("#3fd27a", { emissive: "#3fd27a", emissiveIntensity: 0.6 }));
+    b.box(0.006, 0.003, 0.002, w / 2 - 0.06, u.y1 - 0.0035, u.fz + 0.011, ledOf("#3fd27a", { emissive: "#3fd27a", emissiveIntensity: 0.6 }));
   },
   kitchen_corner: (b, w, d, h, f, _c, a) => {
     // the blind corner of an L: the worktop runs on, a door on the open part
@@ -730,11 +757,11 @@ export const BUILDERS: Record<string, Build> = {
       const fd = d * 0.62;
       b.box(fw, 0.003, fd, fx, -0.006, -d * 0.06, mesh);
       for (let k = 1; k < 6; k++) b.box(0.004, 0.002, fd - 0.01, fx - fw / 2 + (fw * k) / 6, -0.0075, -d * 0.06, slat);
-      b.add(new THREE.CircleGeometry(0.025, 14), mat("#fff3d6", { emissive: "#ffe8b8", emissiveIntensity: 0.8 }), sx * w * 0.3, -0.0065, d * 0.36).rotation.x = Math.PI / 2;
+      b.add(new THREE.CircleGeometry(0.025, 14), cookOf("#fff3d6", { emissive: "#ffe8b8", emissiveIntensity: 0.8 }), sx * w * 0.3, -0.0065, d * 0.36).rotation.x = Math.PI / 2;
     }
     // controls on the lip: buttons and a light
     for (let i = 0; i < 4; i++) b.box(0.016, 0.01, 0.003, w * 0.18 + i * 0.026, lip * 0.5 - 0.005, d / 2, mat("#2a2c30", { roughness: 0.4 }));
-    b.box(0.004, 0.004, 0.002, w * 0.18 - 0.02, lip * 0.5 - 0.002, d / 2, mat("#7fd0ff", { emissive: "#7fd0ff", emissiveIntensity: 0.8 }));
+    b.box(0.004, 0.004, 0.002, w * 0.18 - 0.02, lip * 0.5 - 0.002, d / 2, ledOf("#7fd0ff", { emissive: "#7fd0ff", emissiveIntensity: 0.8 }));
   },
   fridge_freestanding: (b, w, d, h, f) => {
     const bd = d - 0.05;
@@ -757,7 +784,7 @@ export const BUILDERS: Record<string, Build> = {
     // hinge covers, a small display on the door
     rbox(b, 0.05, 0.02, 0.05, -w / 2 + 0.05, h - 0.04, zb + 0.004, f, 0.005);
     b.box(0.09, 0.035, 0.003, -w / 2 + 0.12, h - 0.15, zf, blackGlass(), 0.002);
-    b.box(0.03, 0.01, 0.002, -w / 2 + 0.12, h - 0.14, zf + 0.002, display());
+    b.box(0.03, 0.01, 0.002, -w / 2 + 0.12, h - 0.14, zf + 0.002, ledOf(C.screen, { emissive: "#7fb6ff", emissiveIntensity: 0.3, roughness: 0.1 }));
   },
   fridge_double: (b, w, d, h, f) => {
     // side by side, with ice and water in the left door
@@ -781,7 +808,7 @@ export const BUILDERS: Record<string, Build> = {
     const dy = h * 0.55;
     b.add(slab(w * 0.2, 0.3, 0.004, 0.02, 0, "z"), mat("#2b2d31", { roughness: 0.5 }), dx, dy + 0.15, zf);
     b.add(slab(w * 0.16, 0.2, 0.004, 0.015, 0, "z"), mat("#141517", { roughness: 0.7 }), dx, dy + 0.12, zf + 0.002);
-    b.box(w * 0.08, 0.02, 0.004, dx, dy + 0.255, zf + 0.002, mat("#7fc7f0", { emissive: "#7fc7f0", emissiveIntensity: 0.5 }));
+    b.box(w * 0.08, 0.02, 0.004, dx, dy + 0.255, zf + 0.002, ledOf("#7fc7f0", { emissive: "#7fc7f0", emissiveIntensity: 0.5 }));
     rbox(b, w * 0.06, 0.07, 0.012, dx, dy + 0.11, zf + 0.004, mat("#3a3c40", { roughness: 0.5 }), 0.004);
     b.box(w * 0.14, 0.01, 0.03, dx, dy + 0.025, zf + 0.01, mat("#55595e", { metalness: 0.5, roughness: 0.4 }));
     // the kick grille
@@ -795,10 +822,10 @@ export const BUILDERS: Record<string, Build> = {
     const fh = h - 0.008;
     // the door: a dark framed window, its edge a slim handle recess
     b.box(w * 0.72, fh * 0.86, 0.004, -w * 0.13, y + fh * 0.07, zf, frameGrey(), 0.002);
-    b.box(w * 0.6, fh * 0.66, 0.004, -w * 0.15, y + fh * 0.17, zf + 0.001, mat("#14191c", { roughness: 0.08, metalness: 0.3 }));
+    b.box(w * 0.6, fh * 0.66, 0.004, -w * 0.15, y + fh * 0.17, zf + 0.001, cookOf("#14191c", { roughness: 0.08, metalness: 0.3 }));
     rbox(b, 0.012, fh * 0.6, 0.012, w * 0.215, y + fh * 0.2, zf + 0.004, mat("#2a2c30", { roughness: 0.4 }), 0.004);
     // controls: display, dial, buttons, the door button
-    b.box(w * 0.16, fh * 0.12, 0.003, w * 0.36, y + fh * 0.76, zf, display("#5fe08f"));
+    b.box(w * 0.16, fh * 0.12, 0.003, w * 0.36, y + fh * 0.76, zf, screenOf("#5fe08f"));
     b.cyl(0.02, 0.021, 0.014, w * 0.36, y + fh * 0.48, zf, chrome(), 16).rotation.x = Math.PI / 2;
     b.box(0.003, 0.012, 0.002, w * 0.36, y + fh * 0.48 + 0.006, zf + 0.015, mat(C.black));
     for (let i = 0; i < 2; i++) b.box(0.025, 0.012, 0.004, w * 0.33 + i * 0.03, y + fh * 0.3, zf, frameGrey(), 0.002);
@@ -831,7 +858,7 @@ export const BUILDERS: Record<string, Build> = {
     b.add(lathe([[0.001, 0], [0.022, 0], [0.026, 0.01], [0.03, 0.055], [0.027, 0.055], [0.024, 0.012], [0.001, 0.01]].map(([a, c]) => new THREE.Vector2(a, c)), 16), mat(C.ceramic, { roughness: 0.3 }), 0, 0.045, d * 0.3);
     b.add(new THREE.TorusGeometry(0.014, 0.004, 5, 10, Math.PI).rotateZ(-Math.PI / 2), mat(C.ceramic, { roughness: 0.3 }), 0.03, 0.073, d * 0.3);
     // two buttons on the head
-    for (const sx of [-1, 1]) b.cyl(0.008, 0.008, 0.006, sx * w * 0.18, h * 0.82, d * 0.42, mat("#e8e6e1", { emissive: "#ffffff", emissiveIntensity: 0.15 }), 12);
+    for (const sx of [-1, 1]) b.cyl(0.008, 0.008, 0.006, sx * w * 0.18, h * 0.82, d * 0.42, ledOf("#e8e6e1", { emissive: "#ffffff", emissiveIntensity: 0.15 }), 12);
   },
   coffee_automatic: (b, w, d, h, f, _c, a) => {
     // a bean-to-cup machine: the body, a head with the display over a recess with the
@@ -855,7 +882,9 @@ export const BUILDERS: Record<string, Build> = {
     // the panel: a screen with buttons on the head's front
     const pz = d * 0.48;
     rbox(b, w * 0.86, h * 0.17, 0.006, 0, h * 0.66, pz, dark, 0.003);
-    b.box(w * 0.46, h * 0.1, 0.003, 0, h * 0.695, pz + 0.004, mat(C.screen, { emissive: "#7fb6ff", emissiveIntensity: 0.3, roughness: 0.1 }));
+    b.box(w * 0.46, h * 0.1, 0.003, 0, h * 0.695, pz + 0.004, screenOf());
+    // a status light in the panel, dark like it until a linked machine is on
+    b.box(0.008, 0.008, 0.002, -w * 0.3, h * 0.68, pz + 0.006, ledOf(C.black, { roughness: 0.35 }));
     for (const s of [-1, 1]) b.cyl(0.011, 0.011, 0.006, s * w * 0.35, h * 0.745, pz + 0.004, a, 12).rotation.x = Math.PI / 2;
     // the bean container's lid and the water tank's lid on top
     rbox(b, w * 0.5, 0.012, d * 0.3, -w * 0.12, h * 0.92, -d * 0.18, dark, 0.006);
@@ -898,7 +927,7 @@ export const BUILDERS: Record<string, Build> = {
     b.rod(v(-w * 0.36, h * 0.6, fz + 0.012), v(-w * 0.37, h * 0.42, fz + 0.04), 0.006, st, 6);
     for (const sx of [-1, 1]) b.cyl(0.016, 0.016, 0.03, sx * w * 0.36, h * 0.72, fz, black, 12).rotation.x = Math.PI / 2;
     b.box(0.014, 0.022, 0.006, w * 0.1, h * 0.86, fz, black, 0.002);
-    b.box(0.006, 0.006, 0.004, w * 0.16, h * 0.86 + 0.008, fz, mat("#ff9b3d", { emissive: "#ff9b3d", emissiveIntensity: 0.6 }));
+    b.box(0.006, 0.006, 0.004, w * 0.16, h * 0.86 + 0.008, fz, ledOf("#ff9b3d", { emissive: "#ff9b3d", emissiveIntensity: 0.6 }));
     // the cup warmer: a rail round three sides, cups upside down
     const top = 0.04 + h * 0.82;
     const rx = w / 2 - 0.02;
@@ -916,7 +945,7 @@ export const BUILDERS: Record<string, Build> = {
     const trim = mat(C.chrome, { metalness: 0.85, roughness: 0.2 });
     for (const sz of [-1, 1]) {
       b.box(w * 0.66, 0.002, 0.036, 0, h - 0.001, sz * d * 0.18, trim);
-      b.box(w * 0.6, 0.002, 0.024, 0, h, sz * d * 0.18, mat("#151618", { roughness: 0.9 }));
+      b.box(w * 0.6, 0.002, 0.024, 0, h, sz * d * 0.18, cookOf("#151618", { roughness: 0.9 }));
     }
     // the lever in its slot, the browning dial, buttons, the crumb tray
     b.box(0.012, h * 0.55, 0.004, w / 2 - 0.05, h * 0.25, d / 2 - 0.001, mat("#151618"));
@@ -931,7 +960,7 @@ export const BUILDERS: Record<string, Build> = {
     const r = Math.min(w * 0.31, d * 0.4);
     const base = mat(C.black, { roughness: 0.5 });
     b.cyl(r * 1.04, r * 1.08, 0.022, 0, 0, 0, base, 24);
-    b.cyl(r * 1.05, r * 1.05, 0.003, 0, 0.014, 0, mat("#55595e", { metalness: 0.5, roughness: 0.4 }), 24);
+    b.cyl(r * 1.05, r * 1.05, 0.003, 0, 0.014, 0, cookOf("#55595e", { metalness: 0.5, roughness: 0.4 }), 24);
     const H = h - 0.03;
     const prof = [[0.001, 0], [r * 0.96, 0], [r, H * 0.05], [r * 1.02, H * 0.45], [r * 0.95, H * 0.78], [r * 0.8, H * 0.92], [r * 0.66, H * 0.96], [r * 0.62, H * 0.965], [r * 0.6, H * 0.985], [r * 0.4, H * 1.0], [0.001, H * 1.0]];
     b.add(lathe(prof.map(([x, y]) => new THREE.Vector2(x, y)), 28), f, 0, 0.022, 0);
@@ -941,7 +970,7 @@ export const BUILDERS: Record<string, Build> = {
     const curve = new THREE.CatmullRomCurve3([v(-r * 0.7, y0 + H * 0.84, 0), v(-r * 1.05, y0 + H * 0.95, 0), v(-r * 1.4, y0 + H * 0.88, 0), v(-r * 1.55, y0 + H * 0.6, 0), v(-r * 1.45, y0 + H * 0.32, 0), v(-r * 1.2, y0 + H * 0.17, 0), v(-r * 0.85, y0 + H * 0.12, 0)], false, "centripetal");
     b.add(tube(curve, 18, 0.011, 8), f);
     rbox(b, 0.012, 0.016, 0.012, -r * 1.36, y0 + H * 0.24, 0, base, 0.003)?.rotation.set(0, 0, -0.6);
-    b.box(0.004, 0.004, 0.004, -r * 1.25, y0 + H * 0.16, 0.009, mat("#ff6a3d", { emissive: "#ff6a3d", emissiveIntensity: 0.6 }));
+    b.box(0.004, 0.004, 0.004, -r * 1.25, y0 + H * 0.16, 0.009, ledOf("#ff6a3d", { emissive: "#ff6a3d", emissiveIntensity: 0.6 }));
     // the spout: a tapering cone up and out
     const sa = v(r * 0.75, y0 + H * 0.55, 0);
     const sb = v(r * 1.42, y0 + H * 0.86, 0);
@@ -1050,7 +1079,7 @@ export const BUILDERS: Record<string, Build> = {
     b.box(w, fw * 1.6, 0.024, 0, h - fw * 1.6, fz, f);
     for (const sx of [-1, 1]) b.box(fw, h - fw * 2.6, 0.024, sx * (w / 2 - fw / 2), fw, fz, f);
     b.box(w - 2 * fw, h - fw * 2.6, 0.008, 0, fw, fz, mat("#1c2024", { transparent: true, opacity: 0.35, roughness: 0.05 }));
-    b.box(0.07, 0.022, 0.003, 0, h - fw * 0.8 - 0.011, d / 2, display("#ff8a5c"));
+    b.box(0.07, 0.022, 0.003, 0, h - fw * 0.8 - 0.011, d / 2, ledOf(C.screen, { emissive: "#ff8a5c", emissiveIntensity: 0.3, roughness: 0.1 }));
     barHandle(b, w / 2 - fw / 2, h * 0.5, d / 2, h * 0.55, true, chrome(), 0.025, 0.007);
   },
   kitchen_trolley: (b, w, d, h, f, _c, a) => {

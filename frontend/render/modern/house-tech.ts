@@ -713,7 +713,7 @@ export const BUILDERS: Record<string, Build> = {
     b.box(hw, 0.045, 0.04, 0, hy, d / 2 - 0.02, trim, 0.015);
     b.box(hw * 0.7, 0.03, 0.03, 0, hy + 0.035, zf + 0.012, trim, 0.008);
     bx(b, 0.026, 0.005, 0.014, 0, hy + 0.045, d / 2 - 0.02, mat("#9aa0a6", { roughness: 0.4 }));
-    b.add(new THREE.ShapeGeometry(shapeOf(rrect(-w * 0.22, 0, w * 0.22, (yd - yf) * 0.22, 0.012)), 3), mat("#1c1e21", { roughness: 0.1, metalness: 0.3 }), 0, yf + (yd - yf) * 0.66, zf + 0.0004);
+    b.add(new THREE.ShapeGeometry(shapeOf(rrect(-w * 0.22, 0, w * 0.22, (yd - yf) * 0.22, 0.012)), 3), part(mat("#1c1e21", { roughness: 0.1, metalness: 0.3, name: "cook" }), "cook"), 0, yf + (yd - yf) * 0.66, zf + 0.0004);
     // the fascia: a black panel with the display, a dial and touch icons
     const fy = yd + (h - yd) * 0.45;
     const fh = (h - yd) * 0.22;
@@ -806,12 +806,15 @@ export const BUILDERS: Record<string, Build> = {
       [0.36, -0.25, 0.033],
       [0.36, 0.25, 0.04],
     ];
+    const flame = part(mat("#6fa4ff", { emissive: "#3a72ff", emissiveIntensity: 1, roughness: 0.4, name: "flame" }), "fire");
     for (const [dx, dz, r] of burners) {
       const x = dx * pw;
       const z = zc + dz * pd;
       cylY(b, r * 1.45, 0.006, x, y, z, mat("#3a3c40", { metalness: 0.5, roughness: 0.4 }), 18);
       cylY(b, r, 0.012, x, y + 0.006, z, iron, 18, r * 1.06);
       cylY(b, r * 0.6, 0.006, x, y + 0.018, z, mat("#2b2c2f", { roughness: 0.35 }), 16);
+      // a ring of flames, shown only while a linked cooker burns (a spray: hidden otherwise)
+      b.spray(x, y + 0.014, z, () => (b.add(new THREE.TorusGeometry(r * 1.12, Math.max(0.0035, r * 0.08), 3, 18), flame, x, y + 0.014, z).rotation.x = Math.PI / 2));
     }
     // three cast grates: a frame each, bars across through the burners, feet
     const gy = y + 0.026;
@@ -852,7 +855,8 @@ export const BUILDERS: Record<string, Build> = {
     const inner = w - 0.02;
     const lw = inner * 0.6 - 0.004;
     const rw = inner - lw - 0.008;
-    const winM = mat("#1e2327", { roughness: 0.08, metalness: 0.3 });
+    // the windows glow while a linked cooker is on
+    const winM = part(mat("#1e2327", { roughness: 0.08, metalness: 0.3, name: "cook" }), "cook");
     for (const [x, dw] of [
       [-w / 2 + 0.01 + lw / 2, lw],
       [w / 2 - 0.01 - rw / 2, rw],
