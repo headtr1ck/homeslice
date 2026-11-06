@@ -32,6 +32,10 @@ import { BUILDERS as MEDIA_SMART } from "./modern/media-smart";
 import { BUILDERS as HOUSE_TECH } from "./modern/house-tech";
 import { BUILDERS as OUTDOOR_NEW } from "./modern/outdoor-new";
 import { BUILDERS as GARDEN_EXTRA } from "./modern/garden-extra";
+import { BUILDERS as SEATING } from "./modern/seating";
+import { BUILDERS as AUDIO_ROBOTS } from "./modern/audio-robots";
+import { BUILDERS as POOLS_HALLOWEEN } from "./modern/pools-halloween";
+import { BUILDERS as FESTIVE } from "./modern/festive";
 
 // ----- materials (shared, so a card converts each once) -----
 
@@ -1577,6 +1581,10 @@ const BUILDERS: Record<string, Build> = {
   ...HOUSE_TECH,
   ...OUTDOOR_NEW,
   ...GARDEN_EXTRA,
+  ...SEATING,
+  ...AUDIO_ROBOTS,
+  ...POOLS_HALLOWEEN,
+  ...FESTIVE,
 };
 
 export function buildModern(name: string, size: [number, number], height: number, finish?: string, accent?: string, chosen: Record<string, string> = {}): THREE.Group | null {

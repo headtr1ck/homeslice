@@ -1922,6 +1922,317 @@
    ]
   },
   {
+   "model": "modern:armchair_club",
+   "name": "Club chair",
+   "group": "living",
+   "type": "armchair",
+   "size": [
+    0.9,
+    0.9,
+    0.78
+   ],
+   "finishes": [
+    "brown",
+    "black",
+    "terracotta",
+    "green",
+    "beige"
+   ]
+  },
+  {
+   "model": "modern:armchair_cocktail",
+   "name": "Cocktail chair",
+   "group": "living",
+   "type": "armchair",
+   "size": [
+    0.7,
+    0.75,
+    0.78
+   ],
+   "finishes": [
+    "grey",
+    "beige",
+    "anthracite",
+    "green",
+    "blue",
+    "terracotta",
+    "pink"
+   ],
+   "accents": [
+    "brass",
+    "black",
+    "oak"
+   ]
+  },
+  {
+   "model": "modern:recliner",
+   "name": "Recliner",
+   "group": "living",
+   "type": "armchair",
+   "size": [
+    0.85,
+    0.95,
+    1.05
+   ],
+   "finishes": [
+    "grey",
+    "brown",
+    "black",
+    "beige",
+    "anthracite"
+   ]
+  },
+  {
+   "model": "modern:armchair_swivel",
+   "name": "Swivel armchair",
+   "group": "living",
+   "type": "armchair",
+   "size": [
+    0.8,
+    0.8,
+    0.78
+   ],
+   "finishes": [
+    "grey",
+    "beige",
+    "anthracite",
+    "green",
+    "blue",
+    "terracotta",
+    "pink"
+   ],
+   "accents": [
+    "chrome",
+    "black",
+    "brass"
+   ]
+  },
+  {
+   "model": "modern:papasan_chair",
+   "name": "Papasan chair",
+   "group": "living",
+   "type": "armchair",
+   "size": [
+    1.1,
+    1.1,
+    0.85
+   ],
+   "finishes": [
+    "sand",
+    "white",
+    "black"
+   ],
+   "accents": [
+    "grey",
+    "beige",
+    "anthracite",
+    "green",
+    "blue",
+    "terracotta",
+    "pink"
+   ]
+  },
+  {
+   "model": "modern:armchair_chesterfield",
+   "name": "Chesterfield armchair",
+   "group": "living",
+   "type": "armchair",
+   "size": [
+    1,
+    0.9,
+    0.75
+   ],
+   "finishes": [
+    "brown",
+    "green",
+    "black",
+    "terracotta",
+    "blue"
+   ]
+  },
+  {
+   "model": "modern:armchair_barrel",
+   "name": "Barrel chair",
+   "group": "living",
+   "type": "armchair",
+   "size": [
+    0.75,
+    0.75,
+    0.75
+   ],
+   "finishes": [
+    "grey",
+    "beige",
+    "anthracite",
+    "green",
+    "blue",
+    "terracotta",
+    "pink"
+   ],
+   "accents": [
+    "oak",
+    "walnut",
+    "black",
+    "brass"
+   ]
+  },
+  {
+   "model": "modern:armchair_slipper",
+   "name": "Slipper chair",
+   "group": "living",
+   "type": "armchair",
+   "size": [
+    0.65,
+    0.75,
+    0.82
+   ],
+   "finishes": [
+    "grey",
+    "beige",
+    "anthracite",
+    "green",
+    "blue",
+    "terracotta",
+    "pink"
+   ],
+   "accents": [
+    "oak",
+    "walnut",
+    "black",
+    "brass"
+   ]
+  },
+  {
+   "model": "modern:armchair_rattan",
+   "name": "Rattan armchair",
+   "group": "living",
+   "type": "armchair",
+   "size": [
+    0.75,
+    0.8,
+    0.8
+   ],
+   "finishes": [
+    "sand",
+    "brown",
+    "black"
+   ],
+   "accents": [
+    "grey",
+    "beige",
+    "anthracite",
+    "green",
+    "blue",
+    "terracotta",
+    "pink"
+   ]
+  },
+  {
+   "model": "modern:speaker_inwall_round",
+   "name": "In-wall speaker, round",
+   "group": "living",
+   "type": "item",
+   "size": [
+    0.22,
+    0.03,
+    0.22
+   ],
+   "finishes": [
+    "white",
+    "black"
+   ],
+   "tags": [
+    "media_player",
+    "speaker"
+   ],
+   "mount": "wall",
+   "elevation": 1.6
+  },
+  {
+   "model": "modern:speaker_inwall_square",
+   "name": "In-wall speaker, square",
+   "group": "living",
+   "type": "item",
+   "size": [
+    0.24,
+    0.03,
+    0.24
+   ],
+   "finishes": [
+    "white",
+    "black"
+   ],
+   "tags": [
+    "media_player",
+    "speaker"
+   ],
+   "mount": "wall",
+   "elevation": 1.6
+  },
+  {
+   "model": "modern:speaker_inwall_rect",
+   "name": "In-wall speaker, rectangular",
+   "group": "living",
+   "type": "item",
+   "size": [
+    0.2,
+    0.03,
+    0.3
+   ],
+   "finishes": [
+    "white",
+    "black"
+   ],
+   "tags": [
+    "media_player",
+    "speaker"
+   ],
+   "mount": "wall",
+   "elevation": 1.5
+  },
+  {
+   "model": "modern:speaker_ceiling_round",
+   "name": "Ceiling speaker, round",
+   "group": "living",
+   "type": "item",
+   "size": [
+    0.22,
+    0.22,
+    0.03
+   ],
+   "finishes": [
+    "white",
+    "black",
+    "silver"
+   ],
+   "tags": [
+    "media_player",
+    "speaker"
+   ],
+   "mount": "ceiling"
+  },
+  {
+   "model": "modern:speaker_ceiling_square",
+   "name": "Ceiling speaker, square",
+   "group": "living",
+   "type": "item",
+   "size": [
+    0.22,
+    0.22,
+    0.03
+   ],
+   "finishes": [
+    "white",
+    "black",
+    "silver"
+   ],
+   "tags": [
+    "media_player",
+    "speaker"
+   ],
+   "mount": "ceiling"
+  },
+  {
    "model": "modern:dining_table",
    "name": "Dining table",
    "group": "dining",
@@ -6645,6 +6956,86 @@
    ]
   },
   {
+   "model": "modern:robot_mower_awd",
+   "name": "Robot mower, all-wheel drive",
+   "group": "outside",
+   "type": "item",
+   "size": [
+    0.6,
+    0.8,
+    0.32
+   ],
+   "finishes": [
+    "anthracite",
+    "white",
+    "green"
+   ]
+  },
+  {
+   "model": "modern:robot_mower_vision",
+   "name": "Robot mower, wire-free",
+   "group": "outside",
+   "type": "item",
+   "size": [
+    0.5,
+    0.62,
+    0.3
+   ],
+   "finishes": [
+    "white",
+    "anthracite",
+    "green"
+   ]
+  },
+  {
+   "model": "modern:robot_mower_dock",
+   "name": "Robot mower dock",
+   "group": "outside",
+   "type": "item",
+   "size": [
+    0.5,
+    0.7,
+    0.18
+   ],
+   "finishes": [
+    "anthracite",
+    "white",
+    "green"
+   ]
+  },
+  {
+   "model": "modern:rtk_antenna",
+   "name": "RTK antenna",
+   "group": "outside",
+   "type": "item",
+   "size": [
+    0.15,
+    0.15,
+    0.9
+   ],
+   "finishes": [
+    "white",
+    "black"
+   ]
+  },
+  {
+   "model": "modern:robot_mower_garage",
+   "name": "Robot mower garage",
+   "group": "outside",
+   "type": "item",
+   "size": [
+    0.9,
+    1,
+    0.45
+   ],
+   "finishes": [
+    "anthracite",
+    "oak",
+    "grey",
+    "white"
+   ]
+  },
+  {
    "model": "modern:pendant_dome",
    "name": "Pendant, dome",
    "group": "lighting",
@@ -7623,6 +8014,51 @@
    },
    "mount": "wall",
    "elevation": 0.3
+  },
+  {
+   "model": "modern:robot_dock",
+   "name": "Robot vacuum dock",
+   "group": "smart",
+   "type": "item",
+   "size": [
+    0.17,
+    0.1,
+    0.1
+   ],
+   "finishes": [
+    "black",
+    "white"
+   ]
+  },
+  {
+   "model": "modern:robot_dock_empty",
+   "name": "Robot vacuum dock, self-emptying",
+   "group": "smart",
+   "type": "item",
+   "size": [
+    0.32,
+    0.4,
+    0.42
+   ],
+   "finishes": [
+    "black",
+    "white"
+   ]
+  },
+  {
+   "model": "modern:robot_dock_wash",
+   "name": "Robot vacuum dock with water tanks",
+   "group": "smart",
+   "type": "item",
+   "size": [
+    0.42,
+    0.45,
+    0.5
+   ],
+   "finishes": [
+    "black",
+    "white"
+   ]
   },
   {
    "model": "modern:ac_split",
@@ -8812,55 +9248,6 @@
    ]
   },
   {
-   "model": "modern:christmas_tree",
-   "name": "Christmas tree",
-   "group": "decor",
-   "type": "plant",
-   "size": [
-    1.2,
-    1.2,
-    2.1
-   ],
-   "finishes": [
-    "green"
-   ],
-   "tags": [
-    "light"
-   ],
-   "accents": [
-    "red",
-    "yellow",
-    "silver",
-    "white",
-    "blue"
-   ]
-  },
-  {
-   "model": "modern:pumpkin",
-   "name": "Pumpkin",
-   "group": "decor",
-   "type": "item",
-   "size": [
-    0.38,
-    0.38,
-    0.32
-   ],
-   "finishes": [
-    "terracotta",
-    "white",
-    "green"
-   ],
-   "tags": [
-    "light"
-   ],
-   "options": {
-    "carved": [
-     "lantern",
-     "plain"
-    ]
-   }
-  },
-  {
    "model": "modern:treadmill",
    "name": "Treadmill",
    "group": "hobby",
@@ -9964,17 +10351,124 @@
    ]
   },
   {
-   "model": "modern:snowman",
-   "name": "Snowman",
+   "model": "modern:lawn_tractor",
+   "name": "Ride-on mower",
    "group": "garden",
    "type": "item",
    "size": [
-    0.7,
-    0.7,
-    1.3
+    1.1,
+    1.9,
+    1.15
    ],
    "finishes": [
+    "green",
+    "red",
+    "yellow",
+    "anthracite"
+   ]
+  },
+  {
+   "model": "modern:pool_frame",
+   "name": "Frame pool",
+   "group": "garden",
+   "type": "item",
+   "size": [
+    3,
+    2,
+    0.76
+   ],
+   "finishes": [
+    "blue",
+    "grey",
+    "anthracite"
+   ],
+   "tags": [
+    "water"
+   ]
+  },
+  {
+   "model": "modern:pool_quickup",
+   "name": "Inflatable-ring pool",
+   "group": "garden",
+   "type": "item",
+   "size": [
+    3.05,
+    3.05,
+    0.76
+   ],
+   "finishes": [
+    "blue",
+    "grey",
     "white"
+   ],
+   "tags": [
+    "water"
+   ]
+  },
+  {
+   "model": "modern:pool_inground",
+   "name": "In-ground pool",
+   "group": "garden",
+   "type": "item",
+   "size": [
+    8,
+    4,
+    0.05
+   ],
+   "finishes": [
+    "blue",
+    "white",
+    "anthracite",
+    "sand"
+   ],
+   "tags": [
+    "water"
+   ],
+   "accents": [
+    "concrete",
+    "sand",
+    "white",
+    "oak"
+   ]
+  },
+  {
+   "model": "modern:pool_steel_wall",
+   "name": "Steel-wall pool with cladding",
+   "group": "garden",
+   "type": "item",
+   "size": [
+    4.6,
+    4.6,
+    1.2
+   ],
+   "finishes": [
+    "oak",
+    "anthracite",
+    "grey",
+    "blue"
+   ],
+   "tags": [
+    "water"
+   ]
+  },
+  {
+   "model": "modern:paddling_pool",
+   "name": "Paddling pool",
+   "group": "garden",
+   "type": "item",
+   "size": [
+    1.5,
+    1.5,
+    0.3
+   ],
+   "finishes": [
+    "blue",
+    "pink",
+    "green",
+    "yellow"
+   ],
+   "tags": [
+    "water"
    ]
   },
   {
@@ -10350,6 +10844,438 @@
     "white",
     "brass"
    ]
+  },
+  {
+   "model": "modern:chimney",
+   "name": "Chimney",
+   "group": "building",
+   "type": "item",
+   "size": [
+    0.6,
+    0.45,
+    3.5
+   ],
+   "finishes": [
+    "terracotta",
+    "anthracite",
+    "white",
+    "concrete"
+   ]
+  },
+  {
+   "model": "modern:chimney_breast",
+   "name": "Chimney breast",
+   "group": "building",
+   "type": "item",
+   "size": [
+    1.4,
+    0.5,
+    2.5
+   ],
+   "finishes": [
+    "white",
+    "terracotta",
+    "concrete",
+    "anthracite"
+   ]
+  },
+  {
+   "model": "modern:christmas_tree",
+   "name": "Christmas tree",
+   "group": "seasonal",
+   "type": "plant",
+   "size": [
+    1.2,
+    1.2,
+    2.1
+   ],
+   "finishes": [
+    "green"
+   ],
+   "tags": [
+    "light"
+   ],
+   "accents": [
+    "red",
+    "yellow",
+    "silver",
+    "white",
+    "blue"
+   ]
+  },
+  {
+   "model": "modern:pumpkin",
+   "name": "Pumpkin",
+   "group": "seasonal",
+   "type": "item",
+   "size": [
+    0.38,
+    0.38,
+    0.32
+   ],
+   "finishes": [
+    "terracotta",
+    "white",
+    "green"
+   ],
+   "tags": [
+    "light"
+   ],
+   "options": {
+    "carved": [
+     "lantern",
+     "plain"
+    ]
+   }
+  },
+  {
+   "model": "modern:snowman",
+   "name": "Snowman",
+   "group": "seasonal",
+   "type": "item",
+   "size": [
+    0.7,
+    0.7,
+    1.3
+   ],
+   "finishes": [
+    "white"
+   ]
+  },
+  {
+   "model": "modern:halloween_skeleton",
+   "name": "Skeleton",
+   "group": "seasonal",
+   "type": "item",
+   "size": [
+    0.5,
+    0.4,
+    1.75
+   ],
+   "finishes": [
+    "white"
+   ]
+  },
+  {
+   "model": "modern:halloween_tombstones",
+   "name": "Tombstones",
+   "group": "seasonal",
+   "type": "item",
+   "size": [
+    1.4,
+    0.5,
+    0.7
+   ],
+   "finishes": [
+    "grey",
+    "anthracite"
+   ]
+  },
+  {
+   "model": "modern:halloween_ghost",
+   "name": "Ghost",
+   "group": "seasonal",
+   "type": "item",
+   "size": [
+    0.6,
+    0.6,
+    1.5
+   ],
+   "finishes": [
+    "white"
+   ],
+   "tags": [
+    "light"
+   ]
+  },
+  {
+   "model": "modern:halloween_cauldron",
+   "name": "Witch's cauldron",
+   "group": "seasonal",
+   "type": "item",
+   "size": [
+    0.6,
+    0.6,
+    0.55
+   ],
+   "finishes": [
+    "black"
+   ],
+   "tags": [
+    "light"
+   ]
+  },
+  {
+   "model": "modern:halloween_spider_web",
+   "name": "Spider web",
+   "group": "seasonal",
+   "type": "item",
+   "size": [
+    1.2,
+    0.05,
+    1.2
+   ],
+   "finishes": [
+    "white"
+   ],
+   "mount": "wall",
+   "elevation": 1.2
+  },
+  {
+   "model": "modern:scarecrow",
+   "name": "Scarecrow",
+   "group": "seasonal",
+   "type": "item",
+   "size": [
+    0.7,
+    0.4,
+    1.8
+   ],
+   "finishes": [
+    "sand",
+    "brown"
+   ]
+  },
+  {
+   "model": "modern:advent_wreath",
+   "name": "Advent wreath",
+   "group": "seasonal",
+   "type": "item",
+   "size": [
+    0.4,
+    0.4,
+    0.22
+   ],
+   "finishes": [
+    "green"
+   ],
+   "tags": [
+    "light"
+   ],
+   "accents": [
+    "red",
+    "white",
+    "yellow",
+    "pink"
+   ]
+  },
+  {
+   "model": "modern:christmas_reindeer",
+   "name": "Light-up reindeer",
+   "group": "seasonal",
+   "type": "item",
+   "size": [
+    0.9,
+    0.35,
+    1.1
+   ],
+   "finishes": [
+    "white",
+    "yellow"
+   ],
+   "tags": [
+    "light"
+   ]
+  },
+  {
+   "model": "modern:christmas_star_window",
+   "name": "Window star",
+   "group": "seasonal",
+   "type": "item",
+   "size": [
+    0.5,
+    0.05,
+    0.5
+   ],
+   "finishes": [
+    "white",
+    "red",
+    "yellow"
+   ],
+   "tags": [
+    "light"
+   ],
+   "mount": "wall",
+   "elevation": 1.4
+  },
+  {
+   "model": "modern:candle_arch",
+   "name": "Candle arch",
+   "group": "seasonal",
+   "type": "item",
+   "size": [
+    0.45,
+    0.08,
+    0.3
+   ],
+   "finishes": [
+    "oak",
+    "white",
+    "black"
+   ],
+   "tags": [
+    "light"
+   ]
+  },
+  {
+   "model": "modern:nutcracker",
+   "name": "Nutcracker",
+   "group": "seasonal",
+   "type": "item",
+   "size": [
+    0.25,
+    0.2,
+    0.6
+   ],
+   "finishes": [
+    "red",
+    "blue",
+    "green"
+   ]
+  },
+  {
+   "model": "modern:christmas_presents",
+   "name": "Presents",
+   "group": "seasonal",
+   "type": "item",
+   "size": [
+    0.7,
+    0.5,
+    0.35
+   ],
+   "finishes": [
+    "red",
+    "green",
+    "blue",
+    "white"
+   ],
+   "accents": [
+    "yellow",
+    "silver",
+    "red",
+    "white"
+   ]
+  },
+  {
+   "model": "modern:easter_bunny",
+   "name": "Easter bunny",
+   "group": "seasonal",
+   "type": "item",
+   "size": [
+    0.35,
+    0.3,
+    0.55
+   ],
+   "finishes": [
+    "sand",
+    "white",
+    "brown"
+   ]
+  },
+  {
+   "model": "modern:easter_tree",
+   "name": "Easter tree",
+   "group": "seasonal",
+   "type": "plant",
+   "size": [
+    0.5,
+    0.5,
+    1
+   ],
+   "finishes": [
+    "white",
+    "terracotta",
+    "sand"
+   ]
+  },
+  {
+   "model": "modern:easter_basket",
+   "name": "Easter basket",
+   "group": "seasonal",
+   "type": "item",
+   "size": [
+    0.35,
+    0.3,
+    0.25
+   ],
+   "finishes": [
+    "sand",
+    "brown",
+    "white"
+   ]
+  },
+  {
+   "model": "modern:menorah",
+   "name": "Hanukkah menorah",
+   "group": "seasonal",
+   "type": "item",
+   "size": [
+    0.4,
+    0.12,
+    0.35
+   ],
+   "finishes": [
+    "silver",
+    "brass"
+   ],
+   "tags": [
+    "light"
+   ]
+  },
+  {
+   "model": "modern:diwali_diyas",
+   "name": "Diwali diyas",
+   "group": "seasonal",
+   "type": "item",
+   "size": [
+    0.4,
+    0.3,
+    0.06
+   ],
+   "finishes": [
+    "terracotta"
+   ],
+   "tags": [
+    "light"
+   ]
+  },
+  {
+   "model": "modern:ramadan_lantern",
+   "name": "Ramadan lantern",
+   "group": "seasonal",
+   "type": "item",
+   "size": [
+    0.25,
+    0.25,
+    0.5
+   ],
+   "finishes": [
+    "brass",
+    "silver",
+    "black"
+   ],
+   "tags": [
+    "light"
+   ]
+  },
+  {
+   "model": "modern:chinese_lanterns",
+   "name": "Red lanterns",
+   "group": "seasonal",
+   "type": "item",
+   "size": [
+    1,
+    0.4,
+    0.6
+   ],
+   "finishes": [
+    "red",
+    "yellow"
+   ],
+   "tags": [
+    "light"
+   ],
+   "mount": "ceiling"
   }
  ],
  "finishes": [
