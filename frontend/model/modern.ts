@@ -73,6 +73,15 @@ const k = (id: string, type: FurnitureType, size: [number, number, number], fini
 const UNIT = [0.3, 0.45, 0.5, 0.6, 0.8, 0.9, 1.0, 1.2];
 /** How fronts open (render/modern.ts fronts), the piece's own way first. */
 const HANDLE = { handle: ["bar", "knob", "handleless", "push"] };
+/** A bed's choices (the first of each is how it is drawn by default). */
+const BED = {
+  base: ["legs", "platform", "boxspring", "storage", "floor", "futon"],
+  legs: ["tapered", "block", "metal", "turned"],
+  headboard: ["upholstered", "tufted", "wingback", "panel", "slatted", "rattan", "none"],
+  top: ["none", "posts", "canopy", "crown", "house"],
+  cover: ["duvet", "quilt", "throw", "bare"],
+  linen: ["white", "grey", "beige", "green", "blue", "pink", "terracotta"],
+};
 const KNOB = { handle: ["knob", "bar", "handleless", "push"] };
 const PUSH = { handle: ["push", "bar", "knob", "handleless"] };
 /** What a base unit has behind its fronts and in its worktop (render/modern.ts kitchen_base, TOPS). */
@@ -193,6 +202,7 @@ export const MODERN_GROUPS: { id: string; kinds: ModernKind[] }[] = [
       k("speaker_inwall_rect", "item", [0.2, 0.03, 0.3], ["white", "black"], { mount: "wall", elevation: 1.5 }),
       k("speaker_ceiling_round", "item", [0.22, 0.22, 0.03], ["white", "black", "silver"], { mount: "ceiling" }),
       k("speaker_ceiling_square", "item", [0.22, 0.22, 0.03], ["white", "black", "silver"], { mount: "ceiling" }),
+      k("sofa_bed", "sofa", [2.0, 0.95, 0.85], FABRIC, { options: { position: ["closed", "open"] } }),
     ],
   },
   {
@@ -251,8 +261,8 @@ export const MODERN_GROUPS: { id: string; kinds: ModernKind[] }[] = [
   {
     id: "bedroom",
     kinds: [
-      k("bed", "bed", [1.8, 2.1, 1.0], ["beige", "grey", "anthracite", "green", "blue", "pink", "oak"], { accents: ["black", "oak", "brass", "chrome"] }),
-      k("bed_single", "bed_single", [0.9, 2.05, 0.9], ["beige", "grey", "anthracite", "green", "blue", "pink", "oak"], { accents: ["black", "oak", "brass", "chrome"] }),
+      k("bed", "bed", [1.8, 2.1, 1.0], ["beige", "grey", "anthracite", "green", "blue", "pink", "oak", "walnut", "white", "black"], { accents: ["black", "oak", "brass", "chrome"], widths: [1.4, 1.6, 1.8, 2.0], options: BED }),
+      k("bed_single", "bed_single", [0.9, 2.05, 0.9], ["beige", "grey", "anthracite", "green", "blue", "pink", "oak", "walnut", "white", "black"], { accents: ["black", "oak", "brass", "chrome"], widths: [0.7, 0.8, 0.9, 1.0, 1.2], options: { ...BED, rails: ["none", "half", "full"] } }),
       k("bed_storage", "bed", [1.6, 2.1, 0.95], WOOD, { accents: HANDLES, options: HANDLE }),
       k("bed_platform", "bed", [2.0, 2.2, 0.7], ["oak", "walnut", "black", "white"]),
       k("bed_canopy", "bed", [1.8, 2.1, 2.1], ["oak", "walnut", "black", "white"]),
@@ -274,6 +284,7 @@ export const MODERN_GROUPS: { id: string; kinds: ModernKind[] }[] = [
       k("wardrobe_sliding", "wardrobe", [2.0, 0.65, 2.2], [...WOOD, "grey"], { accents: ["black", "chrome", "brass"] }),
       k("wardrobe_open", "wardrobe", [1.6, 0.55, 2.0], ["black", "oak", "white"]),
       k("dresser", "shelf", [1.2, 0.48, 0.8], WOOD, { accents: ["black", "oak", "brass"], options: HANDLE }),
+      k("bed_murphy", "bed", [1.6, 0.45, 2.25], ["white", "oak", "grey", "anthracite"], { options: { position: ["closed", "open"] } }),
     ],
   },
   {
@@ -309,6 +320,13 @@ export const MODERN_GROUPS: { id: string; kinds: ModernKind[] }[] = [
       k("teepee", "item", [1.3, 1.3, 1.8], ["beige", "white", "grey", "pink", "green"]),
       k("kids_table", "table", [1.1, 0.6, 0.52], ["white", "oak", "green", "pink", "blue"], { accents: ["oak", "white", "black"] }),
       k("loft_bed", "bed_single", [1.0, 2.08, 1.9], ["white", "oak", "grey"]),
+      k("bed_car", "bed_single", [1.05, 2.25, 0.62], ["red", "blue", "white", "green", "black"]),
+      k("bed_midsleeper", "bed_single", [1.0, 2.08, 1.25], ["white", "oak", "grey", "blue", "pink"], { options: { under: ["storage", "play"] } }),
+      k("bunk_bed_l", "bed_single", [2.15, 2.15, 1.65], ["oak", "white", "grey", "walnut"]),
+      k("loft_bed_slide", "bed_single", [1.0, 3.0, 1.9], ["white", "oak", "blue", "pink"]),
+      k("bed_trundle", "bed_single", [0.98, 2.08, 0.85], ["white", "oak", "grey", "blue"]),
+      k("crib_bedside", "bed_single", [0.6, 0.95, 0.82], ["white", "oak", "grey"]),
+      k("moses_basket", "bed_single", [0.5, 0.9, 0.7], ["sand", "white", "grey"]),
     ],
   },
   {

@@ -32,6 +32,7 @@ import { BUILDERS as MEDIA_SMART } from "./modern/media-smart";
 import { BUILDERS as HOUSE_TECH } from "./modern/house-tech";
 import { BUILDERS as OUTDOOR_NEW } from "./modern/outdoor-new";
 import { BUILDERS as GARDEN_EXTRA } from "./modern/garden-extra";
+import { BUILDERS as BEDS } from "./modern/beds";
 import { BUILDERS as SEATING } from "./modern/seating";
 import { BUILDERS as AUDIO_ROBOTS } from "./modern/audio-robots";
 import { BUILDERS as POOLS_HALLOWEEN } from "./modern/pools-halloween";
@@ -1581,6 +1582,7 @@ const BUILDERS: Record<string, Build> = {
   ...HOUSE_TECH,
   ...OUTDOOR_NEW,
   ...GARDEN_EXTRA,
+  ...BEDS,
   ...SEATING,
   ...AUDIO_ROBOTS,
   ...POOLS_HALLOWEEN,
