@@ -58,7 +58,15 @@ function squareTaper(b: Builder, a: THREE.Vector3, c: THREE.Vector3, s0: number,
 function log(b: Builder, x: number, y: number, z: number, len: number, r: number, ry = 0, rz = 0) {
   const geo = new THREE.CylinderGeometry(r, r * 0.92, len, 9);
   geo.rotateZ(Math.PI / 2);
-  const mesh = new THREE.Mesh(geo, [mat("#4f3a2b", { roughness: 1 }), mat("#c9a77c", { roughness: 1 }), mat("#c9a77c", { roughness: 1 })]);
+  const mesh = new THREE.Mesh(geo, mat("#4f3a2b", { roughness: 1 }));
+  // the end grain as thin discs just proud of both ends (one material per mesh, as the card expects)
+  const grain = mat("#c9a77c", { roughness: 1 });
+  for (const [sx, rr] of [[1, r * 0.92], [-1, r]] as const) {
+    const end = new THREE.CylinderGeometry(rr * 0.96, rr * 0.96, 0.004, 9);
+    end.rotateZ(Math.PI / 2);
+    end.translate((sx * (len + 0.004)) / 2, 0, 0);
+    mesh.add(new THREE.Mesh(end, grain));
+  }
   mesh.position.set(x, y, z);
   mesh.rotation.set(0, ry, rz, "YXZ");
   b.g.add(mesh);

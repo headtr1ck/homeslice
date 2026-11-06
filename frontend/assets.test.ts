@@ -73,6 +73,8 @@ describe("Modern pieces", () => {
         expect(piece, k.id).not.toBeNull();
         expect(hasNaN(piece!), `${k.id}: NaN in its geometry`).toBe(false);
         expect(triangles(piece!), `${k.id}: triangles`).toBeLessThan(MAX_TRIANGLES);
+        // one material per mesh: the card's colouring, glow and clean-up handle single ones
+        piece!.traverse((o) => o instanceof THREE.Mesh && expect(Array.isArray(o.material), `${k.id}: a mesh with several materials`).toBe(false));
         // the piece itself; parts drawn above it (a sink's tap) are checked on their own
         const box = new THREE.Box3();
         piece!.updateMatrixWorld(true);
