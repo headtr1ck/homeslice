@@ -1,3 +1,10 @@
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="custom_components/homeslice/brand/dark_logo@2x.png" />
+    <img src="custom_components/homeslice/brand/logo@2x.png" alt="Homeslice" width="420" />
+  </picture>
+</p>
+
 # Homeslice — 3D floor plan for Home Assistant
 
 [![HACS Custom](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://hacs.xyz/docs/faq/custom_repositories)
