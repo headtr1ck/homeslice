@@ -314,36 +314,38 @@ export const BUILDERS: Record<string, Build> = {
     // glass, ash door; the pellet hopper on top behind the panel with its lid and a level
     // window; the flue rising from the back
     const bodyH = h * 0.6;
+    // the body's front, set back so its door handles stay within the depth
+    const fd = d / 2 - 0.04;
     const bz0 = z0 + 2 * fr + 0.03;
-    const bd = d / 2 - bz0;
+    const bd = fd - bz0;
     const bzc = bz0 + bd / 2;
     soft(b, w, bodyH - 0.03, bd, 0, 0.03, bzc, f, 0.015);
     const dw = w * 0.72;
     const dH = (bodyH - 0.16) * 0.55;
     const dy = bodyH - 0.05 - dH;
     const doorM = mat("#3a3d41", { metalness: 0.3, roughness: 0.5 });
-    soft(b, dw, dH, 0.025, 0, dy, d / 2 - 0.005, doorM, 0.008);
-    soft(b, dw, dy - 0.1, 0.025, 0, 0.08, d / 2 - 0.005, doorM, 0.008);
-    disc(b, 0.04, -dw * 0.12, dy + dH * 0.5, d / 2 + 0.0081, mat("#2a1d18", { roughness: 0.2 }), false, 20);
-    disc(b, 0.034, -dw * 0.12, dy + dH * 0.5, d / 2 + 0.009, flame(), false, 20);
-    b.add(new THREE.TorusGeometry(0.042, 0.006, 6, 20), steel, -dw * 0.12, dy + dH * 0.5, d / 2 + 0.008);
+    soft(b, dw, dH, 0.025, 0, dy, fd - 0.005, doorM, 0.008);
+    soft(b, dw, dy - 0.1, 0.025, 0, 0.08, fd - 0.005, doorM, 0.008);
+    disc(b, 0.04, -dw * 0.12, dy + dH * 0.5, fd + 0.0081, mat("#2a1d18", { roughness: 0.2 }), false, 20);
+    disc(b, 0.034, -dw * 0.12, dy + dH * 0.5, fd + 0.009, flame(), false, 20);
+    b.add(new THREE.TorusGeometry(0.042, 0.006, 6, 20), steel, -dw * 0.12, dy + dH * 0.5, fd + 0.008);
     for (const [y, len] of [
       [dy + dH * 0.5, 0.12],
       [0.08 + (dy - 0.1) * 0.5, 0.09],
     ] as const) {
-      cylZ(b, 0.012, 0.03, dw * 0.38, y, d / 2 + 0.02, steel, 10);
-      bx(b, 0.02, len, 0.014, dw * 0.38, y - len * 0.8, d / 2 + 0.03, steel);
+      cylZ(b, 0.012, 0.03, dw * 0.38, y, fd + 0.02, steel, 10);
+      bx(b, 0.02, len, 0.014, dw * 0.38, y - len * 0.8, fd + 0.03, steel);
     }
     // the control panel, tilted, along the front of the top
     const tilt = 0.6;
     const pd = Math.min(0.16, bd * 0.3);
-    const at = tilted(b, w - 0.02, 0.05, pd, 0, bodyH - 0.035, d / 2 - pd / 2 - 0.01, ctrl, tilt, 0.01);
+    const at = tilted(b, w - 0.02, 0.05, pd, 0, bodyH - 0.035, fd - pd / 2 - 0.01, ctrl, tilt, 0.01);
     onFace(b, new THREE.BoxGeometry(0.11, 0.004, pd * 0.5), screenMat(), at(-w * 0.15, 0), tilt);
     for (let i = 0; i < 3; i++) onFace(b, new THREE.CylinderGeometry(0.012, 0.012, 0.008, 12), mat("#d9dadc", { roughness: 0.4 }), at(w * 0.08 + i * 0.04, 0), tilt);
     onFace(b, new THREE.BoxGeometry(0.01, 0.004, 0.01), ledMat(), at(w * 0.36, 0), tilt);
     // the hopper on the top behind the panel: a lid with a grip, a level window
     const hz0 = bz0 + 0.01;
-    const hz1 = d / 2 - pd - 0.04;
+    const hz1 = fd - pd - 0.04;
     const hH = h - bodyH - 0.035;
     const hd = hz1 - hz0;
     b.add(
@@ -458,7 +460,8 @@ export const BUILDERS: Record<string, Build> = {
     // display and status light, a grip at the foot, latches; four duct spigots on top with
     // colour bands and seals; the condensate drain with its trap underneath
     const { steel, rubber } = metals();
-    const sr = Math.min(0.075, w / 10, d * 0.28);
+    // four spigots in a row with gaps between them, within the middle 86 % of the top
+    const sr = Math.min(0.075, d * 0.28, (w * 0.86 - 0.048) / 8.6);
     const sh = Math.min(0.12, h * 0.16);
     const y0 = Math.min(0.05, h * 0.07);
     const top = h - sh;
@@ -471,10 +474,10 @@ export const BUILDERS: Record<string, Build> = {
     cylZ(b, 0.007, 0.004, w / 2 - 0.085, py + 0.032, d / 2 + 0.004, mat("#9aa0a6"), 10);
     bx(b, 0.008, 0.008, 0.003, w / 2 - 0.085, py + 0.008, d / 2 + 0.003, ledMat());
     bx(b, w * 0.4, 0.012, 0.004, 0, y0 + 0.03, d / 2 + 0.001, joint());
-    for (const sx of [-1, 1]) for (const y of [0.3, 0.7]) bx(b, 0.006, 0.04, 0.03, sx * (w / 2 + 0.002), y0 + ch * y, d / 2 - 0.05, joint());
+    for (const sx of [-1, 1]) for (const y of [0.3, 0.7]) bx(b, 0.006, 0.04, 0.03, sx * (w / 2 - 0.0025), y0 + ch * y, d / 2 - 0.05, joint());
     // spigots: outdoor air, supply, extract, exhaust
     const cols = ["#4c8c4a", BLUE, YELLOW, "#7a5a3c"];
-    const pitch = Math.max(2 * sr + 0.006, Math.min((w - 2 * sr - 0.04) / 3, 0.16));
+    const pitch = Math.min(2.2 * sr + 0.012 + Math.max(0, (w * 0.86 - 8.6 * sr - 0.048) / 3), 0.16);
     const galv = mat("#b6babf", { metalness: 0.55, roughness: 0.4 });
     for (let i = 0; i < 4; i++) {
       const x = (i - 1.5) * pitch;
@@ -915,8 +918,9 @@ export const BUILDERS: Record<string, Build> = {
     for (let y = 0.28; y < deckY - 0.1; y += 0.26) cylZ(b, 0.015, 2 * gap, px + 0.004, y, lz, f, 10);
     // the desk on the left: a top on a cleat at the back and a side panel, a drawer, a shelf
     const dd = Math.min(0.55, w - 2 * p - 0.1);
-    const L = Math.min(1.2, d - 2 * p - 0.3);
+    // (it ends before the ladder: from the side the two must not cross)
     const dz0 = -d / 2 + p;
+    const L = Math.max(0.3, Math.min(1.2, d - 2 * p - 0.3, lz - gap - 0.06 - dz0));
     const dy = Math.min(0.74, deckY - 0.55);
     const dx = -w / 2 + p / 2 + dd / 2;
     soft(b, dd, 0.025, L, dx, dy, dz0 + L / 2, f, 0.004);
@@ -924,13 +928,16 @@ export const BUILDERS: Record<string, Build> = {
     bx(b, dd - 0.06, 0.03, 0.02, dx, dy - 0.03, dz0 + 0.01, f);
     soft(b, dd * 0.8, 0.11, 0.4, dx, dy - 0.112, dz0 + L - 0.25, f, 0.004);
     bx(b, 0.012, 0.012, 0.12, dx + dd * 0.4 + 0.006, dy - 0.06, dz0 + L - 0.25, mat(C.black));
-    const sy = Math.min(dy + 0.42, deckY - fh - 0.3);
+    // the shelf between the desk and the bed's frame, its books well below the frame
+    const base = deckY - fh;
+    const sy = dy + (base - dy) * 0.45;
+    const bookH = Math.min(0.2, (base - sy - 0.02) * 0.6);
     soft(b, 0.2, 0.02, L * 0.8, -w / 2 + p / 2 + 0.1, sy, dz0 + L * 0.45, f, 0.003);
     const rand = random(41);
     let z = dz0 + L * 0.1;
     while (z < dz0 + L * 0.45) {
       const bw = 0.025 + rand() * 0.02;
-      bx(b, 0.15, Math.min(0.2, deckY - fh - sy - 0.04) * (0.8 + rand() * 0.2), bw, -w / 2 + p / 2 + 0.09, sy + 0.02, z + bw / 2, mat(C.book[Math.floor(rand() * C.book.length)]));
+      bx(b, 0.15, bookH * (0.8 + rand() * 0.2), bw, -w / 2 + p / 2 + 0.09, sy + 0.02, z + bw / 2, mat(C.book[Math.floor(rand() * C.book.length)]));
       z += bw + 0.003;
     }
   },

@@ -143,23 +143,27 @@ function speaker(b: Builder, o: Face, W: number, H: number, f: M, color: string,
   const cap0 = mat("#4a4b50", { roughness: 0.6 });
   const cap = (r: number) => new THREE.SphereGeometry(r, 12, 4, 0, Math.PI * 2, 0, Math.PI / 2).rotateX(Math.PI / 2);
   const zp = 0.0018;
+  // the drivers stay behind the grille whatever their size: domes and surrounds flattened to
+  // the room between the driver plane and the grille (scale z of a part of radius rad rising from base)
+  const room = ft - bev - 0.0008 - zp - 0.0004;
+  const sz = (rad: number, base: number, k: number) => Math.max(0.05, Math.min(k, (room - base) / rad));
   for (const dr of drivers) {
     const p = v(dr.x, dr.y, zp).applyMatrix4(o.m);
     const add = (geo: THREE.BufferGeometry, m: M) => b.add(geo, m, p.x, p.y, p.z);
     const r = dr.r;
     const pulse = b.pulser(p.x, p.y, p.z, () => {
       if (dr.tweeter) {
-        add(new THREE.TorusGeometry(r * 0.9, r * 0.14, 4, 16).scale(1, 1, 0.4), rubber);
-        add(cap(r * 0.62).scale(1, 1, 0.5), dome);
+        add(new THREE.TorusGeometry(r * 0.9, r * 0.14, 4, 16).scale(1, 1, sz(r * 0.14, 0, 0.4)), rubber);
+        add(cap(r * 0.62).scale(1, 1, sz(r * 0.62, 0, 0.5)), dome);
         return;
       }
-      add(new THREE.TorusGeometry(r * 0.92, r * 0.06, 4, 24).scale(1, 1, 0.3), rubber);
+      add(new THREE.TorusGeometry(r * 0.92, r * 0.06, 4, 24).scale(1, 1, sz(r * 0.06, 0, 0.3)), rubber);
       add(new THREE.LatheGeometry([V2(r * 0.86, 0.0004), V2(r * 0.55, -0.0004), V2(r * 0.3, -0.0009)], 20).rotateX(Math.PI / 2), cone);
       if (dr.coax) {
         add(new THREE.BoxGeometry(r * 1.6, r * 0.08, 0.001).translate(0, 0, 0.0004), rubber);
         add(new THREE.CylinderGeometry(r * 0.24, r * 0.26, 0.0012, 16).rotateX(Math.PI / 2).translate(0, 0, 0.0004), rubber);
-        add(cap(r * 0.16).scale(1, 1, 0.5).translate(0, 0, 0.001), dome);
-      } else add(cap(r * 0.28).scale(1, 1, 0.3).translate(0, 0, -0.0008), cap0);
+        add(cap(r * 0.16).scale(1, 1, sz(r * 0.16, 0.001, 0.5)).translate(0, 0, 0.001), dome);
+      } else add(cap(r * 0.28).scale(1, 1, sz(r * 0.28, -0.0008, 0.3)).translate(0, 0, -0.0008), cap0);
     });
     pulse.rotation.x = o.rot;
   }
@@ -261,15 +265,22 @@ export const BUILDERS: Record<string, Build> = {
     const rh = Math.min(0.03, h * 0.07);
     // the ramp, with the port, the contacts and grip ribs for the wheels
     const z0 = -d / 2 + td * 0.6;
-    const slope = Math.atan2(rh * 0.8, d / 2 - z0);
-    const yAt = (z: number) => rh - ((rh * 0.8) * (z - z0)) / (d / 2 - z0);
+    // the ramp's top line (see ramp): from rh at z0 down to a fifth above its lip near the front
+    const lip = Math.min(0.004, rh * 0.3);
+    const zk = d / 2 - (d / 2 - z0) * 0.08;
+    const drop = rh - (lip + (rh - lip) * 0.2);
+    const slope = Math.atan2(drop, zk - z0);
+    const yAt = (z: number) => rh - (drop * (z - z0)) / (zk - z0);
     ramp(b, w * 0.92, z0, d / 2, rh, trim);
-    bx(b, w * 0.42, 0.003, 0.05, 0, yAt(fz + 0.035) - 0.002, fz + 0.035, dark, slope);
+    // laid out along the ramp's open length, so it reads the same at any size
+    const Lr = d / 2 - fz;
+    const on = (u: number) => fz + Lr * u;
+    bx(b, w * 0.42, 0.003, Lr * 0.24, 0, yAt(on(0.17)) - 0.002, on(0.17), dark, slope);
     for (const s of [-1, 1]) {
-      bx(b, 0.04, 0.003, 0.016, s * w * 0.33, yAt(fz + 0.06) - 0.002, fz + 0.06, metal, slope);
-      for (let i = 0; i < 5; i++) {
-        const z = fz + 0.1 + (i * (d / 2 - fz - 0.14)) / 5;
-        bx(b, 0.05, 0.003, 0.008, s * w * 0.3, yAt(z) - 0.002, z, dark, slope);
+      bx(b, w * 0.12, 0.003, Lr * 0.08, s * w * 0.33, yAt(on(0.3)) - 0.002, on(0.3), metal, slope);
+      for (let i = 0; i < 4; i++) {
+        const z = on(0.48 + i * 0.13);
+        bx(b, w * 0.15, 0.003, Lr * 0.045, s * w * 0.3, yAt(z) - 0.002, z, dark, slope);
       }
     }
     // the tower: a rounded body, a dark seam, the lid with its grip and window
@@ -355,8 +366,10 @@ export const BUILDERS: Record<string, Build> = {
     const dark = mat("#26282c", { roughness: 0.7 });
     const black = mat("#17181b", { roughness: 0.9 });
     const rim = mat("#8a8f94", { metalness: 0.3, roughness: 0.5 });
+    // the small parts (lights, button, keys, grip) keep to the mower's size
+    const k = Math.min(w / 0.6, d / 0.8);
     const wr = Math.min(h * 0.37, d * 0.16);
-    const ww = Math.min(0.09, w * 0.15);
+    const ww = Math.min(0.09 * k, w * 0.15);
     const wx = w / 2 - ww / 2;
     const wz = d / 2 - wr - Math.min(0.03, d * 0.04);
     for (const sz of [-1, 1]) for (const sx of [-1, 1]) wheel(b, sx * wx, wr, sz * wz, wr, ww, rim, 16, 18);
@@ -376,22 +389,22 @@ export const BUILDERS: Record<string, Build> = {
       }
     }
     // the joint: a pivot under a ribbed rubber boot
-    xcyl(b, 0.03, bw * 0.5, 0, h * 0.3, 0, dark, 12);
+    xcyl(b, 0.03 * k, bw * 0.5, 0, h * 0.3, 0, dark, 12);
     for (let i = 0; i < 4; i++) rb(b, bw * 0.46, h * 0.36, 0.012, 0, h * 0.2, -gapZ / 2 + 0.006 + (i * (gapZ - 0.012)) / 3, black, 0.01);
     // the bumper round the nose and the headlights
     const br = bw * 0.7;
     b.add(arcBand(br, br + 0.025, Math.PI * 0.3, Math.PI * 0.7, h * 0.12, 10).rotateX(Math.PI / 2).translate(0, h * 0.24, d / 2 - 0.006 - br - 0.025), black);
-    for (const s of [-1, 1]) rb(b, 0.05, 0.016, 0.006, s * bw * 0.25, h * 0.3, d / 2 - 0.02, ledMat("#f4f3e8"), 0.004);
+    for (const s of [-1, 1]) rb(b, 0.05 * k, 0.016 * k, 0.006, s * bw * 0.25, h * 0.3, d / 2 - 0.02, ledMat("#f4f3e8"), 0.004);
     // the stop button with its yellow ring, the display and two keys on the rear body
     const ty = sh;
     const rz = -(gapZ / 2 + hd / 2);
-    b.cyl(0.05, 0.05, 0.006, 0, ty, rz + hd * 0.12, mat("#e2c33a", { roughness: 0.5 }), 20);
-    b.cyl(0.036, 0.04, h - ty - 0.006, 0, ty + 0.006, rz + hd * 0.12, mat("#d23a2a", { roughness: 0.45 }), 20);
+    b.cyl(0.05 * k, 0.05 * k, 0.006, 0, ty, rz + hd * 0.12, mat("#e2c33a", { roughness: 0.5 }), 20);
+    b.cyl(0.036 * k, 0.04 * k, h - ty - 0.006, 0, ty + 0.006, rz + hd * 0.12, mat("#d23a2a", { roughness: 0.45 }), 20);
     rb(b, bw * 0.4, 0.006, hd * 0.24, 0, ty - 0.003, rz - hd * 0.2, dark, 0.002);
     bx(b, bw * 0.26, 0.002, hd * 0.13, -bw * 0.04, ty + 0.002, rz - hd * 0.22, screenMat());
-    for (const s of [-1, 1]) b.cyl(0.008, 0.008, 0.004, bw * 0.14, ty + 0.002, rz - hd * 0.2 + s * 0.022, mat("#8a8f94"), 10);
+    for (const s of [-1, 1]) b.cyl(0.008 * k, 0.008 * k, 0.004, bw * 0.14, ty + 0.002, rz - hd * 0.2 + s * 0.022 * k, mat("#8a8f94"), 10);
     // a carry grip at the back
-    rb(b, bw * 0.3, 0.03, 0.025, 0, h * 0.5, -d / 2 + 0.03, black, 0.01);
+    rb(b, bw * 0.3, 0.03 * k, 0.025 * k, 0, h * 0.5, -d / 2 + 0.03 * k, black, 0.01);
   },
 
   robot_mower_vision: (b, w, d, h, f) => {
@@ -400,20 +413,22 @@ export const BUILDERS: Record<string, Build> = {
     const dark = mat("#26282c", { roughness: 0.7 });
     const black = mat("#17181b", { roughness: 0.9 });
     const rim = mat("#6e7378", { roughness: 0.5 });
+    // the small parts (castors, mast, head, button) keep to the mower's size
+    const k = Math.min(w / 0.5, d / 0.62);
     const wr = Math.min(h * 0.3, d * 0.16);
-    const ww = Math.min(0.06, w * 0.12);
+    const ww = Math.min(0.06 * k, w * 0.12);
     const wx = w / 2 - ww / 2;
     const wz = -d / 2 + wr + 0.01;
     for (const s of [-1, 1]) wheel(b, s * wx, wr, wz, wr, ww, rim, 14);
     // the castors in their forks
-    const cr = Math.min(0.035, h * 0.12);
+    const cr = Math.min(0.035 * k, h * 0.12);
     for (const s of [-1, 1]) {
       const x = s * w * 0.22;
-      const z = d / 2 - 0.09;
-      xcyl(b, cr, 0.026, x, cr, z, black, 14);
-      xcyl(b, cr * 0.5, 0.028, x, cr, z, rim, 10);
-      for (const k of [-1, 1]) bx(b, 0.006, cr * 1.4, cr * 0.8, x + k * 0.017, cr * 0.7, z - cr * 0.2, dark);
-      bx(b, 0.04, 0.012, cr * 0.9, x, cr * 2.05, z - cr * 0.2, dark);
+      const z = d / 2 - 0.09 * k;
+      xcyl(b, cr, 0.026 * k, x, cr, z, black, 14);
+      xcyl(b, cr * 0.5, 0.028 * k, x, cr, z, rim, 10);
+      for (const q of [-1, 1]) bx(b, 0.006 * k, cr * 1.4, cr * 0.8, x + q * 0.017 * k, cr * 0.7, z - cr * 0.2, dark);
+      bx(b, 0.04 * k, 0.012 * k, cr * 0.9, x, cr * 2.05, z - cr * 0.2, dark);
     }
     // the shell: a chassis, the skirt in the finish, a domed top
     const bw = w - 2 * ww - 0.016;
@@ -423,28 +438,43 @@ export const BUILDERS: Record<string, Build> = {
     b.add(taper(bw, sd, bw - 0.02, sd - 0.02, h * 0.16, 0.14), f, 0, h * 0.22, 0);
     b.add(slab(bw + 0.006, sd + 0.006, 0.14, 0.008), black, 0, h * 0.36, 0);
     b.add(taper(bw - 0.02, sd - 0.02, bw * 0.8, sd * 0.78, sh - h * 0.36 - h * 0.08, 0.13), f, 0, h * 0.368, 0);
-    b.sphere(1, 0, sh - h * 0.08, 0, f, bw * 0.4, h * 0.08, sd * 0.39, 24);
+    // the dome, and where its surface is (for the parts sitting on it): height and slopes at (x, z)
+    const dA = bw * 0.4;
+    const dB = h * 0.08;
+    const dC = sd * 0.39;
+    const dY = sh - dB;
+    b.sphere(1, 0, dY, 0, f, dA, dB, dC, 24);
+    const onDome = (x: number, z: number) => {
+      const q = Math.sqrt(Math.max(0.05, 1 - (x / dA) ** 2 - (z / dC) ** 2));
+      return { y: dY + dB * q, rx: Math.atan((dB * z) / (dC * dC * q)), rz: Math.atan((-dB * x) / (dA * dA * q)) };
+    };
     // the bumper across the nose, fenders over the wheels' shoulders
     const br = bw * 0.9;
     b.add(arcBand(br, br + 0.02, Math.PI * 0.32, Math.PI * 0.68, h * 0.12, 10).rotateX(Math.PI / 2).translate(0, h * 0.28, d / 2 - 0.004 - br - 0.02), black);
     for (const s of [-1, 1]) fender(b, s * wx, wr, wz, wr + 0.01, 0.01, ww + 0.01, f, 0.5, Math.PI - 0.6);
     // the mast with the camera and lidar head, a light ring at its foot
     const mz = d * 0.16;
-    const my = sh - h * 0.02;
+    const my = onDome(0, mz).y - h * 0.012;
     const mh = h - my;
-    b.cyl(0.035, 0.035, 0.006, 0, my, mz, ledMat("#7fd0ff"), 20);
-    b.cyl(0.02, 0.028, mh * 0.55, 0, my + 0.004, mz, f, 16);
+    b.cyl(0.035 * k, 0.035 * k, 0.006, 0, my, mz, ledMat("#7fd0ff"), 20);
+    b.cyl(0.02 * k, 0.028 * k, mh * 0.55, 0, my + 0.004, mz, f, 16);
     const hy = my + mh * 0.55;
-    b.cyl(0.042, 0.042, mh * 0.2, 0, hy, mz, dark, 20);
-    b.cyl(0.045, 0.045, mh * 0.08, 0, hy + mh * 0.2, mz, mat("#0b0c0e", { roughness: 0.1, metalness: 0.4 }), 20);
-    b.cyl(0.042, 0.038, h - hy - mh * 0.28, 0, hy + mh * 0.28, mz, f, 20);
-    rb(b, 0.05, mh * 0.18, 0.02, 0, hy + mh * 0.02, mz + 0.034, dark, 0.006);
-    for (const s of [-1, 1]) zcyl(b, 0.007, 0.004, s * 0.012, hy + mh * 0.11, mz + 0.045, mat("#0b0c0e", { roughness: 0.05, metalness: 0.6 }), 12);
-    // the stop button and a display at the back
-    const ty = sh - h * 0.03;
-    b.cyl(0.026, 0.03, 0.025, bw * 0.12, ty, -d * 0.18, mat("#d23a2a", { roughness: 0.45 }), 16);
-    rb(b, bw * 0.24, 0.006, d * 0.08, -bw * 0.1, ty - 0.002, -d * 0.18, dark, 0.002);
-    bx(b, bw * 0.17, 0.002, d * 0.05, -bw * 0.1, ty + 0.004, -d * 0.18, screenMat());
+    b.cyl(0.042 * k, 0.042 * k, mh * 0.2, 0, hy, mz, dark, 20);
+    b.cyl(0.045 * k, 0.045 * k, mh * 0.08, 0, hy + mh * 0.2, mz, mat("#0b0c0e", { roughness: 0.1, metalness: 0.4 }), 20);
+    b.cyl(0.042 * k, 0.038 * k, h - hy - mh * 0.28, 0, hy + mh * 0.28, mz, f, 20);
+    rb(b, 0.05 * k, mh * 0.18, 0.02 * k, 0, hy + mh * 0.02, mz + 0.034 * k, dark, 0.006);
+    for (const s of [-1, 1]) zcyl(b, 0.007 * k, 0.004, s * 0.012 * k, hy + mh * 0.11, mz + 0.045 * k, mat("#0b0c0e", { roughness: 0.05, metalness: 0.6 }), 12);
+    // the stop button and a display at the back, both sitting on the dome (tilted with it)
+    const zb = -d * 0.18;
+    const sb = onDome(bw * 0.12, zb);
+    b.cyl(0.026 * k, 0.03 * k, 0.025 * k, bw * 0.12, sb.y - 0.006 * k, zb, mat("#d23a2a", { roughness: 0.45 }), 16);
+    const sd2 = onDome(-bw * 0.1, zb);
+    const n = v(0, 1, 0).applyEuler(new THREE.Euler(sd2.rx, 0, sd2.rz));
+    const at = (o: number) => v(-bw * 0.1, sd2.y, zb).addScaledVector(n, o);
+    const p0 = at(0);
+    bx(b, bw * 0.24, 0.006, d * 0.08, p0.x, p0.y - 0.003, p0.z, dark, sd2.rx, 0, sd2.rz);
+    const p1 = at(0.0035);
+    bx(b, bw * 0.17, 0.002, d * 0.05, p1.x, p1.y - 0.001, p1.z, screenMat(), sd2.rx, 0, sd2.rz);
   },
 
   robot_mower_dock: (b, w, d, h, f) => {

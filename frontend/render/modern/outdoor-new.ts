@@ -4,7 +4,7 @@ import * as THREE from "three";
 import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
 import { mergeVertices } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { FINISHES } from "../../model/modern";
-import { C, glowing, ledMat, mat, part, random, roundedRect, wickerMat, type Build, type Builder } from "../modern";
+import { C, glowing, ledMat, mat, matrix, part, random, roundedRect, wickerMat, type Build, type Builder } from "../modern";
 
 type P = [number, number];
 type M = THREE.Material;
@@ -760,7 +760,8 @@ function trailer(b: Builder, w: number, d: number, h: number, color: string) {
   const fender = mat("#2a2c30", { roughness: 0.45, side: THREE.DoubleSide });
   const L = lamps();
 
-  const r = Math.min(0.27, h * 0.3, d * 0.1);
+  // wheels of a road trailer: 13–14 inch, smaller only on a low or short one
+  const r = Math.min(0.29, h * 0.3, d * 0.1);
   const tw = Math.min(0.165, w * 0.11);
   const BW = w - 2 * (tw + 0.06);
   const Lb = d - Math.min(1.0, d * 0.32);
@@ -791,16 +792,20 @@ function trailer(b: Builder, w: number, d: number, h: number, color: string) {
       box(b, 0.03, 0.05, 0.03, sx * (BW / 2 + 0.01), yF + sideH * 0.55, z, dark);
     }
 
-  // the axle, wheels and mudguards
+  // the axle (two, close together, under a long trailer), wheels and mudguards
   const xw = BW / 2 + 0.03 + tw / 2;
-  box(b, 2 * xw, 0.06, 0.06, 0, r - 0.03, za, galv);
   const look = { tyre: mat("#1b1c1e", { roughness: 0.92 }), rim: galv, dark: mat("#3a3d42", { roughness: 0.6 }) };
   const gr = r + 0.055;
   const guard = new THREE.CylinderGeometry(gr, gr, tw + 0.07, 18, 1, true, 0.2, Math.PI - 0.4).rotateZ(Math.PI / 2);
-  for (const sx of [-1, 1]) {
-    wheel(b, sx * xw, r, za, r, tw, sx, look, 5, 0.58);
-    b.add(guard, fender, sx * xw, r, za);
-    box(b, 0.03, 0.04, 2 * gr * 0.9, sx * (BW / 2 + 0.015), yF - 0.06, za, galv);
+  const pitch = 2 * gr + 0.06;
+  const axles = d > 3.5 ? [za - pitch / 2, za + pitch / 2] : [za];
+  for (const z of axles) {
+    box(b, 2 * xw, 0.06, 0.06, 0, r - 0.03, z, galv);
+    for (const sx of [-1, 1]) {
+      wheel(b, sx * xw, r, z, r, tw, sx, look, 5, 0.58);
+      b.add(guard, fender, sx * xw, r, z);
+      box(b, 0.03, 0.04, 2 * gr * 0.9, sx * (BW / 2 + 0.015), yF - 0.06, z, galv);
+    }
   }
 
   // the drawbar, coupling, jockey wheel, cable
@@ -837,15 +842,17 @@ function trailer(b: Builder, w: number, d: number, h: number, color: string) {
 
 /** The cladding's board joints on the four faces of a w × d box from y0 to y1. */
 function joints(b: Builder, w: number, d: number, y0: number, y1: number, m: M, step = 0.13, inset = 0, front = true) {
+  // flat dark strips just off the faces (no thin boxes: their far sides show through as specks)
   const nx = Math.max(2, Math.round((w - 2 * inset) / step));
   const nz = Math.max(2, Math.round((d - 2 * inset) / step));
+  const strip = (x: number, z: number, ry: number) => b.batch(new THREE.PlaneGeometry(0.006, y1 - y0), m, matrix(x, (y0 + y1) / 2, z, 0, ry, 0));
   for (let i = 1; i < nx; i++) {
     const x = -w / 2 + inset + ((w - 2 * inset) * i) / nx;
-    for (const sz of front ? [-1, 1] : [-1]) box(b, 0.006, y1 - y0, 0.004, x, y0, sz * (d / 2 + 0.001), m);
+    for (const sz of front ? [-1, 1] : [-1]) strip(x, sz * (d / 2 + 0.0015), sz > 0 ? 0 : Math.PI);
   }
   for (let i = 1; i < nz; i++) {
     const z = -d / 2 + inset + ((d - 2 * inset) * i) / nz;
-    for (const sx of [-1, 1]) box(b, 0.004, y1 - y0, 0.006, sx * (w / 2 + 0.001), y0, z, m);
+    for (const sx of [-1, 1]) strip(sx * (w / 2 + 0.0015), z, (sx * Math.PI) / 2);
   }
 }
 
@@ -982,26 +989,33 @@ const sauna: Build = (b, w, d, h, f, color) => {
     const ld = Math.min(0.45, (d - 2 * t) * 0.3);
     const stoveW = Math.min(0.42, iw * 0.24);
     slats(-iw / 2, iw / 2, upper, zi, ud, 5);
-    slats(-iw / 2 + stoveW + 0.12, iw / 2, lower, zi + ud, ld, 4);
+    slats(-iw / 2 + stoveW + 0.14, iw / 2, lower, zi + ud, ld, 4);
     backrest(upper + 0.18, upper + 0.5, 3);
-    // the stove in the front left corner: a black body, a basket of stones, a guard
+    // the stove in the front left corner, in front of the upper bench and beside the lower one,
+    // sized with the cabin: a black body, a basket of stones, a guard round its front and side
+    const k = stoveW / 0.42;
+    const zs0 = zi + ud + 0.04;
+    const sdp = Math.min(0.34, Math.max(0.12, (d / 2 - t - 0.1 - zs0) * 0.7));
     const sx0 = -iw / 2 + stoveW / 2 + 0.06;
-    const sz = zi + ud + ld * 0.55;
-    const sh = Math.min(0.62, upper - 0.12);
-    box(b, stoveW, sh, 0.34, sx0, y0 + 0.08, sz, black, 0.02);
-    for (const sx of [-1, 1]) for (const dz of [-1, 1]) box(b, 0.03, 0.08, 0.03, sx0 + sx * (stoveW / 2 - 0.03), y0, sz + dz * 0.14, black);
-    box(b, stoveW - 0.06, 0.012, 0.26, sx0, y0 + 0.08 + sh * 0.35, sz + 0.171, mat("#3a3c40", { roughness: 0.5 }));
-    const yS = y0 + 0.08 + sh;
+    const sz = zs0 + sdp / 2;
+    const foot = 0.08 * Math.min(1, k * 1.2);
+    const sh = Math.min(0.62, (upper - y0) * 0.72);
+    box(b, stoveW, sh, sdp, sx0, y0 + foot, sz, black, 0.02);
+    for (const sx of [-1, 1]) for (const dz of [-1, 1]) box(b, 0.03, foot, 0.03, sx0 + sx * (stoveW / 2 - 0.03), y0, sz + dz * (sdp / 2 - 0.03), black);
+    box(b, stoveW - 0.06, 0.012, sdp * 0.76, sx0, y0 + foot + sh * 0.35, sz + sdp / 2 + 0.001 - sdp * 0.38, mat("#3a3c40", { roughness: 0.5 }));
+    const yS = y0 + foot + sh;
     const grey = mat("#77716b", { roughness: 0.9 });
     const rand = random(5151);
     for (let i = 0; i < 26; i++) {
-      const sr = 0.03 + rand() * 0.02;
+      const sr = (0.03 + rand() * 0.02) * Math.min(1, k * 1.1);
       const geo = new THREE.IcosahedronGeometry(sr, 0);
-      b.add(geo, i % 3 === 0 ? glowM : grey, sx0 + (rand() - 0.5) * (stoveW - 0.08), yS + sr * 0.6 + (i > 16 ? 0.035 : 0), sz + (rand() - 0.5) * 0.24).rotation.set(rand() * 3, rand() * 3, 0);
+      b.add(geo, i % 3 === 0 ? glowM : grey, sx0 + (rand() - 0.5) * (stoveW - 2.2 * sr), yS + sr * 0.6 + (i > 16 ? 0.035 * k : 0), sz + (rand() - 0.5) * (sdp - 2.2 * sr)).rotation.set(rand() * 3, rand() * 3, 0);
     }
-    for (const y of [y0 + 0.3, y0 + 0.62]) {
-      box(b, stoveW + 0.1, 0.06, 0.02, sx0, y, sz + 0.25, benchDark);
-      box(b, 0.02, 0.06, 0.4, sx0 + stoveW / 2 + 0.06, y, sz + 0.03, benchDark);
+    const gz = sz + sdp / 2 + 0.07;
+    const gx = sx0 + stoveW / 2 + 0.06;
+    for (const y of [y0 + (foot + sh) * 0.45, y0 + (foot + sh) * 0.95]) {
+      box(b, gx - (-iw / 2) + 0.01, 0.06, 0.02, (gx + -iw / 2) / 2, y, gz, benchDark);
+      box(b, 0.02, 0.06, gz - zs0 + 0.01, gx, y, (gz + zs0) / 2, benchDark);
     }
     // a bucket and ladle on the lower bench
     b.cyl(0.08, 0.07, 0.14, iw / 2 - 0.25, lower, zi + ud + ld / 2, benchDark, 14);
@@ -1101,6 +1115,8 @@ const kamado: Build = (b, w, d, h, _f, color) => {
   const wood = mat("#9b6b45", { roughness: 0.7 });
   const R = Math.min(w * 0.3, d * 0.33, h * 0.21);
   const H = R * 2.8;
+  // the fittings (hinge, handle, thermometer, draft door) keep to the egg's size
+  const k = Math.min(1.15, R / 0.225);
   const ventH = Math.min(0.07, h * 0.06);
   const yb = h - ventH - H + 0.02;
   // the egg's radius at y: fuller below the middle
@@ -1128,24 +1144,24 @@ const kamado: Build = (b, w, d, h, _f, color) => {
   const rs = eggR(ys);
   const band = mat(C.steel, { metalness: 0.7, roughness: 0.3, side: THREE.DoubleSide });
   for (const y of [ys - 0.045, ys + 0.008]) b.add(new THREE.CylinderGeometry(rs + 0.012, rs + 0.012, 0.035, 32, 1, true), band, 0, y + 0.0175, 0);
-  box(b, 0.09, 0.15, 0.06, 0, ys - 0.09, -rs - 0.02, steel, 0.01);
-  b.cyl(0.02, 0.02, 0.16, 0, ys - 0.2, -rs - 0.04, iron, 8);
+  box(b, 0.09 * k, 0.15 * k, 0.06 * k, 0, ys - 0.09 * k, -rs - 0.02 * k, steel, 0.01 * k);
+  b.cyl(0.02 * k, 0.02 * k, 0.16 * k, 0, ys - 0.2 * k, -rs - 0.04 * k, iron, 8);
   // the handle in front, the thermometer, the top vent, the draft door
-  for (const sx of [-1, 1]) box(b, 0.02, 0.02, 0.1, sx * 0.08, ys + 0.01, rs + 0.05, steel);
-  b.add(new THREE.CylinderGeometry(0.018, 0.018, 0.24, 10).rotateZ(Math.PI / 2), wood, 0, ys + 0.02, rs + 0.1);
+  for (const sx of [-1, 1]) box(b, 0.02 * k, 0.02 * k, 0.1 * k, sx * 0.08 * k, ys + 0.01 * k, rs + 0.05 * k, steel);
+  b.add(new THREE.CylinderGeometry(0.018 * k, 0.018 * k, 0.24 * k, 10).rotateZ(Math.PI / 2), wood, 0, ys + 0.02 * k, rs + 0.1 * k);
   const yT = ys + H * 0.22;
   const zT = eggR(yT);
-  b.add(new THREE.CylinderGeometry(0.04, 0.04, 0.025, 18).rotateX(Math.PI / 2), steel, 0, yT, zT + 0.005);
-  b.add(new THREE.CylinderGeometry(0.033, 0.033, 0.01, 18).rotateX(Math.PI / 2), mat(C.ceramic), 0, yT, zT + 0.016);
-  const needle = box(b, 0.004, 0.028, 0.004, 0.006, yT - 0.004, zT + 0.022, mat("#a8322d"));
+  b.add(new THREE.CylinderGeometry(0.04 * k, 0.04 * k, 0.025, 18).rotateX(Math.PI / 2), steel, 0, yT, zT + 0.005);
+  b.add(new THREE.CylinderGeometry(0.033 * k, 0.033 * k, 0.01, 18).rotateX(Math.PI / 2), mat(C.ceramic), 0, yT, zT + 0.016);
+  const needle = box(b, 0.004, 0.028 * k, 0.004, 0.006 * k, yT - 0.004 * k, zT + 0.022, mat("#a8322d"));
   if (needle) needle.rotation.z = -0.6;
   const rt = eggR(yTop) + 0.012;
   b.cyl(rt, rt + 0.006, ventH, 0, yTop - 0.02, 0, iron, 18);
   b.cyl(rt * 0.6, rt * 0.6, 0.015, 0, yTop - 0.02 + ventH, 0, iron, 14);
   const yD = yb + H * 0.16;
   const zD = eggR(yD + 0.05);
-  box(b, 0.12, 0.1, 0.02, 0, yD, zD - 0.005, steel, 0.008);
-  box(b, 0.08, 0.06, 0.012, 0, yD + 0.02, zD + 0.003, iron);
+  box(b, 0.12 * k, 0.1 * k, 0.02, 0, yD, zD - 0.005, steel, 0.008);
+  box(b, 0.08 * k, 0.06 * k, 0.012, 0, yD + 0.02 * k, zD + 0.003, iron);
   // the nest stand on casters
   const rn = eggR(yFoot + 0.04) * 0.95;
   const torus = new THREE.TorusGeometry(rn, 0.012, 5, 28).rotateX(Math.PI / 2);
@@ -1180,9 +1196,11 @@ const lawnMower: Build = (b, w, d, h, _f, color) => {
   const tube = mat("#2a2b2e", { roughness: 0.4, metalness: 0.5 });
   const dw = w - 0.11;
   const zD1 = d / 2 - 0.02;
-  const zD0 = d / 2 - Math.min(0.6, d * 0.42);
+  // the deck, grass box and wheels grow with the mower (a bigger one is not a small deck on a
+  // long handle)
+  const zD0 = d / 2 - d * 0.42;
   const zm = (zD0 + zD1) / 2;
-  const dh = Math.min(0.17, h * 0.17);
+  const dh = h * 0.17;
   // the deck: a black skirt, the coloured shell, the motor hood, a bumper
   box(b, dw + 0.01, 0.05, zD1 - zD0 + 0.01, 0, 0.03, zm, dark, 0.015);
   box(b, dw, dh, zD1 - zD0, 0, 0.06, zm, body, 0.06);
@@ -1191,7 +1209,7 @@ const lawnMower: Build = (b, w, d, h, _f, color) => {
   box(b, dw * 0.7, 0.05, 0.03, 0, 0.08, zD1, dark, 0.012);
   box(b, dw * 0.5, 0.012, 0.08, 0, 0.06 + dh - 0.004, zD1 - 0.08, grey, 0.004);
   // wheels, the height levers
-  const rr = Math.min(0.11, h * 0.11);
+  const rr = h * 0.11;
   const rf = rr * 0.82;
   for (const [z, r] of [[zD0 + 0.08, rr], [zD1 - 0.1, rf]] as P[])
     for (const sx of [-1, 1]) {
@@ -1204,14 +1222,15 @@ const lawnMower: Build = (b, w, d, h, _f, color) => {
   // the grass box: a grey tub, a dark lid with a carrying handle
   const gw = dw - 0.1;
   const zG0 = zD0 + 0.03;
-  const zG1 = Math.max(-d / 2 + 0.2, zG0 - Math.min(0.42, d * 0.3));
-  const gh = Math.min(0.32, h * 0.32);
+  const zG1 = Math.max(-d / 2 + 0.2, zG0 - d * 0.3);
+  const gh = h * 0.32;
   box(b, gw, gh, zG0 - zG1, 0, 0.07, (zG0 + zG1) / 2, grey, 0.04);
   box(b, gw + 0.01, 0.05, zG0 - zG1 + 0.01, 0, 0.07 + gh - 0.02, (zG0 + zG1) / 2, dark, 0.02);
   box(b, gw * 0.5, 0.08, 0.02, 0, 0.07 + gh + 0.01, (zG0 + zG1) / 2, dark, 0.008);
   box(b, gw * 0.3, 0.012, 0.03, 0, 0.07 + gh + 0.08, (zG0 + zG1) / 2, dark, 0.004);
   // the handle: two tubes up to the back, a cross bar, the grip and the bail lever
-  const hx = gw / 2 + 0.035;
+  // the tubes rise from the deck's back corners, well clear of the grass box between them
+  const hx = gw / 2 + 0.045;
   const yH = h - 0.025;
   const zH = -d / 2 + 0.03;
   for (const sx of [-1, 1]) {
@@ -1231,7 +1250,11 @@ const lawnMower: Build = (b, w, d, h, _f, color) => {
 /** A driveway sliding gate: a frame with bars (or, in oak, horizontal boards), a post at one end. */
 const slidingGate: Build = (b, w, d, h, f, color) => {
   const oak = color === "oak";
-  const metal = oak ? mat(FINISHES.anthracite, { roughness: 0.5, metalness: 0.3 }) : mat(FINISHES[color] ?? FINISHES.anthracite, { roughness: 0.45, metalness: color === "silver" ? 0.6 : 0.3 });
+  // powder-coated steel: matt and hardly metallic, the dark ones a touch lighter than their
+  // finish so the bars read against shade and grass (metal with no surroundings to mirror
+  // looks black)
+  const tone = color === "black" ? "#404348" : color === "anthracite" || oak ? "#666b72" : (FINISHES[color] ?? FINISHES.anthracite);
+  const metal = mat(tone, { roughness: color === "silver" ? 0.45 : 0.55, metalness: color === "silver" ? 0.5 : 0.1 });
   const dark = mat("#1d1f22", { roughness: 0.8 });
   const steel = mat(C.steel, { metalness: 0.6, roughness: 0.4 });
   const pw = Math.min(0.12, w * 0.04);
@@ -1264,7 +1287,8 @@ const slidingGate: Build = (b, w, d, h, f, color) => {
   } else {
     const n = Math.max(4, Math.round((ix1 - ix0) / 0.11));
     const s = (ix1 - ix0) / n;
-    for (let i = 0; i < n - 1; i++) box(b, 0.025, iy1 - iy0, 0.025, ix0 + s * (i + 1), iy0, 0, metal);
+    const bar = Math.min(0.035, s * 0.35);
+    for (let i = 0; i < n - 1; i++) box(b, bar, iy1 - iy0, Math.min(0.03, td), ix0 + s * (i + 1), iy0, 0, metal);
     box(b, ix1 - ix0, 0.03, td * 0.6, (ix0 + ix1) / 2, iy0 + (iy1 - iy0) * 0.22, 0, metal);
   }
   // rollers on a ground rail, the gear rack along the bottom
@@ -1461,8 +1485,10 @@ const pumpkin: Build = (b, w, d, h, _f, color) => {
   const lantern = b.options.carved !== "plain";
   const sh = h * 0.16;
   const Rx = (Math.min(w, d) / 2) * 0.98;
-  const Ry = (h - sh * 0.55) / 2;
-  const yc = Ry;
+  // the dimples at top and bottom leave the body 0.8186·Ry below its centre: it stands on the
+  // ground; a little taller than before (more makes the dimples fold), the stem reaching the top
+  const Ry = (h - sh * 0.55) / (2 * 0.9);
+  const yc = Ry * 0.8186;
   const lobes = 8;
   // a unit-sphere direction to the ribbed, dimpled surface
   const surface = (u: THREE.Vector3, out = 0, ribs = true) => {
@@ -1491,7 +1517,7 @@ const pumpkin: Build = (b, w, d, h, _f, color) => {
   b.cyl(sr * 1.6, sr * 2.2, sr, 0, yS - sr * 0.6, 0, stemM, 8);
   if (!lantern) return;
   // the carved face, lit from inside: eyes, nose and a toothy grin on the skin
-  const glow = glowing(mat("#ffc25a", { emissive: "#ffa030", emissiveIntensity: 1.1, roughness: 1, side: THREE.DoubleSide }));
+  const glow = glowing(mat("#ffc25a", { emissive: "#ffa030", emissiveIntensity: 1.1, roughness: 1, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }));
   const faces: P[][] = [
     [[-0.44, 0.1], [-0.13, 0.1], [-0.29, 0.38]],
     [[0.13, 0.1], [0.44, 0.1], [0.29, 0.38]],
@@ -1500,13 +1526,14 @@ const pumpkin: Build = (b, w, d, h, _f, color) => {
   ];
   for (const pts of faces) {
     const s = new THREE.Shape(pts.map(([x, y]) => new THREE.Vector2(x, y)));
-    const g = subdivide(new THREE.ShapeGeometry(s), 2);
+    const g = subdivide(new THREE.ShapeGeometry(s), 3);
     const q = g.attributes.position;
     for (let i = 0; i < q.count; i++) {
       const x = q.getX(i);
       const y = q.getY(i);
-      // over the ribs' crests: never under the skin
-      const sp = surface(V(x, y, Math.sqrt(Math.max(0, 1 - x * x - y * y))), 0.006, false);
+      // laid on the ribbed skin itself (into its grooves too), a hair above it: nothing stands
+      // out of the round body's outline
+      const sp = surface(V(x, y, Math.sqrt(Math.max(0, 1 - x * x - y * y))), 0.003);
       q.setXYZ(i, sp.x, sp.y, sp.z);
     }
     b.add(smooth(g), glow);

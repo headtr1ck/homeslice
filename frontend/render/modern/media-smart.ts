@@ -117,6 +117,10 @@ function gangs(b: Builder) {
   const g = Number(b.options.gangs ?? "1");
   return g === 2 || g === 3 ? g : 1;
 }
+/** Switch and socket modules sit 71 mm apart on a plate 86 mm high (and 86 mm wide for one). */
+const MODULE = 0.071;
+/** How much the modules must shrink to fit g of them on a w × h plate (1: full size). */
+const moduleScale = (w: number, h: number, g: number) => Math.min(1, w / (0.086 + (g - 1) * MODULE), h / 0.086);
 /** The recessed parts of a wall plate, a shade darker than it. */
 const insetColor = (color: string) => ({ white: "#cfcfca", black: "#121214", anthracite: "#2b2d30", brass: "#7d6538" })[color] ?? "#cfcfca";
 
@@ -142,7 +146,9 @@ export const BUILDERS: Record<string, Build> = {
     const lx = -w * 0.24;
     const ly = bh * 0.5;
     ring(b, lr * 1.12, lr * 1.38, lx, ly, fz + 0.001, trim, 20, 0.003);
-    zcyl(b, lr * 1.08, lr * 1.12, lensLen, lx, ly, fz + lensLen / 2, dark("#202226", 0.4), 20, true);
+    // the barrel: up its outside, over its lip and back down its inside (no open, one-sided tube)
+    const barrel = [[lr * 1.12, 0], [lr * 1.08, lensLen], [lr * 0.98, lensLen], [lr * 0.98, 0]].map(([r, y]) => new THREE.Vector2(r, y));
+    b.add(new THREE.LatheGeometry(barrel, 20).rotateX(Math.PI / 2), dark("#202226", 0.4), lx, ly, fz);
     ring(b, lr * 0.9, lr * 1.09, lx, ly, fz + lensLen - 0.0005, trim, 20, 0.002);
     const lens = part(mat("#1b2a3e", { roughness: 0.05, metalness: 0.4, name: "screen" }), "screen");
     const cap = Math.PI * 0.32;
@@ -321,10 +327,11 @@ export const BUILDERS: Record<string, Build> = {
   },
   orb_lamp: (b, w, d, h, f) => {
     // a small glass orb glowing from inside, set in a turned base with a metal ring
-    const R0 = Math.min(w, d) / 2;
     const bh = h * 0.22;
-    const r = Math.min(R0, (h - bh * 0.45) / 2);
-    lathe(b, [[0, 0], [R0 * 0.72, 0], [R0 * 0.76, bh * 0.15], [R0 * 0.7, bh * 0.8], [R0 * 0.6, bh], [0, bh]], f, 32);
+    const r = Math.min(Math.min(w, d) / 2, (h - bh * 0.45) / 2);
+    // the base keeps to the orb's size (a wide, low box: a small base, not a flat dish)
+    const R0 = Math.min(Math.min(w, d) / 2, r * 1.18);
+    lathe(b, [[0, 0], [R0 * 0.72, 0], [R0 * 0.72, 0], [R0 * 0.76, bh * 0.15], [R0 * 0.7, bh * 0.8], [R0 * 0.6, bh], [0, bh]], f, 32);
     ring(b, r * 0.5, R0 * 0.62, 0, bh - 0.0005, 0, chrome(), 28, 0.0015, true);
     b.sphere(r, 0, h - r, 0, glowing(mat("#fbf3e9", { emissive: "#ffe2b8", emissiveIntensity: 0.6, roughness: 0.25 })), 1, 1, 1, 28);
   },
@@ -519,42 +526,46 @@ export const BUILDERS: Record<string, Build> = {
     for (let r = 0; r < 3; r++) for (let c = 0; c < 6; c++) bx(b, w * 0.045, w * 0.045, 0.001, (c - 2.5) * w * 0.11, h * (0.1 + r * 0.06), fz, vent);
   },
   wall_switch: (b, w, d, h, f, color) => {
-    // a frame on the wall, 1–3 rockers side by side in its middle, each with a small light
+    // a frame on the wall, 1–3 rockers side by side in its middle, each a standard module
+    // (71 mm apart) with a small light; they shrink only when the plate is too small for them
     const g = gangs(b);
     const pd = d * 0.55;
     const zb = back(d);
     rb(b, w, h, pd, 0, 0, zb + pd / 2, f, Math.min(w, h) * 0.09);
-    const border = Math.min(w, h) * 0.17;
-    const iw = w - 2 * border;
-    const ih = h - 2 * border;
-    bx(b, iw + 0.002, ih + 0.002, 0.0012, 0, border - 0.001, zb + pd, mat(insetColor(color), { roughness: 0.7 }));
-    const gap = 0.0018;
-    const rw = (iw - gap * (g - 1)) / g;
+    const k = moduleScale(w, h, g);
+    const pitch = MODULE * k;
+    const win = 0.056 * k;
+    const gap = 0.0018 * k;
+    const rw = win - 2 * gap;
+    const inset = mat(insetColor(color), { roughness: 0.7 });
     const rd = d - pd - 0.0012;
     const led = ledMat("#ff9a2a");
+    const y0 = h / 2 - win / 2;
     for (let i = 0; i < g; i++) {
-      const x = -iw / 2 + rw / 2 + i * (rw + gap);
-      bx(b, rw, ih, rd, x, border, zb + pd + 0.0006 + rd / 2, f, 0.05);
-      bx(b, Math.min(0.006, rw * 0.3), 0.0016, 0.001, x, border + ih * 0.12, zb + pd + 0.0006 + rd - ih * 0.38 * 0.05 + 0.0003, led, 0.05);
+      const x = (i - (g - 1) / 2) * pitch;
+      bx(b, win, win, 0.0012, x, y0, zb + pd, inset);
+      bx(b, rw, rw, rd, x, y0 + gap, zb + pd + 0.0006 + rd / 2, f, 0.05);
+      bx(b, Math.min(0.006, rw * 0.3), 0.0016, 0.001, x, y0 + gap + rw * 0.12, zb + pd + 0.0006 + rd - rw * 0.38 * 0.05 + 0.0003, led, 0.05);
     }
   },
   wall_socket: (b, w, d, h, f, color) => {
-    // a surface box with 1–3 round sockets side by side, each with its two holes and earth clips
+    // a surface box with 1–3 round sockets side by side, each a standard module (71 mm apart)
+    // with its two holes and earth clips; they shrink only when the box is too small for them
     const g = gangs(b);
     const zb = back(d);
     rb(b, w, h, d - 0.001, 0, 0, zb + (d - 0.001) / 2, f, Math.min(w, h) * 0.08);
     const fz = zb + d - 0.001 + 0.0004;
-    const border = Math.min(w, h) * 0.12;
-    const cw = (w - 2 * border) / g;
-    const r = Math.min(cw, h - 2 * border) * 0.4;
+    const k = moduleScale(w, h, g);
+    const pitch = MODULE * k;
+    const r = 0.023 * k;
     const recess = mat(insetColor(color), { roughness: 0.6 });
     const hole = dark("#0a0a0b", 1);
     const shade = mat(color === "white" ? "#a9a9a4" : "#0b0b0c", { roughness: 0.6 });
     const clip = chrome();
     for (let i = 0; i < g; i++) {
-      const x = -w / 2 + border + cw * (i + 0.5);
-      ring(b, r, r * 1.08, x, h / 2, fz - 0.0003, shade, 12, 0.0006);
-      dot(b, r, x, h / 2, fz, recess, 12);
+      const x = (i - (g - 1) / 2) * pitch;
+      ring(b, r, r * 1.08, x, h / 2, fz - 0.0003, shade, 16, 0.0006);
+      dot(b, r, x, h / 2, fz, recess, 16);
       for (const s of [-1, 1]) bx(b, r * 0.2, r * 0.2, 0.0006, x + s * r * 0.4, h / 2 - r * 0.1, fz, hole);
       for (const s of [-1, 1]) bx(b, r * 0.3, r * 0.1, 0.0008, x, h / 2 + s * r * 0.88 - r * 0.05, fz, clip);
     }
@@ -673,7 +684,9 @@ export const BUILDERS: Record<string, Build> = {
   pet_fountain: (b, w, d, h, f) => {
     // a round basin of water with the pump tower in its middle, water welling over its cap
     const R = Math.min(w, d) / 2;
-    lathe(b, [[0, 0], [R * 0.84, 0], [R * 0.96, h * 0.12], [R, h * 0.38], [R * 0.99, h * 0.55], [R * 0.93, h * 0.58], [R * 0.9, h * 0.5]], f, 40);
+    // one closed shell: the bottom (its edge sharp: a repeated point), up the outside, over the
+    // rim and down the inside to a floor under the water (no hole showing the light from behind)
+    lathe(b, [[0, 0], [R * 0.84, 0], [R * 0.84, 0], [R * 0.96, h * 0.12], [R, h * 0.38], [R * 0.99, h * 0.55], [R * 0.93, h * 0.58], [R * 0.93, h * 0.58], [R * 0.9, h * 0.5], [R * 0.84, h * 0.1], [R * 0.84, h * 0.1], [0, h * 0.1]], f, 40);
     const water = glowing(part(mat("#6fb8d8", { transparent: true, opacity: 0.75, roughness: 0.05 }), "water"));
     const wy = h * 0.52;
     b.add(new THREE.RingGeometry(R * 0.36, R * 0.92, 40).rotateX(-Math.PI / 2), water, 0, wy, 0);
@@ -690,9 +703,17 @@ export const BUILDERS: Record<string, Build> = {
     const base = mat(color === "anthracite" ? "#c9c9c6" : "#45484d", { roughness: 0.6 });
     const bh = h * 0.16;
     rb(b, w, bh, d, 0, 0, 0, base, 0.04, 2);
-    const R = Math.min(w / 2, (h - bh * 0.6) / 2, (d * 0.92) / 2);
-    const cy = h - R;
-    const cz = back(d) + R + 0.005;
+    // the globe follows the box: as wide and deep as the base (a little inside it) and as high
+    // as there is room, drawn round and then stretched to that (not more than 1.3 : 1)
+    let rx = w * 0.47;
+    let rz = d * 0.46;
+    let R = (h - bh * 0.6) / 2;
+    R = Math.min(R, 1.3 * Math.min(rx, rz));
+    rx = Math.min(rx, 1.3 * R);
+    rz = Math.min(rz, 1.3 * R);
+    const cy = bh * 0.6 + R;
+    const cz = back(d) + rz + 0.005;
+    const first = b.g.children.length;
     b.sphere(R, 0, cy, cz, f, 1, 1, 1, 28);
     const ha = 0.78;
     b.add(new THREE.SphereGeometry(R * 1.012, 28, 6, 0, Math.PI * 2, 0, ha), mat("#3a3d42", { roughness: 0.15, metalness: 0.1, transparent: true, opacity: 0.92 }), 0, cy, cz);
@@ -703,14 +724,19 @@ export const BUILDERS: Record<string, Build> = {
     b.add(new THREE.SphereGeometry(R * 1.004, 24, 5, 0, Math.PI * 2, 0, ea).rotateX(Math.PI / 2 + tilt), dark("#141416", 0.9), 0, cy, cz);
     const rc = R * Math.cos(ea);
     b.add(new THREE.TorusGeometry(R * Math.sin(ea), 0.014, 6, 32).rotateX(tilt), base, 0, cy - Math.sin(tilt) * rc, cz + Math.cos(tilt) * rc);
+    b.cyl(0.014, 0.014, 0.004, 0, cy + R * 0.952, cz + R * 0.33, dark("#232427", 0.4), 16).rotation.x = 0.35;
+    for (const o of b.g.children.slice(first)) {
+      o.position.x *= rx / R;
+      o.position.z = cz + (o.position.z - cz) * (rz / R);
+      o.scale.multiply(new THREE.Vector3(rx / R, 1, rz / R));
+    }
     // the step and its mat
     const step = dark("#2a2b2e", 0.9);
-    for (let i = 0; i < 5; i++) bx(b, w * 0.5, 0.004, 0.008, 0, bh, cz + R * 0.55 + i * 0.022, step);
+    for (let i = 0; i < 5; i++) bx(b, w * 0.5, 0.004, 0.008, 0, bh, cz + rz * 0.55 + i * 0.022, step);
     // the drawer at the base front, its handle, a light; a button on top
     const fz = d / 2;
     bx(b, w * 0.6, bh * 0.55, 0.004, 0, bh * 0.22, fz, mat(color === "anthracite" ? "#b5b5b2" : "#3a3c40", { roughness: 0.5 }));
     bx(b, w * 0.2, 0.01, 0.006, 0, bh * 0.58, fz + 0.003, dark("#141416", 0.7));
     bx(b, w * 0.12, 0.004, 0.002, w * 0.38, bh * 0.6, fz - 0.0005, ledMat("#3fd27a"));
-    b.cyl(0.014, 0.014, 0.004, 0, cy + R * 0.952, cz + R * 0.33, dark("#232427", 0.4), 16).rotation.x = 0.35;
   },
 };
