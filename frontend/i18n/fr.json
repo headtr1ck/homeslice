@@ -2293,5 +2293,7 @@
   "option.rails": "Barrières",
   "option.rails_none": "Aucune",
   "option.rails_half": "Demi",
-  "option.rails_full": "Tout autour"
+  "option.rails_full": "Tout autour",
+  "card.no_house_hint": "Dessinez-la dans Homeslice, dans la barre latérale, ou partez de vos étages et pièces.",
+  "card.open_editor": "Ouvrir Homeslice"
 }

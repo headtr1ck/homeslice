@@ -2293,5 +2293,7 @@
   "option.rails": "Bedrand",
   "option.rails_none": "Geen",
   "option.rails_half": "Half",
-  "option.rails_full": "Rondom"
+  "option.rails_full": "Rondom",
+  "card.no_house_hint": "Teken het in Homeslice in de zijbalk, of begin daar met je verdiepingen en ruimtes.",
+  "card.open_editor": "Homeslice openen"
 }

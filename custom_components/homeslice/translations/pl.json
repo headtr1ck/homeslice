@@ -3,7 +3,7 @@
     "step": {
       "user": {
         "title": "Homeslice",
-        "description": "Dodaje kartę Homeslice do Twoich dashboardów. Umieść model domu w pliku `homeslice/home.yaml` w folderze konfiguracji."
+        "description": "Dodaje **Homeslice** do paska bocznego, gdzie rysujesz swój dom (lub zaczynasz od pięter i obszarów), oraz kartę Homeslice do pulpitów."
       }
     },
     "abort": {

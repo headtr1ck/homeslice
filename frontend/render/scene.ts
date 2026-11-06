@@ -574,7 +574,7 @@ export class HouseRenderer {
     const low = this.quality === "low";
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: !low, alpha: true });
     this.renderer.shadowMap.enabled = !low;
-    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    this.renderer.shadowMap.type = THREE.PCFShadowMap;
     this.scene.add(this.root);
     this.scene.add(this.sky, this.ambient);
     this.sun.castShadow = !low;

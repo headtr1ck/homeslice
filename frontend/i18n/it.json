@@ -2293,5 +2293,7 @@
   "option.rails": "Sponde",
   "option.rails_none": "Nessuna",
   "option.rails_half": "Metà",
-  "option.rails_full": "Completa"
+  "option.rails_full": "Completa",
+  "card.no_house_hint": "Disegnala in Homeslice nella barra laterale, o parti lì dai tuoi piani e aree.",
+  "card.open_editor": "Apri Homeslice"
 }

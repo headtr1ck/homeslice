@@ -3,7 +3,7 @@
     "step": {
       "user": {
         "title": "Homeslice",
-        "description": "Adds the Homeslice card to your dashboards. Put your house model in `homeslice/home.yaml` inside your configuration folder."
+        "description": "Adds **Homeslice** to the sidebar, where you draw your house (or start from your floors and areas), and the Homeslice card for your dashboards."
       }
     },
     "abort": {

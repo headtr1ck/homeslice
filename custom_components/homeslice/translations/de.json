@@ -3,7 +3,7 @@
     "step": {
       "user": {
         "title": "Homeslice",
-        "description": "Fügt die Homeslice-Karte zu den Dashboards hinzu. Das Hausmodell unter `homeslice/home.yaml` im Konfigurationsordner ablegen."
+        "description": "Fügt **Homeslice** zur Seitenleiste hinzu, wo du dein Haus zeichnest (oder mit deinen Etagen und Bereichen beginnst), und die Homeslice-Karte für deine Dashboards."
       }
     },
     "abort": {

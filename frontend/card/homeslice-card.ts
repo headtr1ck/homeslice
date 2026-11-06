@@ -383,6 +383,7 @@ export class HomesliceCard extends LitElement {
   static override properties = {
     _issues: { state: true },
     _error: { state: true },
+    _noHouse: { state: true },
     _loading: { state: true },
     _labels: { state: true },
     _lampButtons: { state: true },
@@ -415,6 +416,8 @@ export class HomesliceCard extends LitElement {
   private config!: HomesliceCardConfig;
   private _issues: Issue[] = [];
   private _error = "";
+  /** No house of that name yet: the card says where to draw one. */
+  private _noHouse = false;
   private _loading = true;
   private _labels: Label[] = [];
   private _lampButtons: LampButton[] = [];
@@ -813,9 +816,10 @@ export class HomesliceCard extends LitElement {
   private async applyModel(raw: unknown) {
     this._loading = false;
     if (raw === null || raw === undefined) {
-      this._error = this.t("card.no_house", { house: this.config.house ?? "" });
+      this._noHouse = true;
       return;
     }
+    this._noHouse = false;
     this._error = "";
     const { house, issues } = expandHouse(raw);
     const walls = new Map<string, Wall[]>();
@@ -2803,6 +2807,19 @@ export class HomesliceCard extends LitElement {
           ${this._tip ? html`<div class="tip" style="left:${this._tip.x + 14}px;top:${this._tip.y + 18}px">${this._tip.text}${this._tip.sub ? html`<small>${this._tip.sub}</small>` : nothing}</div>` : nothing}
           ${this._loading ? html`<div class="overlay">${this.t("card.loading")}</div>` : nothing}
           ${this._error ? html`<div class="overlay error">${this._error}</div>` : nothing}
+          ${this._noHouse && !this._error
+            ? html`<div class="overlay empty">
+                <p>${this.t("card.no_house", { house: this.config.house ?? "" })}</p>
+                <p>${this.t("card.no_house_hint")}</p>
+                <button
+                  @click=${() => {
+                    // Home Assistant's own way to change page
+                    history.pushState(null, "", "/homeslice");
+                    window.dispatchEvent(new CustomEvent("location-changed", { detail: { replace: false } }));
+                  }}
+                >${this.t("card.open_editor")}</button>
+              </div>`
+            : nothing}
         </div>
         ${this._popup ? this.renderPopup(this._popup) : nothing}
         ${this._issues.length
@@ -4075,6 +4092,25 @@ export class HomesliceCard extends LitElement {
       display: grid;
       place-items: center;
       color: var(--secondary-text-color);
+    }
+    .overlay.empty {
+      padding: 16px;
+      text-align: center;
+      align-content: center;
+      gap: 4px;
+    }
+    .overlay.empty p {
+      margin: 0 0 4px;
+    }
+    .overlay.empty button {
+      margin-top: 8px;
+      padding: 8px 16px;
+      border: none;
+      border-radius: 18px;
+      background: var(--primary-color);
+      color: var(--text-primary-color, #fff);
+      font: inherit;
+      cursor: pointer;
     }
     .overlay.error {
       color: var(--error-color);

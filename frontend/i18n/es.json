@@ -2293,5 +2293,7 @@
   "option.rails": "Barandillas",
   "option.rails_none": "Ninguna",
   "option.rails_half": "Media",
-  "option.rails_full": "Completa"
+  "option.rails_full": "Completa",
+  "card.no_house_hint": "Dibújala en Homeslice, en la barra lateral, o empieza allí con tus plantas y áreas.",
+  "card.open_editor": "Abrir Homeslice"
 }

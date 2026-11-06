@@ -3,7 +3,7 @@
     "step": {
       "user": {
         "title": "Homeslice",
-        "description": "Ajoute la carte Homeslice à vos tableaux de bord. Placez le modèle de votre maison dans `homeslice/home.yaml` dans votre dossier de configuration."
+        "description": "Ajoute **Homeslice** à la barre latérale, où vous dessinez votre maison (ou partez de vos étages et pièces), et la carte Homeslice pour vos tableaux de bord."
       }
     },
     "abort": {

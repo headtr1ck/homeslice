@@ -2293,5 +2293,7 @@
   "option.rails": "Barierki",
   "option.rails_none": "Brak",
   "option.rails_half": "Połowa",
-  "option.rails_full": "Dookoła"
+  "option.rails_full": "Dookoła",
+  "card.no_house_hint": "Narysuj go w Homeslice na pasku bocznym albo zacznij tam od pięter i obszarów.",
+  "card.open_editor": "Otwórz Homeslice"
 }

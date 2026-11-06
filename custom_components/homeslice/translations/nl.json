@@ -3,7 +3,7 @@
     "step": {
       "user": {
         "title": "Homeslice",
-        "description": "Voegt de Homeslice-kaart toe aan je dashboards. Zet je huismodel in `homeslice/home.yaml` in je configuratiemap."
+        "description": "Voegt **Homeslice** toe aan de zijbalk, waar je je huis tekent (of begint met je verdiepingen en ruimtes), en de Homeslice-kaart voor je dashboards."
       }
     },
     "abort": {

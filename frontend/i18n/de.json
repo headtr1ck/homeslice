@@ -2293,5 +2293,7 @@
   "option.rails": "Rausfallschutz",
   "option.rails_none": "Keiner",
   "option.rails_half": "Halb",
-  "option.rails_full": "Rundum"
+  "option.rails_full": "Rundum",
+  "card.no_house_hint": "Zeichne es in Homeslice in der Seitenleiste oder beginne dort mit deinen Etagen und Bereichen.",
+  "card.open_editor": "Homeslice öffnen"
 }

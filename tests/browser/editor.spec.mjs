@@ -315,6 +315,23 @@ test.describe.serial("editor", () => {
     await page.keyboard.press("Escape");
   });
 
+  test("a tool's key is the editor's alone: Home Assistant's shortcuts on the window don't see it", async () => {
+    await page.keyboard.press("Escape");
+    await page.evaluate(() => {
+      window.__haKeys = [];
+      // like Home Assistant's quick bar: a listener on the window, bubbling
+      window.addEventListener("keydown", (e) => window.__haKeys.push(e.key));
+    });
+    await page.keyboard.press("d");
+    assert((await page.evaluate(() => window.panel._tool)) === "opening", "D doesn't pick the doors & windows tool");
+    await page.keyboard.press("Escape");
+    await page.keyboard.press("Escape");
+    // keys the editor doesn't use still reach Home Assistant
+    await page.keyboard.press("q");
+    const seen = await page.evaluate(() => window.__haKeys);
+    assert(!seen.includes("d") && seen.includes("q"), `Home Assistant saw: ${seen.join(" ")}`);
+  });
+
   test("drawing a room and linking it to an area", async () => {
     await page.keyboard.press("Escape");
     await page.keyboard.press("r");

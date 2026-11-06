@@ -618,6 +618,21 @@ test.describe.serial("demo house (3)", () => {
     assert((await page.locator("homeslice-card .label.faded").count()) === 0, "labels still faded");
   });
 
+  test("no house yet: the card says where to draw one, and a button opens the editor", async () => {
+    await page.evaluate(() => window.card.applyModel(null));
+    await page.waitForSelector("homeslice-card .overlay.empty button");
+    const text = await page.locator("homeslice-card .overlay.empty").textContent();
+    assert(/sidebar/.test(text), `no hint: ${text}`);
+    await page.evaluate(() => {
+      window.__went = null;
+      window.addEventListener("location-changed", () => (window.__went = location.pathname), { once: true });
+    });
+    await page.locator("homeslice-card .overlay.empty button").click();
+    assert((await page.evaluate(() => window.__went)) === "/homeslice", "the button doesn't open the editor");
+    await page.evaluate(() => history.back());
+    await page.evaluate(() => window.card.applyModel(window.__demoModel));
+  });
+
   test("no errors in the console", async () => {
     assert(errors.length === 0, errors.join(" | "));
   });

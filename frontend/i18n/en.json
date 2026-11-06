@@ -2293,5 +2293,7 @@
   "option.rails": "Rails",
   "option.rails_none": "None",
   "option.rails_half": "Half",
-  "option.rails_full": "All round"
+  "option.rails_full": "All round",
+  "card.no_house_hint": "Draw it in Homeslice in the sidebar, or start from your floors and areas there.",
+  "card.open_editor": "Open Homeslice"
 }

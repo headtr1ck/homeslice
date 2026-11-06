@@ -791,7 +791,8 @@ export class HomeslicePanel extends LitElement {
         (this as Record<string, unknown>)[key] = value;
       }
     }
-    window.addEventListener("keydown", this.onKey);
+    // first (capture): the editor's one-letter keys must not also open Home Assistant's quick bar
+    window.addEventListener("keydown", this.onKey, true);
   }
 
   override disconnectedCallback() {
@@ -800,7 +801,7 @@ export class HomeslicePanel extends LitElement {
     if (this.startSaveTimer !== undefined) this.saveStart();
     clearTimeout(this.startPollTimer);
     window.removeEventListener("beforeunload", this.onBeforeUnload);
-    window.removeEventListener("keydown", this.onKey);
+    window.removeEventListener("keydown", this.onKey, true);
     clearTimeout(this.hassRefresh);
     this.hassRefresh = 0;
     this.renderer?.dispose();
@@ -1926,6 +1927,11 @@ export class HomeslicePanel extends LitElement {
 
   private handleKey(e: KeyboardEvent) {
     const target = e.composedPath()[0] as HTMLElement | undefined;
+    // a key the editor uses is the editor's alone (Home Assistant's quick bar opens on D, E, C, A)
+    const own = () => {
+      e.preventDefault();
+      e.stopPropagation();
+    };
     // fields keep their keys; checkboxes and buttons don't need them (Ctrl+Z still undoes)
     const typing = target && (["SELECT", "TEXTAREA"].includes(target.tagName) || (target.tagName === "INPUT" && !["checkbox", "radio", "button"].includes((target as HTMLInputElement).type)));
     if (typing) return;
@@ -1959,6 +1965,7 @@ export class HomeslicePanel extends LitElement {
       e.preventDefault();
       this.duplicateFurniture();
     } else if (e.key === "r" && !mod && this._furn && this._model) {
+      own();
       this.rotateFurniture(e.shiftKey ? -90 : 90);
     } else if ((e.key === "Delete" || e.key === "Backspace") && this._robotSel !== null && this._model) {
       this.commit(deleteRobot(this._model, this._robotSel));
@@ -2024,12 +2031,17 @@ export class HomeslicePanel extends LitElement {
         if (en?.at) this.commit(updateEnergy(this._model, this._energySel, { at: [en.at[0] + d[0], en.at[1] + d[1]] }));
       }
     } else if (e.key === "?") {
+      own();
       this._shortcuts = !this._shortcuts;
     } else if (e.key.toLowerCase() === "n" && !mod && !e.altKey && this._underlaySlots.length > 1) {
+      own();
       this.cycleUnderlay();
     } else if (!mod && !e.altKey) {
       const t = TOOLS.find((x) => x.key.toLowerCase() === e.key.toLowerCase());
-      if (t) this.setTool(t.tool);
+      if (t) {
+        own();
+        this.setTool(t.tool);
+      }
     }
   }
 

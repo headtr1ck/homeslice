@@ -3,7 +3,7 @@
     "step": {
       "user": {
         "title": "Homeslice",
-        "description": "Añade la tarjeta Homeslice a tus paneles. Pon el modelo de tu casa en `homeslice/home.yaml` dentro de tu carpeta de configuración."
+        "description": "Añade **Homeslice** a la barra lateral, donde dibujas tu casa (o empiezas con tus plantas y áreas), y la tarjeta Homeslice para tus paneles."
       }
     },
     "abort": {

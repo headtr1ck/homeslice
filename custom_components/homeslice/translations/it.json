@@ -3,7 +3,7 @@
     "step": {
       "user": {
         "title": "Homeslice",
-        "description": "Aggiunge la card Homeslice alle tue dashboard. Metti il modello della tua casa in `homeslice/home.yaml` nella cartella di configurazione."
+        "description": "Aggiunge **Homeslice** alla barra laterale, dove disegni la tua casa (o parti dai tuoi piani e aree), e la scheda Homeslice per le tue plance."
       }
     },
     "abort": {

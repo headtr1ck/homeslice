@@ -24,6 +24,7 @@ from .start import Start
 from .rest_api import async_register_views
 from .llm import async_register_llm_api
 from .const import DOMAIN, FRONTEND_FILE, FRONTEND_URL, PANEL_FILE, SHOW_EVENT
+from .validate import catalog
 from .repairs import async_check_house
 from .show import announce, resolve_show
 from .store import HomesliceStore
@@ -38,6 +39,8 @@ FRONTEND_DIR = Path(__file__).parent / "frontend"
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Load the houses, serve the frontend and register the API."""
     data = hass.data.setdefault(DOMAIN, {})
+    # the validator's catalogue, read once here rather than on the event loop at the first save
+    await hass.async_add_executor_job(catalog)
 
     store = HomesliceStore(hass)
     await store.async_load()
