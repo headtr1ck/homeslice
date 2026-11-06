@@ -240,17 +240,49 @@ export function customGroups(models: CustomAsset[], pieces: PieceInput[] = []): 
   ];
 }
 
-/** Items matching a search (name, type, tags). */
-export function filterGroups(groups: LibraryGroup[], query: string, typeName: (t: FurnitureType) => string): LibraryGroup[] {
-  const q = query.trim().toLowerCase();
-  if (!q) return groups;
+/** Lower case, letters and digits only, one space between words. */
+const plain = (t: string) => t.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim();
+
+/**
+ * How well an item fits a search (0: not at all): its own name first ("Fridge,
+ * free-standing" for "fridge"), then a name of its own (an alias: "refrigerator"), then its
+ * type's name, and last a word only somewhere in its words (a tall unit's "integrated fridge");
+ * each a little more when its type is what was searched for.
+ */
+export function searchScore(i: LibraryItem, query: string, typeName: (t: FurnitureType) => string): number {
+  const q = plain(query);
+  if (!q) return 1;
+  const name = plain(i.name ?? typeName(i.type));
+  // the tags split into their phrases ("fridge, refrigerator, smeg")
+  const phrases = (i.tags ?? []).flatMap((t) => t.split(",")).map(plain).filter(Boolean);
+  const type = plain(typeName(i.type));
+  const all = [name, type, i.type.replace(/_/g, " "), ...phrases].join(" ");
   // every word somewhere: "black lamp", "dusche glas"
-  const words = q.split(/\s+/);
-  const matches = (i: LibraryItem) => {
-    const text = [i.name ?? "", typeName(i.type), i.type, ...(i.tags ?? [])].join(" ").toLowerCase();
-    return words.every((w) => text.includes(w));
-  };
-  return groups.map((g) => ({ ...g, items: g.items.filter(matches) })).filter((g) => g.items.length);
+  if (!q.split(" ").every((w) => all.includes(w))) return 0;
+  const word = (text: string) => ` ${text} `.includes(` ${q} `);
+  const starts = (text: string) => text === q || text.startsWith(`${q} `);
+  // what it is counts on top: a tree called "Deciduous tree" before a "Tree stump" (an item)
+  const kind = type === q ? 2.5 : word(type) ? 1 : 0;
+  if (starts(name)) return 6 + kind;
+  if (word(name) || phrases.some((p) => p === q)) return 5 + kind;
+  if (` ${name}`.includes(` ${q}`)) return 4 + kind; // the start of one of its name's words ("fri")
+  if (kind || phrases.some(starts)) return 3 + kind;
+  return word(all) ? 2 : 1;
+}
+
+/** Items matching a search (name, type, tags), best first: in each group, and the groups by their best. */
+export function filterGroups(groups: LibraryGroup[], query: string, typeName: (t: FurnitureType) => string): LibraryGroup[] {
+  if (!query.trim()) return groups;
+  const ranked = groups
+    .map((g) => {
+      const items = g.items.map((item, at) => ({ item, at, score: searchScore(item, query, typeName) })).filter((x) => x.score > 0);
+      items.sort((a, b) => b.score - a.score || a.at - b.at);
+      return { g, at: 0, best: items[0]?.score ?? 0, items: items.map((x) => x.item) };
+    })
+    .filter((x) => x.items.length);
+  ranked.forEach((x, at) => (x.at = at));
+  ranked.sort((a, b) => b.best - a.best || a.at - b.at);
+  return ranked.map((x) => ({ ...x.g, items: x.items }));
 }
 
 /** A placed piece seen from straight above (assets/plan): its own piece's, else its type's. */

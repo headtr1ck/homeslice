@@ -37,11 +37,18 @@ export function checklist(model: HouseInput, hass: Hass, levelAreas: (levelId: s
   const { house, issues } = expandHouse(model);
   if (!house) return issues.map((i) => ({ kind: "model" as const, message: i.message }));
 
-  // 1. areas of a level's floors without a room
+  // 1. areas of a level's floors without a room…
   for (const l of model.levels) {
     const placed = new Set(l.rooms.map((r) => r.area_id));
     for (const a of levelAreas(l.id)) if (!placed.has(a.area_id)) items.push({ kind: "area", level: l.id, area: a.area_id, name: a.name });
   }
+  // …and areas on no floor (all of them, in a Home Assistant without floors) without a room
+  // anywhere: on the level without a floor, else the first
+  const inHouse = new Set(model.levels.flatMap((l) => l.rooms.map((r) => r.area_id)));
+  const home = model.levels.find((l) => !l.floor_id) ?? model.levels[0];
+  if (home)
+    for (const a of Object.values(hass.areas ?? {}).sort((x, y) => x.name.localeCompare(y.name)))
+      if (!a.floor_id && !inHouse.has(a.area_id)) items.push({ kind: "area", level: home.id, area: a.area_id, name: a.name });
 
   // 2. blinds and contacts not linked: suggest a free window of a room in their area
   const openings = house.levels.flatMap((level) => level.openings.map((o) => ({ level: level.id, o, areaId: level.rooms.find((r) => r.id === o.room)?.areaId })));

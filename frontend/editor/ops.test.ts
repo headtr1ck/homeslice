@@ -49,6 +49,7 @@ import {
   addLevel,
   deleteLevel,
   newHouse,
+  freeSpot,
   addFurniture,
   updateFurniture,
   deleteFurniture,
@@ -346,6 +347,19 @@ describe("houses and levels", () => {
     expect(m.levels[1].rooms).toEqual([]);
   });
 
+  it("a new house without Home Assistant floors: one level, the size given, a room per area", () => {
+    const areas = [{ area_id: "bedroom", name: "Bedroom" }, { area_id: "kitchen", name: "Kitchen" }, { area_id: "living_room", name: "Living Room" }];
+    const m = newHouse("home", "Home", [10, 8], [{ areas }]);
+    expect(m.levels).toHaveLength(1);
+    expect(m.levels[0].floor_id).toBeUndefined();
+    expect(m.levels[0].rooms.map((r) => r.area_id)).toEqual(["bedroom", "kitchen", "living_room"]);
+    expect(bbox(houseOutlinePolygon(m))).toEqual({ min: [0, 0], max: [10, 8] });
+    // no rooms asked for: the outline still has the size given
+    const empty = newHouse("home", "Home", [12, 9], [{ areas: [] }]);
+    expect(empty.outline).toEqual({ rect: [0, 0, 12, 9] });
+    expect(empty.levels[0].rooms).toEqual([]);
+  });
+
   it("areas that sound like outside become outdoor areas south of the house", () => {
     const rooms = layoutRooms([0, 0, 10, 8], [
       { area_id: "kitchen", name: "Kitchen" },
@@ -639,6 +653,45 @@ describe("wall-mounted furniture", () => {
     expect(wallSnap(inner, [3.8, 1.5], 0.04)).toEqual({ at: [3.98, 1.5], rotation: 90 }); // east wall
     expect(wallSnap(inner, [2, 2.9], 0.3)).toEqual({ at: [2, 2.85], rotation: 180 }); // south wall
     expect(wallSnap(inner, [0.1, 1], 0.3)).toEqual({ at: [0.15, 1], rotation: 270 }); // west wall
+  });
+});
+
+describe("a clicked piece's free spot", () => {
+  const inner: Vec2[] = [[0, 0], [5, 0], [5, 4], [0, 4]];
+  const overlaps = (a: { c: Vec2; half: Vec2 }, b: { c: Vec2; half: Vec2 }) =>
+    Math.abs(a.c[0] - b.c[0]) < a.half[0] + b.half[0] - 0.01 && Math.abs(a.c[1] - b.c[1]) < a.half[1] + b.half[1] - 0.01;
+  const label = { c: [2.5, 2] as Vec2, half: [0.6, 0.3] as Vec2 };
+
+  it("keeps off the other pieces and the room's name, near the middle", () => {
+    const table = { c: [2.5, 2] as Vec2, half: [0.8, 0.45] as Vec2 };
+    const spot = freeSpot(inner, [0.5, 0.5], [table], [2.5, 2], { label })!;
+    const f = { c: spot.at, half: [0.25, 0.25] as Vec2 };
+    expect(overlaps(f, table)).toBe(false);
+    expect(overlaps(f, label)).toBe(false);
+    expect(Math.hypot(spot.at[0] - 2.5, spot.at[1] - 2)).toBeLessThan(1.3);
+    // inside the room
+    expect(spot.at[0] - 0.25).toBeGreaterThanOrEqual(0);
+    expect(spot.at[1] + 0.25).toBeLessThanOrEqual(4);
+  });
+
+  it("puts a wall piece with its back to a wall, facing in, beside what is there already", () => {
+    // a fridge in a 5 × 4 room: against the nearest free wall
+    const spot = freeSpot(inner, [0.6, 0.65], [], [2.5, 2], { wall: true, label })!;
+    const turned = spot.rotation % 180 === 90;
+    const half: Vec2 = turned ? [0.325, 0.3] : [0.3, 0.325];
+    const touches = [spot.at[1] - half[1], 4 - spot.at[1] - half[1], spot.at[0] - half[0], 5 - spot.at[0] - half[0]].map((d) => Math.abs(d) < 1e-6);
+    expect(touches.some(Boolean)).toBe(true);
+    // rotation 0 has the back to the north: against the north wall it is 0, the south 180
+    if (touches[0]) expect(spot.rotation).toBe(0);
+    if (touches[1]) expect(spot.rotation).toBe(180);
+    // a second one goes beside it, not on it
+    const next = freeSpot(inner, [0.6, 0.65], [{ c: spot.at, half }], [2.5, 2], { wall: true, label })!;
+    expect(next.at).not.toEqual(spot.at);
+    expect(overlaps({ c: next.at, half }, { c: spot.at, half })).toBe(false);
+  });
+
+  it("has nothing when the room is full", () => {
+    expect(freeSpot(inner, [0.5, 0.5], [{ c: [2.5, 2], half: [2.5, 2] }], [2.5, 2])).toBeNull();
   });
 });
 

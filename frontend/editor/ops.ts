@@ -630,6 +630,56 @@ export function wallSnap(inner: Vec2[], p: Vec2, depth: number): { at: Vec2; rot
   return { at: [round(foot[0] + (n[0] * depth) / 2), round(foot[1] + (n[1] * depth) / 2)], rotation };
 }
 
+/** Floor pieces that usually stand with their back to a wall (a fridge, a bed, a sofa). */
+export const AGAINST_WALL = new Set<string>(["sofa", "tv", "shelf", "kitchen", "fridge", "bed", "bed_single", "wardrobe", "desk", "bathtub", "shower", "toilet", "sink", "washer", "dryer"]);
+
+/**
+ * Where a piece clicked in the library goes in its room: a free spot (over none of
+ * `others`, and off `label`, the room's name, where it can be) as near to `near` as can be.
+ * With `wall`, it stands with its back against a wall (turned to face into the room) if
+ * one has room for it. Null when the room has no space for it at all.
+ */
+export function freeSpot(inner: Vec2[], size: [number, number], others: Footprint[], near: Vec2, opts: { wall?: boolean; label?: Footprint } = {}): { at: Vec2; rotation: number } | null {
+  const step = 0.1;
+  const overlap = (a: Footprint, b: Footprint) =>
+    Math.min(a.c[0] + a.half[0], b.c[0] + b.half[0]) - Math.max(a.c[0] - a.half[0], b.c[0] - b.half[0]) > 0.01 &&
+    Math.min(a.c[1] + a.half[1], b.c[1] + b.half[1]) - Math.max(a.c[1] - a.half[1], b.c[1] - b.half[1]) > 0.01;
+  // the whole footprint in the room: its corners, the middles of its sides and its centre (a few mm in)
+  const fits = (f: Footprint) => {
+    const [hx, hy] = [f.half[0] - 0.005, f.half[1] - 0.005];
+    for (const [sx, sy] of [[-1, -1], [0, -1], [1, -1], [1, 0], [1, 1], [0, 1], [-1, 1], [-1, 0], [0, 0]])
+      if (!insidePolygon([f.c[0] + sx * hx, f.c[1] + sy * hy], inner)) return false;
+    return true;
+  };
+  let best: { score: number; at: Vec2; rotation: number } | null = null;
+  const offer = (c: Vec2, rotation: number, extra: number) => {
+    const half = footprintHalf(size, rotation) ?? ([Math.max(...size) / 2, Math.max(...size) / 2] as Vec2);
+    const f = { c, half };
+    if (!fits(f) || others.some((o) => overlap(f, o))) return;
+    // over the room's name only when nothing else is free
+    const score = dist(c, near) + extra + (opts.label && overlap(f, opts.label) ? 100 : 0);
+    if (!best || score < best.score - 1e-9) best = { score, at: [round(c[0]), round(c[1])], rotation };
+  };
+  if (opts.wall)
+    inner.forEach((a, i) => {
+      const b = inner[(i + 1) % inner.length];
+      const len = dist(a, b);
+      if (len < size[0]) return;
+      const u: Vec2 = [(b[0] - a[0]) / len, (b[1] - a[1]) / len];
+      // the normal that points into the room; rotation 0 has the back to the north
+      let n: Vec2 = [-u[1], u[0]];
+      const mid: Vec2 = [(a[0] + b[0]) / 2 + n[0] * 0.01, (a[1] + b[1]) / 2 + n[1] * 0.01];
+      if (!insidePolygon(mid, inner)) n = [u[1], -u[0]];
+      const rotation = ((Math.round((Math.atan2(-n[0], n[1]) * 180) / Math.PI) % 360) + 360) % 360;
+      for (let t = size[0] / 2; t <= len - size[0] / 2 + 1e-9; t += step)
+        offer([a[0] + u[0] * t + (n[0] * size[1]) / 2, a[1] + u[1] * t + (n[1] * size[1]) / 2], rotation, 0);
+    });
+  // anywhere in the room (only if no wall has room, when a wall was asked for)
+  const { min, max } = bbox(inner);
+  for (let x = min[0] + step / 2; x < max[0]; x += step) for (let y = min[1] + step / 2; y < max[1]; y += step) offer([x, y], 0, opts.wall ? 50 : 0);
+  return best;
+}
+
 /**
  * Mirrors a piece along the plan's x (left–right) or y (top–bottom) axis. Pieces only
  * know one mirror (left–right in their own frame): front–back is that plus a half turn.
@@ -1192,21 +1242,22 @@ export function suggestMerges(floors: { floor_id: string; name: string; level?: 
 export function newHouse(id: string, name: string, size: [number, number], levels: LevelSeed[]): HouseInput {
   const [w, d] = size.map(round);
   const ids: string[] = [];
+  const out: LevelInput[] = (levels.length ? levels : [{ name: "Ground floor", areas: [] }]).map((seed) => {
+    const lid = uniqueId(ids, slug(seed.floor_id ?? seed.name ?? "level", "level"));
+    ids.push(lid);
+    const l: LevelInput = { id: lid, rooms: layoutRooms([0, 0, w, d], seed.areas) };
+    if (seed.floor_id) l.floor_id = seed.floor_id;
+    else if (seed.name) l.name = seed.name;
+    if (seed.include_floors?.length) l.include_floors = [...seed.include_floors];
+    return l;
+  });
   return {
     schema: 2,
     id,
     name,
-    // the outside walls follow the rooms (which start filling the size given)
-    outline: "auto",
-    levels: (levels.length ? levels : [{ name: "Ground floor", areas: [] }]).map((seed) => {
-      const lid = uniqueId(ids, slug(seed.floor_id ?? seed.name ?? "level", "level"));
-      ids.push(lid);
-      const l: LevelInput = { id: lid, rooms: layoutRooms([0, 0, w, d], seed.areas) };
-      if (seed.floor_id) l.floor_id = seed.floor_id;
-      else if (seed.name) l.name = seed.name;
-      if (seed.include_floors?.length) l.include_floors = [...seed.include_floors];
-      return l;
-    }),
+    // the outside walls follow the rooms (which start filling the size given); no rooms yet: the size given
+    outline: out.some((l) => l.rooms.length) ? "auto" : { rect: [0, 0, w, d] },
+    levels: out,
   };
 }
 

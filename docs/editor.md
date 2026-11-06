@@ -114,7 +114,9 @@ one toolbar button (`D`, `S`).
 ## 3. Objects & entities
 
 Lights are placed automatically and can be dragged. Drag furniture from the
-[library](#furniture-library) (wall pieces go against a wall; `R` to turn). Place solar,
+[library](#furniture-library) (wall pieces go against a wall; `R` to turn), or select a room
+and click a piece: it goes to a free spot of the room, off the other pieces and the room's
+name (a fridge, a bed or a sofa with its back to a wall). Place solar,
 battery, grid and power-measured devices for the energy overlay (`E`), and robot vacuums
 and mowers (`O`, see [robots](robots.md)).
 

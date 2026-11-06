@@ -77,4 +77,19 @@ describe("checklist", () => {
     const linked = checklist(m, hass, areas).filter((i) => "entity" in i).map((i) => "entity" in i && i.entity);
     expect(linked).toEqual(["cover.loose", "cover.living_east"]);
   });
+  it("counts areas on no floor too (a Home Assistant without floors)", () => {
+    const bare = {
+      areas: {
+        living: { area_id: "living", name: "Living Room", floor_id: null },
+        bedroom: { area_id: "bedroom", name: "Bedroom", floor_id: null },
+      },
+      entities: {},
+      states: {},
+    } as unknown as Hass;
+    const m: HouseInput = { schema: 2, id: "t", outline: "auto", levels: [{ id: "ground", rooms: [{ id: "living", area_id: "living", rect: [0, 0, 5, 4] }] }] };
+    // the level has no floor: its areas are those on none
+    expect(checklist(m, bare, () => []).filter((i) => i.kind === "area")).toEqual([{ kind: "area", level: "ground", area: "bedroom", name: "Bedroom" }]);
+    m.levels[0].rooms.push({ id: "bedroom", area_id: "bedroom", rect: [5, 0, 4, 4] });
+    expect(checklist(m, bare, () => []).filter((i) => i.kind === "area")).toEqual([]);
+  });
 });

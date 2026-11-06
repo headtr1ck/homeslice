@@ -66,6 +66,8 @@ import {
   setWallThickness,
   updateFreeWall,
   wallSnap,
+  freeSpot,
+  AGAINST_WALL,
   connectEnergy,
   setCoverInverted,
   updateHouse,
@@ -120,6 +122,7 @@ import {
   addLevel,
   deleteLevel,
   newHouse,
+  type LevelSeed,
   slug,
   uniqueId,
   updateLevel,
@@ -338,6 +341,9 @@ interface Underlay {
   /** A robot's map picture it was taken from (`image.*`): its rooms can be read off it. */
   source?: string;
 }
+
+/** The floor the start keys a house's images under when Home Assistant has no floors (one level for all). */
+const ONE_FLOOR = "_house";
 
 /** The start screen: the house's name, the open choice and what it holds. */
 interface StartState {
@@ -824,8 +830,12 @@ export class HomeslicePanel extends LitElement {
       // a start left half way (gone to Settings to reload the robot's integration, say): back where it was
       const kept = await this.loadStart();
       if (this._houses.length) await this.openHouse(this._houses[0].id);
-      if (kept?.state) this._start = { ...this.newStart(!!kept.state.replace), ...kept.state, busy: false, note: "", problems: [], copied: false } as StartState;
+      // with a house, only a start over of it comes back; another one left over (a house made
+      // since) is done with, unless a robot is still mapping for it (the header leads back there)
+      const resume = kept?.state && (!this._houses.length || kept.state.replace);
+      if (resume) this._start = { ...this.newStart(!!kept.state!.replace), ...kept.state, busy: false, note: "", problems: [], copied: false } as StartState;
       else if (!this._houses.length) this._start = this.newStart(false);
+      else if (kept?.state && !Object.keys(this._startKept.watches).length) this.endStart();
     } catch (e) {
       this._error = String((e as { message?: string }).message ?? e);
     }
@@ -1103,7 +1113,8 @@ export class HomeslicePanel extends LitElement {
       for (const l of model.levels) l.rooms = [];
       const backdrops: { level: string; image: string; place: Underlay["place"]; source?: string }[] = [];
       for (const level of model.levels) {
-        const floors = [level.floor_id, ...(level.include_floors ?? [])].filter((f): f is string => !!f);
+        // (no floors in Home Assistant: the one level has the whole house's images)
+        const floors = level.floor_id ? [level.floor_id, ...(level.include_floors ?? [])] : [ONE_FLOOR];
         // the floor plan first (it shows the walls and doors), then the robot's map
         for (const f of floors) {
           const plan = st.plans?.[f];
@@ -1151,6 +1162,7 @@ export class HomeslicePanel extends LitElement {
         const r = await this._hass!.callWS<{ houses: string[] }>({ type: "homeslice/backup/restore", data });
         this._houses = await this._hass!.callWS<HouseSummary[]>({ type: "homeslice/houses" });
         this._start = null;
+        this.endStart();
         this._model = null;
         await this.openHouse(r.houses[0] ?? this._houses[0].id);
         return;
@@ -1252,10 +1264,12 @@ export class HomeslicePanel extends LitElement {
     const chosen = (f: string) => !!kept.captures[f] || !!st.floorMaps[f];
     const cap = st.capture;
     const capMap = cap ? maps.find((m) => m.id === cap.map) : undefined;
-    const floorName = (id: string) => floors.find((f) => f.floor_id === id)?.name ?? id;
+    const floorName = (id: string) => (id === ONE_FLOOR ? this.t("editor.start_trace_house") : floors.find((f) => f.floor_id === id)?.name ?? id);
+    // no floors in Home Assistant: one for the whole house
+    const traceFloors = floors.length ? floors : [{ floor_id: ONE_FLOOR, name: this.t("editor.start_trace_house") }];
     const traceBody = html`
-      <p class="muted">${this.t("editor.start_trace_floors")}</p>
-      ${floors.map((f) => {
+      <p class="muted">${this.t(floors.length ? "editor.start_trace_floors" : "editor.start_trace_one")}</p>
+      ${traceFloors.map((f) => {
         const c = kept.captures[f.floor_id];
         const watching = kept.watches[f.floor_id];
         return html`<div class="start-floor" data-start-floor=${f.floor_id}>
@@ -1342,7 +1356,7 @@ export class HomeslicePanel extends LitElement {
         : nothing}
       ${ready.length ? html`<p class="muted">${this.t("editor.start_recheck")}</p>` : nothing}
       ${maps.some((m) => !m.scale) ? html`<p class="muted">${this.t("editor.start_map_scale_unknown")}</p>` : nothing}
-      <p class="muted">${this.t("editor.start_trace_after")}</p>
+      <p class="muted">${this.t(floors.length ? "editor.start_trace_after" : "editor.start_trace_after_one")}</p>
       <button class="primary" data-start-trace-run ?disabled=${st.busy} @click=${() => void this.startTrace(st)}>${this.t("editor.start_trace_run")}</button>`;
     const fileBody = html`<label class="file">${this.t("editor.start_file_pick")}<input type="file" accept=".zip,.yaml,.yml,.json,.sh3d,.svg" data-start-file @change=${(e: Event) => {
         const f = (e.target as HTMLInputElement).files?.[0];
@@ -1421,6 +1435,15 @@ export class HomeslicePanel extends LitElement {
     return [l.floor_id, ...(l.include_floors ?? [])].flatMap((f) => this.floorAreas(f));
   }
 
+  /** HA areas on no floor (or on one Home Assistant no longer has). */
+  private floorlessAreas(): AreaSeed[] {
+    const floors = this._hass?.floors ?? {};
+    return Object.values(this._hass?.areas ?? {})
+      .filter((a) => !a.floor_id || !floors[a.floor_id])
+      .sort((a, b) => a.name.localeCompare(b.name))
+      .map((a) => ({ area_id: a.area_id, name: a.name }));
+  }
+
   private floorAreas(floorId: string | undefined): AreaSeed[] {
     if (!floorId) return [];
     return Object.values(this._hass?.areas ?? {})
@@ -1453,7 +1476,7 @@ export class HomeslicePanel extends LitElement {
     );
     // HA lists floors top first; the model goes bottom to top
     const merged = (f: string) => c.merges[f] && c.floors.includes(c.merges[f]) && !c.merges[c.merges[f]];
-    const seeds = this.haFloors()
+    const seeds: LevelSeed[] = this.haFloors()
       .filter((f) => c.floors.includes(f.floor_id) && !merged(f.floor_id))
       .reverse()
       .map((f) => {
@@ -1464,10 +1487,15 @@ export class HomeslicePanel extends LitElement {
           areas: c.rooms ? [f.floor_id, ...include].flatMap((x) => this.floorAreas(x)) : [],
         };
       });
+    // no floors in Home Assistant: one level, with a room for every area
+    if (!this.haFloors().length) seeds.push({ areas: c.rooms ? this.floorlessAreas() : [] });
     const model = newHouse(id, name, [Math.max(1, c.width), Math.max(1, c.depth)], seeds);
     try {
       await this._hass!.callWS({ type: "homeslice/model/save", house: id, model });
       this._create = null;
+      // the start is over: it doesn't come back over the new house
+      this._start = null;
+      this.endStart();
       this._houses = await this._hass!.callWS<HouseSummary[]>({ type: "homeslice/houses" });
       this._saved = "";
       this._model = null;
@@ -3674,7 +3702,7 @@ export class HomeslicePanel extends LitElement {
             // back to the start, where it was left
             const kept = await this.loadStart();
             this._start = { ...this.newStart(false), ...(kept?.state ?? {}), open: "trace", capture: { floor, map: w.map }, busy: false, note: "", problems: [], copied: false } as StartState;
-          }}><ha-icon icon="mdi:radar"></ha-icon>${this.t("editor.header_mapping", { robot: this.entityName(w.robot ?? w.map), floor: this._hass?.floors?.[floor]?.name ?? floor })}</button>`,
+          }}><ha-icon icon="mdi:radar"></ha-icon>${this.t("editor.header_mapping", { robot: this.entityName(w.robot ?? w.map), floor: floor === ONE_FLOOR ? this.t("editor.start_trace_house") : this._hass?.floors?.[floor]?.name ?? floor })}</button>`,
         )}
         <span class="spacer"></span>
         <button class="icon" title=${this.t("editor.undo")} aria-label=${this.t("editor.undo")} ?disabled=${!this.history.canUndo} @click=${() => this.undo()}>↶</button>
@@ -6644,7 +6672,7 @@ export class HomeslicePanel extends LitElement {
                     if (e.dataTransfer) e.dataTransfer.effectAllowed = "copy";
                   }}
                   @dragend=${() => (this.libraryDrag = null)}
-                  @click=${() => room && this.addFurnitureAt(item, labelPoint(this.inner(room)), room.id)}>
+                  @click=${() => room && this.addFurnitureAt(item, labelPoint(this.inner(room)), room.id, true)}>
                   ${item.thumb ? html`<img src=${item.thumb} alt="" loading="lazy" draggable="false" />` : html`<span class="no-thumb"><ha-icon icon="mdi:cube-outline"></ha-icon></span>`}
                   <span>${name}</span>
                 </button>
@@ -6770,7 +6798,7 @@ export class HomeslicePanel extends LitElement {
 
   /** A click on a result: placed in the picked room, else just downloaded (then in Custom). */
   private async sketchfabFetch(hit: SketchfabHit, room: RoomInput | null) {
-    if (room) await this.addFurnitureAt(this.sketchfabItem(hit), labelPoint(this.inner(room)), room.id);
+    if (room) await this.addFurnitureAt(this.sketchfabItem(hit), labelPoint(this.inner(room)), room.id, true);
     else {
       const stored = await this.sketchfabModel(hit.uid);
       if (stored) this._sfError = this.t("editor.sketchfab_added", { name: stored.name });
@@ -6866,7 +6894,7 @@ export class HomeslicePanel extends LitElement {
                 if (e.dataTransfer) e.dataTransfer.effectAllowed = "copy";
               }}
               @dragend=${() => (this.libraryDrag = null)}
-              @click=${() => room && this.addFurnitureAt(item, labelPoint(this.inner(room)), room.id)}>
+              @click=${() => room && this.addFurnitureAt(item, labelPoint(this.inner(room)), room.id, true)}>
               ${item.thumb ? html`<img src=${item.thumb} alt="" loading="lazy" draggable="false" />` : html`<span class="no-thumb"><ha-icon icon="mdi:cube-outline"></ha-icon></span>`}
               <span>${name}</span>
             </button>
@@ -6916,8 +6944,11 @@ export class HomeslicePanel extends LitElement {
     this._customModels = (this._customModels ?? []).filter((m) => m.id !== id);
   }
 
-  /** Adds a piece where it was dropped (wall pieces go against the nearest wall) and selects it. */
-  private async addFurnitureAt(item: LibraryItem, world: Vec2, roomId?: string) {
+  /**
+   * Adds a piece where it was dropped (wall pieces go against the nearest wall) and selects it;
+   * `free` (a click in the library, not a drop) finds it a free spot near `world` instead.
+   */
+  private async addFurnitureAt(item: LibraryItem, world: Vec2, roomId?: string, free = false) {
     // a model still to download or load: a placeholder where it will land meanwhile
     const remote = /^(sketchfab|polyhaven|custom):/.test(item.model);
     if (remote) {
@@ -6926,7 +6957,7 @@ export class HomeslicePanel extends LitElement {
       this._arriving = { at: world, size: item.size ?? [0.8, 0.8], name: item.name ?? "", bytes: hit?.bytes ?? undefined };
     }
     try {
-      await this.placeFurniture(item, world, roomId);
+      await this.placeFurniture(item, world, roomId, free);
     } finally {
       if (remote) this._arriving = null;
     }
@@ -6949,7 +6980,7 @@ export class HomeslicePanel extends LitElement {
     </g>`;
   }
 
-  private async placeFurniture(item: LibraryItem, world: Vec2, roomId?: string) {
+  private async placeFurniture(item: LibraryItem, world: Vec2, roomId?: string, free = false) {
     // a Sketchfab model: into Home Assistant first (once), then placed like an upload
     if (item.model.startsWith("sketchfab:")) {
       const stored = await this.sketchfabModel(item.model.slice(10));
@@ -6990,7 +7021,10 @@ export class HomeslicePanel extends LitElement {
     const { min } = bbox(roomPolygon(m, room));
     const def = FURNITURE[type];
     const depth = size?.[1] ?? def.size[1];
-    const onWall = (item.mount ?? def.mount) === "wall" && this._snapPieces ? wallSnap(this.inner(room), world, depth) : null;
+    const mount = item.mount ?? def.mount ?? "floor";
+    // clicked: a free spot of the room, off the other pieces and its name (big pieces and wall ones against a wall)
+    const spot = free ? this.freeSpotFor(room, type, size ?? def.size, mount) : null;
+    const onWall = spot ?? (mount === "wall" && this._snapPieces ? wallSnap(this.inner(room), world, depth) : null);
     const p = onWall?.at ?? world;
     const at: [number, number] = [Math.round((p[0] - min[0]) * 100) / 100, Math.round((p[1] - min[1]) * 100) / 100];
     const piece: FurnitureInput = { type, at, model: item.model, ...(onWall?.rotation ? { rotation: onWall.rotation } : {}) };
@@ -7006,13 +7040,28 @@ export class HomeslicePanel extends LitElement {
     this._furn = { room: room.id, index };
   }
 
-  /** Footprints of the level's other pieces with the same mount (turned by right angles only). */
-  private footprints(room: string, index: number, mount: FurnitureMount): { c: Vec2; half: Vec2 }[] {
+  /**
+   * A free spot for a new piece in `room`: near the room's name but off it and off the other
+   * pieces (rugs lie under things), against a wall for wall pieces and those that stand at one.
+   */
+  private freeSpotFor(room: RoomInput, type: FurnitureType, size: [number, number], mount: FurnitureMount) {
+    const inner = this.inner(room);
+    const near = labelPoint(inner);
+    const others = type === "rug" ? [] : this.footprints(room.id, -1, mount, false);
+    // the name as the plan draws it (7.2 px a letter, two lines of text with the area), in metres
+    const scale = this._view.scale || 40;
+    const { min, max } = bbox(inner);
+    const label = mount === "ceiling" ? undefined : { c: near, half: [Math.min(this.roomName(room).length * 7.2, (max[0] - min[0]) * scale * 0.9) / 2 / scale, 14 / scale] as Vec2 };
+    return freeSpot(inner, size, others, near, { wall: mount === "wall" || (mount === "floor" && AGAINST_WALL.has(type)), label });
+  }
+
+  /** Footprints of the level's other pieces with the same mount (turned by right angles only); `rugs` false leaves rugs out. */
+  private footprints(room: string, index: number, mount: FurnitureMount, rugs = true): { c: Vec2; half: Vec2 }[] {
     const m = this._model!;
     return (this.levelInput?.rooms ?? []).flatMap((r) => {
       const { min } = bbox(roomPolygon(m, r));
       return (r.furniture ?? []).flatMap((f, i) => {
-        if ((r.id === room && i === index) || mountOf(f) !== mount) return [];
+        if ((r.id === room && i === index) || mountOf(f) !== mount || (!rugs && f.type === "rug")) return [];
         const half = footprintHalf(f.size ?? FURNITURE[f.type].size, f.rotation ?? 0);
         return half ? [{ c: [min[0] + f.at[0], min[1] + f.at[1]] as Vec2, half }] : [];
       });
