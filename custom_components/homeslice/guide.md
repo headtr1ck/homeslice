@@ -222,7 +222,14 @@ accent, options, entity, readings}]`.
   time left (a duration sensor).
 - `readings: [sensor.…]`: values in a note above the piece, e.g. a car's charge and range.
 - `visible_when: input_boolean.…`: the piece is only there while that entity is on (a guest
-  bed, the Christmas tree).
+  bed); also a schedule, calendar, binary sensor or switch.
+- `visible_during: christmas`: the piece is only there in that season: christmas (Advent to
+  Epiphany), new_year, lunar_new_year, valentines, carnival, st_patricks, holi, easter,
+  passover, ramadan, eid_al_adha, pride, independence_day_us, mid_autumn, halloween,
+  day_of_the_dead, diwali, thanksgiving, sinterklaas, hanukkah, spring, summer, autumn,
+  winter (the last four turn round in the southern hemisphere), or days of the year as
+  `"12-01/01-06"`. With `visible_when` too, both must hold. The Seasonal pieces (Christmas
+  tree, pumpkin, menorah…) are meant for this.
 
 ### Your own pieces (optional)
 

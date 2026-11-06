@@ -30,6 +30,22 @@ SIDES = ["north", "south", "east", "west"]
 ENERGY_KINDS = ["solar", "battery", "grid", "inverter", "device"]
 
 
+DAYS_IN_MONTH = [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+
+
+def season_spec(spec: Any, seasons: list[str]) -> bool:
+    """A season's name or days of the year as "MM-DD/MM-DD" (frontend/model/seasons.ts)."""
+    if not isinstance(spec, str):
+        return False
+    if spec in seasons:
+        return True
+    m = re.fullmatch(r"(\d\d)-(\d\d)/(\d\d)-(\d\d)", spec)
+    if not m:
+        return False
+    a, b, c, d = (int(x) for x in m.groups())
+    return all(1 <= mo <= 12 and 1 <= da <= DAYS_IN_MONTH[mo - 1] for mo, da in ((a, b), (c, d)))
+
+
 @cache
 def catalog() -> dict[str, Any]:
     """Furniture types, models and kinds (written from the frontend by scripts/catalog.mjs)."""
@@ -257,6 +273,7 @@ def validate(house: Any) -> list[dict[str, str]]:
     waiting: list[str] = []
     floor_finishes = catalog()["floor_finishes"]
     wall_finishes = catalog()["wall_finishes"]
+    seasons = catalog()["seasons"]
 
     def finish_ok(v: Any, allowed: list[str]) -> bool:
         return isinstance(v, str) and (v in allowed or bool(TEXTURE_REF.match(v)))
@@ -319,6 +336,10 @@ def validate(house: Any) -> list[dict[str, str]]:
             visible_when = get(fi, "visible_when")
             if visible_when is not MISSING and not (isinstance(visible_when, str) and "." in visible_when):
                 err(fp, "visible_when must be an entity id, e.g. input_boolean.christmas.")
+                continue
+            visible_during = get(fi, "visible_during")
+            if visible_during is not MISSING and not season_spec(visible_during, seasons):
+                err(fp, f'visible_during must be a season ({", ".join(seasons)}) or days of the year like "12-01/01-06".')
                 continue
 
     def check_dormers(list_in: Any, path: str) -> None:

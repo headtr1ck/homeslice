@@ -409,7 +409,7 @@ export function glowing<M extends THREE.Material>(m: M): M {
  * lights up while it plays, flames that burn while it is on, a status light. Unlinked
  * pieces keep the look they are drawn with.
  */
-export function part<M extends THREE.Material>(m: M, role: "screen" | "fire" | "led" | "warm" | "water" | "photo"): M {
+export function part<M extends THREE.Material>(m: M, role: "screen" | "fire" | "led" | "warm" | "water" | "photo" | "cook"): M {
   m.userData.part = role;
   return m;
 }

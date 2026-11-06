@@ -6,6 +6,7 @@
 import { FLOOR_FINISHES, ROOF_FINISHES, WALL_FINISHES } from "./finishes";
 import { FURNITURE } from "./furniture";
 import { FINISHES, MODERN_GROUPS, kindTags } from "./modern";
+import { SEASONS } from "./seasons";
 import en from "../i18n/en.json";
 
 export const OPENING_STYLES = {
@@ -33,5 +34,6 @@ export function catalog() {
     ),
     finishes: Object.keys(FINISHES),
     energy_kinds: ["solar", "battery", "grid", "inverter", "device"],
+    seasons: [...SEASONS],
   };
 }

@@ -7,6 +7,7 @@ import { bbox, bendEdges, edges, labelPoint, normalizeOrientation, offsetEdges, 
 import { facadeHalves } from "./walls";
 import { FURNITURE } from "./furniture";
 import { FLOOR_FINISHES, ROOF_FINISHES, WALL_FINISHES } from "./finishes";
+import { isSeasonSpec, SEASONS } from "./seasons";
 
 /** A furniture model reference (see FurnitureInput.model). */
 // kenney:<name> was a bundled model; such pieces now show their type's built-in piece
@@ -196,6 +197,8 @@ export function expandHouse(input: unknown): ExpandResult {
         return err(fp, "readings must be a list of entity ids, e.g. [sensor.car_battery].");
       if (fi.visible_when !== undefined && !(typeof fi.visible_when === "string" && fi.visible_when.includes(".")))
         return err(fp, "visible_when must be an entity id, e.g. input_boolean.christmas.");
+      if (fi.visible_during !== undefined && !isSeasonSpec(fi.visible_during))
+        return err(fp, `visible_during must be a season (${SEASONS.join(", ")}) or days of the year like "12-01/01-06".`);
       furniture.push({
         type: fi.type,
         at: [min[0] + fi.at[0], min[1] + fi.at[1]],
@@ -212,6 +215,7 @@ export function expandHouse(input: unknown): ExpandResult {
         ...(fi.options && Object.keys(fi.options).length ? { options: fi.options } : {}),
         ...(fi.readings?.length ? { readings: fi.readings } : {}),
         ...(fi.visible_when ? { visibleWhen: fi.visible_when } : {}),
+        ...(fi.visible_during ? { visibleDuring: fi.visible_during } : {}),
       });
     });
     return furniture;

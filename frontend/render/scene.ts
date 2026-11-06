@@ -3,6 +3,7 @@
 // are drawn on request, and during short transitions (focusing a floor) only until the
 // transition ends.
 
+import { conditionKey } from "../model/seasons";
 import { Weather, type WeatherKind } from "./weather";
 import * as THREE from "three";
 import { simplePiece } from "./simple";
@@ -484,6 +485,8 @@ export class HouseRenderer {
   private ghosts = new Map<THREE.Material, THREE.Material>();
   private occluderView = "";
   private shownWhen = new Map<string, boolean>();
+  /** Shows conditional pieces whatever their entity or season (the editor). */
+  showConditional = false;
   /** The parts of linked pieces their device drives (screens, flames, fans…), by entity. */
   private devices = new Map<string, DeviceParts[]>();
   private deviceLooks = new Map<string, DeviceLook | null>();
@@ -1725,7 +1728,7 @@ export class HouseRenderer {
   /** Linked pieces tinted by a card rule, with their materials' own glow to go back to. */
   private entityTints = new Map<string, string>();
 
-  /** Shows or hides the pieces that are there only while this entity is on. */
+  /** Shows or hides the pieces that are there only while this entity is on, or in a season (model/seasons.ts conditionKey). */
   setShownWhen(entity: string, on: boolean) {
     if (this.shownWhen.get(entity) === on) return;
     this.shownWhen.set(entity, on);
@@ -2164,6 +2167,10 @@ export class HouseRenderer {
           // a radiator: a warm glow while it heats
           m.emissive.set("#ff6a2a");
           m.emissiveIntensity = look.on && look.active && look.tone === "heat" ? 0.35 : 0;
+        } else if (role === "cook") {
+          // an oven's window, a hob's zones, a toaster's slots: lit while the appliance is on
+          m.emissive.set("#ff9a48");
+          m.emissiveIntensity = look.on ? (look.active ? 0.8 : 0.5) : 0;
         } else if (role === "led") {
           m.emissive.set(look.tone === "alarm" ? "#ff2a1f" : look.tone === "heat" ? "#ff8a3a" : look.tone === "cool" ? "#3fa8ff" : look.active ? "#3fd27a" : "#9fd6b0");
           m.emissiveIntensity = look.on ? (look.active ? (look.tone === "alarm" ? 1.4 : 0.9) : 0.3) : 0;
@@ -3336,9 +3343,10 @@ export class HouseRenderer {
       g.userData.entity = f.entity;
       this.linked.push(g);
     }
-    if (f.visibleWhen) {
-      g.userData.visibleWhen = f.visibleWhen;
-      g.visible = this.shownWhen.get(f.visibleWhen) ?? false;
+    const condition = conditionKey(f);
+    if (condition) {
+      g.userData.visibleWhen = condition;
+      g.visible = this.showConditional || (this.shownWhen.get(condition) ?? false);
       this.conditional.push(g);
     }
     if (this.view.furniture === "detailed" && detailFor(f)) this.detail(g, f);

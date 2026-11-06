@@ -626,6 +626,36 @@ test.describe.serial("demo house, roof (2)", () => {
     await act(page, () => page.evaluate(() => window.card.hass.pushModel(window.__demoModel)));
   });
 
+  test("a piece shown only in its season, and only while its helper is on too", async () => {
+    // days of the year around today, and a range that leaves today out
+    const ranges = await page.evaluate(() => {
+      const p = (n) => String(n).padStart(2, "0");
+      const md = (d) => `${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+      const at = (days) => new Date(Date.now() + days * 86400000);
+      return { now: `${md(at(-2))}/${md(at(2))}`, later: `${md(at(10))}/${md(at(20))}` };
+    });
+    await act(page, () =>
+      page.evaluate((r) => {
+        window.card.hass.setState("input_boolean.guests", "off", {});
+        const m = structuredClone(window.__demoModel);
+        m.levels[0].rooms.find((r) => r.id === "living").furniture = [
+          { type: "plant", at: [1, 1], model: "modern:christmas_tree", visible_during: r.now },
+          { type: "plant", at: [2, 1], model: "modern:christmas_tree", visible_during: r.later },
+          { type: "bed", at: [2, 3], visible_during: r.now, visible_when: "input_boolean.guests" },
+        ];
+        window.card.hass.pushModel(m);
+      }, ranges),
+    );
+    const shown = (key) => page.evaluate((k) => window.card.renderer.shownPieces(k), key);
+    assert((await shown(ranges.now)) === 1, "the piece of this season is missing");
+    assert((await shown(ranges.later)) === 0, "a piece of a later season shows");
+    const both = `input_boolean.guests & ${ranges.now}`;
+    assert((await shown(both)) === 0, "a piece shows in its season while its helper is off");
+    await act(page, () => page.evaluate(() => window.card.hass.setState("input_boolean.guests", "on")));
+    assert((await shown(both)) === 1, "a piece is missing in its season with its helper on");
+    await act(page, () => page.evaluate(() => window.card.hass.pushModel(window.__demoModel)));
+  });
+
   test("a top-hung window and a lift-and-slide door open with their contacts", async () => {
     await act(page, () =>
       page.evaluate(() => {

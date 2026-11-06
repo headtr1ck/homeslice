@@ -1518,6 +1518,17 @@ test.describe.serial("editor", () => {
     await page.locator("homeslice-panel .inspector button", { hasText: "top–bottom" }).click();
     const flipped = (await room("living")).furniture[sofaIndex];
     assert(flipped.mirror === undefined && flipped.rotation === 180, `top–bottom: ${JSON.stringify(flipped)}`);
+    // shown only in a season: kept in the house, outlined dashed on the plan; days of the year too
+    const season = page.locator("homeslice-panel .inspector label", { hasText: "Only shown during" }).locator("select");
+    await season.selectOption("halloween");
+    assert((await room("living")).furniture[sofaIndex].visible_during === "halloween", "season not kept");
+    assert((await page.locator("homeslice-panel svg.plan g.furniture.selected.conditional").count()) === 1, "a seasonal piece is not outlined");
+    await season.selectOption("custom");
+    assert((await room("living")).furniture[sofaIndex].visible_during === "12-01/01-06", "days of the year not kept");
+    assert((await page.locator("homeslice-panel .inspector .season-days select").count()) === 2, "no month pickers for days of the year");
+    await page.keyboard.press("Control+z");
+    await page.keyboard.press("Control+z");
+    assert((await room("living")).furniture[sofaIndex].visible_during === undefined, "season not undone");
     await shot(page, "editor-library");
     await page.keyboard.press("Control+z");
     await page.keyboard.press("Control+z");

@@ -859,6 +859,9 @@
     "black",
     "anthracite"
    ],
+   "tags": [
+    "appliance"
+   ],
    "accents": [
     "black",
     "oak",
@@ -882,6 +885,9 @@
     "walnut",
     "black",
     "anthracite"
+   ],
+   "tags": [
+    "appliance"
    ]
   },
   {
@@ -900,6 +906,9 @@
     "black",
     "white",
     "marble"
+   ],
+   "tags": [
+    "appliance"
    ],
    "accents": [
     "black",
@@ -924,6 +933,9 @@
     "white",
     "marble",
     "black"
+   ],
+   "tags": [
+    "appliance"
    ]
   },
   {
@@ -2773,6 +2785,9 @@
     "marble",
     "terrazzo"
    ],
+   "tags": [
+    "appliance"
+   ],
    "widths": [
     0.3,
     0.45,
@@ -2829,6 +2844,9 @@
     "concrete",
     "marble",
     "terrazzo"
+   ],
+   "tags": [
+    "appliance"
    ],
    "accents": [
     "marble",
@@ -3085,6 +3103,9 @@
     "black",
     "white"
    ],
+   "tags": [
+    "fan"
+   ],
    "widths": [
     0.6,
     0.9,
@@ -3110,6 +3131,9 @@
     "anthracite",
     "blue",
     "red"
+   ],
+   "tags": [
+    "appliance"
    ]
   },
   {
@@ -3126,6 +3150,9 @@
     "silver",
     "black",
     "white"
+   ],
+   "tags": [
+    "appliance"
    ]
   },
   {
@@ -3142,6 +3169,9 @@
     "silver",
     "black",
     "white"
+   ],
+   "tags": [
+    "appliance"
    ]
   },
   {
@@ -3159,6 +3189,9 @@
     "red",
     "white",
     "silver"
+   ],
+   "tags": [
+    "appliance"
    ]
   },
   {
@@ -3176,6 +3209,9 @@
     "silver",
     "anthracite",
     "white"
+   ],
+   "tags": [
+    "appliance"
    ],
    "accents": [
     "chrome",
@@ -3197,6 +3233,9 @@
     "black",
     "white",
     "red"
+   ],
+   "tags": [
+    "appliance"
    ]
   },
   {
@@ -3215,6 +3254,9 @@
     "white",
     "red",
     "green"
+   ],
+   "tags": [
+    "appliance"
    ]
   },
   {
@@ -3233,6 +3275,9 @@
     "white",
     "red",
     "green"
+   ],
+   "tags": [
+    "appliance"
    ]
   },
   {
@@ -3288,6 +3333,9 @@
    "finishes": [
     "black",
     "silver"
+   ],
+   "tags": [
+    "appliance"
    ]
   },
   {
@@ -8028,6 +8076,9 @@
    "finishes": [
     "black",
     "white"
+   ],
+   "tags": [
+    "appliance"
    ]
   },
   {
@@ -8043,6 +8094,9 @@
    "finishes": [
     "black",
     "white"
+   ],
+   "tags": [
+    "appliance"
    ]
   },
   {
@@ -8058,6 +8112,9 @@
    "finishes": [
     "black",
     "white"
+   ],
+   "tags": [
+    "appliance"
    ]
   },
   {
@@ -8558,6 +8615,9 @@
     "white",
     "anthracite"
    ],
+   "tags": [
+    "appliance"
+   ],
    "accents": [
     "red",
     "blue",
@@ -8850,6 +8910,9 @@
     "white",
     "silver",
     "anthracite"
+   ],
+   "tags": [
+    "appliance"
    ]
   },
   {
@@ -9142,6 +9205,9 @@
     "silver",
     "green",
     "blue"
+   ],
+   "tags": [
+    "appliance"
    ]
   },
   {
@@ -11308,5 +11374,31 @@
   "grid",
   "inverter",
   "device"
+ ],
+ "seasons": [
+  "christmas",
+  "new_year",
+  "lunar_new_year",
+  "valentines",
+  "carnival",
+  "st_patricks",
+  "holi",
+  "easter",
+  "passover",
+  "ramadan",
+  "eid_al_adha",
+  "pride",
+  "independence_day_us",
+  "mid_autumn",
+  "halloween",
+  "day_of_the_dead",
+  "diwali",
+  "thanksgiving",
+  "sinterklaas",
+  "hanukkah",
+  "spring",
+  "summer",
+  "autumn",
+  "winter"
  ]
 }

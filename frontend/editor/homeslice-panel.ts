@@ -19,6 +19,7 @@ import { bbox, bendEdges, edgeDistance, labelPoint, normalizeOrientation, pointI
 import { closedFaces, faceAt } from "../model/faces";
 import type { Building, DormerInput, EnergyInput, LevelInput, RoofInput, RoofPartInput, RoofWindowInput, SectionInput, FurnitureInput, FurnitureMount, FurnitureType, HouseInput, Issue, LightType, OpeningInput, OpeningSource, OpeningType, PieceInput, RoomInput, ShapeInput, Side, StairShape, Vec2, VerticalInput } from "../model/types";
 import { deriveWalls, innerPolygon, sideOfRoom, type Wall, type WallOpening } from "../model/walls";
+import { dayRange, SEASONS } from "../model/seasons";
 import { HouseRenderer } from "../render/scene";
 import { stairHoleOn, stairPath, stairTreads } from "../model/stairs";
 import { misalignedWalls } from "../model/checks";
@@ -3152,6 +3153,7 @@ export class HomeslicePanel extends LitElement {
     if (!this.renderer) {
       try {
         this.renderer = new HouseRenderer(canvas);
+        this.renderer.showConditional = true;
         this.renderer.onChange = () => this.renderer?.draw();
       } catch {
         return;
@@ -4081,6 +4083,37 @@ export class HomeslicePanel extends LitElement {
     this.commit(updateFurniture(this._model!, this._level, sel.room, sel.index, { rotation: (f.rotation ?? 0) + by }));
   }
 
+  /** When a piece shows: always, a named season, or days of the year (two month/day pickers). */
+  private seasonSelect(value: string | undefined, onChange: (v: string | undefined) => void) {
+    const range = value ? dayRange(value) : null;
+    const months = Array.from({ length: 12 }, (_, i) => new Intl.DateTimeFormat(this._hass?.locale?.language ?? "en", { month: "long", timeZone: "UTC" }).format(Date.UTC(2024, i, 15)));
+    const end = (i: 0 | 1) => {
+      const [mo, da] = range![i];
+      const put = (m: number, d: number) => {
+        const next = [...range!] as typeof range & object;
+        next[i] = [m, Math.min(d, [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][m - 1])];
+        const p = (n: number) => String(n).padStart(2, "0");
+        onChange(`${p(next[0][0])}-${p(next[0][1])}/${p(next[1][0])}-${p(next[1][1])}`);
+      };
+      return html`<input type="number" min="1" max="31" .value=${String(da)} @change=${(e: Event) => put(mo, Math.max(1, Number((e.target as HTMLInputElement).value) || 1))} />
+        <select @change=${(e: Event) => put(Number((e.target as HTMLSelectElement).value), da)}>
+          ${months.map((name, j) => html`<option value=${j + 1} ?selected=${j + 1 === mo}>${name}</option>`)}
+        </select>`;
+    };
+    return html`<label>${this.t("editor.visible_during")}
+        <select @change=${(e: Event) => {
+          const v = (e.target as HTMLSelectElement).value;
+          onChange(v === "custom" ? "12-01/01-06" : v || undefined);
+        }}>
+          <option value="" ?selected=${!value}>${this.t("editor.visible_during_always")}</option>
+          ${SEASONS.map((s) => html`<option value=${s} ?selected=${value === s}>${this.t(`season.${s}` as StringKey)}</option>`)}
+          <option value="custom" ?selected=${!!range}>${this.t("editor.visible_during_custom")}</option>
+        </select>
+      </label>
+      ${range ? html`<div class="row season-days">${this.t("editor.visible_from")} ${end(0)} ${this.t("editor.visible_to")} ${end(1)}</div>` : nothing}
+      ${value ? html`<p class="muted">${this.t("editor.visible_during_hint")}</p>` : nothing}`;
+  }
+
   /** Furniture on the plan: the piece seen from above at its size, an arrow at its front, its name and size when selected. */
   private renderFurniture() {
     const m = this._model!;
@@ -4092,7 +4125,9 @@ export class HomeslicePanel extends LitElement {
         const k = this._view.scale;
         const sel = this._furn?.room === r.id && this._furn.index === i;
         const label = `${this.t(`furniture.${f.type}` as StringKey)} · ${this.n(w)} × ${this.n(d)} m`;
-        return svg`<g class="furniture mount-${mountOf(f)} editable ${sel ? "selected" : ""}" data-furniture=${JSON.stringify({ room: r.id, index: i })}
+        // shown only sometimes (an entity, a season): a dashed outline all the time
+        const conditional = f.visible_when || f.visible_during ? "conditional" : "";
+        return svg`<g class="furniture mount-${mountOf(f)} editable ${sel ? "selected" : ""} ${conditional}" data-furniture=${JSON.stringify({ room: r.id, index: i })}
             transform="translate(${cx} ${cy}) rotate(${f.rotation ?? 0})">
           <image href=${planPicture(f)} x=${(-w * k) / 2} y=${(-d * k) / 2} width=${w * k} height=${d * k} preserveAspectRatio="none"
             transform=${f.mirror ? "scale(-1 1)" : ""}></image>
@@ -4237,7 +4272,8 @@ export class HomeslicePanel extends LitElement {
         <button title=${this.t("editor.furniture_mirror_h")} @click=${() => set(flipFurniture(f, "x"))}>⇋ ${this.t("editor.furniture_mirror_h")}</button>
         <button title=${this.t("editor.furniture_mirror_v")} @click=${() => set(flipFurniture(f, "y"))}>⇅ ${this.t("editor.furniture_mirror_v")}</button>
       </div>
-      ${this.entitySelect(this.t("editor.visible_when"), "input_boolean", undefined, f.visible_when, (visible_when) => set({ visible_when }))}
+      ${this.entitySelect(this.t("editor.visible_when"), "input_boolean,binary_sensor,schedule,calendar,switch", undefined, f.visible_when, (visible_when) => set({ visible_when }))}
+      ${this.seasonSelect(f.visible_during, (visible_during) => set({ visible_during }))}
       <button @click=${() => this.duplicateFurniture()}>${this.t("editor.furniture_duplicate")}</button>
       ${this.moveToFloor((to) => {
         const moved = movePieceToLevel(m, this._level, r.id, sel.index, to);
@@ -6231,7 +6267,8 @@ export class HomeslicePanel extends LitElement {
     const hass = this._hass;
     const states = hass?.states ?? {};
     const name = (id: string) => (states[id]?.attributes.friendly_name as string | undefined) ?? id;
-    const all = Object.keys(states).filter((id) => id.startsWith(`${domain}.`) && filter(id));
+    // "a,b": any of several domains
+    const all = Object.keys(states).filter((id) => domain.split(",").some((d) => id.startsWith(`${d}.`)) && filter(id));
     const own = new Set(areaId && hass ? areaEntities(hass, areaId, domain) : []);
     const ids = [...all.filter((id) => own.has(id)), ...all.filter((id) => !own.has(id)).sort((a, b) => name(a).localeCompare(name(b)))];
     return html`<label>${label}
@@ -7048,6 +7085,7 @@ export class HomeslicePanel extends LitElement {
     if (!house) return;
     const canvas = document.createElement("canvas");
     const r = new HouseRenderer(canvas);
+    r.showConditional = true;
     try {
       const walls = new Map(house.levels.map((l) => [l.id, deriveWalls(l, house.walls, issues)]));
       r.setModel(house, walls, { explode: 0, roof: true, showOutdoor: true });
@@ -8493,6 +8531,19 @@ export class HomeslicePanel extends LitElement {
     .furniture.mount-ceiling rect {
       stroke-dasharray: 2 3;
       fill: rgba(60, 64, 70, 0.08);
+    }
+    /* only there while an entity is on or in a season */
+    .furniture.conditional rect:not(.hit) {
+      stroke: #8e5bd0;
+      stroke-width: 1.5;
+      stroke-dasharray: 5 3;
+    }
+    .furniture.conditional.selected rect:not(.hit) {
+      stroke: var(--accent);
+      stroke-width: 2.5;
+    }
+    .season-days input {
+      width: 3.5em;
     }
     .floor-row {
       display: flex;

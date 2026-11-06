@@ -10,6 +10,7 @@ import { areaLightRooms, listedLights, placeLights, type PlacedLight } from "../
 import { deriveWalls, innerPolygon, type Wall } from "../model/walls";
 import { sideDrawing, sideLayout, type SideDrawing } from "../model/sideview";
 import { stairTreads } from "../model/stairs";
+import { conditionKey, inSeason } from "../model/seasons";
 import { formatPower, readEnergy, type EnergyPrefs, type EnergyReading } from "../ha/energy";
 import { pollPosition, polledPositions, readRobot, robotAlerts, robotStatus, type RobotReading, type RobotStatus } from "../ha/robots";
 import { deviceLook } from "../ha/devices";
@@ -1685,9 +1686,13 @@ export class HomesliceCard extends LitElement {
     });
     // smooth: each level's readings where they are (room middles, placed sensors), spread across its floors
     const fields = smooth && this.config.heatmap ? this.heatSamples(hass, this.config.heatmap, heat as (number | null)[]) : null;
-    // pieces there only while an entity is on (a guest bed, the Christmas tree)
-    const shownWhen = [...new Set(this.house.levels.flatMap((l) => l.rooms.flatMap((r) => r.furniture.flatMap((f) => (f.visibleWhen ? [f.visibleWhen] : [])))))].map(
-      (e) => [e, ["on", "home", "open", "playing", "active"].includes(hass.states[e]?.state ?? "")] as const,
+    // pieces there only while an entity is on (a guest bed) or in a season (the Christmas tree), or both
+    const today = new Date();
+    const south = (hass.config?.latitude ?? 0) < 0;
+    const conditions = new Map(this.house.levels.flatMap((l) => l.rooms.flatMap((r) => r.furniture.flatMap((f) => (conditionKey(f) ? [[conditionKey(f)!, f] as const] : [])))));
+    const shownWhen = [...conditions].map(
+      ([key, f]) =>
+        [key, (!f.visibleWhen || ["on", "home", "open", "playing", "active"].includes(hass.states[f.visibleWhen]?.state ?? "")) && (!f.visibleDuring || inSeason(f.visibleDuring, today, south))] as const,
     );
     const ruleHits = (this.config.rules ?? []).map((r) => ruleMatches(hass, r));
     const ruleTexts = (this.config.rules ?? []).map((r, i) => (ruleHits[i] ? ruleText(hass, r) : ""));
