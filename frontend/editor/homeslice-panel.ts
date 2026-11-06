@@ -19,6 +19,7 @@ import { bbox, bendEdges, edgeDistance, labelPoint, normalizeOrientation, pointI
 import { closedFaces, faceAt } from "../model/faces";
 import type { Building, DormerInput, EnergyInput, LevelInput, RoofInput, RoofPartInput, RoofWindowInput, SectionInput, FurnitureInput, FurnitureMount, FurnitureType, HouseInput, Issue, LightType, OpeningInput, OpeningSource, OpeningType, PieceInput, RoomInput, ShapeInput, Side, StairShape, Vec2, VerticalInput } from "../model/types";
 import { deriveWalls, innerPolygon, sideOfRoom, type Wall, type WallOpening } from "../model/walls";
+import { pieceReach } from "./reach";
 import { dayRange, SEASONS } from "../model/seasons";
 import { HouseRenderer } from "../render/scene";
 import { stairHoleOn, stairPath, stairTreads } from "../model/stairs";
@@ -4127,10 +4128,13 @@ export class HomeslicePanel extends LitElement {
         const label = `${this.t(`furniture.${f.type}` as StringKey)} · ${this.n(w)} × ${this.n(d)} m`;
         // shown only sometimes (an entity, a season): a dashed outline all the time
         const conditional = f.visible_when || f.visible_during ? "conditional" : "";
+        // a piece reaching past its outline (an open wall bed): how far, lightly
+        const reach = pieceReach(f.model, [w, d], f.height ?? MODERN[f.model?.slice(7) ?? ""]?.size[2] ?? FURNITURE[f.type]?.height ?? 1, f.options);
         return svg`<g class="furniture mount-${mountOf(f)} editable ${sel ? "selected" : ""} ${conditional}" data-furniture=${JSON.stringify({ room: r.id, index: i })}
             transform="translate(${cx} ${cy}) rotate(${f.rotation ?? 0})">
           <image href=${planPicture(f)} x=${(-w * k) / 2} y=${(-d * k) / 2} width=${w * k} height=${d * k} preserveAspectRatio="none"
             transform=${f.mirror ? "scale(-1 1)" : ""}></image>
+          ${reach ? svg`<rect class="reach" x=${(f.mirror ? -reach[2] : reach[0]) * k} y=${reach[1] * k} width=${(reach[2] - reach[0]) * k} height=${(reach[3] - reach[1]) * k} rx="2"></rect>` : nothing}
           <rect x=${(-w * k) / 2} y=${(-d * k) / 2} width=${w * k} height=${d * k} rx="2"><title>${label}</title></rect>
           ${w * k < 10 || d * k < 10 ? svg`<rect class="hit" x=${-Math.max(w * k, 10) / 2} y=${-Math.max(d * k, 10) / 2} width=${Math.max(w * k, 10)} height=${Math.max(d * k, 10)}></rect>` : nothing}
           ${this.frontArrow(w * k, d * k)}
@@ -6945,6 +6949,8 @@ export class HomeslicePanel extends LitElement {
     if (item.elevation !== undefined && item.elevation !== def.elevation) piece.elevation = item.elevation;
     if (size && (size[0] !== def.size[0] || size[1] !== def.size[1])) piece.size = size;
     if (height !== undefined && height !== def.height) piece.height = height;
+    // seasonal decoration comes out in its season only (the form says so and can change it)
+    if (item.season) piece.visible_during = item.season;
     const { model, index } = addFurniture(m, this._level, room.id, piece);
     this.commit(model);
     this._room = room.id;
@@ -8531,6 +8537,14 @@ export class HomeslicePanel extends LitElement {
     .furniture.mount-ceiling rect {
       stroke-dasharray: 2 3;
       fill: rgba(60, 64, 70, 0.08);
+    }
+    /* where a piece reaches past its outline (an open wall bed) */
+    .furniture rect.reach {
+      fill: rgba(60, 64, 70, 0.06);
+      stroke: rgba(60, 64, 70, 0.45);
+      stroke-width: 1;
+      stroke-dasharray: 3 3;
+      pointer-events: none;
     }
     /* only there while an entity is on or in a season */
     .furniture.conditional rect:not(.hit) {

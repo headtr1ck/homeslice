@@ -1529,6 +1529,12 @@ test.describe.serial("editor", () => {
     await page.keyboard.press("Control+z");
     await page.keyboard.press("Control+z");
     assert((await room("living")).furniture[sofaIndex].visible_during === undefined, "season not undone");
+    // seasonal decoration comes out in its season
+    await page.evaluate(() => window.panel.placeFurniture({ key: "modern:christmas_tree", type: "plant", model: "modern:christmas_tree", season: "christmas", thumb: "" }, [3, 5], "living"));
+    const tree = (await room("living")).furniture.find((f) => f.model === "modern:christmas_tree");
+    assert(tree?.visible_during === "christmas", `a Christmas tree isn't kept for Christmas: ${JSON.stringify(tree)}`);
+    await page.keyboard.press("Control+z");
+    await page.evaluate((i) => (window.panel._furn = { room: "living", index: i }), sofaIndex);
     await shot(page, "editor-library");
     await page.keyboard.press("Control+z");
     await page.keyboard.press("Control+z");

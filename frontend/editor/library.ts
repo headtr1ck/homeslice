@@ -42,6 +42,8 @@ export interface LibraryItem {
   /** Where it hangs, if not where its type does. */
   mount?: FurnitureMount;
   elevation?: number;
+  /** Seasonal decoration: placed shown only in this season (visible_during). */
+  season?: string;
   thumb: string;
   /** Its own size (models), else the type's. */
   size?: [number, number];
@@ -151,6 +153,7 @@ export function modernGroups(): LibraryGroup[] {
       tags: [k.id.replace(/_/g, " ")],
       ...(k.mount ? { mount: k.mount } : {}),
       ...(k.elevation !== undefined ? { elevation: k.elevation } : {}),
+      ...(k.season ? { season: k.season } : {}),
     })),
   }));
 }

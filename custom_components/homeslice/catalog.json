@@ -11259,7 +11259,8 @@
     "silver",
     "white",
     "blue"
-   ]
+   ],
+   "season": "christmas"
   },
   {
    "model": "modern:pumpkin",
@@ -11284,7 +11285,8 @@
      "lantern",
      "plain"
     ]
-   }
+   },
+   "season": "halloween"
   },
   {
    "model": "modern:snowman",
@@ -11298,7 +11300,8 @@
    ],
    "finishes": [
     "white"
-   ]
+   ],
+   "season": "winter"
   },
   {
    "model": "modern:halloween_skeleton",
@@ -11312,7 +11315,8 @@
    ],
    "finishes": [
     "white"
-   ]
+   ],
+   "season": "halloween"
   },
   {
    "model": "modern:halloween_tombstones",
@@ -11327,7 +11331,8 @@
    "finishes": [
     "grey",
     "anthracite"
-   ]
+   ],
+   "season": "halloween"
   },
   {
    "model": "modern:halloween_ghost",
@@ -11344,7 +11349,8 @@
    ],
    "tags": [
     "light"
-   ]
+   ],
+   "season": "halloween"
   },
   {
    "model": "modern:halloween_cauldron",
@@ -11361,7 +11367,8 @@
    ],
    "tags": [
     "light"
-   ]
+   ],
+   "season": "halloween"
   },
   {
    "model": "modern:halloween_spider_web",
@@ -11377,7 +11384,8 @@
     "white"
    ],
    "mount": "wall",
-   "elevation": 1.2
+   "elevation": 1.2,
+   "season": "halloween"
   },
   {
    "model": "modern:scarecrow",
@@ -11392,7 +11400,8 @@
    "finishes": [
     "sand",
     "brown"
-   ]
+   ],
+   "season": "autumn"
   },
   {
    "model": "modern:advent_wreath",
@@ -11415,7 +11424,8 @@
     "white",
     "yellow",
     "pink"
-   ]
+   ],
+   "season": "christmas"
   },
   {
    "model": "modern:christmas_reindeer",
@@ -11433,7 +11443,8 @@
    ],
    "tags": [
     "light"
-   ]
+   ],
+   "season": "christmas"
   },
   {
    "model": "modern:christmas_star_window",
@@ -11454,7 +11465,8 @@
     "light"
    ],
    "mount": "wall",
-   "elevation": 1.4
+   "elevation": 1.4,
+   "season": "christmas"
   },
   {
    "model": "modern:candle_arch",
@@ -11473,7 +11485,8 @@
    ],
    "tags": [
     "light"
-   ]
+   ],
+   "season": "christmas"
   },
   {
    "model": "modern:nutcracker",
@@ -11489,7 +11502,8 @@
     "red",
     "blue",
     "green"
-   ]
+   ],
+   "season": "christmas"
   },
   {
    "model": "modern:christmas_presents",
@@ -11512,7 +11526,8 @@
     "silver",
     "red",
     "white"
-   ]
+   ],
+   "season": "christmas"
   },
   {
    "model": "modern:easter_bunny",
@@ -11528,7 +11543,8 @@
     "sand",
     "white",
     "brown"
-   ]
+   ],
+   "season": "easter"
   },
   {
    "model": "modern:easter_tree",
@@ -11544,7 +11560,8 @@
     "white",
     "terracotta",
     "sand"
-   ]
+   ],
+   "season": "easter"
   },
   {
    "model": "modern:easter_basket",
@@ -11560,7 +11577,8 @@
     "sand",
     "brown",
     "white"
-   ]
+   ],
+   "season": "easter"
   },
   {
    "model": "modern:menorah",
@@ -11578,7 +11596,8 @@
    ],
    "tags": [
     "light"
-   ]
+   ],
+   "season": "hanukkah"
   },
   {
    "model": "modern:diwali_diyas",
@@ -11595,7 +11614,8 @@
    ],
    "tags": [
     "light"
-   ]
+   ],
+   "season": "diwali"
   },
   {
    "model": "modern:ramadan_lantern",
@@ -11614,7 +11634,8 @@
    ],
    "tags": [
     "light"
-   ]
+   ],
+   "season": "ramadan"
   },
   {
    "model": "modern:chinese_lanterns",
@@ -11633,7 +11654,8 @@
    "tags": [
     "light"
    ],
-   "mount": "ceiling"
+   "mount": "ceiling",
+   "season": "lunar_new_year"
   }
  ],
  "finishes": [

@@ -25,6 +25,10 @@ export interface ModernKind {
    * `options: { handle: knob }`.
    */
   options?: Record<string, string[]>;
+  /** Draws parts outside its outline in some of its choices (an open wall bed): the editor shows how far it reaches. */
+  reach?: boolean;
+  /** Seasonal decoration: the season it is put up for (model/seasons.ts), set on a new piece as `visible_during`. */
+  season?: string;
   /** The option that changes how it looks from above (a sink or a hob in a base unit): the plan has a picture per choice. */
   planBy?: string;
 }
@@ -202,7 +206,7 @@ export const MODERN_GROUPS: { id: string; kinds: ModernKind[] }[] = [
       k("speaker_inwall_rect", "item", [0.2, 0.03, 0.3], ["white", "black"], { mount: "wall", elevation: 1.5 }),
       k("speaker_ceiling_round", "item", [0.22, 0.22, 0.03], ["white", "black", "silver"], { mount: "ceiling" }),
       k("speaker_ceiling_square", "item", [0.22, 0.22, 0.03], ["white", "black", "silver"], { mount: "ceiling" }),
-      k("sofa_bed", "sofa", [2.0, 0.95, 0.85], FABRIC, { options: { position: ["closed", "open"] } }),
+      k("sofa_bed", "sofa", [2.0, 0.95, 0.85], FABRIC, { options: { position: ["closed", "open"] }, reach: true }),
     ],
   },
   {
@@ -284,7 +288,7 @@ export const MODERN_GROUPS: { id: string; kinds: ModernKind[] }[] = [
       k("wardrobe_sliding", "wardrobe", [2.0, 0.65, 2.2], [...WOOD, "grey"], { accents: ["black", "chrome", "brass"] }),
       k("wardrobe_open", "wardrobe", [1.6, 0.55, 2.0], ["black", "oak", "white"]),
       k("dresser", "shelf", [1.2, 0.48, 0.8], WOOD, { accents: ["black", "oak", "brass"], options: HANDLE }),
-      k("bed_murphy", "bed", [1.6, 0.45, 2.25], ["white", "oak", "grey", "anthracite"], { options: { position: ["closed", "open"] } }),
+      k("bed_murphy", "bed", [1.6, 0.45, 2.25], ["white", "oak", "grey", "anthracite"], { options: { position: ["closed", "open"] }, reach: true }),
     ],
   },
   {
@@ -324,7 +328,7 @@ export const MODERN_GROUPS: { id: string; kinds: ModernKind[] }[] = [
       k("bed_midsleeper", "bed_single", [1.0, 2.08, 1.25], ["white", "oak", "grey", "blue", "pink"], { options: { under: ["storage", "play"] } }),
       k("bunk_bed_l", "bed_single", [2.15, 2.15, 1.65], ["oak", "white", "grey", "walnut"]),
       k("loft_bed_slide", "bed_single", [1.0, 3.0, 1.9], ["white", "oak", "blue", "pink"]),
-      k("bed_trundle", "bed_single", [0.98, 2.08, 0.85], ["white", "oak", "grey", "blue"]),
+      k("bed_trundle", "bed_single", [0.98, 2.08, 0.85], ["white", "oak", "grey", "blue"], { reach: true }),
       k("crib_bedside", "bed_single", [0.6, 0.95, 0.82], ["white", "oak", "grey"]),
       k("moses_basket", "bed_single", [0.5, 0.9, 0.7], ["sand", "white", "grey"]),
     ],
@@ -723,28 +727,28 @@ export const MODERN_GROUPS: { id: string; kinds: ModernKind[] }[] = [
   {
     id: "seasonal",
     kinds: [
-      k("christmas_tree", "plant", [1.2, 1.2, 2.1], ["green"], { accents: ["red", "yellow", "silver", "white", "blue"] }),
-      k("pumpkin", "item", [0.38, 0.38, 0.32], ["terracotta", "white", "green"], { options: { carved: ["lantern", "plain"] } }),
-      k("snowman", "item", [0.7, 0.7, 1.3], ["white"]),
-      k("halloween_skeleton", "item", [0.5, 0.4, 1.75], ["white"]),
-      k("halloween_tombstones", "item", [1.4, 0.5, 0.7], ["grey", "anthracite"]),
-      k("halloween_ghost", "item", [0.6, 0.6, 1.5], ["white"]),
-      k("halloween_cauldron", "item", [0.6, 0.6, 0.55], ["black"]),
-      k("halloween_spider_web", "item", [1.2, 0.05, 1.2], ["white"], { mount: "wall", elevation: 1.2 }),
-      k("scarecrow", "item", [0.7, 0.4, 1.8], ["sand", "brown"]),
-      k("advent_wreath", "item", [0.4, 0.4, 0.22], ["green"], { accents: ["red", "white", "yellow", "pink"] }),
-      k("christmas_reindeer", "item", [0.9, 0.35, 1.1], ["white", "yellow"]),
-      k("christmas_star_window", "item", [0.5, 0.05, 0.5], ["white", "red", "yellow"], { mount: "wall", elevation: 1.4 }),
-      k("candle_arch", "item", [0.45, 0.08, 0.3], ["oak", "white", "black"]),
-      k("nutcracker", "item", [0.25, 0.2, 0.6], ["red", "blue", "green"]),
-      k("christmas_presents", "item", [0.7, 0.5, 0.35], ["red", "green", "blue", "white"], { accents: ["yellow", "silver", "red", "white"] }),
-      k("easter_bunny", "item", [0.35, 0.3, 0.55], ["sand", "white", "brown"]),
-      k("easter_tree", "plant", [0.5, 0.5, 1.0], ["white", "terracotta", "sand"]),
-      k("easter_basket", "item", [0.35, 0.3, 0.25], ["sand", "brown", "white"]),
-      k("menorah", "item", [0.4, 0.12, 0.35], ["silver", "brass"]),
-      k("diwali_diyas", "item", [0.4, 0.3, 0.06], ["terracotta"]),
-      k("ramadan_lantern", "item", [0.25, 0.25, 0.5], ["brass", "silver", "black"]),
-      k("chinese_lanterns", "item", [1.0, 0.4, 0.6], ["red", "yellow"], { mount: "ceiling" }),
+      k("christmas_tree", "plant", [1.2, 1.2, 2.1], ["green"], { accents: ["red", "yellow", "silver", "white", "blue"], season: "christmas" }),
+      k("pumpkin", "item", [0.38, 0.38, 0.32], ["terracotta", "white", "green"], { options: { carved: ["lantern", "plain"] }, season: "halloween" }),
+      k("snowman", "item", [0.7, 0.7, 1.3], ["white"], { season: "winter" }),
+      k("halloween_skeleton", "item", [0.5, 0.4, 1.75], ["white"], { season: "halloween" }),
+      k("halloween_tombstones", "item", [1.4, 0.5, 0.7], ["grey", "anthracite"], { season: "halloween" }),
+      k("halloween_ghost", "item", [0.6, 0.6, 1.5], ["white"], { season: "halloween" }),
+      k("halloween_cauldron", "item", [0.6, 0.6, 0.55], ["black"], { season: "halloween" }),
+      k("halloween_spider_web", "item", [1.2, 0.05, 1.2], ["white"], { mount: "wall", elevation: 1.2, season: "halloween" }),
+      k("scarecrow", "item", [0.7, 0.4, 1.8], ["sand", "brown"], { season: "autumn" }),
+      k("advent_wreath", "item", [0.4, 0.4, 0.22], ["green"], { accents: ["red", "white", "yellow", "pink"], season: "christmas" }),
+      k("christmas_reindeer", "item", [0.9, 0.35, 1.1], ["white", "yellow"], { season: "christmas" }),
+      k("christmas_star_window", "item", [0.5, 0.05, 0.5], ["white", "red", "yellow"], { mount: "wall", elevation: 1.4, season: "christmas" }),
+      k("candle_arch", "item", [0.45, 0.08, 0.3], ["oak", "white", "black"], { season: "christmas" }),
+      k("nutcracker", "item", [0.25, 0.2, 0.6], ["red", "blue", "green"], { season: "christmas" }),
+      k("christmas_presents", "item", [0.7, 0.5, 0.35], ["red", "green", "blue", "white"], { accents: ["yellow", "silver", "red", "white"], season: "christmas" }),
+      k("easter_bunny", "item", [0.35, 0.3, 0.55], ["sand", "white", "brown"], { season: "easter" }),
+      k("easter_tree", "plant", [0.5, 0.5, 1.0], ["white", "terracotta", "sand"], { season: "easter" }),
+      k("easter_basket", "item", [0.35, 0.3, 0.25], ["sand", "brown", "white"], { season: "easter" }),
+      k("menorah", "item", [0.4, 0.12, 0.35], ["silver", "brass"], { season: "hanukkah" }),
+      k("diwali_diyas", "item", [0.4, 0.3, 0.06], ["terracotta"], { season: "diwali" }),
+      k("ramadan_lantern", "item", [0.25, 0.25, 0.5], ["brass", "silver", "black"], { season: "ramadan" }),
+      k("chinese_lanterns", "item", [1.0, 0.4, 0.6], ["red", "yellow"], { mount: "ceiling", season: "lunar_new_year" }),
     ],
   },
 ];
