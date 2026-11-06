@@ -30,6 +30,26 @@ export interface Hass {
   };
   /** With `returnResponse`, resolves to `{ response }` (services that answer). */
   callService(domain: string, service: string, data?: Record<string, unknown>, target?: Record<string, unknown>, notifyOnError?: boolean, returnResponse?: boolean): Promise<unknown>;
+  /** HA's own display name of an entity (its device's name and its own, 2025.11 on). */
+  formatEntityName?(stateObj: HassEntityState): string;
+}
+
+/**
+ * An entity's name as Home Assistant shows it: HA's own formatter where there is one (the
+ * `friendly_name` attribute is on its way out), else that attribute; undefined if neither.
+ */
+export function entityName(hass: Pick<Hass, "formatEntityName"> | undefined, s: HassEntityState | undefined): string | undefined {
+  if (!s) return undefined;
+  if (hass?.formatEntityName) {
+    try {
+      const name = hass.formatEntityName(s);
+      if (name) return name;
+    } catch {
+      // an older or partial hass: the attribute below
+    }
+  }
+  const friendly = s.attributes.friendly_name;
+  return typeof friendly === "string" && friendly ? friendly : undefined;
 }
 
 const cache = new WeakMap<object, Map<string, string[]>>();

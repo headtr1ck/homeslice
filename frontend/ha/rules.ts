@@ -1,7 +1,7 @@
 // State rules: the card's `rules` give any entity a look by its state, without code: a
 // pulsing ring where it is, its piece tinted, an icon and a text (a template).
 import { formatNumber } from "../i18n/localize";
-import type { Hass } from "./hass";
+import { entityName, type Hass } from "./hass";
 
 export interface StateRule {
   entity: string;
@@ -62,7 +62,7 @@ export function ruleText(hass: Hass, rule: StateRule): string {
   return rule.text.replace(/\{(state|unit|name|attr:[\w.]+)(?::(\d))?\}/g, (_, key: string, digits?: string) => {
     if (key === "state") return number(s.state, digits);
     if (key === "unit") return String(s.attributes.unit_of_measurement ?? "");
-    if (key === "name") return String(s.attributes.friendly_name ?? rule.entity);
+    if (key === "name") return entityName(hass, s) ?? rule.entity;
     return number(s.attributes[key.slice(5)], digits);
   });
 }

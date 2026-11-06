@@ -2,7 +2,7 @@
 // position on the plan.
 
 import type { Robot, Vec2 } from "../model/types";
-import type { Hass } from "./hass";
+import { entityName, type Hass } from "./hass";
 
 export type RobotStatus = "active" | "returning" | "docked" | "paused" | "error" | "idle" | "unknown";
 
@@ -155,17 +155,17 @@ export function robotAlerts(hass: Hass, entity: string): string[] {
   const reg = hass.entities;
   if (!reg) return [];
   const own = reg[entity]?.device_id;
-  if (!own) return hass.states[entity]?.state === "error" ? [String(hass.states[entity]?.attributes.friendly_name ?? entity)] : [];
+  if (!own) return hass.states[entity]?.state === "error" ? [entityName(hass, hass.states[entity]) ?? entity] : [];
   const base = hass.devices?.[own]?.name_by_user ?? hass.devices?.[own]?.name ?? "";
   // the robot's device, and its dock (Roborock lists it as "<robot> Dock")
   const devices = new Set(Object.values(hass.devices ?? {}).filter((d) => d.id === own || (base && (d.name_by_user ?? d.name ?? "").startsWith(`${base} `))).map((d) => d.id));
   const out: string[] = [];
-  if (hass.states[entity]?.state === "error") out.push(String(hass.states[entity]?.attributes.error ?? hass.states[entity]?.attributes.friendly_name ?? entity));
+  if (hass.states[entity]?.state === "error") out.push(String(hass.states[entity]?.attributes.error ?? entityName(hass, hass.states[entity]) ?? entity));
   for (const e of Object.values(reg)) {
     if (!e.device_id || !devices.has(e.device_id) || e.hidden) continue;
     const s = hass.states[e.entity_id];
     if (!s || s.state === "unavailable" || s.state === "unknown") continue;
-    const name = String(s.attributes.friendly_name ?? e.entity_id);
+    const name = entityName(hass, s) ?? e.entity_id;
     const cls = s.attributes.device_class;
     if (e.entity_id.startsWith("binary_sensor.") && cls === "problem" && s.state === "on") out.push(name);
     else if (e.entity_id.startsWith("sensor.") && /_time_left$/.test(e.entity_id) && Number(s.state) <= 0) out.push(name);

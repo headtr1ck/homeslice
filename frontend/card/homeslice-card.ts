@@ -1,5 +1,5 @@
 import { LitElement, css, html, nothing, svg, type PropertyValues } from "lit";
-import { HEATMAP_STEPS, areaEntities, areaValues, type AreaValue, areaIlluminance, areaPopup, areaReading, areaTemperature, daylight, stepColor, stepBlend, contactOpen, coverOpen, lightsLook, type Hass, type PopupSection, alertIcon, areaSensors, type AreaSensors, alarmTriggered, climateHint, hardAlerts } from "../ha/hass";
+import { HEATMAP_STEPS, areaEntities, areaValues, type AreaValue, areaIlluminance, areaPopup, areaReading, areaTemperature, daylight, stepColor, stepBlend, contactOpen, coverOpen, lightsLook, type Hass, type PopupSection, alertIcon, areaSensors, type AreaSensors, alarmTriggered, climateHint, hardAlerts, entityName } from "../ha/hass";
 import { formatNumber, loadLanguage, localize, type StringKey } from "../i18n/localize";
 import { expandHouse } from "../model/expand";
 import { labelPoint } from "../model/geometry";
@@ -942,7 +942,7 @@ export class HomesliceCard extends LitElement {
   }
 
   private entityName(entity: string) {
-    return (this.hass?.states[entity]?.attributes.friendly_name as string | undefined) ?? entity;
+    return entityName(this.hass, this.hass?.states[entity]) ?? entity;
   }
 
   /** The note for toggling an entity, from the state it is in now. */
@@ -1022,7 +1022,7 @@ export class HomesliceCard extends LitElement {
       const n = perRoom.get(r.key) ?? 0;
       perRoom.set(r.key, n + 1);
       const at: Vec2 = [r.point[0] + 0.7 + n * 0.5, r.point[1] + 0.4];
-      out.push({ key: p.person, levelId: r.levelId, at, color: p.color ?? PERSON_COLORS[i % PERSON_COLORS.length], name: (person.attributes.friendly_name as string | undefined) ?? p.person, picture: person.attributes.entity_picture as string | undefined, ...(p.pet ? { pet: true } : {}) });
+      out.push({ key: p.person, levelId: r.levelId, at, color: p.color ?? PERSON_COLORS[i % PERSON_COLORS.length], name: entityName(this.hass, person) ?? p.person, picture: person.attributes.entity_picture as string | undefined, ...(p.pet ? { pet: true } : {}) });
     });
     return out;
   }
@@ -1287,7 +1287,7 @@ export class HomesliceCard extends LitElement {
     return html`<div class="shortcuts">
       ${buttons.map((b) => {
         const state = this.hass!.states[b.entity];
-        const name = b.name ?? (state?.attributes.friendly_name as string | undefined) ?? b.entity;
+        const name = b.name ?? entityName(this.hass, state) ?? b.entity;
         const icon = b.icon ?? (state?.attributes.icon as string | undefined) ?? shortcutIcon(b.entity);
         return html`<button
           class=${state?.state === "on" ? "on" : ""}
@@ -1554,7 +1554,7 @@ export class HomesliceCard extends LitElement {
       const reading = this.robotReadings[i];
       if (!p || !reading) return [];
       const s = this.hass!.states[r.entity];
-      const name = r.name ?? (s?.attributes.friendly_name as string | undefined) ?? r.entity;
+      const name = r.name ?? entityName(this.hass, s) ?? r.entity;
       const format = (this.hass as unknown as { formatEntityState?: (s: unknown) => string }).formatEntityState;
       const state = s ? (format ? format(s) : s.state) : "";
       return [{ key: `robot-${r.index}`, entity: r.entity, ...p, name, battery: reading.battery, text: `${state}${reading.battery !== null ? ` · ${Math.round(reading.battery)} %` : ""}${reading.unsure ? ` · ${this.t("card.robot_unsure")}` : ""}`, color: ROBOT_COLORS[reading.status], icon: r.kind === "lawn_mower" ? "mdi:robot-mower" : "mdi:robot-vacuum" }];
@@ -1569,7 +1569,7 @@ export class HomesliceCard extends LitElement {
     const unit = (st.attributes.unit_of_measurement as string | undefined) ?? "";
     const value = Number.isFinite(n) ? formatNumber(this.hass?.locale, n, Number.isInteger(n) ? 0 : 1) : st.state;
     // the sensor's name without the device's ("Heat pump COP" on the heat pump: "COP")
-    let name = d.name ?? (st.attributes.friendly_name as string | undefined) ?? "";
+    let name = d.name ?? entityName(this.hass, st) ?? "";
     if (!d.name && owner && name.toLowerCase().startsWith(owner.toLowerCase())) name = name.slice(owner.length).trim();
     return `${name ? `${name} ` : ""}${value}${unit ? (unit === "%" ? unit : ` ${unit}`) : ""}`;
   }
@@ -1584,7 +1584,7 @@ export class HomesliceCard extends LitElement {
       const p = this.renderer!.projectEnergy(key);
       if (!p) return;
       const r = this.energyReadings[i] ?? { power: null, soc: null, flow: null };
-      const name = e.name ?? (e.kind === "device" ? ((this.hass!.states[e.power ?? ""]?.attributes.friendly_name as string | undefined) ?? e.power ?? "") : this.t(`card.energy_${e.kind}` as StringKey));
+      const name = e.name ?? (e.kind === "device" ? (entityName(this.hass, this.hass!.states[e.power ?? ""]) ?? e.power ?? "") : this.t(`card.energy_${e.kind}` as StringKey));
       // which way it flows, in words
       const still = r.power === null || Math.abs(r.power) < 10;
       const state =
@@ -1841,7 +1841,7 @@ export class HomesliceCard extends LitElement {
     let hit: { entity: string; text: string } | null = null;
     for (const id of this.config.follow ?? []) {
       const now = hass.states[id]?.state;
-      if (activation(id, this.followed.get(id), now) && !hit) hit = { entity: id, text: (hass.states[id]?.attributes.friendly_name as string | undefined) ?? id };
+      if (activation(id, this.followed.get(id), now) && !hit) hit = { entity: id, text: entityName(hass, hass.states[id]) ?? id };
       if (now !== undefined) this.followed.set(id, now);
     }
     if (this.config.follow_alarms)
@@ -1875,7 +1875,7 @@ export class HomesliceCard extends LitElement {
       text = this.hass.floors?.[m.floor_id]?.name ?? level?.name ?? "";
     } else if (m.entity_id) {
       where = whereIs(this.house, this.hass, m.entity_id, this.openings);
-      text = (this.hass.states[m.entity_id]?.attributes.friendly_name as string | undefined) ?? m.entity_id;
+      text = entityName(this.hass, this.hass.states[m.entity_id]) ?? m.entity_id;
     }
     if (m.message) text = m.message;
     if (!where) {
@@ -2603,7 +2603,7 @@ export class HomesliceCard extends LitElement {
         if (label && Math.abs(p.x - label.x) < 62 && Math.abs(p.y - label.y) < 64) p.y = label.y + (p.y < label.y ? -64 : 54);
         const entities = [...new Set([entity, ...list.flatMap((x) => x.with ?? [])])];
         const state = this.hass.states[entity];
-        buttons.push({ entity, entities, ...p, name: (state?.attributes.friendly_name as string | undefined) ?? entity, on: entities.some((e) => this.hass!.states[e]?.state === "on") });
+        buttons.push({ entity, entities, ...p, name: entityName(this.hass, state) ?? entity, on: entities.some((e) => this.hass!.states[e]?.state === "on") });
       }
     }
     this._lampButtons = buttons;

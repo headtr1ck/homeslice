@@ -2,7 +2,7 @@
 // HA areas, blinds and contact sensors linked to their windows, walls that almost line up.
 
 import type { Hass } from "../ha/hass";
-import { areaEntities } from "../ha/hass";
+import { areaEntities, entityName } from "../ha/hass";
 import { expandHouse } from "../model/expand";
 import { misalignedWalls, piecesInWalls, unreachableRooms } from "../model/checks";
 import type { HouseInput, OpeningSource, Side } from "../model/types";
@@ -58,7 +58,7 @@ export function checklist(model: HouseInput, hass: Hass, levelAreas: (levelId: s
   const usedContacts = new Set([...openings.map((x) => x.o.contact), ...roofWindows.map((w) => w.contact)].filter(Boolean));
   const taken = new Set<string>();
   const link = (kind: "cover" | "contact", entity: string) => {
-    const name = String(hass.states[entity]?.attributes.friendly_name ?? entity);
+    const name = entityName(hass, hass.states[entity]) ?? entity;
     const deviceClass = String(hass.states[entity]?.attributes.device_class ?? "");
     const areaId = Object.keys(hass.areas ?? {}).find((a) => areaEntities(hass, a, entity.split(".")[0]).includes(entity));
     const free = openings.filter(
@@ -89,7 +89,7 @@ export function checklist(model: HouseInput, hass: Hass, levelAreas: (levelId: s
       s.entity_id.startsWith("binary_sensor.") &&
       CONTACTS.includes(String(s.attributes.device_class)) &&
       !usedContacts.has(s.entity_id) &&
-      !APPLIANCES.test(`${s.entity_id} ${s.attributes.friendly_name ?? ""}`)
+      !APPLIANCES.test(`${s.entity_id} ${entityName(hass, s) ?? ""}`)
     )
       link("contact", s.entity_id);
 

@@ -81,7 +81,8 @@ def ha_context(hass: HomeAssistant) -> dict[str, Any]:
         if wanted is not None and device_class not in wanted:
             continue
         item: dict[str, Any] = {"entity_id": entry.entity_id}
-        name = state.attributes.get("friendly_name") if state else None
+        # HA's own display name (the friendly_name attribute is on its way out)
+        name = state.name if state else None
         if name:
             item["name"] = name
         if device_class:

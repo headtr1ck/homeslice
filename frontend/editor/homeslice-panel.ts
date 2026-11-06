@@ -9,7 +9,7 @@ import { type Command, searchCommands } from "./commands";
 import { OPENING_GROUPS, OPENING_PRESETS, applyPreset, kindOf, presetOf, type OpeningPreset } from "./openings";
 import { GLTFExporter } from "three/examples/jsm/exporters/GLTFExporter.js";
 import { parse as parseYaml, stringify as toYaml } from "yaml";
-import { areaEntities, type Hass } from "../ha/hass";
+import { areaEntities, entityName, type Hass } from "../ha/hass";
 import { linkDomain } from "../ha/devices";
 import { formatNumber, loadLanguage, localize, texts, type StringKey } from "../i18n/localize";
 import en from "../i18n/en.json";
@@ -4050,7 +4050,7 @@ export class HomeslicePanel extends LitElement {
   }
 
   private entityName(id: string) {
-    return (this._hass?.states[id]?.attributes.friendly_name as string | undefined) ?? id;
+    return entityName(this._hass, this._hass?.states[id]) ?? id;
   }
 
   private renderLamps() {
@@ -6347,7 +6347,7 @@ export class HomeslicePanel extends LitElement {
   private entitySelect(label: string, domain: string, areaId: string | undefined, value: string | undefined, onChange: (id: string | undefined) => void, filter: (id: string) => boolean = () => true) {
     const hass = this._hass;
     const states = hass?.states ?? {};
-    const name = (id: string) => (states[id]?.attributes.friendly_name as string | undefined) ?? id;
+    const name = (id: string) => entityName(hass, states[id]) ?? id;
     // "a,b": any of several domains
     const all = Object.keys(states).filter((id) => domain.split(",").some((d) => id.startsWith(`${d}.`)) && filter(id));
     const own = new Set(areaId && hass ? areaEntities(hass, areaId, domain) : []);
@@ -7139,7 +7139,7 @@ export class HomeslicePanel extends LitElement {
     const domains = ["light", "switch", "media_player", "fan", "climate", "humidifier", "vacuum", "lawn_mower", "sensor", "binary_sensor", "cover", "water_heater", "lock", "camera", "remote", "input_boolean", "valve", "siren", "button"];
     const hass = this._hass;
     const states = hass?.states ?? {};
-    const name = (id: string) => (states[id]?.attributes.friendly_name as string | undefined) ?? id;
+    const name = (id: string) => entityName(hass, states[id]) ?? id;
     const deviceOf = (id: string) => {
       const d = hass?.entities?.[id]?.device_id;
       const dev = d ? hass?.devices?.[d] : undefined;

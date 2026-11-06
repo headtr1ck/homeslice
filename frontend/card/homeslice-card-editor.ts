@@ -2,7 +2,7 @@
 // turn the little preview into the angle the card should show, and set the look.
 
 import { LitElement, css, html, nothing, type PropertyValues } from "lit";
-import type { Hass } from "../ha/hass";
+import { entityName, type Hass } from "../ha/hass";
 import { loadLanguage, localize, type StringKey } from "../i18n/localize";
 import { expandHouse } from "../model/expand";
 import { deriveWalls, type Wall } from "../model/walls";
@@ -352,7 +352,7 @@ export class HomesliceCardEditor extends LitElement {
           <option value="" ?selected=${!this._config.weather}>${this.t("cardeditor.heatmap_none")}</option>
           ${Object.keys(this._hass?.states ?? {})
             .filter((id) => id.startsWith("weather."))
-            .map((id) => html`<option value=${id} ?selected=${this._config.weather === id}>${(this._hass!.states[id].attributes.friendly_name as string | undefined) ?? id}</option>`)}
+            .map((id) => html`<option value=${id} ?selected=${this._config.weather === id}>${entityName(this._hass, this._hass!.states[id]) ?? id}</option>`)}
         </select>
       </label>
       ${this._config.weather
