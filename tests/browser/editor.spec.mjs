@@ -1999,4 +1999,36 @@ test.describe.serial("editor", () => {
     assert(await page.locator("homeslice-panel button.save.dirty").count(), "delete not marked as unsaved");
     assert(errors.length === 0, errors.join(" | "));
   });
+
+  test("+ Roof: the preview shows the house with its roof; the plan draws the part as a roof from above", async () => {
+    await page.keyboard.press("Escape");
+    await page.locator("homeslice-panel aside.levels button[data-add-roof]").click();
+    await page.locator('homeslice-panel button[data-roof-preset="tuscan"]').click();
+    assert((await model()).levels.at(-1).roofs?.[0]?.shape === "hip", "no hip roof part");
+    // the preview: the house, its roof level's parts drawn (not an empty focused level)
+    await page.waitForFunction(
+      () => {
+        const r = window.panel.renderer;
+        const roof = r?.root.children.find((g) => g.userData.roofLevel);
+        let meshes = 0;
+        roof?.traverseVisible((o) => o.isMesh && meshes++);
+        return r.renderer.info.render.triangles > 100 && roof?.visible && meshes > 0 && r.focusedIndex === null;
+      },
+      null,
+      { timeout: 10000 },
+    );
+    // floors below are there too
+    assert(await page.evaluate(() => window.panel.renderer.isLevelVisible(window.panel._model.levels[0].id)), "ground floor hidden under the roof");
+    // the plan: a light fill in the covering's tone, ridge and hip lines
+    const fill = await page.locator("homeslice-panel svg.plan polygon.roof-part").first().evaluate((el) => getComputedStyle(el).fill);
+    const [r, g, b] = fill.match(/\d+/g).map(Number);
+    assert(r + g + b > 150 && !/url/.test(fill), `roof part fill: ${fill}`);
+    assert((await page.locator("homeslice-panel svg.plan polyline.roof-ridge").count()) === 1, "no ridge line");
+    assert((await page.locator("homeslice-panel svg.plan polyline.roof-line").count()) === 4, "no hip lines");
+    await shot(page, "editor-roof-plan");
+    // back on a floor: focused, the roof gone again
+    await page.evaluate(() => (window.panel._level = window.panel._model.levels[0].id));
+    await page.waitForFunction(() => window.panel.renderer.focusedIndex === 0, null, { timeout: 10000 });
+    assert(errors.length === 0, errors.join(" | "));
+  });
 });

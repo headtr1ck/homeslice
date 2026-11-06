@@ -3178,11 +3178,13 @@ export class HomeslicePanel extends LitElement {
     for (const l of house.levels) walls.set(l.id, deriveWalls(l, house.walls, issues));
     const keep = this.renderer.orientation.fov ? { ...this.renderer.orientation } : null;
     const zoom = this.renderer.zoom;
-    this.renderer.setModel(house, walls, { focus: { azimuth: 200, elevation: 50, projection: "perspective" } });
     const index = house.levels.findIndex((l) => l.id === this._level);
+    // a roof level has nothing of its own to focus on: the whole house with its roof, what is being edited
+    const onRoof = house.levels[index]?.kind === "roof";
+    this.renderer.setModel(house, walls, { focus: { azimuth: 200, elevation: 50, projection: "perspective" }, ...(onRoof ? { roof: true } : {}) });
     // a selected section: the preview shows its cut, all floors
     const section = this._sectionSel !== null ? (house.sections[this._sectionSel] ?? null) : null;
-    void this.renderer.setFocus(section ? null : index >= 0 ? index : null, false);
+    void this.renderer.setFocus(section || onRoof ? null : index >= 0 ? index : null, false);
     void this.renderer.setSection(section, false);
     if (keep && this.previewTouched && !section) {
       this.renderer.orientation = keep;
@@ -5901,29 +5903,60 @@ export class HomeslicePanel extends LitElement {
   /** The roof part being edited on a roof level. */
   private _roofPart = 0;
 
-  /** A roof level's parts on the plan: their outline, the ridge, their name; a tap picks one. */
+  /**
+   * A roof level's parts on the plan, as a roof seen from above: a light fill in the
+   * covering's tone, the eaves (with the overhang, dashed), and the ridge and hip lines of
+   * its shape (a shed: its high edge and the fall); a tap picks one.
+   */
   private renderRoofParts(l: LevelInput, pts: (poly: Vec2[]) => string) {
     const { house } = expandHouse(this._model!);
     const parts = house?.levels.find((x) => x.id === l.id)?.roofs ?? [];
+    const SIDE: Record<Side, Vec2> = { north: [0, -1], south: [0, 1], east: [1, 0], west: [-1, 0] };
     return parts.map((part, i) => {
+      // the part's frame, as the 3D roof uses it: a along the ridge, c across
       const th = (part.angle * Math.PI) / 180;
       const d: Vec2 = [Math.cos(th), Math.sin(th)];
       const n: Vec2 = [-Math.sin(th), Math.cos(th)];
       const as = part.polygon.map((p) => p[0] * d[0] + p[1] * d[1]);
       const cs = part.polygon.map((p) => p[0] * n[0] + p[1] * n[1]);
-      const [a0, a1, c0, c1] = [Math.min(...as), Math.max(...as), Math.min(...cs), Math.max(...cs)];
+      const o = part.overhang;
+      const [a0, a1, c0, c1] = [Math.min(...as) - o, Math.max(...as) + o, Math.min(...cs) - o, Math.max(...cs) + o];
       const P = (a: number, c: number): Vec2 => [a * d[0] + c * n[0], a * d[1] + c * n[1]];
       const mid = (c0 + c1) / 2;
-      // the ridge: across a gable or hip roof's middle (a hip's shorter); a shed's high edge
-      const inset = part.shape === "hip" ? Math.min((c1 - c0) / 2, (a1 - a0) / 2) : 0;
-      const ridge = part.shape === "flat" ? null : part.shape === "shed" ? [P(a0, mid), P(a1, mid)] : [P(a0 + inset, mid), P(a1 - inset, mid)];
-      return svg`<g data-roof-part=${i} @pointerdown=${(e: PointerEvent) => {
+      const eave = [P(a0, c0), P(a1, c0), P(a1, c1), P(a0, c1)];
+      const lines: Vec2[][] = [];
+      const ridges: Vec2[][] = [];
+      let fall: Vec2[] | null = null;
+      if (part.shape === "gable") ridges.push([P(a0, mid), P(a1, mid)]);
+      else if (part.shape === "hip") {
+        const inset = Math.min((c1 - c0) / 2, (a1 - a0) / 2);
+        const [r0, r1] = [P(a0 + inset, mid), P(a1 - inset, mid)];
+        ridges.push([r0, r1]);
+        lines.push([P(a0, c0), r0], [P(a0, c1), r0], [P(a1, c0), r1], [P(a1, c1), r1]);
+      } else if (part.shape === "shed") {
+        const highFar = SIDE[part.high][0] * n[0] + SIDE[part.high][1] * n[1] >= 0;
+        const [hi, lo] = highFar ? [c1, c0] : [c0, c1];
+        ridges.push([P(a0, hi), P(a1, hi)]);
+        const am = (a0 + a1) / 2;
+        fall = [P(am, hi + (lo - hi) * 0.2), P(am, hi + (lo - hi) * 0.8)];
+      } else {
+        // flat: the parapet's inner edge
+        const k = Math.min(0.25, (a1 - a0) / 4, (c1 - c0) / 4);
+        lines.push([P(a0 + o + k, c0 + o + k), P(a1 - o - k, c0 + o + k), P(a1 - o - k, c1 - o - k), P(a0 + o + k, c1 - o - k), P(a0 + o + k, c0 + o + k)]);
+      }
+      // the covering's tone, lightened (a plan symbol, not the tiles themselves)
+      const tone = FINISHES_BY_ID[part.finish]?.color ?? "#9e9890";
+      const color = `rgb(${[1, 3, 5].map((k) => Math.round(parseInt(tone.slice(k, k + 2), 16) * 0.45 + 255 * 0.55)).join(", ")})`;
+      return svg`<g data-roof-part=${i} class="roof-symbol" @pointerdown=${(e: PointerEvent) => {
         e.stopPropagation();
         this._roofPart = i;
         this._room = null;
       }}>
-        <polygon class="roof-part ${i === this._roofPart ? "selected" : ""}" points=${pts(part.polygon)}></polygon>
-        ${ridge ? svg`<polyline class="roof-ridge" points=${pts(ridge)}></polyline>` : nothing}
+        <polygon class="roof-part ${i === this._roofPart ? "selected" : ""}" style=${`fill:${color}`} points=${pts(part.polygon)}></polygon>
+        ${o > 0 ? svg`<polygon class="roof-eave" points=${pts(eave)}></polygon>` : nothing}
+        ${lines.map((x) => svg`<polyline class="roof-line" points=${pts(x)}></polyline>`)}
+        ${ridges.map((x) => svg`<polyline class="roof-ridge" points=${pts(x)}></polyline>`)}
+        ${fall ? svg`<polyline class="roof-fall" marker-end="url(#arrow)" points=${pts(fall)}></polyline>` : nothing}
       </g>`;
     });
   }
@@ -8351,6 +8384,41 @@ export class HomeslicePanel extends LitElement {
     .ghost-outline.above {
       stroke: var(--accent-color, #ff9800);
       opacity: 0.8;
+    }
+    /* a roof part on the plan: seen from above, light, its lines on top */
+    .roof-part {
+      fill-opacity: 0.9;
+      stroke: #6b625b;
+      stroke-width: 1.5;
+      cursor: pointer;
+    }
+    .roof-part.selected {
+      stroke: var(--accent);
+      stroke-width: 2.5;
+    }
+    .roof-eave {
+      fill: none;
+      stroke: #6b625b;
+      stroke-width: 1;
+      stroke-dasharray: 5 4;
+      pointer-events: none;
+    }
+    .roof-line,
+    .roof-ridge,
+    .roof-fall {
+      fill: none;
+      stroke: #5a524c;
+      stroke-linecap: round;
+      pointer-events: none;
+    }
+    .roof-line {
+      stroke-width: 1.2;
+    }
+    .roof-ridge {
+      stroke-width: 2.2;
+    }
+    .roof-fall {
+      stroke-width: 1.2;
     }
     .ghost {
       fill: none;
