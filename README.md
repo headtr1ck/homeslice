@@ -93,6 +93,10 @@ unpack it into `<config>/custom_components/homeslice/` and restart Home Assistan
 4. Add a **Homeslice** card to a dashboard, turn the preview to the angle you like and pick
    a look.
 
+Short clips of the editor's main gestures (rooms and corners, doors and windows, furniture,
+floors and stairs, a balcony and the roof, linking a lamp):
+[Getting around the editor](docs/editor.md#getting-around-the-editor).
+
 ## House format at a glance
 
 A whole house can be this short; the editor writes the same format.

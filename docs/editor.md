@@ -8,6 +8,7 @@ view for exact placing, and a live 3D preview.
 ![The editor: the plan of the ground floor, the 3D preview and the living room's finishes](images/editor.jpg)
 
 - [Start a house](#start-a-house)
+- [Getting around the editor](#getting-around-the-editor)
 - [1. Rooms & walls](#1-rooms--walls)
 - [2. Doors & windows](#2-doors--windows)
 - [3. Objects & entities](#3-objects--entities)
@@ -36,6 +37,34 @@ the header) searches every tool, setting, floor and room.
 New to it? The first time, the editor offers a short guided tour: six things to do (pick a
 floor, draw a room, reshape it, a door or window, furniture, save), each ticked off when done.
 `?` restarts it.
+
+## Getting around the editor
+
+The main gestures, each in a few seconds (on the demo house).
+
+Draw a room with the room tool (`R`); double-click a wall for a new corner and drag it out.
+
+![Drawing a room in the garden, then a corner added on its wall and dragged out](images/clips/room.webp)
+
+Doors & windows (`D`): pick one in the library, then click a wall.
+
+![A window put on the kitchen wall and a door on the garage wall from the doors & windows library](images/clips/openings.webp)
+
+Furniture (`F`): search the library, drag a piece onto a room; `R` turns it.
+
+![A sun lounger found in the library, dragged into the garden and turned](images/clips/furniture.webp)
+
+**+ Level** adds a floor (it can start from the one below); the stairs tool (`S`) draws the stairs up to it.
+
+![A new floor added on top and started from the first floor, then stairs drawn up to it](images/clips/floors.webp)
+
+A balcony: the balcony tool (`B`) on an upper floor, outside the house (it gets a railing); **+ Roof** adds the roof.
+
+![A balcony drawn outside the first floor, then the roof level added with a ready-made roof](images/clips/balcony.webp)
+
+Link a lamp to its light in the inspector; on the card it lights up with it.
+
+![The floor lamp linked to the reading lamp in the editor; on the card a tap turns it on](images/clips/lamp.webp)
 
 ## 1. Rooms & walls
 

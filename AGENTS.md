@@ -34,6 +34,7 @@ node scripts/thumbnails.mjs   # after changing furniture: library pictures
 node scripts/catalog.mjs      # after changing types, kinds, models: custom_components/homeslice/catalog.json
 UPDATE_CASES=1 npx vitest run frontend/model/validation.test.ts   # after changing a rule
 npm run showcase         # the README's pictures (docs/images/): after changing how things look
+node scripts/clips.mjs   # after a build: the editor guide's clips (docs/images/clips/); names to make only some
 ```
 
 ## Rules
