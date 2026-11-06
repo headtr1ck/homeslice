@@ -87,14 +87,20 @@ export function random(seed: number) {
 // ----- building blocks -----
 
 const textured = (m: THREE.Material) => !!(m as THREE.MeshStandardMaterial).map;
+/** A wood surface: its grain (the texture's u) runs along a board's length. */
+const grained = (m: THREE.Material) => !!m.userData.grain;
 
 /**
- * Texture coordinates in metres for a shape made without them (a loft, a bent sheet):
- * each triangle takes the plane it faces most, like a box's sides.
+ * Texture coordinates in metres for a shape made without them (a loft, a bent sheet) or a
+ * box: each triangle takes the plane it faces most, like a box's sides. `grain`: wood, whose
+ * grain turns to run along the longest side of the shape in that plane (an upright slat's
+ * grain runs up it); otherwise the texture lies level (brick courses, tiles).
  */
-export function projectedUVs(geo: THREE.BufferGeometry): THREE.BufferGeometry {
+export function projectedUVs(geo: THREE.BufferGeometry, grain = false): THREE.BufferGeometry {
   const g = geo.index ? geo.toNonIndexed() : geo;
   const pos = g.attributes.position;
+  g.computeBoundingBox();
+  const size = g.boundingBox!.getSize(new THREE.Vector3());
   const uv = new Float32Array(pos.count * 2);
   const a = new THREE.Vector3();
   const e1 = new THREE.Vector3();
@@ -107,9 +113,9 @@ export function projectedUVs(geo: THREE.BufferGeometry): THREE.BufferGeometry {
     const [ax, ay, az] = [Math.abs(n.x), Math.abs(n.y), Math.abs(n.z)];
     for (let k = 3 * t; k < 3 * t + 3; k++) {
       const [x, y, z] = [pos.getX(k), pos.getY(k), pos.getZ(k)];
-      if (ay >= ax && ay >= az) uv.set([x, z], 2 * k);
-      else if (ax >= az) uv.set([z, y], 2 * k);
-      else uv.set([x, y], 2 * k);
+      if (ay >= ax && ay >= az) uv.set(grain && size.z > size.x ? [z, x] : [x, z], 2 * k);
+      else if (ax >= az) uv.set(grain && size.y > size.z ? [y, z] : [z, y], 2 * k);
+      else uv.set(grain && size.y > size.x ? [y, x] : [x, y], 2 * k);
     }
   }
   g.setAttribute("uv", new THREE.BufferAttribute(uv, 2));
@@ -127,7 +133,8 @@ export class Builder {
   constructor(readonly options: Record<string, string> = {}) {}
 
   add(geo: THREE.BufferGeometry, m: THREE.Material, x = 0, y = 0, z = 0) {
-    if (textured(m) && !geo.attributes.uv) geo = projectedUVs(geo);
+    // textures in metres; a box's own coordinates would stretch one texture over each side
+    if (textured(m) && (!geo.attributes.uv || geo instanceof THREE.BoxGeometry)) geo = projectedUVs(geo, grained(m));
     const mesh = new THREE.Mesh(geo, m);
     mesh.position.set(x, y, z);
     this.into.add(mesh);
@@ -205,7 +212,7 @@ export class Builder {
     // only positions and normals (and, under a texture, coordinates made alike): every batch merges
     for (const name of Object.keys(g.attributes)) if (name !== "position" && name !== "normal") g.deleteAttribute(name);
     if (!g.attributes.normal) g.computeVertexNormals();
-    if (textured(m)) projectedUVs(g);
+    if (textured(m)) projectedUVs(g, grained(m));
     let list = this.batches.get(m);
     if (!list) this.batches.set(m, (list = []));
     list.push(g);
@@ -1536,6 +1543,7 @@ export function surface(color: string, roughness: number): THREE.MeshStandardMat
   if (!m) {
     const look = finishLook(shared);
     surfaces.set(key, (m = look.map ? new THREE.MeshStandardMaterial({ map: look.map, roughness }) : mat(FINISHES[color], { roughness })));
+    if (look.map && shared.startsWith("veneer")) m.userData.grain = true;
   }
   return m;
 }
